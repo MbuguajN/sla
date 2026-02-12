@@ -1,0 +1,117 @@
+import React from 'react'
+import prisma from '@/lib/db'
+import { auth } from '@/auth'
+import { redirect, notFound } from 'next/navigation'
+import DepartmentQueueClient from '@/components/DepartmentQueueClient'
+import Link from 'next/link'
+import { ShieldCheck } from 'lucide-react'
+
+export default async function DepartmentQueuePage({ params }: { params: { name: string } }) {
+  const session = await auth()
+  const user = session?.user as any
+  
+  if (!user) redirect('/login')
+
+  const deptName = decodeURIComponent(params.name).toUpperCase()
+  
+  // Fetch department
+  const department = await prisma.department.findUnique({
+    where: { name: deptName },
+    include: {
+      head: true,
+      users: { 
+        select: { 
+          id: true,
+          name: true,
+          email: true
+        } 
+      }
+    }
+  }) as any
+
+  if (!department) return notFound()
+
+  // --- Role & Visibility Check ---
+  const isSuperAdmin = user.role === 'SUPER_ADMIN'
+  const isAdmin = user.role === 'ADMIN'
+  const isManager = user.role === 'MANAGER'
+  const isDeptHead = department.headId === Number(user.id)
+  const isDeptMember = user.departmentId === department.id
+
+  // Access Rule: 
+  // 1. Super Admins/Admins/Managers have access (Blind oversight for Managers applies in UI)
+  // 2. Dept Head has access
+  // 3. Dept Members have access
+  // 4. Watchers have access only to specific tasks (handled by filter, but page access generally restricted)
+  
+  // If user has NO relationship to this department, check if they are watching any task here
+  // Ideally, we redirect unauthorized users. 
+  // For simplicity: If not Admin/Manager/Head/Member, we act restrictive unless we find watched tasks.
+  
+  const hasGeneralAccess = isSuperAdmin || isAdmin || isManager || isDeptHead || isDeptMember
+
+  // Fetch tasks for this department
+  // We need all tasks assigned to users in this department OR tasks where the department is relevant?
+  // Usually "Department Queue" means tasks assigned to members of this department.
+  
+  const deptUserIds = department.users.map((u: any) => u.id)
+  
+  const tasks = await prisma.task.findMany({
+    where: {
+      assigneeId: { in: deptUserIds }
+    },
+    include: {
+      sla: true,
+      assignee: true,
+      messages: {
+        orderBy: { createdAt: 'desc' },
+        take: 1
+      },
+      watchers: true
+    },
+    orderBy: { dueAt: 'asc' } // Base sort, refined in client
+  })
+
+  // Narrow down for "Watchers" who are not members/admins
+  // If no general access, filter tasks to ONLY those they watch. 
+  // If count is 0, redirect.
+  let visibleTasks = tasks
+  
+  if (!hasGeneralAccess) {
+    visibleTasks = tasks.filter(t => t.watchers.some(w => w.userId === Number(user.id)))
+    
+    if (visibleTasks.length === 0) {
+      return (
+        <div className="p-10 flex flex-col items-center justify-center gap-4 text-center animate-in fade-in">
+          <div className="w-16 h-16 bg-error/10 text-error rounded-2xl flex items-center justify-center">
+            <ShieldCheck className="w-8 h-8" />
+          </div>
+          <div>
+             <h1 className="text-2xl font-black uppercase tracking-tight">Restricted Access</h1>
+             <p className="text-base-content/60 font-medium">You are not authorized to view the <strong>{deptName}</strong> queue.</p>
+          </div>
+          <div className="text-xs font-mono bg-base-200 p-4 rounded-lg text-left space-y-1">
+            <p>User ID: {user.id}</p>
+            <p>Role: {user.role}</p>
+            <p>Your Dept ID: {user.departmentId || 'None'}</p>
+            <p>Target Dept ID: {department.id}</p>
+            <p>Is Head: {isDeptHead ? 'Yes' : 'No'}</p>
+            <p>Is Member: {isDeptMember ? 'Yes' : 'No'}</p>
+          </div>
+          <Link href="/" className="btn btn-primary mt-4">Return to Dashboard</Link>
+        </div>
+      )
+    }
+  }
+
+  return (
+    <DepartmentQueueClient 
+      departmentName={department.name}
+      currentUser={user}
+      tasks={visibleTasks}
+      isManager={isManager}
+      isDeptHead={isDeptHead}
+      members={department.users}
+    />
+  )
+}

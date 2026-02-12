@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Nexus Gmail Sync every 60 seconds
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=60s
+Unit=nexus-sync.service
+
+[Install]
+WantedBy=timers.target

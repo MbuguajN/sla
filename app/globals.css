@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    outline-color: #D92644 !important;
+    font-weight: 500;
+    /* Heavier base weight */
+  }
+
+  :focus-visible {
+    outline: 2px solid #D92644 !important;
+    outline-offset: 2px;
+  }
+
+  /* HIGHER CONTRAST for better visibility */
+  .text-base-content-muted {
+    opacity: 1 !important;
+    font-weight: 600;
+    color: #000000;
+  }
+
+  .tracking-widest {
+    letter-spacing: 0.15em;
+  }
+
+  ::selection {
+    background-color: #D92644;
+    color: white;
+  }
+
+  * {
+    accent-color: #D92644;
+  }
+
+  /* Reduced heading sizes to avoid crowding */
+  h1 {
+    @apply text-2xl font-bold;
+  }
+
+  h2 {
+    @apply text-xl font-bold;
+  }
+
+  h3 {
+    @apply text-lg font-semibold;
+  }
+
+  h4 {
+    @apply text-base font-semibold;
+  }
+
+  /* High-contrast colors for 5DM palette */
+  :root {
+    --primary-5dm: #D92644;
+  }
+
+  [data-theme='dark'] {
+    --base-100: #000000;
+  }
+
+  body {
+    @apply min-h-screen bg-base-100 text-base-content antialiased;
+    background-color: hsl(var(--b1));
+    color: #000000;
+    font-weight: 500;
+  }
+
+  /* Calendar specific improvements */
+  .rbc-calendar {
+    font-weight: 600 !important;
+    font-size: 14px;
+    color: #000000 !important;
+  }
+
+  .rbc-calendar *,
+  .rbc-calendar span,
+  .rbc-calendar div {
+    color: #000000 !important;
+  }
+
+  .rbc-event-content {
+    font-weight: 800 !important;
+    font-size: 12px;
+    color: #ffffff !important;
+    /* Keep events readable */
+  }
+}
+
+.sidebar-collapsed {
+  --sidebar-width: 5rem;
+}
+
+.sidebar-expanded {
+  --sidebar-width: 16rem;
+}
+
+/* Sidebar Layout Transitions */
+.drawer {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+.drawer-side {
+  @apply transition-all duration-300 ease-in-out overflow-visible !important;
+}
+
+.drawer-content {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Ensure the grid adapts on desktop */
+@media (min-width: 1024px) {
+  .drawer.sidebar-collapsed {
+    grid-template-columns: 5rem minmax(0, 1fr) !important;
+  }
+
+  .drawer.sidebar-expanded {
+    grid-template-columns: 16rem minmax(0, 1fr) !important;
+  }
+}

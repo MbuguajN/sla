@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  name             String?
+  email            String         @unique
+  role             Role           @default(EMPLOYEE)
+  departmentId     Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  password         String?
+  avatarUrl        String?
+  auditLogs        AuditLog[]
+  headedDepartment Department?    @relation("DepartmentHead")
+  messages         Message[]
+  notifications    Notification[]
+  stories          Story[]
+  assignedTasks    Task[]         @relation("AssignedTasks")
+  reportedTasks    Task[]         @relation("ReportedTasks")
+  department       Department?    @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  watchers         Watcher[]
+
+  @@index([departmentId])
+}
+
+model Department {
+  id     Int    @id @default(autoincrement())
+  name   String @unique
+  headId Int?   @unique
+  head   User?  @relation("DepartmentHead", fields: [headId], references: [id])
+  users  User[] @relation("DepartmentUsers")
+}
+
+model Sla {
+  id          Int     @id @default(autoincrement())
+  name        String
+  durationHrs Int
+  tier        SlaTier
+  tasks       Task[]
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+  tasks       Task[]
+}
+
+model Task {
+  id           Int        @id @default(autoincrement())
+  title        String
+  description  String?
+  status       TaskStatus @default(PENDING)
+  slaId        Int
+  assigneeId   Int?
+  departmentId Int?
+  isTicket     Boolean    @default(false)
+  gmailThreadId String?   @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  dueAt        DateTime?
+  completedAt  DateTime?
+  startedAt    DateTime?
+  parentTaskId Int?
+  pauseReason  String?
+  projectId    Int?
+  reporterId   Int?
+  senderEmail  String?
+  senderName   String?
+  auditLogs    AuditLog[]
+  messages     Message[]
+  attachments  Attachment[]
+  assignee     User?      @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  parentTask   Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks     Task[]     @relation("SubTasks")
+  project      Project?   @relation(fields: [projectId], references: [id])
+  reporter     User?      @relation("ReportedTasks", fields: [reporterId], references: [id])
+  sla          Sla        @relation(fields: [slaId], references: [id])
+  watchers     Watcher[]
+
+  @@index([status])
+  @@index([assigneeId])
+  @@index([projectId])
+  @@index([departmentId])
+  @@index([isTicket])
+  @@index([gmailThreadId])
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  name      String
+  url       String
+  size      Int
+  mimeType  String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id])
+
+  @@index([taskId])
+}
+
+model Watcher {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  taskId    Int
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, taskId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  taskId    Int?
+  authorId  Int
+  content   String
+  createdAt DateTime @default(now())
+  projectId Int?
+  author    User     @relation(fields: [authorId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id])
+  task      Task?    @relation(fields: [taskId], references: [id])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  content   String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+}
+
+model Story {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  imageUrl  String?
+  authorId  Int
+  createdAt DateTime @default(now())
+  author    User     @relation(fields: [authorId], references: [id])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  userId    Int
+  action    String
+  oldValue  String?
+  newValue  String?
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model SystemSettings {
+  id                Int       @id @default(autoincrement())
+  key               String    @unique
+  value             String
+  gmailClientId     String?
+  gmailClientSecret String?
+  gmailRefreshToken String?
+  monitoredEmail    String?
+  lastSyncAt        DateTime?
+}
+
+enum Role {
+  ADMIN
+  CLIENT_SERVICE
+  MANAGER
+  EMPLOYEE
+  SUPER_ADMIN
+  DEPT_HEAD
+}
+
+enum DepartmentName {
+  DESIGN
+  TECH
+  MEDIA
+  CONTENT
+  CLIENT_SERVICE
+}
+
+enum TaskStatus {
+  PENDING
+  RECEIVED
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+  AWAITING_INFO
+  DISMISSED
+}
+
+enum SlaTier {
+  URGENT
+  STANDARD
+  LOW
+}
