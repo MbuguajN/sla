@@ -3,7 +3,7 @@
 import React, { useOptimistic, useTransition } from 'react'
 import { TaskStatus } from '@prisma/client'
 import { advanceTaskStatus } from '@/app/actions/taskActions'
-import { CheckCircle, Play, Send, CheckCircle2, Loader2, AlertCircle } from 'lucide-react'
+import { CheckCircle, Play, Send, CheckCircle2, Loader2, AlertCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type StatusConfig = {
@@ -49,6 +49,12 @@ const STATUS_MAP: Record<TaskStatus, StatusConfig> = {
     icon: Play,
     color: 'btn-info',
     next: TaskStatus.IN_PROGRESS
+  },
+  [TaskStatus.DISMISSED]: {
+    label: 'Dismissed',
+    icon: XCircle,
+    color: 'btn-error',
+    next: null
   }
 }
 
