@@ -26,7 +26,9 @@ RUN npm run build
 FROM node:20-bullseye-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
+COPY prisma ./prisma/
 RUN npm ci --only=production
+RUN npx prisma generate
 
 # Stage 4: Runner
 FROM node:20-bullseye-slim AS runner
