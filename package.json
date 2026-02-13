@@ -41,5 +41,8 @@
     "react-big-calendar": "^1.19.4",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^3.4.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
