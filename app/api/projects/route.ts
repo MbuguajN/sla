@@ -5,22 +5,47 @@ import { auth } from '@/auth'
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(session.user.id) },
+      include: { department: true }
+    })
+
+    if (user?.department?.name !== 'BUSINESS_DEVELOPMENT') {
+      return NextResponse.json({ error: 'Forbidden: Only Business Development can initialize projects' }, { status: 403 })
+    }
+
     const body = await req.json()
-    const { title, description } = body
+    const { title, description, slaName, slaDurationHrs, slaTier } = body
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
-    const project = await prisma.project.create({
-      data: {
-        title,
-        description: description || null
+    const project = await prisma.$transaction(async (tx) => {
+      // 1. Create the SLA if details are provided
+      let sla = null
+      if (slaName && slaDurationHrs) {
+        sla = await tx.sla.create({
+          data: {
+            name: slaName,
+            durationHrs: parseInt(slaDurationHrs),
+            tier: slaTier || 'STANDARD'
+          }
+        })
       }
+
+      // 2. Create the project linked to the SLA
+      return await tx.project.create({
+        data: {
+          title,
+          description: description || null,
+          defaultSlaId: sla?.id || null
+        }
+      })
     })
 
     return NextResponse.json(project, { status: 201 })

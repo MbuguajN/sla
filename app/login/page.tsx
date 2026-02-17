@@ -58,10 +58,10 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
-                  <input 
+                  <input
                     required
-                    type="email" 
-                    placeholder="name@company.com" 
+                    type="email"
+                    placeholder="name@company.com"
                     className="input input-bordered w-full pl-12 focus:border-primary transition-all font-medium"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -75,10 +75,10 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
-                  <input 
+                  <input
                     required
-                    type="password" 
-                    placeholder="••••••••" 
+                    type="password"
+                    placeholder="••••••••"
                     className="input input-bordered w-full pl-12 focus:border-primary transition-all"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -93,13 +93,13 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="btn btn-primary btn-block shadow-lg shadow-primary/20 gap-3"
                 disabled={loading}
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {loading ? 'Authenticating...' : 'Enter Nexus Shell'}
+                {loading ? 'Authenticating...' : 'Enter 5DM Hub'}
               </button>
             </form>
 

@@ -7,7 +7,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10)
 
   // Create Departments
-  const departments = ['TECH', 'DESIGN', 'MEDIA', 'CONTENT', 'CLIENT_SERVICE']
+  const departments = ['TECHNOLOGY', 'CREATIVE', 'MEDIA', 'CONTENT', 'CLIENT_SERVICE', 'CEO', 'BUSINESS_DEVELOPMENT', 'HR', 'ACCOUNTS']
   for (const name of departments) {
     await prisma.department.upsert({
       where: { name },
@@ -16,7 +16,7 @@ async function main() {
     })
   }
 
-  const techDept = await prisma.department.findUnique({ where: { name: 'TECH' } })
+  const techDept = await prisma.department.findUnique({ where: { name: 'TECHNOLOGY' } })
 
   // Create Admin
   await prisma.user.upsert({
@@ -49,11 +49,8 @@ async function main() {
     where: { email: 'manager@nexus.com' },
     update: { password: hashedPassword },
     create: {
-      email: 'manager@nexus.com',
-      name: 'Sarah Manager',
-      password: hashedPassword,
       role: 'MANAGER',
-      departmentId: (await prisma.department.findUnique({ where: { name: 'DESIGN' } })).id
+      departmentId: (await prisma.department.findUnique({ where: { name: 'CREATIVE' } })).id
     }
   })
 
@@ -66,7 +63,7 @@ async function main() {
       name: 'Alex Developer',
       password: hashedPassword,
       role: 'EMPLOYEE',
-      departmentId: (await prisma.department.findUnique({ where: { name: 'TECH' } })).id
+      departmentId: (await prisma.department.findUnique({ where: { name: 'TECHNOLOGY' } })).id
     }
   })
 

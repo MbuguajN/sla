@@ -9,6 +9,7 @@ type Notification = {
   id: number
   content: string
   type: string
+  link?: string
   isRead: boolean
   createdAt: Date
 }
@@ -26,12 +27,12 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-cache' }
       })
-      
+
       if (!res.ok) {
         console.error('🔔 Failed to fetch notifications:', res.status)
         return
       }
-      
+
       const data = await res.json()
       setNotifications(data)
       console.log(`🔔 Fetched ${data.length} notifications`)
@@ -43,25 +44,29 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
   // Initial fetch and polling
   useEffect(() => {
     fetchNotifications()
-    
+
     // Poll every 30 seconds for new notifications
     const interval = setInterval(fetchNotifications, POLLING_INTERVAL)
-    
+
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
   // Mark notification as read when clicking on it
-  const markAsRead = async (notificationId: number) => {
+  const markAsRead = async (notificationId: number, link?: string) => {
     try {
       await fetch('/api/notifications', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificationId })
       })
-      
-      setNotifications(prev => 
+
+      setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
       )
+
+      if (link) {
+        window.location.href = link
+      }
     } catch (error) {
       console.error('Failed to mark as read:', error)
     }
@@ -75,7 +80,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ markAllRead: true })
       })
-      
+
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
     } catch (error) {
       console.error('Failed to mark all as read:', error)
@@ -97,23 +102,23 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
   const getIcon = (type: string) => {
     switch (type) {
       case 'TASK_ASSIGNED':
-      case 'ASSIGNMENT': 
+      case 'ASSIGNMENT':
         return <UserPlus className="w-4 h-4 text-primary" />
       case 'WATCHER':
-      case 'AUTO_WATCHER': 
+      case 'AUTO_WATCHER':
         return <Eye className="w-4 h-4 text-info" />
       case 'BREACH_ALERT':
-      case 'PAUSE_ALERT': 
+      case 'PAUSE_ALERT':
         return <AlertTriangle className="w-4 h-4 text-error" />
       case 'COMMENT':
       case 'MESSAGE_RECEIVED':
-      case 'DEPT_MESSAGE': 
+      case 'DEPT_MESSAGE':
         return <MessageSquare className="w-4 h-4 text-secondary" />
-      case 'STATUS_REVIEW': 
+      case 'STATUS_REVIEW':
         return <CheckCircle2 className="w-4 h-4 text-success" />
-      case 'PROJECT_ADDED': 
+      case 'PROJECT_ADDED':
         return <Play className="w-4 h-4 text-accent" />
-      default: 
+      default:
         return <Bell className="w-4 h-4" />
     }
   }
@@ -131,7 +136,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
           )}
         </div>
       </button>
-      
+
       {open && (
         <ul className="mt-3 z-[1] p-0 shadow-2xl menu menu-sm dropdown-content bg-base-100 rounded-box w-80 border border-base-200 overflow-hidden divide-y divide-base-200 animate-in fade-in zoom-in-95">
           <li className="px-6 py-4 bg-base-200/50 flex flex-row justify-between items-center hover:bg-base-200/50">
@@ -140,7 +145,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
               {unreadCount > 0 && (
                 <>
                   <span className="badge badge-primary font-bold text-[10px]">{unreadCount} New</span>
-                  <button 
+                  <button
                     onClick={markAllAsRead}
                     className="btn btn-ghost btn-xs text-[9px]"
                     title="Mark all as read"
@@ -151,50 +156,50 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
               )}
             </div>
           </li>
-          
+
           <div className="max-h-[400px] overflow-y-auto">
-             {notifications.length === 0 ? (
-               <div className="flex flex-col items-center justify-center py-12 opacity-30 gap-2">
-                 <Bell className="w-8 h-8" />
-                 <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Intel</span>
-               </div>
-             ) : (
-               notifications.map(n => (
-                 <li 
-                   key={n.id} 
-                   className={cn(
-                     "hover:bg-primary/5 transition-colors cursor-pointer", 
-                     !n.isRead && "bg-primary/5"
-                   )}
-                   onClick={() => !n.isRead && markAsRead(n.id)}
-                 >
-                    <div className="p-4 flex gap-4">
-                       <div className="shrink-0 w-8 h-8 rounded-lg bg-base-200 flex items-center justify-center border border-base-300">
-                          {getIcon(n.type)}
-                       </div>
-                       <div className="flex flex-col gap-1 overflow-hidden">
-                          <p className="text-xs font-bold leading-relaxed text-base-content break-words">
-                            {n.content}
-                          </p>
-                          <span className="text-[9px] font-black uppercase opacity-40">
-                            {formatDistanceToNow(new Date(n.createdAt))} ago
-                          </span>
-                       </div>
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 opacity-30 gap-2">
+                <Bell className="w-8 h-8" />
+                <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Intel</span>
+              </div>
+            ) : (
+              notifications.map(n => (
+                <li
+                  key={n.id}
+                  className={cn(
+                    "hover:bg-primary/5 transition-colors cursor-pointer",
+                    !n.isRead && "bg-primary/5"
+                  )}
+                  onClick={() => !n.isRead && markAsRead(n.id)}
+                >
+                  <div className="p-4 flex gap-4">
+                    <div className="shrink-0 w-8 h-8 rounded-lg bg-base-200 flex items-center justify-center border border-base-300">
+                      {getIcon(n.type)}
                     </div>
-                 </li>
-               ))
-             )}
+                    <div className="flex flex-col gap-1 overflow-hidden">
+                      <p className="text-xs font-bold leading-relaxed text-base-content break-words">
+                        {n.content}
+                      </p>
+                      <span className="text-[9px] font-black uppercase opacity-40">
+                        {formatDistanceToNow(new Date(n.createdAt))} ago
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              ))
+            )}
           </div>
 
           {notifications.length > 0 && (
             <li className="p-2 flex items-center justify-center bg-base-200/20">
-               <button 
-                 onClick={purgeAll}
-                 className="btn btn-ghost btn-xs w-full text-[10px] font-black uppercase tracking-widest hover:bg-error/10 hover:text-error"
-               >
-                  <Trash2 className="w-3 h-3 mr-1" />
-                  Purge All Notifications
-               </button>
+              <button
+                onClick={purgeAll}
+                className="btn btn-ghost btn-xs w-full text-[10px] font-black uppercase tracking-widest hover:bg-error/10 hover:text-error"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Purge All Notifications
+              </button>
             </li>
           )}
         </ul>

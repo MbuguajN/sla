@@ -3,18 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
   id               Int            @id @default(autoincrement())
   name             String?
   email            String         @unique
-  role             Role           @default(EMPLOYEE)
+  role             String         @default("EMPLOYEE")
   departmentId     Int?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+  lastActiveAt     DateTime       @default(now())
   password         String?
   avatarUrl        String?
   auditLogs        AuditLog[]
@@ -42,8 +43,9 @@ model Sla {
   id          Int     @id @default(autoincrement())
   name        String
   durationHrs Int
-  tier        SlaTier
+  tier        String
   tasks       Task[]
+  projectDefaults Project[] @relation("ProjectDefaultSla")
 }
 
 model Project {
@@ -52,20 +54,22 @@ model Project {
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  defaultSlaId Int?     // Default SLA for tasks in this project
   messages    Message[]
   tasks       Task[]
+  defaultSla  Sla?      @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
 }
 
 model Task {
   id           Int        @id @default(autoincrement())
   title        String
   description  String?
-  status       TaskStatus @default(PENDING)
-  slaId        Int
+  status       String     @default("PENDING")
+  slaId        Int?       // Now optional if inherited from project
   assigneeId   Int?
   departmentId Int?
   isTicket     Boolean    @default(false)
-  gmailThreadId String?   @unique
+
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
   dueAt        DateTime?
@@ -85,7 +89,7 @@ model Task {
   subTasks     Task[]     @relation("SubTasks")
   project      Project?   @relation(fields: [projectId], references: [id])
   reporter     User?      @relation("ReportedTasks", fields: [reporterId], references: [id])
-  sla          Sla        @relation(fields: [slaId], references: [id])
+  sla          Sla?       @relation(fields: [slaId], references: [id])
   watchers     Watcher[]
 
   @@index([status])
@@ -93,7 +97,7 @@ model Task {
   @@index([projectId])
   @@index([departmentId])
   @@index([isTicket])
-  @@index([gmailThreadId])
+
 }
 
 model Attachment {
@@ -137,6 +141,7 @@ model Notification {
   userId    Int
   content   String
   type      String
+  link      String?
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
@@ -170,42 +175,37 @@ model SystemSettings {
   id                Int       @id @default(autoincrement())
   key               String    @unique
   value             String
-  gmailClientId     String?
-  gmailClientSecret String?
-  gmailRefreshToken String?
-  monitoredEmail    String?
-  lastSyncAt        DateTime?
 }
 
-enum Role {
-  ADMIN
-  CLIENT_SERVICE
-  MANAGER
-  EMPLOYEE
-  SUPER_ADMIN
-  DEPT_HEAD
-}
+// enum Role {
+//   ADMIN
+//   CLIENT_SERVICE
+//   MANAGER
+//   EMPLOYEE
+//   SUPER_ADMIN
+//   DEPT_HEAD
+// }
 
-enum DepartmentName {
-  DESIGN
-  TECH
-  MEDIA
-  CONTENT
-  CLIENT_SERVICE
-}
+// enum DepartmentName {
+//   DESIGN
+//   TECH
+//   MEDIA
+//   CONTENT
+//   CLIENT_SERVICE
+// }
 
-enum TaskStatus {
-  PENDING
-  RECEIVED
-  IN_PROGRESS
-  REVIEW
-  COMPLETED
-  AWAITING_INFO
-  DISMISSED
-}
+// enum TaskStatus {
+//   PENDING
+//   RECEIVED
+//   IN_PROGRESS
+//   REVIEW
+//   COMPLETED
+//   AWAITING_INFO
+//   DISMISSED
+// }
 
-enum SlaTier {
-  URGENT
-  STANDARD
-  LOW
-}
+// enum SlaTier {
+//   URGENT
+//   STANDARD
+//   LOW
+// }

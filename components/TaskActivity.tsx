@@ -2,11 +2,11 @@
 
 import React from 'react'
 import { format } from 'date-fns'
-import { 
-  Activity, 
-  History, 
-  MessageSquare, 
-  PlusCircle, 
+import {
+  Activity,
+  History,
+  MessageSquare,
+  PlusCircle,
   ArrowRightLeft,
   User as UserIcon
 } from 'lucide-react'
@@ -53,7 +53,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
         <History className="w-5 h-5 text-primary" />
         <h3 className="text-sm font-black uppercase tracking-widest text-base-content">Operational History</h3>
       </div>
-      
+
       <div className="p-0">
         <div className="overflow-x-auto">
           <table className="table table-md w-full border-collapse">
@@ -73,7 +73,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                       <div className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
                         <UserIcon className="w-3 h-3 text-primary" />
                       </div>
-                      <span className="text-xs font-bold">{log.user.name || 'Nexus Core'}</span>
+                      <span className="text-xs font-bold">{log.user.name || '5DM System'}</span>
                     </div>
                   </td>
                   <td>

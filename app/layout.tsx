@@ -1,20 +1,18 @@
-
 import './globals.css'
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Outfit } from "next/font/google";
+import { ThemeProvider } from '@/components/ThemeProvider'
 
-const inter = Inter({
+const outfit = Outfit({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-outfit",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Nexus Shell - SLA Management",
+  title: "5DM Operations - SLA Management",
   description: "Enterprise SLA Management System",
 };
-
-import { ThemeProvider } from '@/components/ThemeProvider'
 
 export default function RootLayout({
   children,
@@ -23,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased text-base-content min-h-screen`}>
+      <body className={`${outfit.className} antialiased text-base-content min-h-screen`}>
         <ThemeProvider>
           {children}
         </ThemeProvider>

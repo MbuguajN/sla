@@ -3,7 +3,6 @@
 import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
-import { Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 // Middleware to check for Admin access
@@ -19,9 +18,9 @@ async function checkAdmin() {
 
 export async function createUser(data: any) {
   await checkAdmin()
-  
+
   const hashedPassword = await bcrypt.hash(data.password, 10)
-  
+
   const user = await prisma.user.create({
     data: {
       name: data.name,
@@ -31,7 +30,7 @@ export async function createUser(data: any) {
       departmentId: Number(data.departmentId) || null
     } as any
   })
-  
+
   revalidatePath('/admin/users')
   return user
 }
@@ -62,7 +61,7 @@ export async function updateUser(userId: number, data: any) {
 
 export async function deleteUser(userId: number) {
   await checkAdmin()
-  
+
   await prisma.user.delete({ where: { id: userId } })
   revalidatePath('/admin/users')
 }
@@ -94,11 +93,11 @@ export async function deleteDepartment(id: number) {
       // 2. Clear headId on the department itself (best effort to break loop)
       try {
         await tx.department.update({
-             where: { id },
-             data: { headId: null } as any
+          where: { id },
+          data: { headId: null } as any
         })
       } catch (e) {
-         // Proceed given deletion is the goal
+        // Proceed given deletion is the goal
       }
 
       // 3. Delete the department
@@ -122,10 +121,10 @@ export async function assignDepartmentHead(departmentId: number, userId: number)
     data: { headId: userId } as any
   })
 
-  // 2. Ensure the user has the DEPT_HEAD role
+  // 2. Ensure the user has the MANAGER role
   await prisma.user.update({
     where: { id: userId },
-    data: { role: 'DEPT_HEAD' as any }
+    data: { role: 'MANAGER' as any }
   })
 
   revalidatePath('/admin/departments')

@@ -1,7 +1,7 @@
 'use server'
 import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
-import { TaskStatus, Role } from '@prisma/client'
+import { TaskStatus } from '@/lib/enums'
 import { auth } from '@/auth'
 import { createNotification as createSystemNotification, notifyDepartmentHead, NotificationType } from '@/lib/notifications'
 
@@ -10,80 +10,12 @@ async function createAuditLog(taskId: number, userId: number, action: string, ol
     data: { taskId, userId, action, oldValue, newValue }
   })
 }
+
 async function notifyWatchers(taskId: number, content: string, type: string) {
   const watchers = await prisma.watcher.findMany({
     where: { taskId }
   })
   return Promise.all(watchers.map(w => createSystemNotification(w.userId, content, type as NotificationType)))
-}
-
-export async function createTask(formData: {
-  title: string
-  description?: string
-  slaId?: number
-  assigneeId?: number
-  projectId?: number
-  watcherIds: number[]
-  dueAt: Date
-}) {
-  const session = await auth()
-  const operatorId = Number(session?.user?.id)
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
-  
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-  const isDeptMember = !!(session?.user as any)?.departmentId || role === 'DEPT_HEAD'
-  
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS && !isDeptMember) {
-    throw new Error('Unauthorized operational clearance')
-  }
-
-  const task = await prisma.task.create({
-    data: {
-      title: formData.title,
-      description: formData.description,
-      status: TaskStatus.PENDING,
-      slaId: formData.slaId || 1, // Fallback to STANDARD or similar if not provided
-      assigneeId: formData.assigneeId,
-      projectId: formData.projectId,
-      reporterId: operatorId, // Current user is the reporter
-      dueAt: formData.dueAt,
-      watchers: {
-        create: formData.watcherIds.map(userId => ({ userId }))
-      }
-    }
-  })
-
-  // RECORD AUDIT
-  await createAuditLog(task.id, operatorId, 'TASK_CREATED', undefined, task.title)
-  
-  // TRIGGER NOTIFICATIONS
-  if (formData.assigneeId) {
-    await createSystemNotification(formData.assigneeId, `New Directive: ${formData.title}`, 'TASK_ASSIGNED')
-    // Auto-watcher for Dept Head happens on assignment
-    await performAutoWatcherLogic(task.id, formData.assigneeId)
-  }
-  for (const wId of formData.watcherIds) {
-    await createSystemNotification(wId, `Assigned as Watcher: ${formData.title}`, 'TASK_ASSIGNED')
-  }
-
-  if (formData.projectId) {
-    // Notify anyone associated with the project (simulated for now by notifying all project task assignees)
-    const projectPeople = await prisma.task.findMany({
-      where: { projectId: formData.projectId },
-      select: { assigneeId: true }
-    })
-    const uniquePeople = [...new Set(projectPeople.map(p => p.assigneeId).filter(Boolean))] as number[]
-    for (const personId of uniquePeople) {
-      if (personId !== formData.assigneeId) {
-        await createSystemNotification(personId, `Project Update: New task "${formData.title}" added to project.`, 'PROJECT_ADDED')
-      }
-    }
-  }
-
-  revalidatePath('/', 'layout')
-  revalidatePath('/tasks')
-  return task
 }
 
 async function performAutoWatcherLogic(taskId: number, assigneeId: number) {
@@ -102,119 +34,153 @@ async function performAutoWatcherLogic(taskId: number, assigneeId: number) {
   }
 }
 
-export async function assignTask(taskId: number, assigneeId: number) {
-  const session = await auth()
-  const operatorId = Number(session?.user?.id)
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
+export async function createTask(data: {
+  title: string
+  description?: string
+  slaId: number
+  assigneeId?: number
+  departmentId: number
+  watcherIds?: number[]
+  dueAt: Date
+  projectId?: number
+  isTicket?: boolean
+}) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) throw new Error('Unauthorized')
+    const operatorId = parseInt(session.user.id)
 
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
+    // STRICTURE: Only BDev can create briefs
+    const userRole = (session.user as any).role
+    const userDept = (session.user as any).departmentName
 
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
-    const isDeptHead = role === 'DEPT_HEAD'
-    const targetTask = await prisma.task.findUnique({ 
-      where: { id: taskId },
-      include: { assignee: true }
-    })
-    const isHisMember = targetTask?.assignee?.departmentId === (session?.user as any)?.departmentId
-    
-    if (!(isDeptHead && isHisMember)) {
-      throw new Error(`Unauthorized operational clearance. Role: ${role}, Dept: ${deptName}. Reassignment restricted to Dept Heads of the member's department.`)
+    if (userDept !== 'BUSINESS_DEVELOPMENT' && userRole !== 'SUPER_ADMIN') {
+      throw new Error('STRATEGIC DENIAL: Only Business Development can create briefs.')
     }
+
+    const task = await prisma.task.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        slaId: data.slaId,
+        assigneeId: data.assigneeId,
+        departmentId: data.departmentId,
+        projectId: data.projectId,
+        isTicket: data.isTicket ?? true,
+        reporterId: operatorId,
+        dueAt: data.dueAt,
+        status: 'PENDING',
+        watchers: data.watcherIds ? {
+          create: data.watcherIds.map(userId => ({ userId }))
+        } : undefined
+      }
+    })
+
+    // RECORD AUDIT
+    await createAuditLog(task.id, operatorId, 'TASK_CREATED', undefined, task.title)
+
+    // Notify Department Head with a link to the Brief Hub
+    await notifyDepartmentHead(
+      data.departmentId,
+      `New Brief Assigned: ${data.title}`,
+      'TASK_ASSIGNED',
+      '/client-service/tickets'
+    )
+
+    revalidatePath('/', 'layout')
+    revalidatePath('/tasks')
+    return { success: true, task }
+  } catch (error: any) {
+    console.error('Create Task Error:', error)
+    return { success: false, error: error.message }
   }
+}
 
-  const task = await prisma.task.update({
-    where: { id: taskId },
-    data: { assigneeId }
-  })
+export async function assignTask(taskId: number, assigneeId: number) {
+  try {
+    const session = await auth()
+    const operatorId = Number(session?.user?.id)
+    if (!operatorId) throw new Error('Unauthorized')
 
-  await performAutoWatcherLogic(taskId, assigneeId)
-  await createAuditLog(taskId, operatorId, 'TASK_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
-  await createSystemNotification(assigneeId, `Resource assigned: ${task.title}`, 'ASSIGNMENT')
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        assigneeId,
+        status: TaskStatus.IN_PROGRESS // Auto-advance to IN_PROGRESS on assignment
+      }
+    })
 
-  revalidatePath(`/tasks/${taskId}`)
-  revalidatePath('/', 'layout')
-  return task
+    await performAutoWatcherLogic(taskId, assigneeId)
+    await createAuditLog(taskId, operatorId, 'TASK_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
+    await createSystemNotification(assigneeId, `Resource assigned: ${task.title}`, 'TASK_ASSIGNED')
+
+    revalidatePath(`/tasks/${taskId}`)
+    revalidatePath('/', 'layout')
+    return { success: true, task }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
 }
 
 export async function pauseTask(taskId: number, reason: string) {
-  const session = await auth()
-  const operatorId = Number(session?.user?.id)
-  
-  const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
-  
-  const task = await prisma.task.update({
-    where: { id: taskId },
-    data: { 
-      status: TaskStatus.AWAITING_INFO,
-      pauseReason: reason
+  try {
+    const session = await auth()
+    const operatorId = Number(session?.user?.id)
+    const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
+
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data: {
+        status: TaskStatus.AWAITING_INFO,
+        pauseReason: reason
+      }
+    })
+
+    await createAuditLog(taskId, operatorId, 'TASK_PAUSED', oldTask?.status, reason)
+    if (task.reporterId) {
+      await createSystemNotification(task.reporterId, `Action Required: Task ${task.title} paused. Reason: ${reason}`, 'PAUSE_ALERT')
     }
-  })
 
-  await createAuditLog(taskId, operatorId, 'TASK_PAUSED', oldTask?.status, reason)
-
-  if (task.reporterId) {
-    await createSystemNotification(task.reporterId, `Action Required: Task ${task.title} paused. Reason: ${reason}`, 'PAUSE_ALERT')
+    revalidatePath(`/tasks/${taskId}`)
+    revalidatePath('/', 'layout')
+    return { success: true, task }
+  } catch (error: any) {
+    return { success: false, error: error.message }
   }
-
-  revalidatePath(`/tasks/${taskId}`)
-  revalidatePath('/', 'layout')
-  return task
 }
 
 export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
-  const data: any = { status: newStatus }
-  
-  if (newStatus === TaskStatus.IN_PROGRESS) {
-    data.startedAt = newStatus === TaskStatus.IN_PROGRESS ? new Date() : undefined
-  } else if (newStatus === TaskStatus.COMPLETED) {
-    data.completedAt = new Date()
-  }
-  
-  const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
-  
-  const task = await prisma.task.update({
-    where: { id: taskId },
-    data
-  })
+  try {
+    const session = await auth()
+    const operatorId = Number(session?.user?.id)
+    const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
 
-  // RECORD AUDIT
-  const session = await auth()
-  const operatorId = Number(session?.user?.id)
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
-
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
-    // Strict Lock Implementation
-    if (newStatus === TaskStatus.RECEIVED || newStatus === TaskStatus.IN_PROGRESS) {
-      if (operatorId !== oldTask?.assigneeId) {
-        throw new Error('Lock Violation: Only the designated assignee can initialize status transition to RECEIVED or IN_PROGRESS.')
-      }
+    const data: any = { status: newStatus }
+    if (newStatus === TaskStatus.IN_PROGRESS && !oldTask?.startedAt) {
+      data.startedAt = new Date()
+    } else if (newStatus === TaskStatus.COMPLETED) {
+      data.completedAt = new Date()
     }
 
-    if (newStatus === TaskStatus.COMPLETED) {
-       throw new Error('Operational Barrier: Only Client Service or Admin personnel can authorize Directive Completion.')
+    const task = await prisma.task.update({
+      where: { id: taskId },
+      data
+    })
+
+    if (session?.user?.id) {
+      await createAuditLog(taskId, operatorId, 'STATUS_CHANGE', oldTask?.status, newStatus)
     }
 
-    if (operatorId !== oldTask?.assigneeId) {
-      throw new Error('Unauthorized status transition: Personnel identity mismatch.')
+    if (newStatus === TaskStatus.REVIEW) {
+      await notifyWatchers(taskId, `Task ready for review: ${task.title}`, 'STATUS_REVIEW')
     }
-  }
 
-  if (session?.user?.id) {
-    await createAuditLog(taskId, Number(session.user.id), 'STATUS_CHANGE', oldTask?.status, newStatus)
+    revalidatePath('/', 'layout')
+    revalidatePath(`/tasks/${taskId}`)
+    return { success: true, task }
+  } catch (error: any) {
+    return { success: false, error: error.message }
   }
-
-  // SMART NOTIFICATION FOR WATCHERS
-  if (newStatus === TaskStatus.REVIEW) {
-    await notifyWatchers(taskId, `Task ready for review: ${task.title}`, 'STATUS_REVIEW')
-  }
-  
-  revalidatePath('/', 'layout')
-  revalidatePath(`/tasks/${taskId}`)
-  return task
 }
 
 export async function updateTaskStatus(taskId: number, status: TaskStatus) {
@@ -224,27 +190,22 @@ export async function updateTaskStatus(taskId: number, status: TaskStatus) {
 export async function checkAndNotifyBreaches() {
   const breachedTasks = await prisma.task.findMany({
     where: {
-      status: { notIn: [TaskStatus.COMPLETED] },
+      status: { notIn: [TaskStatus.COMPLETED, TaskStatus.DISMISSED] },
       dueAt: { lt: new Date() },
     },
-    select: {
-      id: true,
+    include: {
       assignee: {
-        select: {
-          department: {
-            select: {
-              headId: true
-            }
-          }
+        include: {
+          department: true
         }
       }
     }
   })
 
   for (const task of breachedTasks) {
-    const headId = (task.assignee as any)?.department?.headId
+    const headId = task.assignee?.department?.headId
     if (headId) {
-      await createSystemNotification(headId, `BREACH ALERT: Directive #${task.id} has failed SLA compliance. Immediate intervention required.`, 'BREACH_ALERT')
+      await createSystemNotification(headId, `BREACH ALERT: Directive #${task.id} has failed SLA compliance.`, 'BREACH_ALERT')
     }
   }
 }
@@ -259,11 +220,10 @@ export async function sendMessage(taskId: number | null, authorId: number, conte
     },
   })
 
-  // RECORD AUDIT
   if (taskId) {
     await createAuditLog(taskId, authorId, 'COMMENT_ADDED', undefined, content.substring(0, 50))
     const task = await prisma.task.findUnique({ where: { id: taskId } })
-    await notifyWatchers(taskId, `New operational directive comment: ${task?.title}`, 'COMMENT')
+    await notifyWatchers(taskId, `New comment: ${task?.title}`, 'COMMENT')
   }
 
   revalidatePath('/dashboard')
@@ -272,41 +232,33 @@ export async function sendMessage(taskId: number | null, authorId: number, conte
 }
 
 export async function processTicket(
-  taskId: number, 
-  departmentId: number, 
-  slaId?: number, 
+  taskId: number,
+  departmentId: number,
+  slaId?: number,
   assigneeId?: number,
   options?: { description?: string, dueAt?: Date }
 ) {
   const session = await auth()
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
-
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
-    throw new Error('Unauthorized operational clearance')
-  }
+  if (!session?.user?.id) throw new Error('Unauthorized')
 
   const task = await prisma.task.update({
     where: { id: taskId },
     data: {
       departmentId,
-      slaId: options?.dueAt ? 1 : (slaId || 1), // Fallback to SLA 1 if manual or missing
+      slaId: options?.dueAt ? 1 : (slaId || 1),
       assigneeId: assigneeId || null,
       description: options?.description || undefined,
       dueAt: options?.dueAt || undefined,
-      isTicket: true, 
+      isTicket: true,
       status: assigneeId ? TaskStatus.IN_PROGRESS : TaskStatus.PENDING
     }
   })
 
-  // Record audit for assignment if applicable
   if (assigneeId) {
-     const operatorId = Number(session?.user?.id)
-     await createAuditLog(taskId, operatorId, 'TICKET_ASSIGNED', undefined, `Assigned to user ${assigneeId} during processing`)
-     await performAutoWatcherLogic(taskId, assigneeId)
-     await createSystemNotification(assigneeId, `New Ticket Assignment: ${task.title}`, 'ASSIGNMENT')
+    const operatorId = Number(session.user.id)
+    await createAuditLog(taskId, operatorId, 'TICKET_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
+    await performAutoWatcherLogic(taskId, assigneeId)
+    await createSystemNotification(assigneeId, `New Ticket Assignment: ${task.title}`, 'TASK_ASSIGNED')
   }
 
   revalidatePath('/client-service/tickets')
@@ -314,23 +266,10 @@ export async function processTicket(
 }
 
 export async function dismissTicket(taskId: number) {
-  const session = await auth()
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
-
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
-    throw new Error('Unauthorized operational clearance')
-  }
-
   const task = await prisma.task.update({
     where: { id: taskId },
-    data: {
-      status: TaskStatus.DISMISSED
-    }
+    data: { status: TaskStatus.DISMISSED }
   })
-
   revalidatePath('/client-service/tickets')
   return task
 }

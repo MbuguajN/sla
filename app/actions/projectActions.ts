@@ -13,14 +13,16 @@ export async function inviteToProject(projectId: number, userId: number) {
     where: { projectId }
   })
 
-  // 2. Add user as watcher to all tasks using batching
-  await prisma.watcher.createMany({
-    data: tasks.map(task => ({
-      userId,
-      taskId: task.id
-    })),
-    skipDuplicates: true
-  })
+  // 2. Add user as watcher to all tasks using batching (SQLite workaround: individual upserts)
+  await Promise.all(
+    tasks.map(task =>
+      prisma.watcher.upsert({
+        where: { userId_taskId: { userId, taskId: task.id } },
+        create: { userId, taskId: task.id },
+        update: {}
+      })
+    )
+  )
 
   // 3. Create a notification for the user
   await prisma.notification.create({
@@ -37,39 +39,39 @@ export async function inviteToProject(projectId: number, userId: number) {
 }
 
 export async function getProjectWatchers(projectId: number) {
-   // This is tricky because watchers are per task.
-   // We'll return unique users watching any task in this project.
-   const watchers = await prisma.watcher.findMany({
-     where: {
-       task: { projectId }
-     },
-     include: {
-       user: {
-         select: { id: true, name: true, email: true }
-       }
-     }
-   })
+  // This is tricky because watchers are per task.
+  // We'll return unique users watching any task in this project.
+  const watchers = await prisma.watcher.findMany({
+    where: {
+      task: { projectId }
+    },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true }
+      }
+    }
+  })
 
-   // Dedup
-   const uniqueUsers = Array.from(new Map(watchers.map(w => [w.user.id, w.user])).values())
-   return uniqueUsers
+  // Dedup
+  const uniqueUsers = Array.from(new Map(watchers.map(w => [w.user.id, w.user])).values())
+  return uniqueUsers
 }
 
 export async function createProject(formData: { title: string; description?: string }) {
   const session = await auth()
   const role = (session?.user as any)?.role
   const deptName = (session?.user as any)?.departmentName
-  
+
   const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-  
+
   if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
     throw new Error('Unauthorized')
   }
-  
+
   const project = await prisma.project.create({
     data: { title: formData.title, description: formData.description }
   })
-  
+
   revalidatePath('/projects')
   return project
 }

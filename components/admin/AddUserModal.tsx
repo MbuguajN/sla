@@ -45,66 +45,65 @@ export default function AddUserModal({ departments }: { departments: any[] }) {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            
+
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-control">
                   <label className="label"><span className="label-text font-bold">Full Name</span></label>
-                  <input 
-                    required 
-                    type="text" 
-                    placeholder="e.g. John Doe" 
+                  <input
+                    required
+                    type="text"
+                    placeholder="e.g. John Doe"
                     className="input input-bordered"
                     value={formData.name}
-                    onChange={e => setFormData({...formData, name: e.target.value})}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="form-control">
                   <label className="label"><span className="label-text font-bold">Email</span></label>
-                  <input 
-                    required 
-                    type="email" 
-                    placeholder="john@nexus.com" 
+                  <input
+                    required
+                    type="email"
+                    placeholder="employee@5dm.com"
                     className="input input-bordered"
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="form-control">
                 <label className="label"><span className="label-text font-bold">Default Password</span></label>
-                <input 
-                  required 
-                  type="password" 
-                  placeholder="••••••••" 
+                <input
+                  required
+                  type="password"
+                  placeholder="••••••••"
                   className="input input-bordered"
                   value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  onChange={e => setFormData({ ...formData, password: e.target.value })}
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-control">
                   <label className="label"><span className="label-text font-bold">Role</span></label>
-                  <select 
+                  <select
                     className="select select-bordered"
                     value={formData.role}
-                    onChange={e => setFormData({...formData, role: e.target.value})}
+                    onChange={e => setFormData({ ...formData, role: e.target.value })}
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
-                    <option value="DEPT_HEAD">Dept Head</option>
                     <option value="CLIENT_SERVICE">Client Service</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>
                 <div className="form-control">
                   <label className="label"><span className="label-text font-bold">Department</span></label>
-                  <select 
+                  <select
                     className="select select-bordered"
                     value={formData.departmentId}
-                    onChange={e => setFormData({...formData, departmentId: e.target.value})}
+                    onChange={e => setFormData({ ...formData, departmentId: e.target.value })}
                   >
                     <option value="">None</option>
                     {departments.map((d: any) => (

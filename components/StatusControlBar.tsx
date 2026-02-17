@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useOptimistic, useTransition } from 'react'
-import { TaskStatus } from '@prisma/client'
+import { TaskStatus } from '@/lib/enums'
 import { advanceTaskStatus } from '@/app/actions/taskActions'
 import { CheckCircle, Play, Send, CheckCircle2, Loader2, AlertCircle, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,14 +58,14 @@ const STATUS_MAP: Record<TaskStatus, StatusConfig> = {
   }
 }
 
-export default function StatusControlBar({ 
-  taskId, 
+export default function StatusControlBar({
+  taskId,
   currentStatus,
   assigneeId,
   currentUserId,
   userRole
-}: { 
-  taskId: number, 
+}: {
+  taskId: number,
   currentStatus: TaskStatus,
   assigneeId?: number | null,
   currentUserId: number,
@@ -110,7 +110,7 @@ export default function StatusControlBar({
       <div className="divider divider-horizontal mx-2"></div>
 
       {config.next ? (
-        <button 
+        <button
           className={cn(
             "btn btn-md flex-1 md:flex-none md:min-w-[200px] gap-3 shadow-lg transition-all active:scale-95",
             config.color,

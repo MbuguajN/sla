@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Shield className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-base-content uppercase">Nexus Control</h1>
+          <h1 className="text-3xl font-black tracking-tight text-base-content uppercase">5DM Administration</h1>
           <p className="text-sm font-medium text-base-content/60">System Administration & Configuration</p>
         </div>
       </div>
@@ -30,13 +30,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Admin Navigation Tabs */}
       <div className="tabs tabs-boxed bg-base-100 p-2 gap-2 border border-base-200 shadow-sm w-fit">
         {tabs.map((tab) => (
-          <Link 
-            key={tab.href} 
+          <Link
+            key={tab.href}
             href={tab.href}
             className={cn(
               "tab tab-lg gap-2 font-bold transition-all duration-200 rounded-lg",
-              pathname.startsWith(tab.href) 
-                ? "bg-primary text-primary-content shadow-md" 
+              pathname.startsWith(tab.href)
+                ? "bg-primary text-primary-content shadow-md"
                 : "hover:bg-base-200 text-base-content/60"
             )}
           >

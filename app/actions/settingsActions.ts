@@ -7,7 +7,7 @@ import { auth } from '@/auth'
 export async function saveSystemSettings(settings: Record<string, string>) {
   try {
     const session = await auth()
-    
+
     if (!session?.user) {
       return { success: false, error: 'Authentication session expired or invalid' }
     }
@@ -18,25 +18,7 @@ export async function saveSystemSettings(settings: Record<string, string>) {
       return { success: false, error: 'Unauthorized operational clearance' }
     }
 
-    const gmailFields = ['gmailClientId', 'gmailClientSecret', 'gmailRefreshToken', 'monitoredEmail'];
-    const updateData: any = {};
-    const kvEntries: [string, string][] = [];
-
-    Object.entries(settings).forEach(([key, value]) => {
-      if (gmailFields.includes(key)) {
-        updateData[key] = value;
-      } else {
-        kvEntries.push([key, value]);
-      }
-    });
-
-    if (Object.keys(updateData).length > 0) {
-      await (prisma.systemSettings as any).upsert({
-        where: { key: 'GMAIL_CONFIG' },
-        update: updateData,
-        create: { key: 'GMAIL_CONFIG', value: 'CONFIGURED', ...updateData }
-      });
-    }
+    const kvEntries = Object.entries(settings);
 
     if (kvEntries.length > 0) {
       await Promise.all(
@@ -50,7 +32,7 @@ export async function saveSystemSettings(settings: Record<string, string>) {
       )
     }
 
-    revalidatePath('/admin/settings/gmail')
+    revalidatePath('/admin/users')
     return { success: true }
   } catch (error: any) {
     console.error('CRITICAL ERROR in saveSystemSettings:', error);
@@ -61,10 +43,9 @@ export async function saveSystemSettings(settings: Record<string, string>) {
 export async function getSystemSettings(keys: string[]) {
   try {
     const settings = await prisma.systemSettings.findMany({
-      where: { 
+      where: {
         OR: [
           { key: { in: keys } },
-          { key: 'GMAIL_CONFIG' },
           { key: { in: keys.map(k => k.toUpperCase()) } }
         ]
       }
@@ -74,24 +55,60 @@ export async function getSystemSettings(keys: string[]) {
     keys.forEach(k => { resultMap[k] = '' });
 
     settings.forEach((s: any) => {
-      if (s.key === 'GMAIL_CONFIG') {
-         if (s.gmailClientId) resultMap['gmailClientId'] = s.gmailClientId;
-         if (s.gmailClientSecret) resultMap['gmailClientSecret'] = s.gmailClientSecret;
-         if (s.gmailRefreshToken) resultMap['gmailRefreshToken'] = s.gmailRefreshToken;
-         if (s.monitoredEmail) resultMap['monitoredEmail'] = s.monitoredEmail;
-      } else {
-        resultMap[s.key] = s.value;
-        resultMap[s.key.toLowerCase()] = s.value;
-        if (s.key === 'GMAIL_CLIENT_ID') resultMap['gmailClientId'] = s.value;
-        if (s.key === 'GMAIL_CLIENT_SECRET') resultMap['gmailClientSecret'] = s.value;
-        if (s.key === 'GMAIL_REFRESH_TOKEN') resultMap['gmailRefreshToken'] = s.value;
-        if (s.key === 'GMAIL_MONITORED_EMAIL') resultMap['monitoredEmail'] = s.value;
-      }
+      resultMap[s.key] = s.value;
+      resultMap[s.key.toLowerCase()] = s.value;
     })
 
     return resultMap
   } catch (error) {
     console.error('Error in getSystemSettings:', error);
     return {}
+  }
+}
+
+import { writeFile, mkdir } from 'fs/promises'
+import { join } from 'path'
+
+export async function uploadLogo(formData: FormData) {
+  try {
+    const session = await auth()
+    if (!session?.user || ((session.user as any).role !== 'SUPER_ADMIN' && (session.user as any).role !== 'ADMIN')) {
+      return { success: false, error: 'Unauthorized' }
+    }
+
+    const file = formData.get('file') as File
+    const logoType = formData.get('type') as string || 'SYSTEM_LOGO'
+
+    if (!file) {
+      return { success: false, error: 'No file provided' }
+    }
+
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
+    // Ensure directory exists
+    const uploadDir = join(process.cwd(), 'public', 'uploads')
+    await mkdir(uploadDir, { recursive: true })
+
+    // Save file with type-specific name to avoid collisions
+    const extension = file.name.split('.').pop() || 'png'
+    const filename = `system-logo-${logoType.toLowerCase()}-${Date.now()}.${extension}`
+    const filepath = join(uploadDir, filename)
+
+    await writeFile(filepath, buffer)
+
+    // Save path to DB
+    const logoUrl = `/uploads/${filename}`
+    await prisma.systemSettings.upsert({
+      where: { key: logoType },
+      update: { value: logoUrl },
+      create: { key: logoType, value: logoUrl }
+    })
+
+    revalidatePath('/')
+    return { success: true, url: logoUrl }
+  } catch (error: any) {
+    console.error('Upload error:', error)
+    return { success: false, error: error.message }
   }
 }

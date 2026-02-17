@@ -1,69 +1,101 @@
 import React, { Suspense } from 'react'
 import { auth } from "@/auth"
 import DashboardHeader from '@/components/DashboardHeader'
-import MyActiveTasks from '@/components/MyActiveTasks'
-import StatsSection, { StatsSkeleton } from '@/components/dashboard/StatsSection'
-import NewsSection, { NewsSkeleton } from '@/components/dashboard/NewsSection'
-import TimelineSection, { TimelineSkeleton } from '@/components/dashboard/TimelineSection'
+import OperationsStats from '@/components/dashboard/OperationsStats'
+import GlobalTaskTable from '@/components/dashboard/GlobalTaskTable'
+import ProjectsGrid from '@/components/dashboard/ProjectsGrid'
+import PulseTimeline from '@/components/dashboard/PulseTimeline'
 import prisma from '@/lib/db'
 
-export default async function DashboardPage({ searchParams }: { searchParams: { date?: string, view?: string } }) {
+export default async function DashboardPage() {
   const session = await auth()
-  const user = (session?.user as any)
-  const userId = Number(user?.id)
-  const userRole = user?.role || 'EMPLOYEE'
-  
-  const viewDate = searchParams.date ? new Date(searchParams.date) : new Date()
-  const expandMode = searchParams.view === 'full'
+  const userId = Number(session?.user?.id)
 
-  // We still fetch active tasks here for the sidebar/right-col for immediate feedback, 
-  // or we could also suspend that, but keeping it simple for now.
-  const activeUserTasks = await prisma.task.findMany({
-    where: { assigneeId: userId, status: { not: 'COMPLETED' } },
+  // Presence Pulse: Ensure user remains in "Active" list
+  if (userId) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { updatedAt: new Date() }
+    })
+  }
+
+  // Fetch active tasks for the Global Table
+  // We fetch a bit more data here to populate the table fully
+  const activeTasks = await prisma.task.findMany({
+    where: {
+      status: { not: 'COMPLETED' },
+      OR: [
+        { assigneeId: userId },
+        { assignee: { department: { headId: userId } } } // If Dept Head
+      ]
+    },
     select: {
       id: true,
       title: true,
       status: true,
       dueAt: true,
-      sla: {
-        select: {
-          name: true,
-          tier: true
-        }
-      }
+      project: { select: { id: true, title: true } },
+      assignee: { select: { name: true, avatarUrl: true } },
+      sla: { select: { name: true, tier: true } }
     },
     orderBy: { dueAt: 'asc' },
-    take: 5
+    take: 50
   })
 
+  const role = (session?.user as any)?.role
+
+  // Fetch truly active users (last 5 minutes)
+  const activityWindow = new Date(Date.now() - 5 * 60 * 1000)
+  const activeUsersRaw = await prisma.user.findMany({
+    where: {
+      OR: [
+        { id: userId }, // Always include self
+        { updatedAt: { gte: activityWindow } }
+      ]
+    },
+    take: 8,
+    orderBy: { updatedAt: 'desc' },
+    select: { id: true, name: true }
+  })
+  const activeUsers = activeUsersRaw.map((u: { id: number, name: string | null }) => ({
+    ...u,
+    color: u.id === userId ? 'bg-primary' : 'bg-neutral'
+  }))
+
   return (
-    <div className="space-y-8 bg-base-100 min-h-screen pb-12">
-      <DashboardHeader initialDate={viewDate} />
+    <div className="space-y-10 bg-base-100 min-h-screen pb-20 p-6 lg:p-10 animate-in fade-in duration-500">
+      {/* Header Section */}
+      <DashboardHeader activeUsers={activeUsers} />
 
-      <Suspense fallback={<StatsSkeleton />}>
-        <StatsSection />
-      </Suspense>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-3 space-y-12">
-          <Suspense fallback={<TimelineSkeleton />}>
-            <TimelineSection 
-              userRole={userRole} 
-              userId={userId} 
-              viewDate={viewDate} 
-              expandMode={expandMode} 
-              searchParams={searchParams}
+      {/* Top Row: Stats & Pulse Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <Suspense fallback={<div className="h-32 bg-base-200 rounded-2xl animate-pulse" />}>
+            <OperationsStats
+              departmentId={session?.user?.departmentId ? Number(session.user.departmentId) : undefined}
+              isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
             />
           </Suspense>
-
-          <Suspense fallback={<NewsSkeleton />}>
-            <NewsSection />
+        </div>
+        <div className="lg:col-span-1">
+          <Suspense fallback={<div className="h-24 bg-base-200 rounded-xl animate-pulse" />}>
+            <PulseTimeline />
           </Suspense>
         </div>
+      </div>
 
-        <div className="lg:col-span-1">
-           <MyActiveTasks initialTasks={activeUserTasks as any} />
-        </div>
+      {/* Middle Row: Main Task Table */}
+      <div className="grid grid-cols-1 gap-6">
+        <Suspense fallback={<div className="h-96 bg-base-200 rounded-2xl animate-pulse" />}>
+          <GlobalTaskTable initialTasks={activeTasks as any} />
+        </Suspense>
+      </div>
+
+      {/* Bottom Row: Active Projects Overview */}
+      <div className="pt-4 border-t border-base-200">
+        <Suspense fallback={<div className="h-48 bg-base-200 rounded-2xl animate-pulse" />}>
+          <ProjectsGrid />
+        </Suspense>
       </div>
     </div>
   )

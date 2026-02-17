@@ -1,0 +1,35 @@
+export enum Role {
+    ADMIN = 'ADMIN',
+    CLIENT_SERVICE = 'CLIENT_SERVICE',
+    MANAGER = 'MANAGER',
+    EMPLOYEE = 'EMPLOYEE',
+    SUPER_ADMIN = 'SUPER_ADMIN'
+}
+
+export enum TaskStatus {
+    PENDING = 'PENDING',
+    RECEIVED = 'RECEIVED',
+    IN_PROGRESS = 'IN_PROGRESS',
+    REVIEW = 'REVIEW',
+    COMPLETED = 'COMPLETED',
+    AWAITING_INFO = 'AWAITING_INFO',
+    DISMISSED = 'DISMISSED'
+}
+
+export enum SlaTier {
+    URGENT = 'URGENT',
+    STANDARD = 'STANDARD',
+    LOW = 'LOW'
+}
+
+export enum DepartmentName {
+    CEO = 'CEO',
+    BUSINESS_DEVELOPMENT = 'BUSINESS_DEVELOPMENT',
+    MEDIA = 'MEDIA',
+    CLIENT_SERVICE = 'CLIENT_SERVICE',
+    TECHNOLOGY = 'TECHNOLOGY',
+    CREATIVE = 'CREATIVE',
+    CONTENT = 'CONTENT',
+    HR = 'HR',
+    ACCOUNTS = 'ACCOUNTS'
+}

@@ -6,6 +6,9 @@ export default async function NewTaskPage() {
   const departments = await prisma.department.findMany()
   const slas = await prisma.sla.findMany()
   const users = await prisma.user.findMany()
+  const projects = await prisma.project.findMany({
+    include: { defaultSla: true }
+  })
 
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in">
@@ -16,10 +19,11 @@ export default async function NewTaskPage() {
 
       <div className="card bg-base-100 shadow-xl border border-base-200">
         <div className="card-body p-8">
-          <TaskForm 
-            departments={departments} 
-            slas={slas} 
-            users={users} 
+          <TaskForm
+            departments={departments}
+            slas={slas}
+            users={users}
+            projects={projects}
           />
         </div>
       </div>

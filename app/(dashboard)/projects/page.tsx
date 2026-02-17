@@ -37,10 +37,10 @@ export default async function ProjectsPage() {
           <h1 className="text-3xl font-black text-base-content tracking-tight uppercase">Active Projects</h1>
           <p className="text-sm font-medium text-base-content/60">Strategic directive groups and campaigns</p>
         </div>
-        {(role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'CLIENT_SERVICE') && (
-           <Link href="/projects/new" className="btn btn-primary gap-2">
-             <Plus className="w-4 h-4" /> Initialize Project
-           </Link>
+        {(session?.user as any)?.departmentName === 'BUSINESS_DEVELOPMENT' && (
+          <Link href="/projects/new" className="btn btn-primary gap-2">
+            <Plus className="w-4 h-4" /> Initialize Project
+          </Link>
         )}
       </div>
 
