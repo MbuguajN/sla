@@ -98,15 +98,17 @@ export default function StatusControlBar({
   // LOGIC: Check permissions
   const isAssignee = currentUserId === assigneeId
   const isReporter = currentUserId === reporterId
-  const isAdmin = userRole === 'CEO' || userRole === 'MANAGER'
+  const isCEO = userRole === 'CEO'
+  const isHR = userRole === 'HR'
+  const isAdminCheck = userRole === 'ADMIN' || isCEO || isHR || userRole === 'MANAGER'
 
   // Only assignees can CONFIRM or START
-  const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && (isAssignee || isAdmin)
-  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && (isAssignee || isAdmin)
-  const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && (isAssignee || isAdmin)
+  const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && (isAssignee || isAdminCheck)
+  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && (isAssignee || isAdminCheck)
+  const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && (isAssignee || isAdminCheck)
 
   // Only reporter or admin can COMPLETE
-  const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || isAdmin)
+  const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || isAdminCheck)
 
   const isRestricted = (optimisticStatus === TaskStatus.REVIEW && !canComplete) ||
     (optimisticStatus === TaskStatus.PENDING && !canAdvanceFromPending) ||

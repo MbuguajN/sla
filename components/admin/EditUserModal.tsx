@@ -110,9 +110,9 @@ export default function EditUserModal({ user, departments }: { user: any, depart
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
-                    <option value="CLIENT_SERVICE">Client Service</option>
+                    <option value="HR">HR</option>
+                    <option value="CEO">CEO</option>
                     <option value="ADMIN">Admin</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
                   </select>
                 </div>
                 <div className="form-control">

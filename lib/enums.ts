@@ -1,9 +1,9 @@
 export enum Role {
     ADMIN = 'ADMIN',
-    CLIENT_SERVICE = 'CLIENT_SERVICE',
+    CEO = 'CEO',
+    HR = 'HR',
     MANAGER = 'MANAGER',
-    EMPLOYEE = 'EMPLOYEE',
-    SUPER_ADMIN = 'SUPER_ADMIN'
+    EMPLOYEE = 'EMPLOYEE'
 }
 
 export enum TaskStatus {
@@ -23,13 +23,11 @@ export enum SlaTier {
 }
 
 export enum DepartmentName {
-    CEO = 'CEO',
     BUSINESS_DEVELOPMENT = 'BUSINESS_DEVELOPMENT',
     MEDIA = 'MEDIA',
     CLIENT_SERVICE = 'CLIENT_SERVICE',
     TECHNOLOGY = 'TECHNOLOGY',
     CREATIVE = 'CREATIVE',
     CONTENT = 'CONTENT',
-    HR = 'HR',
     ACCOUNTS = 'ACCOUNTS'
 }

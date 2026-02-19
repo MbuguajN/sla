@@ -55,7 +55,7 @@ export async function createTask(data: {
     const userRole = (session.user as any).role
     const userDept = (session.user as any).departmentName
 
-    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'CEO' || userRole === 'MANAGER'
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR' || userRole === 'MANAGER'
     const isCS = userDept === 'CLIENT_SERVICE'
 
     if (!data.projectId && !isBD) {
@@ -166,7 +166,8 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
 
     // LOGIC: Only the person who initiated the task (reporter) can mark it as COMPLETED
     if (newStatus === TaskStatus.COMPLETED) {
-      if (oldTask.reporterId !== operatorId && (session?.user as any).role !== 'CEO' && (session?.user as any).role !== 'MANAGER') {
+      const role = (session?.user as any).role
+      if (oldTask.reporterId !== operatorId && role !== 'ADMIN' && role !== 'CEO' && role !== 'HR' && role !== 'MANAGER') {
         throw new Error('STRATEGIC DENIAL: Only the task initiator can finalize this directive.')
       }
     }

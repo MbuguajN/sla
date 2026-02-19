@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs'
 async function checkAdmin() {
   const session = await auth()
   const role = (session?.user as any)?.role
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+  if (role !== 'ADMIN' && role !== 'CEO' && role !== 'HR') {
     throw new Error('Unauthorized Access: Admin privileges required.')
   }
 }

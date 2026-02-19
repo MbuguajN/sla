@@ -9,12 +9,12 @@ import { ShieldCheck, Loader2 } from 'lucide-react'
 export default async function DepartmentQueuePage({ params }: { params: { id: string } }) {
   const session = await auth()
   const user = session?.user as any
-  
+
   if (!user) redirect('/login')
 
   const deptId = parseInt(params.id)
   if (isNaN(deptId)) return notFound()
-  
+
   // Fetch department basic info immediately
   const department = await prisma.department.findUnique({
     where: { id: deptId },
@@ -22,12 +22,12 @@ export default async function DepartmentQueuePage({ params }: { params: { id: st
       id: true,
       name: true,
       headId: true,
-      users: { 
-        select: { 
+      users: {
+        select: {
           id: true,
           name: true,
           email: true
-        } 
+        }
       }
     }
   })
@@ -37,9 +37,9 @@ export default async function DepartmentQueuePage({ params }: { params: { id: st
   return (
     <div className="space-y-6">
       <Suspense fallback={<QueueSkeleton departmentName={department.name} />}>
-        <DepartmentQueueDataWrapper 
-          department={department} 
-          user={user} 
+        <DepartmentQueueDataWrapper
+          department={department}
+          user={user}
         />
       </Suspense>
     </div>
@@ -48,15 +48,16 @@ export default async function DepartmentQueuePage({ params }: { params: { id: st
 
 async function DepartmentQueueDataWrapper({ department, user }: { department: any, user: any }) {
   // Fetch tasks in a separate suspended component
-  const isSuperAdmin = user.role === 'SUPER_ADMIN'
   const isAdmin = user.role === 'ADMIN'
+  const isCEO = user.role === 'CEO'
+  const isHR = user.role === 'HR'
   const isManager = user.role === 'MANAGER'
   const isDeptHead = department.headId === Number(user.id)
   const isDeptMember = user.departmentId === department.id
-  
-  const hasGeneralAccess = isSuperAdmin || isAdmin || isManager || isDeptHead || isDeptMember
+
+  const hasGeneralAccess = isAdmin || isCEO || isHR || isManager || isDeptHead || isDeptMember
   const deptUserIds = department.users.map((u: any) => u.id)
-  
+
   const tasks = await prisma.task.findMany({
     where: { assigneeId: { in: deptUserIds } },
     select: {
@@ -95,7 +96,7 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
   })
 
   let visibleTasks = tasks
-  
+
   if (!hasGeneralAccess) {
     visibleTasks = tasks.filter(t => t.watchers.some(w => w.userId === Number(user.id)))
     if (visibleTasks.length === 0) {
@@ -105,8 +106,8 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
             <ShieldCheck className="w-8 h-8" />
           </div>
           <div>
-             <h1 className="text-2xl font-black uppercase tracking-tight">Restricted Access</h1>
-             <p className="text-base-content/60 font-medium">You are not authorized to view the <strong>{department.name}</strong> queue.</p>
+            <h1 className="text-2xl font-black uppercase tracking-tight">Restricted Access</h1>
+            <p className="text-base-content/60 font-medium">You are not authorized to view the <strong>{department.name}</strong> queue.</p>
           </div>
           <Link href="/" className="btn btn-primary mt-4 uppercase font-black">Return to Dashboard</Link>
         </div>
@@ -115,7 +116,7 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
   }
 
   return (
-    <DepartmentQueueClient 
+    <DepartmentQueueClient
       departmentName={department.name}
       currentUser={user}
       tasks={visibleTasks as any}

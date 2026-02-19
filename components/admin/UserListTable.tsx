@@ -51,8 +51,9 @@ export default function UserListTable({ users, departments }: { users: any[], de
                 </div>
               </td>
               <td>
-                <span className={`badge badge-sm font-bold ${user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' ? 'badge-error text-error-content' :
-                    user.role === 'CLIENT_SERVICE' ? 'badge-primary' :
+                <span className={`badge badge-sm font-bold ${user.role === 'ADMIN' ? 'badge-error text-error-content' :
+                  user.role === 'CEO' ? 'badge-warning' :
+                    user.role === 'HR' ? 'badge-info' :
                       'badge-ghost'
                   }`}>
                   {user.role}

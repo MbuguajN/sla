@@ -43,7 +43,7 @@ export default function DepartmentQueueClient({
   const [showMembers, setShowMembers] = useState(false)
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null)
-  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'SYSTEM'
+  const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SYSTEM'
 
   const router = useRouter()
 

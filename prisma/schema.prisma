@@ -23,8 +23,8 @@ model User {
   messages         Message[]
   notifications    Notification[]
   stories          Story[]
-  assignedTasks    Task[]         @relation("AssignedTasks")
   reportedTasks    Task[]         @relation("ReportedTasks")
+  assignedTasks    Task[]         @relation("AssignedTasks")
   department       Department?    @relation("DepartmentUsers", fields: [departmentId], references: [id])
   watchers         Watcher[]
 
@@ -40,38 +40,37 @@ model Department {
 }
 
 model Sla {
-  id          Int     @id @default(autoincrement())
-  name        String
-  durationHrs Int
-  tier        String
-  tasks       Task[]
+  id              Int       @id @default(autoincrement())
+  name            String
+  durationHrs     Int
+  tier            String
   projectDefaults Project[] @relation("ProjectDefaultSla")
+  tasks           Task[]
 }
 
 model Project {
-  id          Int       @id @default(autoincrement())
-  title       String
-  description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  defaultSlaId Int?     // Default SLA for tasks in this project
-  messages    Message[]
-  tasks       Task[]
-  defaultSla  Sla?      @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
+  id           Int       @id @default(autoincrement())
+  title        String
+  description  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  defaultSlaId Int?
+  messages     Message[]
+  defaultSla   Sla?      @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
+  tasks        Task[]
 }
 
 model Task {
-  id           Int        @id @default(autoincrement())
+  id           Int          @id @default(autoincrement())
   title        String
   description  String?
-  status       String     @default("PENDING")
-  slaId        Int?       // Now optional if inherited from project
+  status       String       @default("PENDING")
+  slaId        Int?
   assigneeId   Int?
   departmentId Int?
-  isTicket     Boolean    @default(false)
-
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  isTicket     Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   dueAt        DateTime?
   completedAt  DateTime?
   startedAt    DateTime?
@@ -81,15 +80,15 @@ model Task {
   reporterId   Int?
   senderEmail  String?
   senderName   String?
+  attachments  Attachment[]
   auditLogs    AuditLog[]
   messages     Message[]
-  attachments  Attachment[]
-  assignee     User?      @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  parentTask   Task?      @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks     Task[]     @relation("SubTasks")
-  project      Project?   @relation(fields: [projectId], references: [id])
-  reporter     User?      @relation("ReportedTasks", fields: [reporterId], references: [id])
-  sla          Sla?       @relation(fields: [slaId], references: [id])
+  sla          Sla?         @relation(fields: [slaId], references: [id])
+  reporter     User?        @relation("ReportedTasks", fields: [reporterId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+  parentTask   Task?        @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks     Task[]       @relation("SubTasks")
+  assignee     User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
   watchers     Watcher[]
 
   @@index([status])
@@ -97,7 +96,6 @@ model Task {
   @@index([projectId])
   @@index([departmentId])
   @@index([isTicket])
-
 }
 
 model Attachment {
@@ -118,8 +116,8 @@ model Watcher {
   userId    Int
   taskId    Int
   createdAt DateTime @default(now())
-  task      Task     @relation(fields: [taskId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id])
 
   @@unique([userId, taskId])
 }
@@ -131,9 +129,9 @@ model Message {
   content   String
   createdAt DateTime @default(now())
   projectId Int?
-  author    User     @relation(fields: [authorId], references: [id])
-  project   Project? @relation(fields: [projectId], references: [id])
   task      Task?    @relation(fields: [taskId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id])
+  author    User     @relation(fields: [authorId], references: [id])
 }
 
 model Notification {
@@ -167,45 +165,12 @@ model AuditLog {
   oldValue  String?
   newValue  String?
   createdAt DateTime @default(now())
-  task      Task     @relation(fields: [taskId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+  task      Task     @relation(fields: [taskId], references: [id])
 }
 
 model SystemSettings {
-  id                Int       @id @default(autoincrement())
-  key               String    @unique
-  value             String
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
 }
-
-// enum Role {
-//   ADMIN
-//   CLIENT_SERVICE
-//   MANAGER
-//   EMPLOYEE
-//   SUPER_ADMIN
-//   DEPT_HEAD
-// }
-
-// enum DepartmentName {
-//   DESIGN
-//   TECH
-//   MEDIA
-//   CONTENT
-//   CLIENT_SERVICE
-// }
-
-// enum TaskStatus {
-//   PENDING
-//   RECEIVED
-//   IN_PROGRESS
-//   REVIEW
-//   COMPLETED
-//   AWAITING_INFO
-//   DISMISSED
-// }
-
-// enum SlaTier {
-//   URGENT
-//   STANDARD
-//   LOW
-// }

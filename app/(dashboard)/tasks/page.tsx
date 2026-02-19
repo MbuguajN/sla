@@ -10,13 +10,15 @@ export default async function GlobalTaskIndexPage() {
   const role = (session?.user as any)?.role
   const deptName = (session?.user as any)?.departmentName
 
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
-  const isManager = role === 'MANAGER'
+  const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
+  const isCEO = role === 'CEO'
+  const isHR = role === 'HR'
+  const isManager = role === 'MANAGER' || isCEO || isHR
   const isBusinessDev = deptName === 'BUSINESS_DEVELOPMENT'
-  const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN'
+  const isAdmin = role === 'ADMIN'
 
-  // CEO, Managers, CS, BDev have access
-  if (!isAdmin && !isManager && !isCS && !isBusinessDev) {
+  // CEO, Managers, CS, BDev, HR have access
+  if (!isAdmin && !isManager && !isCS && !isBusinessDev && !isCEO && !isHR) {
     redirect('/')
   }
 

@@ -73,7 +73,7 @@ export default async function ClientServiceTicketsPage() {
 
   const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
   const isManager = role === 'MANAGER'
-  const isAdmin = role === 'CEO'
+  const isAdmin = role === 'ADMIN' || role === 'CEO' || role === 'HR'
 
   // STRICT HIERARCHY: CS and CEO see ALL briefs. Managers see ONLY their department's briefs.
   const filterByDept = isManager && !isAdmin && !isCS

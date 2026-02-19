@@ -58,12 +58,12 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     }
   }, [isCollapsed, isHydrated])
 
-  // LOGIC: Manager View vs Employee View
-  // Manager: Role is MANAGER or Department is CEO
-  const isManager = userRole === 'MANAGER'
+  // LOGIC: Role based access
+  const isAdmin = userRole === 'ADMIN'
+  const isCEO = userRole === 'CEO'
+  const isHR = userRole === 'HR'
+  const isManager = userRole === 'MANAGER' || isAdmin || isCEO || isHR
 
-  // Specific role checks for legacy/admin features
-  const isAdmin = userRole === 'CEO'
   const isCS = dbUser?.department?.name === 'CLIENT_SERVICE'
   const isBusinessDev = dbUser?.department?.name === 'BUSINESS_DEVELOPMENT'
 
@@ -79,20 +79,20 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     // Active Projects: Managers, Admins, and BDev
     { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev },
 
-    // Global Task Overview: Admins, Managers, BDev, CS, and CEO
-    { label: 'Global Task Overview', href: '/tasks', icon: ClipboardList, visible: isAdmin || isManager || isBusinessDev || isCS },
+    // Global Task Overview: Admins, Managers, BDev, CS, and CEO/HR
+    { label: 'Global Task Overview', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isHR || isManager || isBusinessDev || isCS },
 
-    // Department Queue: Restricted to non-admins
+    // Department Queue: Restricted to non-leadership
     {
       label: 'Department Queue',
       href: dbUser?.departmentId ? `/departments/${dbUser.departmentId}` : '/admin/departments',
       icon: Users2,
-      visible: !isAdmin,
+      visible: !(isAdmin || isCEO || isHR),
       sublabel: !dbUser?.department?.name ? 'No Dept Assigned' : null
     },
 
-    // Admin Settings: Admins only
-    { label: 'User Directory', href: '/admin/users', icon: Settings, visible: isAdmin },
+    // Admin Settings: Admins and HR (User Directory)
+    { label: 'User Directory', href: '/admin/users', icon: Settings, visible: isAdmin || isHR },
     { label: 'Branding & Settings', href: '/admin/settings', icon: Settings, visible: isAdmin },
   ]
 
@@ -128,26 +128,31 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           <Link href="/" className="flex items-center w-full transition-opacity hover:opacity-80">
             <div className={cn(
               "flex items-center justify-center transition-all duration-300 w-full overflow-hidden",
-              isCollapsed ? "h-12" : "h-14"
+              isCollapsed ? "h-12 w-12 mx-auto px-2" : "h-16 px-6"
             )}>
-              {/* Light Mode Logo */}
-              <img
-                src={logoLight || "/logo.svg"}
-                alt="Logo"
-                className={cn(
-                  "w-full h-full object-contain dark:hidden",
-                  !logoLight && "dark:invert"
-                )}
-              />
-              {/* Dark Mode Logo */}
-              <img
-                src={logoDark || logoLight || "/logo.svg"}
-                alt="Logo"
-                className={cn(
-                  "w-full h-full object-contain hidden dark:block",
-                  !logoDark && !logoLight && "dark:invert"
-                )}
-              />
+              <div className={cn(
+                "flex items-center justify-center transition-all duration-300 w-full overflow-hidden bg-base-100",
+                isCollapsed ? "h-12 w-12 mx-auto" : "h-16 px-4"
+              )}>
+                {/* Light Mode Logo */}
+                <img
+                  src={logoLight || "/logo.svg"}
+                  alt="Logo"
+                  className={cn(
+                    "max-w-full max-h-full object-contain dark:hidden",
+                    !logoLight && "dark:invert"
+                  )}
+                />
+                {/* Dark Mode Logo */}
+                <img
+                  src={logoDark || logoLight || "/logo.svg"}
+                  alt="Logo"
+                  className={cn(
+                    "max-w-full max-h-full object-contain hidden dark:block",
+                    !logoDark && !logoLight && "dark:invert"
+                  )}
+                />
+              </div>
             </div>
           </Link>
 
@@ -160,7 +165,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
             )}
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
+            {isCollapsed ? <ChevronRight className="text-primary-content" size={12} /> : <ChevronLeft className="text-primary-content" size={12} />}
           </button>
         </div>
 
@@ -221,7 +226,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           })}
 
           {/* New Brief Button - Restricted to BDev, Managers & CEO */}
-          {(isBusinessDev || isManager || isAdmin) && (
+          {(isBusinessDev || isManager || isAdmin || isCEO) && (
             <Link
               href="/tasks/new"
               className={cn(
@@ -258,10 +263,10 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
             {/* User Info - hidden when collapsed */}
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-white truncate">
+                <span className="text-xs font-bold text-base-content truncate">
                   {session.user.name}
                 </span>
-                <span className="text-[10px] text-white font-bold uppercase tracking-tight opacity-50">
+                <span className="text-[10px] text-base-content font-bold uppercase tracking-tight opacity-50">
                   {userRole} • {dbUser?.department?.name || 'No Dept'}
                 </span>
               </div>

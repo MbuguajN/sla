@@ -94,7 +94,8 @@ export default function AddUserModal({ departments }: { departments: any[] }) {
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
-                    <option value="CLIENT_SERVICE">Client Service</option>
+                    <option value="HR">HR</option>
+                    <option value="CEO">CEO</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 </div>

@@ -9,13 +9,13 @@ export default function DashboardHeader({ activeUsers = [] }: { activeUsers?: an
   const displayUsers = activeUsers
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-base-200">
-      <div className="flex items-center gap-5">
-        <div className="w-14 h-14 bg-primary/10 rounded-[1.25rem] flex items-center justify-center text-primary border border-primary/20 shadow-xl shadow-primary/5">
-          <UsersIcon className="w-7 h-7" />
+    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3 border-b border-base-200">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary border border-primary/20 shadow-lg shadow-primary/5">
+          <UsersIcon className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase leading-none">5DM Operations</h1>
+          <h1 className="text-xl font-black text-base-content tracking-tighter uppercase leading-none">Operations Dashboard</h1>
         </div>
       </div>
 
