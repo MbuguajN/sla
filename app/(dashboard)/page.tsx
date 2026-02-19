@@ -68,16 +68,16 @@ export default async function DashboardPage() {
       <DashboardHeader activeUsers={activeUsers} />
 
       {/* Top Row: Stats & Pulse Timeline */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2">
           <Suspense fallback={<div className="h-32 bg-base-200 rounded-2xl animate-pulse" />}>
             <OperationsStats
-              departmentId={session?.user?.departmentId ? Number(session.user.departmentId) : undefined}
+              departmentId={(session?.user as any)?.departmentId ? Number((session?.user as any).departmentId) : undefined}
               isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN'}
             />
           </Suspense>
         </div>
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-3">
           <Suspense fallback={<div className="h-24 bg-base-200 rounded-xl animate-pulse" />}>
             <PulseTimeline />
           </Suspense>

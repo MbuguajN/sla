@@ -56,12 +56,28 @@
   }
 
   [data-theme='dark'] {
-    --base-100: #0F172A;
+    color-scheme: dark;
+  }
+
+  /* Smooth entrance animation */
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.6s ease-out forwards;
   }
 
   body {
     @apply min-h-screen bg-base-100 text-base-content antialiased;
-    background-color: hsl(var(--b1));
     font-weight: 400;
   }
 
@@ -69,20 +85,46 @@
   .rbc-calendar {
     font-weight: 600 !important;
     font-size: 14px;
-    color: #000000 !important;
+    color: inherit !important;
   }
 
   .rbc-calendar *,
   .rbc-calendar span,
   .rbc-calendar div {
-    color: #000000 !important;
+    color: inherit !important;
+  }
+
+  .rbc-off-range-bg {
+    background: color-mix(in srgb, var(--base-300), transparent 70%) !important;
+  }
+
+  .rbc-today {
+    background: hsla(var(--p) / 0.1) !important;
   }
 
   .rbc-event-content {
     font-weight: 800 !important;
     font-size: 12px;
     color: #ffffff !important;
-    /* Keep events readable */
+  }
+
+  /* Force pure white text labels for contrast on dark backgrounds */
+  [data-theme='dark'] .opacity-60,
+  [data-theme='dark'] .opacity-50,
+  [data-theme='dark'] .opacity-40,
+  [data-theme='dark'] .text-base-content\/40,
+  [data-theme='dark'] .text-base-content\/50,
+  [data-theme='dark'] .text-base-content\/60,
+  [data-theme='dark'] .text-base-content\/70 {
+    color: #ffffff !important;
+    opacity: 0.8 !important;
+  }
+
+  [data-theme='dark'] h1,
+  [data-theme='dark'] h2,
+  [data-theme='dark'] h3,
+  [data-theme='dark'] h4 {
+    color: #ffffff !important;
   }
 }
 
@@ -116,4 +158,45 @@
   .drawer.sidebar-expanded {
     grid-template-columns: 16rem minmax(0, 1fr) !important;
   }
+}
+
+/* Sharper Table System */
+.table {
+  @apply border-separate border-spacing-0 w-full overflow-hidden;
+  border: 1px solid color-mix(in srgb, var(--base-300), transparent 60%);
+  border-radius: 1rem;
+}
+
+.table thead tr {
+  @apply bg-base-200/50;
+}
+
+.table th {
+  @apply font-black uppercase tracking-[0.15em] text-[9px] text-base-content/40 py-5 px-8 border-b border-base-300/40;
+}
+
+.table td {
+  @apply py-4 px-8 border-b border-base-200/20 align-middle;
+}
+
+.table tr:last-child td {
+  @apply border-none;
+}
+
+.table tbody tr:hover {
+  @apply bg-primary/[0.02];
+}
+
+/* Fixed Badge & Background Text Squeezing */
+.badge {
+  @apply font-bold uppercase tracking-wider px-4 py-1.5 h-auto min-h-0 flex items-center justify-center rounded-lg;
+  line-height: 1;
+}
+
+.badge-sm {
+  @apply text-[9px] px-3 py-1;
+}
+
+.badge-md {
+  @apply text-[11px] px-4 py-2;
 }

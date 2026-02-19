@@ -48,25 +48,27 @@ export default async function TaskPage({ params }: Props) {
   const isCompleted = task.status === 'COMPLETED'
 
   return (
-    <div className="space-y-8 max-w-6xl mx-auto pb-20">
+    <div className="space-y-10 max-w-6xl mx-auto pb-32 px-6 lg:px-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex flex-col gap-2">
-          <Link href="/" className="text-xs font-bold text-primary flex items-center gap-1 hover:underline mb-2">
-            <ArrowLeft className="w-3 h-3" /> Back to Operational Timeline
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8 pt-4">
+        <div className="flex flex-col gap-4 flex-1 min-w-0">
+          <Link href="/" className="text-[10px] font-black text-primary flex items-center gap-2 hover:underline mb-1 group w-fit uppercase tracking-widest">
+            <ArrowLeft className="w-3 h-3 transition-transform group-hover:-translate-x-1" /> Back to Operational Timeline
           </Link>
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-primary text-primary-content rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <FileText className="w-8 h-8" />
+          <div className="flex items-start gap-5">
+            <div className="w-12 h-12 bg-primary text-primary-content rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+              <FileText className="w-6 h-6" />
             </div>
-            <div>
-              <h1 className="text-4xl font-black tracking-tight text-base-content uppercase leading-none">{task.title}</h1>
-              <div className="flex items-center gap-3 mt-2 text-sm font-medium text-base-content/50">
-                <span className="flex items-center gap-1.5"><History className="w-3.5 h-3.5" /> Initialized {format(task.createdAt, 'PPp')}</span>
+            <div className="flex flex-col gap-2 min-w-0">
+              <h1 className="text-3xl lg:text-4xl font-black tracking-tight text-base-content uppercase leading-[1.1] break-words">
+                {task.title}
+              </h1>
+              <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold text-base-content/30 uppercase tracking-[0.2em]">
+                <span className="flex items-center gap-2"><History className="w-3.5 h-3.5" /> Initialized {format(task.createdAt, 'PP')}</span>
                 {task.dueAt && (
-                  <div className="flex items-center gap-2 px-2 py-0.5 bg-base-300 rounded-md text-base-content/70">
-                    <span className="text-[10px] font-black uppercase tracking-widest">SLA Goal</span>
-                    <span className="text-xs">{format(task.dueAt, 'PPp')}</span>
+                  <div className="flex items-center gap-2 px-2.5 py-1 bg-base-200 rounded-lg text-primary/80 border border-primary/5">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Goal: {format(task.dueAt, 'PPp')}</span>
                   </div>
                 )}
               </div>
@@ -74,38 +76,43 @@ export default async function TaskPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col lg:items-end gap-6 shrink-0">
+          <div className="flex items-center gap-4 bg-base-200/50 p-4 rounded-3xl border border-base-300/50">
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">SLA Performance</span>
             {task.dueAt && (
-              <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />
+              <div className="scale-110 origin-right">
+                <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <PauseTask taskId={task.id} />
             <StatusControlBar
               taskId={task.id}
               currentStatus={task.status as TaskStatus}
               assigneeId={task.assigneeId}
-              currentUserId={Number((session as any)?.user?.id)}
-              userRole={(session as any)?.user?.role as string}
+              reporterId={task.reporterId}
+              currentUserId={Number((session?.user as any)?.id)}
+              userRole={(session?.user as any)?.role as string}
             />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         {/* Left Column: Details */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-8 space-y-10">
           {/* Description */}
-          <div className="card bg-base-100 border border-base-200 shadow-sm">
-            <div className="card-body p-8 gap-6">
-              <div className="flex items-center gap-2 text-primary">
-                <FileText className="w-5 h-5" />
-                <h2 className="card-title text-sm font-black uppercase tracking-widest leading-none">Task Briefing</h2>
+          <div className="card bg-base-100 border border-base-200 shadow-sm rounded-[1.5rem] overflow-hidden">
+            <div className="card-body p-8 lg:p-10 gap-6">
+              <div className="flex items-center gap-2.5 text-primary">
+                <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <h2 className="card-title text-[11px] font-black uppercase tracking-[0.2em] opacity-60">Operational Briefing</h2>
               </div>
-              <div className="bg-base-200/50 p-6 rounded-2xl text-base-content/80 leading-relaxed font-medium">
-                {task.description || <span className="italic opacity-50">No briefing provided for this task.</span>}
+              <div className="bg-base-200/20 p-8 rounded-[1rem] border border-base-200/50 text-base lg:text-lg font-medium text-base-content/80 leading-relaxed italic">
+                {task.description || <span className="opacity-20 italic">No tactical briefing provided for this directive.</span>}
               </div>
             </div>
           </div>

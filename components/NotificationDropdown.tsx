@@ -14,7 +14,7 @@ type Notification = {
   createdAt: Date
 }
 
-const POLLING_INTERVAL = 30000 // 30 seconds
+const POLLING_INTERVAL = 5000 // 5 seconds
 
 export default function NotificationDropdown({ userId }: { userId: number }) {
   const [notifications, setNotifications] = useState<Notification[]>([])

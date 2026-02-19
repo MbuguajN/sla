@@ -71,11 +71,11 @@ export default async function ClientServiceTicketsPage() {
   const deptName = (session?.user as any)?.departmentName
   const deptId = (session?.user as any)?.departmentId
 
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
+  const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
   const isManager = role === 'MANAGER'
-  const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN'
+  const isAdmin = role === 'CEO'
 
-  // STRICT HIERARCHY: CS and Admins see ALL briefs. Managers see ONLY their department's briefs.
+  // STRICT HIERARCHY: CS and CEO see ALL briefs. Managers see ONLY their department's briefs.
   const filterByDept = isManager && !isAdmin && !isCS
 
   if (!isAdmin && !isCS && !isManager) {
@@ -91,12 +91,6 @@ export default async function ClientServiceTicketsPage() {
             <h1 className="text-4xl font-black tracking-tighter uppercase text-base-content">Brief Hub</h1>
           </div>
           <p className="text-base-content/50 font-bold uppercase tracking-widest text-[10px]">Operational Inbox / Client Service Cluster</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button className="btn btn-ghost btn-sm gap-2 font-black uppercase text-[10px] tracking-widest">
-            <Filter className="w-3 h-3" /> Filter
-          </button>
         </div>
       </div>
 

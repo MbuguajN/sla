@@ -234,6 +234,13 @@ export default function TicketTable({ initialTickets, departments, slas, users }
                         >
                           View Report <ArrowRight className="w-4 h-4" />
                         </Link>
+                      ) : activeTab === 'IN_PROGRESS' ? (
+                        <Link
+                          href={`/tasks/${ticket.id}`}
+                          className="btn btn-ghost btn-sm font-bold uppercase tracking-widest gap-2 hover:bg-warning/10 hover:text-warning transition-all text-[11px] h-10 px-6 rounded-xl border border-transparent hover:border-warning/20"
+                        >
+                          Tracking Brief <ArrowRight className="w-4 h-4" />
+                        </Link>
                       ) : (
                         <button
                           className="btn btn-primary btn-sm font-bold uppercase tracking-widest gap-2 shadow-lg shadow-primary/20 h-10 px-6 rounded-xl text-[11px]"

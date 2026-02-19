@@ -7,7 +7,7 @@ async function main() {
   const hashedPassword = await bcrypt.hash('admin123', 10)
 
   // Create Departments
-  const departments = ['TECHNOLOGY', 'CREATIVE', 'MEDIA', 'CONTENT', 'CLIENT_SERVICE', 'CEO', 'BUSINESS_DEVELOPMENT', 'HR', 'ACCOUNTS']
+  const departments = ['TECHNOLOGY', 'CREATIVE', 'MEDIA', 'CONTENT', 'CLIENT_SERVICE', 'BUSINESS_DEVELOPMENT', 'HR', 'ACCOUNTS']
   for (const name of departments) {
     await prisma.department.upsert({
       where: { name },
@@ -17,57 +17,90 @@ async function main() {
   }
 
   const techDept = await prisma.department.findUnique({ where: { name: 'TECHNOLOGY' } })
+  const csDept = await prisma.department.findUnique({ where: { name: 'CLIENT_SERVICE' } })
+  const creativeDept = await prisma.department.findUnique({ where: { name: 'CREATIVE' } })
 
   // Create Admin
-  await prisma.user.upsert({
+  const admin = await prisma.user.upsert({
     where: { email: 'admin@nexus.com' },
-    update: { password: hashedPassword },
+    update: { password: hashedPassword, role: 'MANAGER' },
     create: {
       email: 'admin@nexus.com',
       name: 'Nexus Admin',
       password: hashedPassword,
-      role: 'ADMIN',
+      role: 'MANAGER',
       departmentId: techDept.id
     }
   })
 
-  // Create Client Service
-  await prisma.user.upsert({
+  // Set Tech Head
+  await prisma.department.update({
+    where: { id: techDept.id },
+    data: { headId: admin.id }
+  })
+
+  // Create Client Service Head
+  const csHead = await prisma.user.upsert({
     where: { email: 'cs@nexus.com' },
-    update: { password: hashedPassword },
+    update: { password: hashedPassword, role: 'MANAGER' },
     create: {
       email: 'cs@nexus.com',
       name: 'James CS',
       password: hashedPassword,
-      role: 'CLIENT_SERVICE',
-      departmentId: (await prisma.department.findUnique({ where: { name: 'CLIENT_SERVICE' } })).id
+      role: 'MANAGER',
+      departmentId: csDept.id
+    }
+  })
+
+  await prisma.department.update({
+    where: { id: csDept.id },
+    data: { headId: csHead.id }
+  })
+
+  // Create CEO
+  await prisma.user.upsert({
+    where: { email: 'ceo@nexus.com' },
+    update: { password: hashedPassword, role: 'CEO' },
+    create: {
+      email: 'ceo@nexus.com',
+      name: 'Chief Executive',
+      password: hashedPassword,
+      role: 'CEO',
     }
   })
 
   // Create Manager
-  await prisma.user.upsert({
+  const creativeManager = await prisma.user.upsert({
     where: { email: 'manager@nexus.com' },
-    update: { password: hashedPassword },
+    update: { password: hashedPassword, role: 'MANAGER' },
     create: {
+      email: 'manager@nexus.com',
+      name: 'Manager Creative',
+      password: hashedPassword,
       role: 'MANAGER',
-      departmentId: (await prisma.department.findUnique({ where: { name: 'CREATIVE' } })).id
+      departmentId: creativeDept.id
     }
+  })
+
+  await prisma.department.update({
+    where: { id: creativeDept.id },
+    data: { headId: creativeManager.id }
   })
 
   // Create Employee
   await prisma.user.upsert({
     where: { email: 'employee@nexus.com' },
-    update: { password: hashedPassword },
+    update: { password: hashedPassword, role: 'EMPLOYEE' },
     create: {
       email: 'employee@nexus.com',
       name: 'Alex Developer',
       password: hashedPassword,
       role: 'EMPLOYEE',
-      departmentId: (await prisma.department.findUnique({ where: { name: 'TECHNOLOGY' } })).id
+      departmentId: techDept.id
     }
   })
 
-  console.log('Seed completed: All roles (ADMIN, CLIENT_SERVICE, MANAGER, EMPLOYEE) created with password: admin123')
+  console.log('Seed completed: Roles (CEO, MANAGER, EMPLOYEE) created with department heads assigned.')
 }
 
 main()

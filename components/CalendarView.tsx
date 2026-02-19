@@ -22,14 +22,14 @@ export default function CalendarView({ events }: { events: EventWithMeta[] }) {
   }
 
   return (
-    <div className="w-full" style={{ minHeight: 420 }}>
+    <div className="w-full" style={{ minHeight: 600 }}>
       <Calendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
         defaultView="month"
-        style={{ height: 420 }}
+        style={{ height: 600 }}
         onSelectEvent={(e: any) => router.push(`/tasks/${e.id}`)}
         eventPropGetter={eventStyleGetter}
         components={{}}

@@ -50,12 +50,20 @@ export async function createTask(data: {
     if (!session?.user?.id) throw new Error('Unauthorized')
     const operatorId = parseInt(session.user.id)
 
-    // STRICTURE: Only BDev can create briefs
+    // STRICTURE: Only BDev can create briefs (tasks without a project)
+    // Client Service can initialize tasks but only within specific projects
     const userRole = (session.user as any).role
     const userDept = (session.user as any).departmentName
 
-    if (userDept !== 'BUSINESS_DEVELOPMENT' && userRole !== 'SUPER_ADMIN') {
-      throw new Error('STRATEGIC DENIAL: Only Business Development can create briefs.')
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'CEO' || userRole === 'MANAGER'
+    const isCS = userDept === 'CLIENT_SERVICE'
+
+    if (!data.projectId && !isBD) {
+      throw new Error('STRATEGIC DENIAL: Only Business Development can initiate standalone briefs.')
+    }
+
+    if (isCS && !data.projectId) {
+      throw new Error('STRATEGIC DENIAL: Client Service must initialize tasks within a specific project.')
     }
 
     const task = await prisma.task.create({
@@ -154,6 +162,14 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!oldTask) throw new Error('Task not found')
+
+    // LOGIC: Only the person who initiated the task (reporter) can mark it as COMPLETED
+    if (newStatus === TaskStatus.COMPLETED) {
+      if (oldTask.reporterId !== operatorId && (session?.user as any).role !== 'CEO' && (session?.user as any).role !== 'MANAGER') {
+        throw new Error('STRATEGIC DENIAL: Only the task initiator can finalize this directive.')
+      }
+    }
 
     const data: any = { status: newStatus }
     if (newStatus === TaskStatus.IN_PROGRESS && !oldTask?.startedAt) {
@@ -171,7 +187,14 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
       await createAuditLog(taskId, operatorId, 'STATUS_CHANGE', oldTask?.status, newStatus)
     }
 
-    if (newStatus === TaskStatus.REVIEW) {
+    // LOGIC: When submitted for review, notify the reporter
+    if (newStatus === TaskStatus.REVIEW && task.reporterId) {
+      await createSystemNotification(
+        task.reporterId,
+        `Action Required: Task "${task.title}" has been submitted for review.`,
+        'STATUS_REVIEW'
+      )
+      // Also notify watchers as before
       await notifyWatchers(taskId, `Task ready for review: ${task.title}`, 'STATUS_REVIEW')
     }
 
@@ -182,7 +205,6 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
     return { success: false, error: error.message }
   }
 }
-
 export async function updateTaskStatus(taskId: number, status: TaskStatus) {
   return advanceTaskStatus(taskId, status)
 }

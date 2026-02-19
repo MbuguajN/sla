@@ -4,7 +4,7 @@ import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { Activity, Lock, Mail, Loader2 } from "lucide-react"
+import { Activity, Lock, Mail, Loader2, AlertOctagon } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -38,31 +38,57 @@ export default function LoginPage() {
     }
   }
 
+  // Fetch logo settings on mount
+  const [logos, setLogos] = useState<{ light: string, dark: string }>({ light: '', dark: '' })
+
+  useState(() => {
+    import('@/app/actions/settingsActions').then(mod => {
+      mod.getSystemSettings(['SYSTEM_LOGO_LIGHT', 'SYSTEM_LOGO_DARK', 'SYSTEM_LOGO']).then(settings => {
+        setLogos({
+          light: settings['SYSTEM_LOGO_LIGHT'] || settings['SYSTEM_LOGO'] || '/logo.svg',
+          dark: settings['SYSTEM_LOGO_DARK'] || settings['SYSTEM_LOGO'] || '/logo.svg'
+        })
+      })
+    })
+  })
+
+  // ... handleSubmit ...
+
   return (
-    <div className="min-h-screen bg-base-200 flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-primary rounded-2xl shadow-xl shadow-primary/20 mb-6 overflow-hidden">
-            <span className="text-2xl font-black text-white tracking-tight">5DM</span>
+    <div className="min-h-screen bg-base-200 flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/5 via-base-200 to-base-200">
+      <div className="max-w-md w-full animate-fade-up">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-32 h-32 mb-8 overflow-hidden">
+            <img
+              src={logos.light}
+              alt="Logo"
+              className="w-full h-full object-contain dark:hidden"
+            />
+            <img
+              src={logos.dark}
+              alt="Logo"
+              className="w-full h-full object-contain hidden dark:block"
+            />
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-base-content uppercase">5DM AFRICA</h1>
-          <p className="mt-2 text-sm font-bold text-primary tracking-widest uppercase">Operational Authentication</p>
         </div>
 
-        <div className="card bg-base-100 shadow-2xl border border-base-300">
-          <div className="card-body p-10 gap-6">
+        <div className="card bg-base-100 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] border border-base-content/5 rounded-[2.5rem] overflow-hidden">
+
+          <div className="card-body p-12 gap-8">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black tracking-tight text-center uppercase">System Access</h2>
+              <p className="text-center text-[10px] font-bold text-base-content/40 uppercase tracking-[0.3em]">Credentials Required</p>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-bold uppercase tracking-widest text-[10px] text-base-content/50">Internal Email</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
+                <div className="relative group">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 group-focus-within:text-primary transition-colors" />
                   <input
                     required
                     type="email"
-                    placeholder="name@company.com"
-                    className="input input-bordered w-full pl-12 focus:border-primary transition-all font-medium"
+                    placeholder="INTERNAL EMAIL"
+                    className="input input-lg bg-base-200 border-none focus:ring-2 focus:ring-primary/20 w-full pl-12 transition-all font-bold text-xs tracking-wider"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -70,16 +96,13 @@ export default function LoginPage() {
               </div>
 
               <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-bold uppercase tracking-widest text-[10px] text-base-content/50">Security Key</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 group-focus-within:text-primary transition-colors" />
                   <input
                     required
                     type="password"
-                    placeholder="••••••••"
-                    className="input input-bordered w-full pl-12 focus:border-primary transition-all"
+                    placeholder="SECURITY KEY"
+                    className="input input-lg bg-base-200 border-none focus:ring-2 focus:ring-primary/20 w-full pl-12 transition-all font-bold text-xs tracking-wider"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -87,26 +110,27 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="alert alert-error text-xs font-bold py-3 rounded-xl border-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <div className="alert alert-error bg-error/10 text-error text-[10px] font-black uppercase tracking-widest border-none py-4 rounded-2xl">
+                  <AlertOctagon className="w-4 h-4" />
                   <span>{error}</span>
                 </div>
               )}
 
               <button
                 type="submit"
-                className="btn btn-primary btn-block shadow-lg shadow-primary/20 gap-3"
+                className="btn btn-primary btn-lg btn-block shadow-xl shadow-primary/20 rounded-2xl border-none hover:scale-[1.02] active:scale-95 transition-all h-16 group"
                 disabled={loading}
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {loading ? 'Authenticating...' : 'Enter 5DM Hub'}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>ENTER OPERATIONAL HUB</span>}
               </button>
             </form>
 
-            <div className="divider text-[10px] font-black uppercase tracking-[0.2em] opacity-30 mt-4">Protected Resource</div>
-            <p className="text-center text-[10px] font-medium text-base-content/40 uppercase">
-              Authorization required for system oversight
-            </p>
+            <div className="flex flex-col items-center gap-4 mt-4">
+              <div className="h-px w-12 bg-base-content/10"></div>
+              <p className="text-[9px] font-black text-base-content/30 uppercase tracking-[0.4em]">
+                Secure Pipeline v0.1
+              </p>
+            </div>
           </div>
         </div>
       </div>

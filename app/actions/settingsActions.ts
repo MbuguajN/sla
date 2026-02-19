@@ -14,7 +14,7 @@ export async function saveSystemSettings(settings: Record<string, string>) {
 
     const role = (session.user as any)?.role
 
-    if (role !== 'SUPER_ADMIN' && role !== 'ADMIN') {
+    if (role !== 'CEO' && role !== 'MANAGER') {
       return { success: false, error: 'Unauthorized operational clearance' }
     }
 
@@ -72,7 +72,7 @@ import { join } from 'path'
 export async function uploadLogo(formData: FormData) {
   try {
     const session = await auth()
-    if (!session?.user || ((session.user as any).role !== 'SUPER_ADMIN' && (session.user as any).role !== 'ADMIN')) {
+    if (!session?.user || ((session.user as any).role !== 'CEO' && (session.user as any).role !== 'MANAGER')) {
       return { success: false, error: 'Unauthorized' }
     }
 

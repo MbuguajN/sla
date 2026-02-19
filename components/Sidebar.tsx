@@ -60,12 +60,11 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
 
   // LOGIC: Manager View vs Employee View
   // Manager: Role is MANAGER or Department is CEO
-  const isManager = userRole === 'MANAGER' || dbUser?.department?.name === 'CEO'
+  const isManager = userRole === 'MANAGER'
 
   // Specific role checks for legacy/admin features
-  const isSuperAdmin = userRole === 'SUPER_ADMIN'
-  const isAdmin = userRole === 'ADMIN' || isSuperAdmin
-  const isCS = dbUser?.department?.name === 'CLIENT_SERVICE' || userRole === 'CLIENT_SERVICE'
+  const isAdmin = userRole === 'CEO'
+  const isCS = dbUser?.department?.name === 'CLIENT_SERVICE'
   const isBusinessDev = dbUser?.department?.name === 'BUSINESS_DEVELOPMENT'
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed)
@@ -221,8 +220,8 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
             )
           })}
 
-          {/* New Brief Button - Restricted to BDev & Admins */}
-          {(isBusinessDev || isSuperAdmin) && (
+          {/* New Brief Button - Restricted to BDev, Managers & CEO */}
+          {(isBusinessDev || isManager || isAdmin) && (
             <Link
               href="/tasks/new"
               className={cn(
@@ -259,10 +258,10 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
             {/* User Info - hidden when collapsed */}
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-black truncate">
+                <span className="text-xs font-bold text-white truncate">
                   {session.user.name}
                 </span>
-                <span className="text-[10px] text-black font-bold uppercase tracking-tight opacity-50">
+                <span className="text-[10px] text-white font-bold uppercase tracking-tight opacity-50">
                   {userRole} • {dbUser?.department?.name || 'No Dept'}
                 </span>
               </div>

@@ -17,13 +17,22 @@ import { cn } from '@/lib/utils'
 
 export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: any[] }) {
     const [search, setSearch] = useState('')
+    const [activeTab, setActiveTab] = useState<'ACTIVE' | 'COMPLETED'>('ACTIVE')
 
     const filteredTasks = useMemo(() => {
-        return initialTasks.filter(t =>
-            t.title.toLowerCase().includes(search.toLowerCase()) ||
-            t.id.toString().includes(search)
-        )
-    }, [initialTasks, search])
+        return initialTasks.filter(t => {
+            const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
+                t.id.toString().includes(search)
+
+            if (!matchesSearch) return false
+
+            if (activeTab === 'ACTIVE') {
+                return t.status !== 'COMPLETED'
+            } else {
+                return t.status === 'COMPLETED'
+            }
+        })
+    }, [initialTasks, search, activeTab])
 
     // Sort by SLA urgency
     const sortedTasks = useMemo(() => {
@@ -49,12 +58,12 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
         <div className="space-y-8 animate-in fade-in duration-500 p-6 lg:p-0">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-xl shadow-primary/5">
-                        <ClipboardList className="w-7 h-7" />
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20 shadow-xl shadow-primary/5">
+                        <ClipboardList className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase leading-none">Global Task Overview</h1>
-                        <p className="text-sm font-bold text-base-content/40 uppercase tracking-widest mt-1">Monitoring {sortedTasks.length} active service commitments</p>
+                        <h1 className="text-3xl font-black text-base-content tracking-tighter uppercase leading-none">Global Task Overview</h1>
+                        <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest mt-1">Monitoring {initialTasks.filter(t => t.status !== 'COMPLETED').length} active service commitments</p>
                     </div>
                 </div>
 
@@ -71,6 +80,29 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     </div>
                     <ExportCSVButton data={exportData} filename="Global_Task_Export" />
                 </div>
+            </div>
+
+            <div className="flex items-center gap-2 border-b border-base-200 px-2 bg-base-100/30 backdrop-blur-md sticky top-0 z-20">
+                <button
+                    onClick={() => setActiveTab('ACTIVE')}
+                    className={cn(
+                        "px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                        activeTab === 'ACTIVE' ? "text-primary" : "text-base-content/30 hover:text-base-content/50"
+                    )}
+                >
+                    Active Directives
+                    {activeTab === 'ACTIVE' && <div className="absolute bottom-0 left-6 right-6 h-0.5 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(var(--p),0.4)]" />}
+                </button>
+                <button
+                    onClick={() => setActiveTab('COMPLETED')}
+                    className={cn(
+                        "px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                        activeTab === 'COMPLETED' ? "text-success" : "text-base-content/30 hover:text-base-content/50"
+                    )}
+                >
+                    Completed Archives
+                    {activeTab === 'COMPLETED' && <div className="absolute bottom-0 left-6 right-6 h-0.5 bg-success rounded-t-full" />}
+                </button>
             </div>
 
             <div className="card bg-base-100 shadow-2xl border border-base-200 overflow-hidden rounded-[2rem]">
@@ -95,43 +127,43 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
 
                                 return (
                                     <tr key={task.id} className="hover:bg-primary/[0.03] transition-colors group">
-                                        <td className="py-7 pl-10 border-b border-base-100">
-                                            <div className="flex flex-col gap-1.5">
-                                                <span className="font-bold text-base text-base-content group-hover:text-primary transition-colors tracking-tight">{task.title}</span>
+                                        <td className="py-4 pl-10 border-b border-base-100">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-bold text-sm text-base-content group-hover:text-primary transition-colors tracking-tight">{task.title}</span>
                                                 <div className="flex items-center gap-3">
-                                                    <span className="badge badge-sm bg-base-200/50 border-none text-[9px] font-bold uppercase tracking-widest px-3 h-5 flex items-center justify-center rounded-md text-base-content/60">
+                                                    <span className="badge badge-sm bg-base-200/50 border-none text-[8px] font-bold uppercase tracking-widest px-2 h-4 flex items-center justify-center rounded-md text-base-content/60">
                                                         {task.sla.name}
                                                     </span>
                                                     <div className="flex items-center gap-1 opacity-10">
-                                                        <Hash className="w-3 h-3" />
-                                                        <span className="font-mono text-[9px] font-bold tracking-tighter">{task.id.toString().padStart(4, '0')}</span>
+                                                        <Hash className="w-2.5 h-2.5" />
+                                                        <span className="font-mono text-[8px] font-bold tracking-tighter">{task.id.toString().padStart(4, '0')}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-7 border-b border-base-100">
-                                            <div className="flex items-center gap-4">
+                                        <td className="py-4 border-b border-base-100">
+                                            <div className="flex items-center gap-3">
                                                 <div className="avatar placeholder">
-                                                    <div className="bg-primary/5 text-primary rounded-full w-9 h-9 border border-primary/20 shadow-sm grid place-items-center">
-                                                        <span className="text-xs font-bold leading-none">{task.assignee?.name?.charAt(0) || '?'}</span>
+                                                    <div className="bg-primary/5 text-primary rounded-full w-8 h-8 border border-primary/20 shadow-sm grid place-items-center">
+                                                        <span className="text-[10px] font-bold leading-none">{task.assignee?.name?.charAt(0) || '?'}</span>
                                                     </div>
                                                 </div>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-[11px] font-bold uppercase tracking-tight text-base-content/80">{task.assignee?.name || 'Awaiting Resource'}</span>
-                                                    <span className="text-[9px] font-semibold opacity-30 uppercase tracking-[0.15em]">{task.assignee ? 'Operator' : 'Pool Asset'}</span>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold uppercase tracking-tight text-base-content/80">{task.assignee?.name || 'Awaiting Resource'}</span>
+                                                    <span className="text-[8px] font-semibold opacity-30 uppercase tracking-[0.15em]">{task.assignee ? 'Operator' : 'Pool Asset'}</span>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="py-7 border-b border-base-100">
+                                        <td className="py-4 border-b border-base-100">
                                             {task.dueAt && (
-                                                <div className="scale-90 origin-left">
+                                                <div className="scale-75 origin-left">
                                                     <SLACountdown dueDate={new Date(task.dueAt)} isCompleted={isCompleted} />
                                                 </div>
                                             )}
                                         </td>
-                                        <td className="py-7 border-b border-base-100">
+                                        <td className="py-4 border-b border-base-100">
                                             <div className={cn(
-                                                "badge badge-sm font-bold text-[9px] uppercase tracking-wide h-6 px-4 border-none shadow-sm",
+                                                "badge badge-sm font-bold text-[8px] uppercase tracking-wide h-5 px-3 border-none shadow-sm",
                                                 task.status === 'COMPLETED' ? "bg-success/15 text-success" :
                                                     task.status === 'IN_PROGRESS' ? "bg-primary/10 text-primary" :
                                                         "bg-base-200/50 text-base-content/40"
@@ -139,12 +171,12 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                 {task.status.replace('_', ' ')}
                                             </div>
                                         </td>
-                                        <td className="py-7 border-b border-base-100">
+                                        <td className="py-4 border-b border-base-100">
                                             <div className="flex items-center gap-3 group/msg relative cursor-help">
-                                                <div className="w-9 h-9 rounded-xl bg-base-200/50 flex items-center justify-center border border-base-300/50 group-hover/msg:border-primary/20 transition-all">
-                                                    <MessageCircle className="w-4 h-4 text-base-content/30 group-hover/msg:opacity-100 group-hover/msg:text-primary transition-all" />
+                                                <div className="w-8 h-8 rounded-lg bg-base-200/50 flex items-center justify-center border border-base-300/50 group-hover/msg:border-primary/20 transition-all">
+                                                    <MessageCircle className="w-3.5 h-3.5 text-base-content/30 group-hover/msg:opacity-100 group-hover/msg:text-primary transition-all" />
                                                 </div>
-                                                <div className="text-[10px] font-medium text-base-content/40 max-w-[140px] truncate italic tracking-tight">
+                                                <div className="text-[9px] font-medium text-base-content/40 max-w-[120px] truncate italic tracking-tight">
                                                     {lastMessage ? `"${lastMessage.content}"` : 'No recent logs'}
                                                 </div>
                                                 {lastMessage && (

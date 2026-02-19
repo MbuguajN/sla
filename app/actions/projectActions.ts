@@ -62,10 +62,10 @@ export async function createProject(formData: { title: string; description?: str
   const role = (session?.user as any)?.role
   const deptName = (session?.user as any)?.departmentName
 
-  const isCS = role === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE'
+  const isBD = (session?.user as any)?.departmentName === 'BUSINESS_DEVELOPMENT' || (session?.user as any)?.department?.name === 'BUSINESS_DEVELOPMENT'
 
-  if (role !== 'SUPER_ADMIN' && role !== 'ADMIN' && !isCS) {
-    throw new Error('Unauthorized')
+  if (role !== 'CEO' && role !== 'MANAGER' && !isBD) {
+    throw new Error('Unauthorized: Only Business Development, Managers or CEO can create projects.')
   }
 
   const project = await prisma.project.create({
