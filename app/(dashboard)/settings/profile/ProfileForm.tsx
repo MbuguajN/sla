@@ -32,10 +32,10 @@ export default function ProfileForm({ user }: { user: any }) {
     <div className="max-w-2xl mx-auto">
       <div className="card bg-base-100 shadow-xl border border-base-200 overflow-hidden">
         <div className="bg-primary p-8 text-primary-content">
-          <h2 className="text-2xl font-black uppercase tracking-tight">User Settings</h2>
+          <h2 className="text-2xl font-bold uppercase tracking-tight">User Settings</h2>
           <p className="opacity-70 text-sm font-bold uppercase tracking-widest mt-1">Manage your identity and credentials</p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {success && (
             <div className="alert alert-success shadow-sm font-bold animate-in fade-in slide-in-from-top-2">
@@ -46,13 +46,13 @@ export default function ProfileForm({ user }: { user: any }) {
 
           <div className="form-control w-full">
             <label className="label">
-              <span className="label-text font-black uppercase tracking-widest text-[10px] opacity-50">Full Name</span>
+              <span className="label-text font-bold uppercase tracking-wider text-xs opacity-50">Full Name</span>
             </label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-              <input 
-                type="text" 
-                className="input input-bordered w-full pl-12 font-bold" 
+              <input
+                type="text"
+                className="input input-bordered w-full pl-12 font-bold"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -61,14 +61,14 @@ export default function ProfileForm({ user }: { user: any }) {
 
           <div className="form-control w-full">
             <label className="label">
-              <span className="label-text font-black uppercase tracking-widest text-[10px] opacity-50">Avatar URL</span>
+              <span className="label-text font-bold uppercase tracking-wider text-xs opacity-50">Avatar URL</span>
             </label>
             <div className="relative">
               <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-              <input 
-                type="url" 
+              <input
+                type="url"
                 placeholder="https://example.com/avatar.jpg"
-                className="input input-bordered w-full pl-12 font-bold" 
+                className="input input-bordered w-full pl-12 font-bold"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
               />
@@ -79,7 +79,7 @@ export default function ProfileForm({ user }: { user: any }) {
                   <img src={avatarUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.src = 'https://api.dicebear.com/7.x/initials/svg?seed=' + name)} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase opacity-40">Avatar Preview</p>
+                  <p className="text-xs font-bold uppercase opacity-40">Avatar Preview</p>
                   <p className="text-xs font-bold opacity-60">This is how you'll appear in the system</p>
                 </div>
               </div>
@@ -90,14 +90,14 @@ export default function ProfileForm({ user }: { user: any }) {
 
           <div className="form-control w-full">
             <label className="label">
-              <span className="label-text font-black uppercase tracking-widest text-[10px] opacity-50">Update Password (Optional)</span>
+              <span className="label-text font-bold uppercase tracking-wider text-xs opacity-50">Update Password (Optional)</span>
             </label>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 opacity-30" />
-              <input 
-                type="password" 
+              <input
+                type="password"
                 placeholder="Leave blank to keep current password"
-                className="input input-bordered w-full pl-12 font-bold" 
+                className="input input-bordered w-full pl-12 font-bold"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -105,9 +105,9 @@ export default function ProfileForm({ user }: { user: any }) {
           </div>
 
           <div className="pt-4">
-            <button 
-              type="submit" 
-              className={cn("btn btn-primary btn-block h-12 shadow-lg shadow-primary/20 gap-3 font-black uppercase tracking-widest", loading && "loading")}
+            <button
+              type="submit"
+              className={cn("btn btn-primary btn-block h-12 shadow-lg shadow-primary/20 gap-3 font-bold uppercase tracking-wider", loading && "loading")}
               disabled={loading}
             >
               {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}

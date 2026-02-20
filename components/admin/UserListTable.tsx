@@ -41,7 +41,7 @@ export default function UserListTable({ users, departments }: { users: any[], de
                 <div className="flex items-center gap-3">
                   <div className="avatar placeholder">
                     <div className="bg-base-300 text-base-content rounded-full w-10 h-10 flex items-center justify-center overflow-hidden border border-base-200 shadow-sm">
-                      <span className="font-black flex items-center justify-center">{user.name?.charAt(0)}</span>
+                      <span className="font-bold flex items-center justify-center">{user.name?.charAt(0)}</span>
                     </div>
                   </div>
                   <div>

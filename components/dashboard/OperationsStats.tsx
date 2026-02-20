@@ -39,10 +39,10 @@ export default async function OperationsStats({
                         <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
                             <Activity className="w-3 h-3" />
                         </div>
-                        <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Active</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Active Directives</span>
                     </div>
                     <div>
-                        <span className="text-3xl font-black text-base-content tracking-tighter leading-none block">
+                        <span className="text-3xl font-bold text-base-content tracking-tight leading-none block">
                             {activeTasksCount}
                         </span>
                     </div>
@@ -59,10 +59,10 @@ export default async function OperationsStats({
                         <div className="p-1.5 bg-error/10 rounded-lg text-error">
                             <AlertOctagon className="w-3 h-3" />
                         </div>
-                        <span className="text-[8px] font-black uppercase tracking-widest opacity-60">Overdue</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Overdue Commitments</span>
                     </div>
                     <div>
-                        <span className="text-3xl font-black text-error tracking-tighter leading-none block">
+                        <span className="text-3xl font-bold text-error tracking-tight leading-none block">
                             {overdueTasksCount}
                         </span>
                     </div>

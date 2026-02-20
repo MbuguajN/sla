@@ -6,11 +6,16 @@ import { redirect } from 'next/navigation'
 import TicketTable from './TicketTable'
 import { Inbox, Filter } from 'lucide-react'
 
-async function TicketList({ departmentId, isManager }: { departmentId?: number, isManager?: boolean }) {
+async function TicketList({ departmentId, isManager, currentUserId, isBDUser }: { departmentId?: number, isManager?: boolean, currentUserId: number, isBDUser: boolean }) {
   const tickets = await prisma.task.findMany({
     where: {
       isTicket: true,
-      ...(isManager && departmentId ? { departmentId } : {})
+      ...(isBDUser
+        ? { reporterId: currentUserId }  // BD users see only briefs they created
+        : isManager && departmentId
+          ? { departmentId }
+          : {}
+      )
     },
     select: {
       id: true,
@@ -21,9 +26,13 @@ async function TicketList({ departmentId, isManager }: { departmentId?: number, 
       projectId: true,
       slaId: true,
       dueAt: true,
+      reporterId: true,
       project: { select: { id: true, title: true, defaultSlaId: true } },
       reporter: {
-        select: { name: true, email: true }
+        select: { id: true, name: true, email: true }
+      },
+      assignee: {
+        select: { id: true, name: true }
       },
       senderName: true,
       senderEmail: true
@@ -50,6 +59,7 @@ async function TicketList({ departmentId, isManager }: { departmentId?: number, 
       departments={departments}
       slas={slas}
       users={users as any}
+      currentUserId={currentUserId}
     />
   )
 }
@@ -72,15 +82,18 @@ export default async function ClientServiceTicketsPage() {
   const deptId = (session?.user as any)?.departmentId
 
   const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
+  const isBD = deptName === 'BUSINESS_DEVELOPMENT' || deptName === 'BUSINESS DEVELOPMENT'
   const isManager = role === 'MANAGER'
   const isAdmin = role === 'ADMIN' || role === 'CEO' || role === 'HR'
 
-  // STRICT HIERARCHY: CS and CEO see ALL briefs. Managers see ONLY their department's briefs.
-  const filterByDept = isManager && !isAdmin && !isCS
+  // STRICT HIERARCHY: CS and CEO see ALL briefs. BD sees only briefs they reported. Managers see their department's briefs.
+  const filterByDept = isManager && !isAdmin && !isCS && !isBD
 
-  if (!isAdmin && !isCS && !isManager) {
+  if (!isAdmin && !isCS && !isManager && !isBD) {
     redirect('/')
   }
+
+  const currentUserId = session?.user?.id ? Number(session.user.id) : 0
 
   return (
     <div className="space-y-8 p-6 lg:p-10 animate-in fade-in duration-500">
@@ -99,6 +112,8 @@ export default async function ClientServiceTicketsPage() {
           <TicketList
             departmentId={deptId ? Number(deptId) : undefined}
             isManager={filterByDept}
+            currentUserId={currentUserId}
+            isBDUser={isBD && !isAdmin}
           />
         </Suspense>
       </div>

@@ -107,7 +107,8 @@ export default function StatusControlBar({
   // Only assignees can CONFIRM or START
   const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && (isAssignee || isAdminCheck)
   const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && (isAssignee || isAdminCheck)
-  const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && (isAssignee || isAdminCheck)
+  // Only the assignee can submit for review or pause — no admin override
+  const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && isAssignee
 
   // Only reporter can COMPLETE (Admin fallback)
   const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || userRole === 'ADMIN')
@@ -138,13 +139,13 @@ export default function StatusControlBar({
     <div className="flex flex-col gap-3 w-full">
       <div className="flex items-center gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm animate-in fade-in slide-in-from-bottom-2">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Current Workflow State</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-base-content/40">Current Workflow State</span>
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full animate-pulse",
               isCompleted ? "bg-success" : "bg-primary"
             )} />
-            <span className="text-sm font-bold uppercase tracking-tight">{optimisticStatus}</span>
+            <span className="text-sm font-bold tracking-tight">{optimisticStatus}</span>
           </div>
         </div>
 
@@ -183,14 +184,14 @@ export default function StatusControlBar({
             )}
           </div>
         ) : (
-          <div className="flex items-center gap-3 text-success font-black uppercase text-sm px-6 py-3 bg-success/10 rounded-xl border border-success/20">
+          <div className="flex items-center gap-3 text-success font-bold text-sm px-6 py-3 bg-success/10 rounded-xl border border-success/20">
             <CheckCircle2 className="w-5 h-5" />
             Task Finalized
           </div>
         )}
 
         {isRestricted && optimisticStatus === TaskStatus.REVIEW && (
-          <div className="hidden md:flex items-center gap-2 text-warning font-bold text-[10px] uppercase tracking-tighter max-w-[150px] leading-tight">
+          <div className="hidden md:flex items-center gap-2 text-warning font-bold text-xs tracking-tight max-w-[150px] leading-tight">
             <AlertCircle className="w-3 h-3 shrink-0" />
             Waiting for Initiator Approval
           </div>
@@ -205,7 +206,7 @@ export default function StatusControlBar({
       </div>
 
       {error && (
-        <div className="text-[10px] font-black uppercase text-error px-4 animate-in fade-in slide-in-from-top-1">
+        <div className="text-xs font-bold text-error px-4 animate-in fade-in slide-in-from-top-1">
           Restriction: {error}
         </div>
       )}

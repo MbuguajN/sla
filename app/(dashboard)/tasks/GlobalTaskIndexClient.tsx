@@ -62,8 +62,8 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                         <ClipboardList className="w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-black text-base-content tracking-tighter uppercase leading-none">Global Task Overview</h1>
-                        <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest mt-1">Monitoring {initialTasks.filter(t => t.status !== 'COMPLETED').length} active service commitments</p>
+                        <h1 className="text-3xl font-bold text-base-content tracking-tight leading-none">Global Task Overview</h1>
+                        <p className="text-xs font-medium text-base-content/40 mt-2">Monitoring {initialTasks.filter(t => t.status !== 'COMPLETED').length} active service commitments</p>
                     </div>
                 </div>
 
@@ -72,8 +72,8 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
                         <input
                             type="text"
-                            placeholder="FAST SEARCH..."
-                            className="input input-bordered w-full pl-12 bg-base-100 border-base-300 font-black uppercase text-[11px] tracking-widest focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all h-12"
+                            placeholder="Search tasks..."
+                            className="input input-bordered w-full pl-12 bg-base-100 border-base-300 font-medium text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all h-12"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
@@ -86,7 +86,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                 <button
                     onClick={() => setActiveTab('ACTIVE')}
                     className={cn(
-                        "px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                        "px-6 py-4 text-xs font-bold transition-all relative",
                         activeTab === 'ACTIVE' ? "text-primary" : "text-base-content/30 hover:text-base-content/50"
                     )}
                 >
@@ -96,7 +96,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                 <button
                     onClick={() => setActiveTab('COMPLETED')}
                     className={cn(
-                        "px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] transition-all relative",
+                        "px-6 py-4 text-xs font-bold transition-all relative",
                         activeTab === 'COMPLETED' ? "text-success" : "text-base-content/30 hover:text-base-content/50"
                     )}
                 >
@@ -131,12 +131,12 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                             <div className="flex flex-col gap-1">
                                                 <span className="font-bold text-sm text-base-content group-hover:text-primary transition-colors tracking-tight">{task.title}</span>
                                                 <div className="flex items-center gap-3">
-                                                    <span className="badge badge-sm bg-base-200/50 border-none text-[8px] font-bold uppercase tracking-widest px-2 h-4 flex items-center justify-center rounded-md text-base-content/60">
+                                                    <span className="badge badge-sm bg-base-200/50 border-none text-[10px] font-bold px-2 h-4 flex items-center justify-center rounded-md text-base-content/60">
                                                         {task.sla.name}
                                                     </span>
                                                     <div className="flex items-center gap-1 opacity-10">
                                                         <Hash className="w-2.5 h-2.5" />
-                                                        <span className="font-mono text-[8px] font-bold tracking-tighter">{task.id.toString().padStart(4, '0')}</span>
+                                                        <span className="font-mono text-[10px] font-bold tracking-tighter">{task.id.toString().padStart(4, '0')}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -215,16 +215,16 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                             <div key={task.id} className="p-8 space-y-6">
                                 <div className="flex items-start justify-between gap-6">
                                     <div className="flex flex-col gap-2">
-                                        <Link href={`/tasks/${task.id}`} className="font-black text-lg text-base-content leading-tight group-hover:text-primary transition-colors">
+                                        <Link href={`/tasks/${task.id}`} className="font-bold text-lg text-base-content leading-tight group-hover:text-primary transition-colors">
                                             {task.title}
                                         </Link>
                                         <div className="flex items-center gap-3">
-                                            <span className="badge badge-sm bg-base-300/30 border-none font-black uppercase tracking-widest text-[9px] px-3 rounded-md">{task.sla.name}</span>
+                                            <span className="badge badge-sm bg-base-300/30 border-none font-bold uppercase tracking-wider text-xs px-3 rounded-md">{task.sla.name}</span>
                                             <span className="text-[10px] font-mono font-bold opacity-30">#{task.id}</span>
                                         </div>
                                     </div>
                                     <div className={cn(
-                                        "badge badge-sm font-black p-3 h-7 text-[9px] uppercase tracking-tighter border-none shadow-sm",
+                                        "badge badge-sm font-bold p-3 h-7 text-xs uppercase tracking-wider border-none shadow-sm",
                                         task.status === 'COMPLETED' ? "bg-success/15 text-success" :
                                             task.status === 'IN_PROGRESS' ? "bg-primary/15 text-primary" :
                                                 "bg-base-200/50 text-base-content/50"
@@ -237,10 +237,10 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                     <div className="flex items-center gap-3">
                                         <div className="avatar placeholder">
                                             <div className="bg-neutral text-neutral-content rounded-full w-8 h-8 border border-base-300 grid place-items-center">
-                                                <span className="text-xs font-black leading-none">{task.assignee?.name?.charAt(0) || '?'}</span>
+                                                <span className="text-xs font-bold leading-none">{task.assignee?.name?.charAt(0) || '?'}</span>
                                             </div>
                                         </div>
-                                        <span className="text-[10px] font-black uppercase tracking-tight">{task.assignee?.name || 'Unassigned'}</span>
+                                        <span className="text-xs font-bold uppercase tracking-tight">{task.assignee?.name || 'Unassigned'}</span>
                                     </div>
                                     <div className="scale-75 origin-right">
                                         {task.dueAt && <SLACountdown dueDate={new Date(task.dueAt)} isCompleted={isCompleted} />}
@@ -254,7 +254,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                 {sortedTasks.length === 0 && (
                     <div className="py-32 text-center opacity-10 border-t border-base-200">
                         <ClipboardList className="w-20 h-20 mx-auto mb-4 stroke-[1]" />
-                        <span className="text-2xl font-black uppercase tracking-[0.4em]">Grid Silent</span>
+                        <span className="text-2xl font-bold uppercase tracking-wider">Grid Silent</span>
                     </div>
                 )}
             </div>

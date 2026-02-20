@@ -89,14 +89,14 @@ export default function TaskForm({
           <Briefcase className="w-6 h-6" />
         </div>
         <div>
-          <h3 className="text-lg font-black tracking-tight text-primary uppercase">Initialize Task</h3>
+          <h3 className="text-lg font-bold tracking-tight text-primary uppercase">Initialize Task</h3>
           <p className="text-xs font-semibold text-base-content/50 uppercase tracking-widest">Department-First Routing</p>
         </div>
       </div>
 
       {/* Title */}
       <div className="space-y-2">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 ml-1">Task Nomenclature</label>
+        <label className="text-xs font-bold uppercase tracking-wider text-base-content/40 ml-1">Task Nomenclature</label>
         <div className="relative group">
           <Tag className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
           <input
@@ -112,7 +112,7 @@ export default function TaskForm({
 
       {/* Description */}
       <div className="space-y-2">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 ml-1">Context & Brief</label>
+        <label className="text-xs font-bold uppercase tracking-wider text-base-content/40 ml-1">Context & Brief</label>
         <textarea
           className="textarea w-full h-32 bg-base-200/50 border-none focus:ring-2 focus:ring-primary/20 focus:bg-base-100 transition-all font-medium text-base p-4"
           placeholder="Provide detailed instructions..."
@@ -124,7 +124,7 @@ export default function TaskForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Project Picker */}
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 ml-1">Parent Project / Client</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/40 ml-1">Parent Project / Client</label>
           <div className="relative group">
             <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
             <select
@@ -140,7 +140,7 @@ export default function TaskForm({
 
         {/* Department Picker */}
         <div className="space-y-2">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40 ml-1">Target Department</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/40 ml-1">Target Department</label>
           <div className="relative group">
             <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
             <select
@@ -159,9 +159,9 @@ export default function TaskForm({
       {/* SLA Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between ml-1">
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">SLA Assignment</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/40">SLA Assignment</label>
           <label className="label cursor-pointer gap-2">
-            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">SLA Override</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-base-content/40">SLA Override</span>
             <input
               type="checkbox"
               className="checkbox checkbox-xs checkbox-primary"
@@ -200,7 +200,7 @@ export default function TaskForm({
               <Clock className="w-4 h-4 text-primary" />
               <span className="text-xs font-bold text-primary">Inheriting Project SLA: {slas.find(s => s.id === selectedSlaId)?.name || 'Fetching...'}</span>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Automatic Logic Active</span>
+            <span className="text-xs font-bold uppercase tracking-wider opacity-40">Automatic Logic Active</span>
           </div>
         )}
       </div>
@@ -210,10 +210,10 @@ export default function TaskForm({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-primary" />
-            <span className="text-xs font-black uppercase tracking-widest text-base-content/60">SLA Timeline</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-base-content/60">SLA Timeline</span>
           </div>
           <label className="label cursor-pointer gap-3">
-            <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Manual Override</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-base-content/40">Manual Override</span>
             <input
               type="checkbox"
               className="checkbox checkbox-primary checkbox-xs"
@@ -235,8 +235,8 @@ export default function TaskForm({
         ) : (
           dueDate && (
             <div className="text-center py-4 px-6 bg-white dark:bg-slate-900 rounded-2xl border-2 border-primary/10 shadow-sm animate-in slide-in-from-top-4 duration-500">
-              <span className="block text-[10px] font-black uppercase tracking-[0.3em] text-primary/50 mb-1">Estimated Completion</span>
-              <span className="text-2xl font-black tracking-tight text-base-content">{format(dueDate, 'PPP p')}</span>
+              <span className="block text-xs font-bold uppercase tracking-wider text-primary/50 mb-1">Estimated Completion</span>
+              <span className="text-2xl font-bold tracking-tight text-base-content">{format(dueDate, 'PPP p')}</span>
             </div>
           )
         )}
@@ -246,7 +246,7 @@ export default function TaskForm({
       <div className="space-y-4">
         <div className="flex items-center gap-2 ml-1">
           <Users className="w-4 h-4 text-base-content/30" />
-          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/40">Watchers List</label>
+          <label className="text-xs font-bold uppercase tracking-wider text-base-content/40">Watchers List</label>
         </div>
         <div className="flex flex-wrap gap-2">
           {users.slice(0, 10).map(u => (
@@ -273,7 +273,7 @@ export default function TaskForm({
       <div className="flex items-center justify-end gap-4 pt-6">
         <button
           type="button"
-          className="text-xs font-black uppercase tracking-widest text-base-content/40 hover:text-base-content transition-colors px-6"
+          className="text-xs font-bold uppercase tracking-wider text-base-content/40 hover:text-base-content transition-colors px-6"
           onClick={() => router.back()}
         >
           Discard
@@ -281,7 +281,7 @@ export default function TaskForm({
         <button
           type="submit"
           className={cn(
-            "btn btn-primary btn-lg px-12 rounded-2xl font-black uppercase tracking-widest text-xs shadow-2xl shadow-primary/40 transition-all hover:scale-[1.02] active:scale-95",
+            "btn btn-primary btn-lg px-12 rounded-2xl font-bold uppercase tracking-wider text-xs shadow-2xl shadow-primary/40 transition-all hover:scale-[1.02] active:scale-95",
             loading && "loading"
           )}
           disabled={loading}

@@ -34,7 +34,7 @@ export default async function ProjectsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black text-base-content tracking-tight uppercase">Active Projects</h1>
+          <h1 className="text-3xl font-bold text-base-content tracking-tight">Active Projects</h1>
           <p className="text-sm font-medium text-base-content/60">Strategic directive groups and campaigns</p>
         </div>
         {(session?.user as any)?.departmentName === 'BUSINESS_DEVELOPMENT' && (

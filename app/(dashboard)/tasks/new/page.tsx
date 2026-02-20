@@ -13,7 +13,7 @@ export default async function NewTaskPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black text-base-content tracking-tight uppercase">Create New Task</h1>
+        <h1 className="text-3xl font-bold text-base-content tracking-tight">Create New Task</h1>
         <p className="text-sm font-medium text-base-content/60">Initialize a new service request and define SLA parameters.</p>
       </div>
 

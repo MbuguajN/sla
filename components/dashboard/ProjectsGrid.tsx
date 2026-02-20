@@ -18,7 +18,7 @@ export default async function ProjectsGrid() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-widest opacity-50">Active Projects</h3>
+                <h3 className="text-xs font-bold uppercase tracking-wider opacity-50">Active Projects</h3>
                 <Link href="/projects" className="text-[9px] font-bold uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
                     View All <ArrowRight className="w-3 h-3" />
                 </Link>
@@ -36,7 +36,7 @@ export default async function ProjectsGrid() {
                                 <div className="p-2 bg-base-200 rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                     <FolderGit2 className="w-4 h-4" />
                                 </div>
-                                <span className="text-[9px] font-black uppercase tracking-widest opacity-30">#{project.id}</span>
+                                <span className="text-xs font-normal opacity-30">#{project.id}</span>
                             </div>
 
                             <h4 className="font-bold text-sm text-base-content mb-1 truncate group-hover:text-primary transition-colors">{project.title}</h4>

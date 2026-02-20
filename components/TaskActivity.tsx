@@ -28,7 +28,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
     return (
       <div className="flex flex-col items-center justify-center py-10 opacity-30 gap-2 border-2 border-dashed border-base-300 rounded-xl">
         <History className="w-8 h-8" />
-        <span className="text-[10px] font-black uppercase tracking-widest">No Activity Yet</span>
+        <span className="text-xs font-bold uppercase tracking-wider">No Activity Yet</span>
       </div>
     )
   }
@@ -51,7 +51,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
     <div className="bg-base-100 rounded-2xl border border-base-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4 bg-base-200/20 border-b border-base-200 flex items-center gap-3">
         <History className="w-5 h-5 text-primary" />
-        <h3 className="text-sm font-black uppercase tracking-widest text-base-content">Operational History</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-base-content">Operational History</h3>
       </div>
 
       <div className="p-0">
@@ -59,10 +59,10 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
           <table className="table table-md w-full border-collapse">
             <thead>
               <tr className="bg-base-100 border-b border-base-200">
-                <th className="text-[10px] uppercase font-bold tracking-widest text-base-content/40 pl-6">Operator</th>
-                <th className="text-[10px] uppercase font-bold tracking-widest text-base-content/40">Action</th>
-                <th className="text-[10px] uppercase font-bold tracking-widest text-base-content/40">Details</th>
-                <th className="text-[10px] uppercase font-bold tracking-widest text-base-content/40 text-right pr-6">Timestamp</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40 pl-6">Operator</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40">Action</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40">Details</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40 text-right pr-6">Timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -79,7 +79,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                   <td>
                     <div className="flex items-center gap-2">
                       {getIcon(log.action)}
-                      <span className="text-[10px] font-black uppercase tracking-tighter text-base-content/60">
+                      <span className="text-xs font-bold uppercase tracking-tight text-base-content/60">
                         {log.action.replace('_', ' ')}
                       </span>
                     </div>
@@ -87,7 +87,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                   <td className="max-w-xs">
                     <div className="flex flex-col gap-1">
                       {log.action === 'STATUS_CHANGE' && (
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold">
+                        <div className="flex items-center gap-1.5 text-xs font-bold">
                           <span className="px-1.5 py-0.5 bg-base-300 rounded text-base-content/60">{log.oldValue}</span>
                           <span className="text-primary">→</span>
                           <span className="px-1.5 py-0.5 bg-primary/20 text-primary rounded">{log.newValue}</span>
@@ -102,7 +102,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                     </div>
                   </td>
                   <td className="text-right pr-6">
-                    <span className="text-[10px] font-bold text-base-content/40 whitespace-nowrap">
+                    <span className="text-xs font-medium opacity-60 whitespace-nowrap">
                       {format(new Date(log.createdAt), 'MMM d, HH:mm:ss')}
                     </span>
                   </td>

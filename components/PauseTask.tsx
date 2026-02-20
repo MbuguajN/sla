@@ -26,7 +26,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
 
   return (
     <div>
-      <button 
+      <button
         onClick={() => setIsPaused(true)}
         className="btn btn-warning btn-sm"
       >
@@ -39,14 +39,14 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
           <div className="relative w-full max-w-md bg-base-100 rounded-2xl shadow-2xl border border-warning/20 p-6 animate-in zoom-in duration-200">
             <div className="flex items-center gap-3 mb-4 text-warning">
               <AlertCircle className="w-6 h-6" />
-              <h3 className="text-lg font-black uppercase tracking-tight">Pause Operational Flow</h3>
+              <h3 className="text-lg font-bold uppercase tracking-tight">Pause Operational Flow</h3>
             </div>
-            
+
             <p className="text-sm text-base-content/60 mb-4 font-medium">
               Specify the exact reason for the pause. The initial reporter will be notified immediately of this bottleneck.
             </p>
 
-            <textarea 
+            <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Awaiting client assets, Missing technical specifications..."
@@ -54,13 +54,13 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
             />
 
             <div className="flex gap-3">
-              <button 
+              <button
                 onClick={() => setIsPaused(false)}
                 className="btn btn-ghost flex-1 uppercase font-bold"
               >
                 Abort
               </button>
-              <button 
+              <button
                 onClick={handlePause}
                 disabled={!reason.trim() || loading}
                 className="btn btn-warning flex-1 gap-2 uppercase font-bold"

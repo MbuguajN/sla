@@ -11,26 +11,31 @@ async function createAuditLog(taskId: number, userId: number, action: string, ol
   })
 }
 
-async function notifyWatchers(taskId: number, content: string, type: string) {
+async function notifyWatchers(taskId: number, content: string, type: string, link?: string) {
   const watchers = await prisma.watcher.findMany({
     where: { taskId }
   })
-  return Promise.all(watchers.map(w => createSystemNotification(w.userId, content, type as NotificationType)))
+  const taskLink = link || `/tasks/${taskId}`
+  return Promise.all(watchers.map(w => createSystemNotification(w.userId, content, type as NotificationType, taskLink)))
 }
 
 async function performAutoWatcherLogic(taskId: number, assigneeId: number) {
   const user = await prisma.user.findUnique({
     where: { id: assigneeId },
-    include: { department: true }
+    include: { department: { include: { head: { select: { role: true } } } } }
   })
   if (user?.department?.headId) {
+    // Skip admin/system users — they should only get system-level alerts
+    const headRole = user.department.head?.role
+    if (headRole === 'ADMIN' || headRole === 'SYSTEM') return
+
     const headId = user.department.headId
     await prisma.watcher.upsert({
       where: { userId_taskId: { userId: headId, taskId } },
       create: { userId: headId, taskId },
       update: {}
     })
-    await createSystemNotification(headId, `Visibility automated: Monitoring task ${taskId} for your department.`, 'AUTO_WATCHER')
+    await createSystemNotification(headId, `Visibility automated: Monitoring task ${taskId} for your department.`, 'AUTO_WATCHER', `/tasks/${taskId}`)
   }
 }
 
@@ -84,12 +89,12 @@ export async function createTask(data: {
     // RECORD AUDIT
     await createAuditLog(task.id, operatorId, 'TASK_CREATED', undefined, task.title)
 
-    // Notify Department Head with a link to the Brief Hub
+    // Notify Department Head with a link to the task
     await notifyDepartmentHead(
       data.departmentId,
       `New Brief Assigned: ${data.title}`,
       'TASK_ASSIGNED',
-      '/client-service/tickets'
+      `/tasks/${task.id}`
     )
 
     revalidatePath('/', 'layout')
@@ -122,7 +127,7 @@ export async function assignTask(taskId: number, assigneeId: number) {
 
     await performAutoWatcherLogic(taskId, assigneeId)
     await createAuditLog(taskId, operatorId, 'TASK_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
-    await createSystemNotification(assigneeId, `Resource assigned: ${task.title}`, 'TASK_ASSIGNED')
+    await createSystemNotification(assigneeId, `Resource assigned: ${task.title}`, 'TASK_ASSIGNED', `/tasks/${taskId}`)
 
     revalidatePath(`/tasks/${taskId}`)
     revalidatePath('/', 'layout')
@@ -148,7 +153,7 @@ export async function pauseTask(taskId: number, reason: string) {
 
     await createAuditLog(taskId, operatorId, 'TASK_PAUSED', oldTask?.status, reason)
     if (task.reporterId) {
-      await createSystemNotification(task.reporterId, `Action Required: Task ${task.title} paused. Reason: ${reason}`, 'PAUSE_ALERT')
+      await createSystemNotification(task.reporterId, `Action Required: Task ${task.title} paused. Reason: ${reason}`, 'PAUSE_ALERT', `/tasks/${taskId}`)
     }
 
     revalidatePath(`/tasks/${taskId}`)
@@ -194,10 +199,11 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
       await createSystemNotification(
         task.reporterId,
         `Action Required: Task "${task.title}" has been submitted for review.`,
-        'STATUS_REVIEW'
+        'STATUS_REVIEW',
+        `/tasks/${taskId}`
       )
       // Also notify watchers as before
-      await notifyWatchers(taskId, `Task ready for review: ${task.title}`, 'STATUS_REVIEW')
+      await notifyWatchers(taskId, `Task ready for review: ${task.title}`, 'STATUS_REVIEW', `/tasks/${taskId}`)
     }
 
     revalidatePath('/', 'layout')
@@ -229,7 +235,7 @@ export async function checkAndNotifyBreaches() {
   for (const task of breachedTasks) {
     const headId = task.assignee?.department?.headId
     if (headId) {
-      await createSystemNotification(headId, `BREACH ALERT: Directive #${task.id} has failed SLA compliance.`, 'BREACH_ALERT')
+      await createSystemNotification(headId, `BREACH ALERT: Directive #${task.id} has failed SLA compliance.`, 'BREACH_ALERT', `/tasks/${task.id}`)
     }
   }
 }
@@ -247,7 +253,7 @@ export async function sendMessage(taskId: number | null, authorId: number, conte
   if (taskId) {
     await createAuditLog(taskId, authorId, 'COMMENT_ADDED', undefined, content.substring(0, 50))
     const task = await prisma.task.findUnique({ where: { id: taskId } })
-    await notifyWatchers(taskId, `New comment: ${task?.title}`, 'COMMENT')
+    await notifyWatchers(taskId, `New comment: ${task?.title}`, 'COMMENT', `/tasks/${taskId}`)
   }
 
   revalidatePath('/dashboard')
@@ -282,7 +288,17 @@ export async function processTicket(
     const operatorId = Number(session.user.id)
     await createAuditLog(taskId, operatorId, 'TICKET_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
     await performAutoWatcherLogic(taskId, assigneeId)
-    await createSystemNotification(assigneeId, `New Ticket Assignment: ${task.title}`, 'TASK_ASSIGNED')
+    await createSystemNotification(assigneeId, `New Ticket Assignment: ${task.title}`, 'TASK_ASSIGNED', `/tasks/${taskId}`)
+  }
+
+  // Notify the reporter that their brief is now in the pipeline
+  if (task.reporterId) {
+    await createSystemNotification(
+      task.reporterId,
+      `Brief in pipeline: "${task.title}" has been assigned and is being processed.`,
+      'TASK_ASSIGNED',
+      `/tasks/${taskId}`
+    )
   }
 
   revalidatePath('/client-service/tickets')

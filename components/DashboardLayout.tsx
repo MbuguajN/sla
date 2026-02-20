@@ -128,7 +128,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
 
         {/* Page Content */}
-        <main className="p-6 lg:p-10 max-w-[1600px] mx-auto w-full relative">
+        <main className="px-6 py-4 lg:px-10 lg:py-5 max-w-[1600px] mx-auto w-full relative">
           <PresenceHeartbeat />
           {children}
         </main>

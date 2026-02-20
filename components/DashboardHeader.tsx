@@ -15,13 +15,13 @@ export default function DashboardHeader({ activeUsers = [] }: { activeUsers?: an
           <UsersIcon className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-xl font-black text-base-content tracking-tighter uppercase leading-none">Operations Dashboard</h1>
+          <h1 className="text-xl font-bold text-base-content tracking-tight leading-none">Operations Dashboard</h1>
         </div>
       </div>
 
       <div className="flex items-center gap-6">
         <div className="flex flex-col items-end gap-1">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">Active</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-primary">Active</span>
           <div className="flex items-center gap-3">
             <div className="avatar-group -space-x-4 rtl:space-x-reverse">
               {displayUsers.map((user, i) => (
@@ -32,13 +32,13 @@ export default function DashboardHeader({ activeUsers = [] }: { activeUsers?: an
                     `delay-[${i * 100}ms]`
                   )}
                 >
-                  <div className={cn("w-10 h-10 rounded-full text-white font-black text-[10px] grid place-items-center shadow-inner relative", user.color || 'bg-neutral')}>
+                  <div className={cn("w-10 h-10 rounded-full text-white font-bold text-xs grid place-items-center shadow-inner relative", user.color || 'bg-neutral')}>
                     <span className="absolute inset-0 flex items-center justify-center leading-none">{user.name.charAt(0)}</span>
                   </div>
                 </div>
               ))}
               {displayUsers.length === 0 && (
-                <div className="text-[10px] font-black uppercase tracking-widest text-base-content/20">Standalone Mode</div>
+                <div className="text-xs font-bold uppercase tracking-wider text-base-content/20">Standalone Mode</div>
               )}
             </div>
             {displayUsers.length > 0 && (
@@ -47,7 +47,7 @@ export default function DashboardHeader({ activeUsers = [] }: { activeUsers?: an
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-success"></span>
                 </span>
-                <span className="text-[10px] font-black uppercase text-success/80 tracking-widest">{displayUsers.length}</span>
+                <span className="text-xs font-bold text-success/80 tracking-wider">{displayUsers.length}</span>
               </div>
             )}
           </div>

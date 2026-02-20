@@ -120,7 +120,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
             {/* Header Toolbar */}
             <div className="p-4 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-black uppercase tracking-tight">Active Directives</h2>
+                    <h2 className="text-lg font-bold uppercase tracking-tight">Active Directives</h2>
                     <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest">Global Task Registry</p>
                 </div>
                 <div className="relative">
@@ -139,7 +139,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
             <div className="overflow-x-auto">
                 <table className="table w-full">
                     <thead>
-                        <tr className="bg-base-200/40 text-[9px] font-black uppercase tracking-widest text-base-content/50">
+                        <tr className="bg-base-200/40 text-xs font-bold uppercase tracking-wider text-base-content/50">
                             <th className="pl-6 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('title')}>
                                 <div className="flex items-center gap-1">Directive <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
@@ -182,7 +182,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                                         {task.dueAt && (
                                             <div className="flex flex-col">
                                                 <SLACountdown dueDate={task.dueAt} isCompleted={task.status === TaskStatus.COMPLETED} />
-                                                <span className="text-[8px] font-black uppercase tracking-widest opacity-30 mt-0.5">
+                                                <span className="text-xs font-normal opacity-30 mt-0.5">
                                                     {format(new Date(task.dueAt), 'MMM d, HH:mm')}
                                                 </span>
                                             </div>
@@ -232,7 +232,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
             </div>
 
             <div className="p-2 border-t border-base-200 bg-base-200/20 text-center">
-                <Link href="/tasks" className="text-[9px] font-black uppercase tracking-widest text-primary hover:underline">
+                <Link href="/tasks" className="text-xs font-bold uppercase tracking-wider text-primary hover:underline">
                     View Full Registry
                 </Link>
             </div>

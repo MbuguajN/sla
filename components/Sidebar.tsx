@@ -210,13 +210,13 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                   isCollapsed && "lg:hidden"
                 )}>
                   <span className={cn(
-                    "text-[11px] uppercase tracking-wide truncate",
-                    isActive ? "font-bold" : "font-semibold"
+                    "text-xs tracking-normal truncate",
+                    isActive ? "font-bold" : "font-medium"
                   )}>
                     {item.label}
                   </span>
                   {item.sublabel && (
-                    <span className="text-[9px] text-base-content/40 italic truncate">
+                    <span className="text-[10px] text-base-content/40 italic truncate">
                       {item.sublabel}
                     </span>
                   )}
@@ -233,7 +233,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                 "btn btn-primary shadow-md flex items-center justify-center border-none mt-4 transition-transform hover:scale-[1.02]",
                 isCollapsed
                   ? "btn-circle w-10 h-10 p-0 mx-auto"
-                  : "h-10 gap-2 w-full text-[10px] uppercase tracking-wider font-extrabold"
+                  : "h-11 gap-2 w-full text-xs tracking-normal font-bold"
               )}
             >
               <FileText className="w-4 h-4 shrink-0" />
@@ -256,7 +256,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
               {dbUser?.avatarUrl ? (
                 <img src={dbUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-sm font-black tracking-tighter leading-none">{session.user.name?.charAt(0)}</span>
+                <span className="text-sm font-bold tracking-tight leading-none">{session.user.name?.charAt(0)}</span>
               )}
             </div>
 

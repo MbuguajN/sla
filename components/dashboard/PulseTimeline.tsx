@@ -43,11 +43,11 @@ export default async function PulseTimeline() {
                                 isCurrentDay ? "bg-primary text-primary-content border-primary shadow-lg shadow-primary/20 scale-105" : "bg-base-100 border-base-200 hover:border-primary/50"
                             )}
                         >
-                            <div className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-0.5">
+                            <div className="text-xs font-bold uppercase tracking-wider opacity-60 mb-0.5">
                                 {format(day, 'EEE')}
                             </div>
                             <div className={cn(
-                                "text-lg font-black leading-none",
+                                "text-lg font-bold leading-none",
                                 isCurrentDay ? "text-primary-content" : "text-base-content"
                             )}>
                                 {format(day, 'd')}

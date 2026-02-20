@@ -76,7 +76,7 @@ export default function LoginPage() {
 
           <div className="card-body p-12 gap-8">
             <div className="space-y-2">
-              <h2 className="text-2xl font-black tracking-tight text-center uppercase">System Access</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-center uppercase">System Access</h2>
               <p className="text-center text-[10px] font-bold text-base-content/40 uppercase tracking-[0.3em]">Credentials Required</p>
             </div>
 
@@ -110,7 +110,7 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="alert alert-error bg-error/10 text-error text-[10px] font-black uppercase tracking-widest border-none py-4 rounded-2xl">
+                <div className="alert alert-error bg-error/10 text-error text-xs font-bold uppercase tracking-wider border-none py-4 rounded-2xl">
                   <AlertOctagon className="w-4 h-4" />
                   <span>{error}</span>
                 </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
 
             <div className="flex flex-col items-center gap-4 mt-4">
               <div className="h-px w-12 bg-base-content/10"></div>
-              <p className="text-[9px] font-black text-base-content/30 uppercase tracking-[0.4em]">
+              <p className="text-xs font-bold text-base-content/30 uppercase tracking-wider">
                 Secure Pipeline v0.1
               </p>
             </div>

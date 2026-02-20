@@ -40,6 +40,7 @@ export default function DepartmentQueueClient({
   members
 }: Props) {
   const [filterMode, setFilterMode] = useState<'ALL' | 'MINE'>('ALL')
+  const [tabMode, setTabMode] = useState<'ongoing' | 'completed'>('ongoing')
   const [showMembers, setShowMembers] = useState(false)
   const [processingId, setProcessingId] = useState<number | null>(null)
   const [reassigningTaskId, setReassigningTaskId] = useState<number | null>(null)
@@ -53,6 +54,13 @@ export default function DepartmentQueueClient({
 
     if (filterMode === 'MINE') {
       result = result.filter(t => t.assigneeId === Number(currentUser.id))
+    }
+
+    // Tab filter: ongoing vs completed
+    if (tabMode === 'ongoing') {
+      result = result.filter(t => t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.DISMISSED)
+    } else {
+      result = result.filter(t => t.status === TaskStatus.COMPLETED || t.status === TaskStatus.DISMISSED)
     }
 
     // Sort: Breached first, then by Due Date
@@ -73,7 +81,7 @@ export default function DepartmentQueueClient({
 
       return aDue.getTime() - bDue.getTime()
     })
-  }, [tasks, filterMode, currentUser.id])
+  }, [tasks, filterMode, tabMode, currentUser.id])
 
   // --- Stats ---
   const stats = useMemo(() => {
@@ -146,7 +154,7 @@ export default function DepartmentQueueClient({
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tighter text-base-content uppercase leading-none">{departmentName} QUEUE</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-base-content leading-none">{departmentName} Queue</h1>
               <div className="flex items-center gap-2 mt-1">
                 <span className="badge badge-neutral font-bold tracking-wider text-[9px] uppercase px-2 py-0 h-4">Workspace</span>
                 {isManager && <span className="badge badge-warning font-bold text-[9px] uppercase px-2 py-0 h-4">Oversight</span>}
@@ -157,7 +165,7 @@ export default function DepartmentQueueClient({
 
               {showMembers && (
                 <div className="mt-4 p-4 bg-base-100 border border-base-200 rounded-xl shadow-lg absolute z-50 w-64 animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-2 opacity-50">Active Agents</h4>
+                  <h4 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50">Active Agents</h4>
                   <div className="space-y-2 max-h-48 overflow-y-auto">
                     {members.map((m: any) => (
                       <div key={m.id} className="flex items-center gap-2 text-xs">
@@ -195,20 +203,20 @@ export default function DepartmentQueueClient({
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-[8px] uppercase font-black tracking-[0.2em] text-base-content/40 mb-1">Queue Load</span>
-            <span className="text-2xl font-black text-primary leading-none">{stats.totalActive}</span>
+            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Queue Load</span>
+            <span className="text-2xl font-bold text-primary leading-none">{stats.totalActive}</span>
           </div>
           <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-[8px] uppercase font-black tracking-[0.2em] text-base-content/40 mb-1">Pending</span>
-            <span className="text-2xl font-black text-secondary leading-none">{stats.pendingReceipt}</span>
+            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Pending</span>
+            <span className="text-2xl font-bold text-secondary leading-none">{stats.pendingReceipt}</span>
           </div>
           <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-[8px] uppercase font-black tracking-[0.2em] text-base-content/40 mb-1">Unassigned</span>
-            <span className="text-2xl font-black text-warning leading-none">{stats.unassigned}</span>
+            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Unassigned</span>
+            <span className="text-2xl font-bold text-warning leading-none">{stats.unassigned}</span>
           </div>
           <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-[8px] uppercase font-black tracking-[0.2em] text-base-content/40 mb-1">Critical</span>
-            <span className="text-2xl font-black text-error leading-none">{stats.breached}</span>
+            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Critical</span>
+            <span className="text-2xl font-bold text-error leading-none">{stats.breached}</span>
           </div>
         </div>
       </div>
@@ -216,16 +224,37 @@ export default function DepartmentQueueClient({
       {/* Smart Data Table / Mobile Cards */}
       <div className="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
 
+        {/* Ongoing / Completed Tabs */}
+        <div className="flex items-center gap-1 p-2 border-b border-base-200 bg-base-200/20">
+          <button
+            onClick={() => setTabMode('ongoing')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              tabMode === 'ongoing' ? "bg-base-100 text-base-content shadow-sm" : "text-base-content/40 hover:bg-base-200/50"
+            )}
+          >
+            Ongoing
+          </button>
+          <button
+            onClick={() => setTabMode('completed')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              tabMode === 'completed' ? "bg-base-100 text-base-content shadow-sm" : "text-base-content/40 hover:bg-base-200/50"
+            )}
+          >
+            Completed
+          </button>
+        </div>
+
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
           <table className="table w-full">
             <thead className="bg-base-200/40">
-              <tr className="text-[9px] font-black uppercase tracking-widest text-base-content/40 border-b border-base-200">
+              <tr className="text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-200">
                 <th className="py-2 pl-6">Directive</th>
                 <th className="py-2">Status</th>
                 <th className="py-2">Timeline</th>
                 <th className="py-2">Resource</th>
-                <th className="py-2 text-right pr-6">Management</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-base-100">
@@ -282,17 +311,17 @@ export default function DepartmentQueueClient({
                             </div>
                             <div className="flex flex-col">
                               <span className="text-[10px] font-bold">{task.assignee?.name}</span>
-                              {(isDeptHead || isManager || isAdmin) && (
+                              {(isDeptHead || isManager || isAdmin) && !isCompleted && (
                                 <div className="relative">
                                   <button
                                     onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
-                                    className="text-[8px] text-primary cursor-pointer hover:underline font-black uppercase tracking-widest"
+                                    className="text-xs text-primary cursor-pointer hover:underline font-bold"
                                   >
                                     {reassigningTaskId === task.id ? 'Cancel' : 'Reassign'}
                                   </button>
                                   {reassigningTaskId === task.id && (
                                     <div className="absolute top-full left-0 z-50 bg-base-100 border border-base-300 rounded-xl shadow-2xl p-3 min-w-[200px] animate-in zoom-in-95 mt-2">
-                                      <h5 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Select Agent</h5>
+                                      <h5 className="text-xs font-bold uppercase tracking-wider opacity-40 mb-2">Select Agent</h5>
                                       <div className="space-y-1 max-h-48 overflow-y-auto">
                                         {members.map(m => (
                                           <button
@@ -312,18 +341,18 @@ export default function DepartmentQueueClient({
                           </>
                         ) : (
                           <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black text-warning uppercase italic tracking-widest">Unassigned</span>
-                            {(isDeptHead || isManager || isAdmin) && (
+                            <span className="text-xs font-bold text-warning italic">Unassigned</span>
+                            {(isDeptHead || isManager || isAdmin) && !isCompleted && (
                               <div className="relative">
                                 <button
                                   onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
-                                  className="btn btn-xs btn-outline btn-warning h-6 min-h-6 text-[9px] font-black uppercase px-3"
+                                  className="btn btn-xs btn-outline btn-warning h-6 min-h-6 text-xs font-bold uppercase px-3"
                                 >
                                   {reassigningTaskId === task.id ? 'Cancel' : 'Assign Agent'}
                                 </button>
                                 {reassigningTaskId === task.id && (
                                   <div className="absolute top-full left-0 z-50 bg-base-100 border border-base-300 rounded-xl shadow-2xl p-3 min-w-[200px] animate-in zoom-in-95 mt-2">
-                                    <h5 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Select Agent</h5>
+                                    <h5 className="text-xs font-bold uppercase tracking-wider opacity-40 mb-2">Select Agent</h5>
                                     <div className="space-y-1 max-h-48 overflow-y-auto">
                                       {members.map(m => (
                                         <button
@@ -344,39 +373,7 @@ export default function DepartmentQueueClient({
                       </div>
                     </td>
 
-                    <td className="pr-6">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {isPendingReceipt && (
-                          <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="btn btn-xs h-7 min-h-7 btn-primary font-bold uppercase gap-1 px-3 text-[9px]">
-                            <CheckCircle2 className="w-3 h-3" />
-                            {isProcessing ? '...' : 'Confirm'}
-                          </button>
-                        )}
 
-                        {task.status === TaskStatus.RECEIVED && (
-                          <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="btn btn-xs h-7 min-h-7 btn-outline font-bold uppercase gap-1 px-3 text-[9px]">
-                            <Play className="w-3 h-3" />
-                            Start
-                          </button>
-                        )}
-
-                        {task.status === TaskStatus.IN_PROGRESS && (
-                          <>
-                            <PauseTask taskId={task.id} onComplete={() => router.refresh()} />
-                            <button onClick={() => handleStatusChange(task.id, TaskStatus.REVIEW)} disabled={isProcessing} className="btn btn-xs h-7 min-h-7 btn-success font-bold uppercase gap-1 px-3 text-[9px] text-white">
-                              Done
-                            </button>
-                          </>
-                        )}
-
-                        {task.status === TaskStatus.AWAITING_INFO && (
-                          <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="btn btn-xs h-7 min-h-7 btn-info font-bold uppercase gap-1 px-3 text-[9px]">
-                            <Play className="w-3 h-3" />
-                            Resume
-                          </button>
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 )
               })}
@@ -460,7 +457,7 @@ export default function DepartmentQueueClient({
           <div className="py-12 text-center text-base-content/30 border-t border-base-200">
             <div className="flex flex-col items-center gap-2">
               <Filter className="w-8 h-8 opacity-20" />
-              <span className="text-[10px] font-black uppercase tracking-widest">No Directives Found</span>
+              <span className="text-xs font-bold uppercase tracking-wider">No Directives Found</span>
             </div>
           </div>
         )}

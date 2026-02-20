@@ -143,11 +143,11 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
       {open && (
         <ul className="mt-3 z-[1] p-0 shadow-2xl menu menu-sm dropdown-content bg-base-100 rounded-box w-80 border border-base-200 overflow-hidden divide-y divide-base-200 animate-in fade-in zoom-in-95">
           <li className="px-6 py-4 bg-base-200/50 flex flex-row justify-between items-center hover:bg-base-200/50">
-            <span className="text-sm font-black uppercase tracking-widest text-primary">Notifications</span>
+            <span className="text-sm font-bold uppercase tracking-wider text-primary">Notifications</span>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
                 <>
-                  <span className="badge badge-primary font-bold text-[10px]">{unreadCount} New</span>
+                  <span className="badge badge-primary font-bold text-xs">{unreadCount} New</span>
                   <button
                     onClick={markAllAsRead}
                     className="btn btn-ghost btn-xs text-[9px]"
@@ -164,7 +164,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 opacity-30 gap-2">
                 <Bell className="w-8 h-8" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Awaiting Intel</span>
+                <span className="text-xs font-bold uppercase tracking-wider">Awaiting Intel</span>
               </div>
             ) : (
               notifications.map(n => (
@@ -181,10 +181,10 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
                       {getIcon(n.type)}
                     </div>
                     <div className="flex flex-col gap-1.5 overflow-hidden">
-                      <p className="text-[13px] font-black leading-tight text-base-content break-words">
+                      <p className="text-sm font-bold leading-tight text-base-content break-words">
                         {n.content}
                       </p>
-                      <span className="text-[10px] font-black uppercase opacity-40 tracking-widest">
+                      <span className="text-xs opacity-60">
                         {formatDistanceToNow(new Date(n.createdAt))} ago
                       </span>
                     </div>
@@ -198,7 +198,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
             <li className="p-2 flex items-center justify-center bg-base-200/20">
               <button
                 onClick={purgeAll}
-                className="btn btn-ghost btn-xs w-full text-[10px] font-black uppercase tracking-widest hover:bg-error/10 hover:text-error"
+                className="btn btn-ghost btn-xs w-full text-xs font-bold uppercase tracking-wider hover:bg-error/10 hover:text-error"
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Purge All Notifications

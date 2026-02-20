@@ -43,10 +43,19 @@ export async function createNotification(userId: number, content: string, type: 
 export async function notifyDepartmentHead(departmentId: number, content: string, type: NotificationType, link?: string) {
   const dept = await prisma.department.findUnique({
     where: { id: departmentId },
-    select: { headId: true, name: true }
+    select: {
+      headId: true,
+      name: true,
+      head: { select: { role: true } }
+    }
   })
 
   if (dept?.headId) {
+    // Skip admin/system users — they should only get system-level alerts, not department-level
+    if (dept.head?.role === 'ADMIN' || dept.head?.role === 'SYSTEM') {
+      console.log(`⏭️ Skipping department notification for admin/system head (${dept.name}, headId: ${dept.headId})`)
+      return
+    }
     console.log(`🔔 Notifying department head (${dept.name}, headId: ${dept.headId})`)
     await createNotification(dept.headId, content, type, link)
   } else {

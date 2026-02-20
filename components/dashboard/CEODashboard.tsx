@@ -77,11 +77,11 @@ export default function CEODashboard({
             {/* Executive Header Layer */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-base-300 pb-8">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-primary font-black uppercase tracking-[0.4em] text-[10px] opacity-70">
+                    <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs opacity-70">
                         <ShieldCheck className="w-3 h-3" />
                         Executive Command Suite
                     </div>
-                    <h1 className="text-5xl font-black text-base-content tracking-tighter leading-none">
+                    <h1 className="text-4xl font-bold text-base-content tracking-tight leading-none">
                         Strategic Overview
                     </h1>
                 </div>
@@ -92,7 +92,7 @@ export default function CEODashboard({
                         <input
                             type="text"
                             placeholder="Search Strategic Intelligence..."
-                            className="input input-bordered bg-base-200/30 border-base-300 focus:border-primary focus:bg-base-100 w-full md:w-[320px] pl-11 font-bold text-xs"
+                            className="input input-bordered bg-base-200/30 border-base-300 focus:border-primary focus:bg-base-100 w-full md:w-[320px] pl-11 font-medium text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -124,14 +124,14 @@ export default function CEODashboard({
                 ].map((kpi, i) => (
                     <div key={i} className="bg-base-100 border border-base-300 p-5 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all duration-300 shadow-sm">
                         <div className="space-y-1">
-                            <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40 block">
+                            <span className="text-xs font-bold uppercase tracking-wider text-base-content/40 block">
                                 {kpi.label}
                             </span>
                             <div className="flex items-baseline gap-2">
-                                <span className={cn("text-2xl font-black tracking-tighter", kpi.color)}>
+                                <span className={cn("text-2xl font-bold tracking-tight", kpi.color)}>
                                     {kpi.value}
                                 </span>
-                                <span className="text-[9px] font-bold text-base-content/30 lowercase italic">
+                                <span className="text-xs font-normal text-base-content/30 italic">
                                     {kpi.sub}
                                 </span>
                             </div>
@@ -149,9 +149,9 @@ export default function CEODashboard({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-4 bg-primary rounded-full" />
-                            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/60">Operational Portfolio</h2>
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Portfolio</h2>
                         </div>
-                        <Link href="/projects" className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline flex items-center gap-1">
+                        <Link href="/projects" className="text-xs font-bold uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
                             Full Inventory <ArrowRight className="w-3 h-3" />
                         </Link>
                     </div>
@@ -175,22 +175,22 @@ export default function CEODashboard({
                                                 <FolderDot className="w-4 h-4" />
                                             </div>
                                             <div className={cn(
-                                                "text-[9px] font-black tracking-widest px-2 py-0.5 rounded-full uppercase",
+                                                "text-xs font-bold tracking-wider px-2 py-0.5 rounded-full uppercase",
                                                 overdue > 0 ? "bg-error/10 text-error" : "bg-success/10 text-success"
                                             )}>
                                                 {overdue > 0 ? 'Action Required' : 'Strategic'}
                                             </div>
                                         </div>
 
-                                        <h3 className="font-black text-sm text-base-content truncate group-hover:text-primary transition-colors mb-1">
+                                        <h3 className="font-bold text-sm text-base-content truncate group-hover:text-primary transition-colors mb-1">
                                             {project.title}
                                         </h3>
-                                        <p className="text-[10px] text-base-content/40 font-bold uppercase tracking-widest mb-4">
+                                        <p className="text-xs text-base-content/40 font-normal mb-4">
                                             #{project.id} • {total} Directives
                                         </p>
 
                                         <div className="mt-auto space-y-3">
-                                            <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest">
+                                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
                                                 <span className="text-base-content/40">Efficiency</span>
                                                 <span className="text-primary">{Math.round(progress)}%</span>
                                             </div>
@@ -214,7 +214,7 @@ export default function CEODashboard({
                     ) : (
                         <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
                             <table className="table w-full">
-                                <thead className="bg-base-200/50 text-[9px] font-black uppercase tracking-widest text-base-content/40 border-b border-base-300">
+                                <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">
                                     <tr>
                                         <th className="pl-6 h-12">Portfolio Item</th>
                                         <th>Health Metrics</th>
@@ -232,8 +232,8 @@ export default function CEODashboard({
                                             <tr key={project.id} className="hover:bg-base-200/20 group transition-all h-16">
                                                 <td className="pl-6">
                                                     <div className="flex flex-col">
-                                                        <span className="font-black text-sm group-hover:text-primary transition-colors">{project.title}</span>
-                                                        <span className="text-[9px] font-bold text-base-content/30 uppercase">ID-{project.id}</span>
+                                                        <span className="font-bold text-sm group-hover:text-primary transition-colors">{project.title}</span>
+                                                        <span className="text-xs font-normal text-base-content/30">ID-{project.id}</span>
                                                     </div>
                                                 </td>
                                                 <td>
@@ -241,14 +241,14 @@ export default function CEODashboard({
                                                         <div className="w-24 bg-base-200 h-1.5 rounded-full overflow-hidden">
                                                             <div className="bg-primary h-full transition-all duration-500" style={{ width: `${progress}%` }} />
                                                         </div>
-                                                        <span className="text-[10px] font-black text-primary">{Math.round(progress)}%</span>
+                                                        <span className="text-xs font-bold text-primary">{Math.round(progress)}%</span>
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <span className="text-[10px] font-black text-base-content/60 uppercase tracking-widest">{total} Active</span>
+                                                    <span className="text-xs font-bold text-base-content/60 uppercase tracking-wider">{total} Active</span>
                                                 </td>
                                                 <td className="text-right pr-6">
-                                                    <Link href={`/projects/${project.id}`} className="btn btn-ghost btn-xs text-primary font-black uppercase tracking-widest h-8 min-h-8">
+                                                    <Link href={`/projects/${project.id}`} className="btn btn-ghost btn-xs text-primary font-bold uppercase tracking-wider h-8 min-h-8">
                                                         View
                                                     </Link>
                                                 </td>
@@ -265,13 +265,13 @@ export default function CEODashboard({
                 <div className="xl:col-span-12 space-y-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-4 bg-primary rounded-full" />
-                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/60">Operational Directives</h2>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Directives</h2>
                     </div>
 
                     <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="table w-full">
-                                <thead className="bg-base-200/50 text-[9px] font-black uppercase tracking-widest text-base-content/40 border-b border-base-300">
+                                <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">
                                     <tr>
                                         <th className="pl-8 h-12">Directive Description</th>
                                         <th>Origin Cluster</th>
@@ -296,13 +296,13 @@ export default function CEODashboard({
                                                             <Link href={`/tasks/${task.id}`} className="font-bold text-xs text-base-content hover:text-primary transition-colors truncate">
                                                                 {task.title}
                                                             </Link>
-                                                            <span className="text-[9px] font-bold text-base-content/30 uppercase">SIG-{task.id}</span>
+                                                            <span className="text-xs font-normal text-base-content/30">SIG-{task.id}</span>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td>
                                                     {task.project ? (
-                                                        <Link href={`/projects/${task.project.id}`} className="text-[10px] font-black uppercase tracking-widest text-base-content/50 hover:text-primary transition-colors">
+                                                        <Link href={`/projects/${task.project.id}`} className="text-xs font-bold text-base-content/50 hover:text-primary transition-colors">
                                                             {task.project.title}
                                                         </Link>
                                                     ) : (
@@ -312,20 +312,20 @@ export default function CEODashboard({
                                                 <td>
                                                     {task.assignee?.name ? (
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-lg bg-base-200 text-base-content/60 font-black text-[9px] flex items-center justify-center">
+                                                            <div className="w-6 h-6 rounded-lg bg-base-200 text-base-content/60 font-bold text-xs flex items-center justify-center">
                                                                 {task.assignee.name.charAt(0)}
                                                             </div>
-                                                            <span className="text-[10px] font-bold text-base-content/60 uppercase">{task.assignee.name.split(' ')[0]}</span>
+                                                            <span className="text-xs font-bold text-base-content/60">{task.assignee.name.split(' ')[0]}</span>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-[9px] opacity-20 uppercase tracking-widest">Awaiting</span>
+                                                        <span className="text-xs opacity-20">Awaiting</span>
                                                     )}
                                                 </td>
                                                 <td>
                                                     {task.dueAt && (
                                                         <div className="flex flex-col">
                                                             <SLACountdown dueDate={task.dueAt} isCompleted={task.status === TaskStatus.COMPLETED} />
-                                                            <span className="text-[8px] font-black uppercase tracking-[0.1em] text-base-content/30 mt-0.5">
+                                                            <span className="text-xs font-normal text-base-content/30 mt-0.5">
                                                                 {format(new Date(task.dueAt), 'MMM d, HH:mm')}
                                                             </span>
                                                         </div>
@@ -333,7 +333,7 @@ export default function CEODashboard({
                                                 </td>
                                                 <td className="text-right pr-8">
                                                     <div className={cn(
-                                                        "badge font-black text-[8px] uppercase tracking-widest h-6 px-3 border-none shadow-sm",
+                                                        "badge font-bold text-xs uppercase tracking-wider h-6 px-3 border-none shadow-sm",
                                                         task.status === TaskStatus.COMPLETED ? "bg-success text-success-content" :
                                                             task.status === TaskStatus.REVIEW ? "bg-warning text-warning-content" :
                                                                 task.status === TaskStatus.IN_PROGRESS ? "bg-primary text-primary-content" :
@@ -348,7 +348,7 @@ export default function CEODashboard({
                                 </tbody>
                             </table>
                         </div>
-                        <Link href="/tasks" className="block p-4 bg-base-200/30 text-center text-[9px] font-black uppercase tracking-[0.3em] text-primary hover:bg-base-200 transition-all border-t border-base-300">
+                        <Link href="/tasks" className="block p-4 bg-base-200/30 text-center text-xs font-bold uppercase tracking-wider text-primary hover:bg-base-200 transition-all border-t border-base-300">
                             Access Operational Intelligence Registry
                         </Link>
                     </div>

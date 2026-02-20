@@ -22,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased text-base-content min-h-screen font-medium`}>
+      <body className={`${inter.className} antialiased text-base-content min-h-screen font-normal`}>
         <ThemeProvider>
           {children}
         </ThemeProvider>
