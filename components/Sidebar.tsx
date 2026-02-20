@@ -225,8 +225,8 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
             )
           })}
 
-          {/* New Brief Button - Restricted to BDev, Managers & CEO */}
-          {(isBusinessDev || isManager || isAdmin || isCEO) && (
+          {/* New Brief Button - Restricted to BDev, CS, Managers & CEO */}
+          {(isBusinessDev || isCS || isManager || isAdmin || isCEO) && (
             <Link
               href="/tasks/new"
               className={cn(
@@ -267,7 +267,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                   {session.user.name}
                 </span>
                 <span className="text-[10px] text-base-content font-bold uppercase tracking-tight opacity-50">
-                  {userRole} • {dbUser?.department?.name || 'No Dept'}
+                  {dbUser?.department?.name || userRole}
                 </span>
               </div>
             )}

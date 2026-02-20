@@ -55,16 +55,13 @@ export async function createTask(data: {
     const userRole = (session.user as any).role
     const userDept = (session.user as any).departmentName
 
-    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR' || userRole === 'MANAGER'
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'ADMIN'
     const isCS = userDept === 'CLIENT_SERVICE'
 
-    if (!data.projectId && !isBD) {
-      throw new Error('STRATEGIC DENIAL: Only Business Development can initiate standalone briefs.')
+    if (!isBD && !isCS) {
+      throw new Error('STRATEGIC DENIAL: Directive initiation is restricted to Business Development and Client Service departments.')
     }
 
-    if (isCS && !data.projectId) {
-      throw new Error('STRATEGIC DENIAL: Client Service must initialize tasks within a specific project.')
-    }
 
     const task = await prisma.task.create({
       data: {
@@ -109,6 +106,11 @@ export async function assignTask(taskId: number, assigneeId: number) {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
     if (!operatorId) throw new Error('Unauthorized')
+
+    const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
+    if (oldTask?.status === TaskStatus.COMPLETED) {
+      throw new Error('STRATEGIC DENIAL: Cannot reassign a finalized directive.')
+    }
 
     const task = await prisma.task.update({
       where: { id: taskId },
@@ -164,11 +166,10 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
     if (!oldTask) throw new Error('Task not found')
 
-    // LOGIC: Only the person who initiated the task (reporter) can mark it as COMPLETED
+    // STRICTURE: Only the person who initiated the task (reporter) can mark it as COMPLETED
     if (newStatus === TaskStatus.COMPLETED) {
-      const role = (session?.user as any).role
-      if (oldTask.reporterId !== operatorId && role !== 'ADMIN' && role !== 'CEO' && role !== 'HR' && role !== 'MANAGER') {
-        throw new Error('STRATEGIC DENIAL: Only the task initiator can finalize this directive.')
+      if (oldTask.reporterId !== operatorId && (session?.user as any).role !== 'ADMIN') {
+        throw new Error('STRATEGIC DENIAL: Only the original initiator can finalize this directive.')
       }
     }
 

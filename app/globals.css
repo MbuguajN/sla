@@ -4,9 +4,9 @@
 
 @layer base {
   * {
-    font-family: var(--font-outfit), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     outline: none !important;
-    font-weight: 400;
+    font-weight: 500;
   }
 
   :focus-visible {
@@ -108,16 +108,15 @@
     color: #ffffff !important;
   }
 
-  /* Force pure white text labels for contrast on dark backgrounds */
+  /* Force maximum contrast for visibility in dark mode */
   [data-theme='dark'] .opacity-60,
   [data-theme='dark'] .opacity-50,
   [data-theme='dark'] .opacity-40,
-  [data-theme='dark'] .text-base-content\/40,
-  [data-theme='dark'] .text-base-content\/50,
-  [data-theme='dark'] .text-base-content\/60,
-  [data-theme='dark'] .text-base-content\/70 {
+  [data-theme='dark'] [class*="text-base-content/"],
+  [data-theme='dark'] .text-base-content-muted {
     color: #ffffff !important;
-    opacity: 0.8 !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
   }
 
   [data-theme='dark'] h1,
@@ -172,11 +171,11 @@
 }
 
 .table th {
-  @apply font-black uppercase tracking-[0.15em] text-[9px] text-base-content/40 py-5 px-8 border-b border-base-300/40;
+  @apply font-black uppercase tracking-[0.2em] text-[10px] text-base-content py-6 px-10 border-b border-base-300/40;
 }
 
 .table td {
-  @apply py-4 px-8 border-b border-base-200/20 align-middle;
+  @apply py-6 px-10 border-b border-base-200/20 align-middle font-semibold;
 }
 
 .table tr:last-child td {

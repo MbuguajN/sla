@@ -250,7 +250,7 @@ export default function TicketTable({ initialTickets, departments, slas, users }
                             if (modal) modal.showModal()
                           }}
                         >
-                          Manage Asset <ArrowRight className="w-4 h-4" />
+                          Manage <ArrowRight className="w-4 h-4" />
                         </button>
                       )}
                     </div>

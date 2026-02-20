@@ -23,9 +23,12 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const res = await fetch('/api/notifications', {
+      const res = await fetch(`/api/notifications?t=${Date.now()}`, {
         cache: 'no-store',
-        headers: { 'Cache-Control': 'no-cache' }
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       })
 
       if (!res.ok) {
@@ -171,17 +174,17 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
                     "hover:bg-primary/5 transition-colors cursor-pointer",
                     !n.isRead && "bg-primary/5"
                   )}
-                  onClick={() => !n.isRead && markAsRead(n.id)}
+                  onClick={() => markAsRead(n.id, n.link)}
                 >
-                  <div className="p-4 flex gap-4">
-                    <div className="shrink-0 w-8 h-8 rounded-lg bg-base-200 flex items-center justify-center border border-base-300">
+                  <div className="p-5 flex gap-5">
+                    <div className="shrink-0 w-10 h-10 rounded-xl bg-base-200 flex items-center justify-center border border-base-300 shadow-sm">
                       {getIcon(n.type)}
                     </div>
-                    <div className="flex flex-col gap-1 overflow-hidden">
-                      <p className="text-xs font-bold leading-relaxed text-base-content break-words">
+                    <div className="flex flex-col gap-1.5 overflow-hidden">
+                      <p className="text-[13px] font-black leading-tight text-base-content break-words">
                         {n.content}
                       </p>
-                      <span className="text-[9px] font-black uppercase opacity-40">
+                      <span className="text-[10px] font-black uppercase opacity-40 tracking-widest">
                         {formatDistanceToNow(new Date(n.createdAt))} ago
                       </span>
                     </div>

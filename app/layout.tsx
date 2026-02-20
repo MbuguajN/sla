@@ -3,10 +3,11 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import { ThemeProvider } from '@/components/ThemeProvider'
 
-const outfit = Outfit({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-outfit",
+  variable: "--font-inter",
   display: "swap",
+  weight: ['400', '500', '600', '700', '800', '900']
 });
 
 export const metadata: Metadata = {
@@ -21,7 +22,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${outfit.className} antialiased text-base-content min-h-screen`}>
+      <body className={`${inter.className} antialiased text-base-content min-h-screen font-medium`}>
         <ThemeProvider>
           {children}
         </ThemeProvider>

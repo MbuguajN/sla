@@ -61,11 +61,11 @@ export async function createProject(formData: { title: string; description?: str
   const session = await auth()
   const role = (session?.user as any)?.role
   const deptName = (session?.user as any)?.departmentName
+  const isCEO = role === 'CEO'
+  const isBD = deptName === 'BUSINESS_DEVELOPMENT' || (session?.user as any)?.department?.name === 'BUSINESS_DEVELOPMENT'
 
-  const isBD = (session?.user as any)?.departmentName === 'BUSINESS_DEVELOPMENT' || (session?.user as any)?.department?.name === 'BUSINESS_DEVELOPMENT'
-
-  if (role !== 'ADMIN' && role !== 'CEO' && role !== 'HR' && role !== 'MANAGER' && !isBD) {
-    throw new Error('Unauthorized: Only Business Development, Managers, HR or CEO can create projects.')
+  if (role !== 'ADMIN' && !(isCEO && isBD)) {
+    throw new Error('STRATEGIC DENIAL: Project initiation requires both CEO clearance and Business Development alignment.')
   }
 
   const project = await prisma.project.create({

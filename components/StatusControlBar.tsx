@@ -74,16 +74,18 @@ export default function StatusControlBar({
   taskId,
   currentStatus,
   assigneeId,
-  reporterId, // Added reporterId
+  reporterId,
   currentUserId,
-  userRole
+  userRole,
+  departmentName
 }: {
   taskId: number,
   currentStatus: TaskStatus,
   assigneeId?: number | null,
-  reporterId?: number | null, // Added reporterId
+  reporterId?: number | null,
   currentUserId: number,
-  userRole: string
+  userRole: string,
+  departmentName?: string
 }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = React.useState<string | null>(null)
@@ -107,8 +109,8 @@ export default function StatusControlBar({
   const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && (isAssignee || isAdminCheck)
   const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && (isAssignee || isAdminCheck)
 
-  // Only reporter or admin can COMPLETE
-  const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || isAdminCheck)
+  // Only reporter can COMPLETE (Admin fallback)
+  const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || userRole === 'ADMIN')
 
   const isRestricted = (optimisticStatus === TaskStatus.REVIEW && !canComplete) ||
     (optimisticStatus === TaskStatus.PENDING && !canAdvanceFromPending) ||
