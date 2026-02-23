@@ -11,6 +11,25 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
+      boxShadow: {
+        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.05)',
+        'glow': '0 0 20px rgba(190, 30, 61, 0.3)',
+      },
+      keyframes: {
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        'pulse-slow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.5' },
+        }
+      },
+      animation: {
+        'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
+        'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      }
     },
   },
   plugins: [require("daisyui")],

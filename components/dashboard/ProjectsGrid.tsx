@@ -31,7 +31,7 @@ export default async function ProjectsGrid() {
                     const progress = total > 0 ? (completed / total) * 100 : 0
 
                     return (
-                        <Link key={project.id} href={`/projects/${project.id}`} className="group bg-base-100 border border-base-200 p-4 rounded-xl shadow-sm hover:border-primary/50 transition-all hover:translate-y-[-2px]">
+                        <Link key={project.id} href={`/projects/${project.id}`} className="group bg-base-100 border border-base-200 p-4 rounded-2xl shadow-sm hover:shadow-soft hover:border-primary/50 transition-all duration-300 hover:-translate-y-1">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="p-2 bg-base-200 rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors">
                                     <FolderGit2 className="w-4 h-4" />

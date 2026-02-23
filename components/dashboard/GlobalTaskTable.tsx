@@ -116,9 +116,9 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
     }
 
     return (
-        <div className="bg-base-100 border border-base-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-base-100 border border-base-200/50 rounded-2xl shadow-sm hover:shadow-soft transition-all duration-300 overflow-hidden flex flex-col">
             {/* Header Toolbar */}
-            <div className="p-4 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="p-4 border-b border-base-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold uppercase tracking-tight">Active Directives</h2>
                     <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest">Global Task Registry</p>

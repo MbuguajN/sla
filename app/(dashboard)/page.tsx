@@ -114,13 +114,15 @@ export default async function DashboardPage() {
   })
 
   return (
-    <div className="space-y-10 bg-base-100 min-h-screen pb-20 p-6 lg:p-10 animate-in fade-in duration-500">
+    <div className="space-y-10 bg-base-100 min-h-screen pb-20 p-6 lg:p-10">
       {/* Header Section */}
-      <DashboardHeader activeUsers={activeUsers} />
+      <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
+        <DashboardHeader activeUsers={activeUsers} />
+      </div>
 
       {/* Top Row: Stats & Pulse Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <Suspense fallback={<div className="h-32 bg-base-200 rounded-2xl animate-pulse" />}>
             <OperationsStats
               departmentId={(session?.user as any)?.departmentId ? Number((session?.user as any).departmentId) : undefined}
@@ -128,7 +130,7 @@ export default async function DashboardPage() {
             />
           </Suspense>
         </div>
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
           <Suspense fallback={<div className="h-24 bg-base-200 rounded-xl animate-pulse" />}>
             <PulseTimeline />
           </Suspense>
@@ -136,14 +138,14 @@ export default async function DashboardPage() {
       </div>
 
       {/* Middle Row: Main Task Table */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <Suspense fallback={<div className="h-96 bg-base-200 rounded-2xl animate-pulse" />}>
           <GlobalTaskTable initialTasks={activeTasks as any} />
         </Suspense>
       </div>
 
       {/* Bottom Row: Active Projects Overview */}
-      <div className="pt-4 border-t border-base-200">
+      <div className="pt-4 border-t border-base-200/50 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
         <Suspense fallback={<div className="h-48 bg-base-200 rounded-2xl animate-pulse" />}>
           <ProjectsGrid />
         </Suspense>

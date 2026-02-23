@@ -141,7 +141,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
       </button>
 
       {open && (
-        <ul className="mt-3 z-[1] p-0 shadow-2xl menu menu-sm dropdown-content bg-base-100 rounded-box w-80 border border-base-200 overflow-hidden divide-y divide-base-200 animate-in fade-in zoom-in-95">
+        <ul className="mt-3 z-[1] p-0 shadow-glass menu menu-sm dropdown-content glass-panel rounded-2xl w-80 border border-white/20 overflow-hidden divide-y divide-base-200/50 animate-in fade-in zoom-in-95">
           <li className="px-6 py-4 bg-base-200/50 flex flex-row justify-between items-center hover:bg-base-200/50">
             <span className="text-sm font-bold uppercase tracking-wider text-primary">Notifications</span>
             <div className="flex items-center gap-2">

@@ -39,8 +39,8 @@ export default async function PulseTimeline() {
                         <div
                             key={day.toISOString()}
                             className={cn(
-                                "group relative flex flex-col items-center justify-center p-3 rounded-xl border min-w-[60px] cursor-default transition-all duration-300",
-                                isCurrentDay ? "bg-primary text-primary-content border-primary shadow-lg shadow-primary/20 scale-105" : "bg-base-100 border-base-200 hover:border-primary/50"
+                                "group relative flex flex-col items-center justify-center p-3 rounded-2xl border min-w-[60px] cursor-default transition-all duration-300 hover:-translate-y-1",
+                                isCurrentDay ? "bg-primary text-primary-content border-primary shadow-lg shadow-primary/30 scale-105" : "bg-base-100 border-base-200 hover:border-primary/50 hover:shadow-soft"
                             )}
                         >
                             <div className="text-xs font-bold uppercase tracking-wider opacity-60 mb-0.5">

@@ -86,9 +86,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="drawer-content flex flex-col bg-base-100">
 
         {/* Navbar */}
-        <div className="navbar bg-base-100 border-b border-base-200 sticky top-0 z-30 px-4 lg:px-8">
+        <div className="navbar glass-panel sticky top-0 z-30 px-4 lg:px-8 shadow-sm">
           <div className="flex-none lg:hidden">
-            <label htmlFor="my-drawer-2" className="btn btn-square btn-ghost">
+            <label htmlFor="my-drawer-2" className="btn btn-square btn-ghost hover:bg-base-200/50 transition-colors">
               <MenuIcon className="w-6 h-6" />
             </label>
           </div>
@@ -101,23 +101,23 @@ export default async function DashboardLayout({ children }: { children: React.Re
             <NotificationDropdown userId={userId} />
 
             <div className="dropdown dropdown-end">
-              <div tabIndex={0} role="button" className="btn btn-ghost btn-circle border border-base-200/50 p-0 bg-base-200 overflow-hidden shadow-inner grid place-items-center w-10 h-10 min-h-0">
+              <div tabIndex={0} role="button" className="btn btn-ghost btn-circle border border-white/10 hover:border-white/20 p-0 bg-base-200/50 hover:bg-base-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 w-10 h-10 min-h-0">
                 {dbUser?.avatarUrl ? (
                   <img src={dbUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
                   <UserIcon className="w-5 h-5 text-base-content/60 opacity-80" />
                 )}
               </div>
-              <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52 border border-base-200">
+              <ul tabIndex={0} className="mt-3 z-[1] p-2 shadow-glass menu menu-sm dropdown-content glass-panel rounded-xl w-56 border border-white/20">
                 <li className="menu-title px-4 py-2 text-primary font-bold">{session.user.name}</li>
-                <li><Link href="/settings/profile" className="flex items-center gap-2"><UserIcon className="w-4 h-4" /> User Settings</Link></li>
-                <div className="divider my-1"></div>
+                <li><Link href="/settings/profile" className="flex items-center gap-2 py-3 hover:bg-base-200/50 rounded-lg transition-colors"><UserIcon className="w-4 h-4" /> User Settings</Link></li>
+                <div className="divider my-1 opacity-20"></div>
                 <li>
                   <form action={async () => {
                     "use server"
                     await authSignOut({ redirectTo: "/login" })
                   }}>
-                    <button className="text-error flex items-center gap-2 w-full">
+                    <button className="text-error flex items-center gap-2 w-full py-3 hover:bg-error/10 rounded-lg transition-colors font-medium">
                       <LogOut className="w-4 h-4" /> Terminate Session
                     </button>
                   </form>

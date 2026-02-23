@@ -106,7 +106,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
   return (
     <div
       className={cn(
-        "drawer-side z-40 transition-all duration-300 ease-in-out border-r-2 border-primary/20 bg-base-100 shadow-[2px_0_15px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_15px_rgba(0,0,0,0.2)]",
+        "drawer-side z-40 transition-all duration-300 ease-in-out border-r border-white/10 glass-panel",
         isCollapsed ? "lg:w-20" : "lg:w-64"
       )}
     >

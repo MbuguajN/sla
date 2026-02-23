@@ -30,7 +30,7 @@ export default async function OperationsStats({
     return (
         <div className="grid grid-cols-2 gap-4">
             {/* Active Directives Card */}
-            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm relative overflow-hidden group hover:border-primary/20 transition-all duration-300 h-[100px]">
+            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm hover:shadow-soft relative overflow-hidden group hover:border-primary/20 transition-all duration-300 h-[100px] hover:-translate-y-1">
                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                     <Activity className="w-12 h-12 text-primary" />
                 </div>
@@ -50,7 +50,7 @@ export default async function OperationsStats({
             </div>
 
             {/* Critical Overdue Card */}
-            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm relative overflow-hidden group hover:border-error/20 transition-all duration-300 h-[100px]">
+            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm hover:shadow-soft relative overflow-hidden group hover:border-error/20 transition-all duration-300 h-[100px] hover:-translate-y-1">
                 <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                     <AlertOctagon className="w-12 h-12 text-error" />
                 </div>

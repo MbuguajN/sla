@@ -42,13 +42,15 @@ export default function LoginPage() {
   const [logos, setLogos] = useState<{ light: string, dark: string }>({ light: '', dark: '' })
 
   useState(() => {
-    import('@/app/actions/settingsActions').then(mod => {
-      mod.getSystemSettings(['SYSTEM_LOGO_LIGHT', 'SYSTEM_LOGO_DARK', 'SYSTEM_LOGO']).then(settings => {
+    import('../actions/settingsActions').then(mod => {
+      mod.getSystemSettings(['SYSTEM_LOGO_LIGHT', 'SYSTEM_LOGO_DARK', 'SYSTEM_LOGO']).then((settings: any) => {
         setLogos({
           light: settings['SYSTEM_LOGO_LIGHT'] || settings['SYSTEM_LOGO'] || '/logo.svg',
           dark: settings['SYSTEM_LOGO_DARK'] || settings['SYSTEM_LOGO'] || '/logo.svg'
         })
       })
+    }).catch(err => {
+      console.error("Failed to load settings actions", err)
     })
   })
 
