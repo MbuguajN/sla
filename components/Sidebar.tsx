@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import {
   ClipboardList,
   Settings,
@@ -13,6 +14,8 @@ import {
   Briefcase,
   Users2,
   Inbox,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -24,216 +27,154 @@ interface SidebarProps {
   logoDark?: string | null
 }
 
-const SIDEBAR_PADDING = 'px-4'
-const COLLAPSED_PADDING = 'px-3'
-
 export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(true) // Default to collapsed
+  const [isCollapsed, setIsCollapsed] = useState(true)
   const [isHydrated, setIsHydrated] = useState(false)
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
 
-  // Load saved state from localStorage after hydration
   React.useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')
-    if (saved !== null) {
-      setIsCollapsed(JSON.parse(saved))
-    }
+    if (saved !== null) setIsCollapsed(JSON.parse(saved))
     setIsHydrated(true)
   }, [])
 
-  // Save state and update drawer classes
   React.useEffect(() => {
     if (!isHydrated) return
-
     localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed))
     const drawer = document.querySelector('.drawer')
     if (drawer) {
-      if (isCollapsed) {
-        drawer.classList.add('sidebar-collapsed')
-        drawer.classList.remove('sidebar-expanded')
-      } else {
-        drawer.classList.add('sidebar-expanded')
-        drawer.classList.remove('sidebar-collapsed')
-      }
+      drawer.classList.toggle('sidebar-collapsed', isCollapsed)
+      drawer.classList.toggle('sidebar-expanded', !isCollapsed)
     }
   }, [isCollapsed, isHydrated])
 
-  // LOGIC: Role based access
   const isAdmin = userRole === 'ADMIN'
   const isCEO = userRole === 'CEO'
   const isHR = userRole === 'HR'
   const isManager = userRole === 'MANAGER' || isAdmin || isCEO || isHR
-
   const isCS = dbUser?.department?.name === 'CLIENT_SERVICE'
   const isBusinessDev = dbUser?.department?.name === 'BUSINESS_DEVELOPMENT'
 
-  const toggleSidebar = () => setIsCollapsed(!isCollapsed)
-
   const navItems = [
-    // Consolidated Home link
     { label: 'Home', href: '/', icon: Home, visible: true },
-
-    // Brief Hub: Formerly Ticket Terminal
     { label: 'Brief Hub', href: '/client-service/tickets', icon: Inbox, visible: isAdmin || isCS || isManager },
-
-    // Active Projects: Managers, Admins, and BDev
     { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev },
-
-    // Global Task Overview: Admins, Managers, BDev, CS, and CEO/HR
-    { label: 'Global Task Overview', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isHR || isManager || isBusinessDev || isCS },
-
-    // Department Queue: Restricted to non-leadership
+    { label: 'Global Tasks', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isHR || isManager || isBusinessDev || isCS },
     {
       label: 'Department Queue',
       href: dbUser?.departmentId ? `/departments/${dbUser.departmentId}` : '/admin/departments',
       icon: Users2,
       visible: !(isAdmin || isCEO || isHR),
-      sublabel: !dbUser?.department?.name ? 'No Dept Assigned' : null
     },
-
-    // Admin Settings: Admins and HR (User Directory)
     { label: 'User Directory', href: '/admin/users', icon: Settings, visible: isAdmin || isHR },
-    { label: 'Branding & Settings', href: '/admin/settings', icon: Settings, visible: isAdmin },
+    { label: 'Settings', href: '/admin/settings', icon: Settings, visible: isAdmin },
   ]
-
-  // Filter out duplicates (Home vs Dashboard pointing to same place, pick one based on logic)
-  const uniqueNavItems = navItems.filter((item, index, self) =>
-    index === self.findIndex((t) => (
-      t.href === item.href && t.label === item.label
-    ))
-  )
 
   return (
     <div
       className={cn(
-        "drawer-side z-40 transition-all duration-300 ease-in-out border-r border-white/10 glass-panel",
+        "drawer-side z-40 transition-all duration-300 ease-in-out border-r border-base-200 bg-base-100",
         isCollapsed ? "lg:w-20" : "lg:w-64"
       )}
     >
       <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay" />
 
-      {/* Sidebar Container */}
       <div className={cn(
         "min-h-full bg-base-100 text-base-content flex flex-col transition-all duration-300 ease-in-out relative overflow-y-auto overflow-x-hidden",
-        "w-72 lg:w-auto", // Mobile width
+        "w-72 lg:w-auto",
         isCollapsed ? "lg:w-20" : "lg:w-64"
       )}>
 
-        {/* ===== SIDEBAR HEADER ===== */}
+        {/* Header / Logo */}
         <div className={cn(
-          "flex items-center pt-8 pb-6 relative transition-all duration-300",
-          isCollapsed ? "lg:justify-center lg:px-2" : "justify-between",
-          SIDEBAR_PADDING
+          "flex items-center pt-6 pb-5 relative transition-all duration-300",
+          isCollapsed ? "lg:justify-center lg:px-2" : "justify-between px-4"
         )}>
-          <Link href="/" className="flex items-center w-full transition-opacity hover:opacity-80">
+          <Link href="/" className="flex items-center w-full">
             <div className={cn(
               "flex items-center justify-center transition-all duration-300 w-full overflow-hidden",
-              isCollapsed ? "h-12 w-12 mx-auto px-2" : "h-16 px-6"
+              isCollapsed ? "h-10 w-10 mx-auto" : "h-14 px-4"
             )}>
-              <div className={cn(
-                "flex items-center justify-center transition-all duration-300 w-full overflow-hidden bg-base-100",
-                isCollapsed ? "h-12 w-12 mx-auto" : "h-16 px-4"
-              )}>
-                {/* Light Mode Logo */}
-                <img
-                  src={logoLight || "/logo.svg"}
-                  alt="Logo"
-                  className={cn(
-                    "max-w-full max-h-full object-contain dark:hidden",
-                    !logoLight && "dark:invert"
-                  )}
-                />
-                {/* Dark Mode Logo */}
-                <img
-                  src={logoDark || logoLight || "/logo.svg"}
-                  alt="Logo"
-                  className={cn(
-                    "max-w-full max-h-full object-contain hidden dark:block",
-                    !logoDark && !logoLight && "dark:invert"
-                  )}
-                />
-              </div>
+              <img
+                src={logoLight || "/logo.svg"}
+                alt="Logo"
+                className="max-w-full max-h-full object-contain dark:hidden"
+              />
+              <img
+                src={logoDark || logoLight || "/logo.svg"}
+                alt="Logo"
+                className="max-w-full max-h-full object-contain hidden dark:block"
+              />
             </div>
           </Link>
 
-          {/* Collapse Toggle Button */}
           <button
-            onClick={toggleSidebar}
+            onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
-              "btn btn-circle btn-xs btn-primary border-2 border-base-100 shadow-md transition-transform hover:scale-105 hidden lg:flex shrink-0 z-50",
-              isCollapsed && "absolute -right-3 top-10"
+              "btn btn-circle btn-xs bg-base-200 border border-base-300 shadow-sm hidden lg:flex shrink-0 z-50 hover:bg-base-300 transition-colors",
+              isCollapsed && "absolute -right-3 top-8"
             )}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isCollapsed ? <ChevronRight className="text-primary-content" size={12} /> : <ChevronLeft className="text-primary-content" size={12} />}
+            {isCollapsed ? <ChevronRight size={12} /> : <ChevronLeft size={12} />}
           </button>
         </div>
 
-        {/* ===== SIDEBAR CONTENT (Navigation) ===== */}
+        {/* Divider */}
+        <div className="mx-4 border-b border-base-200 mb-2" />
+
+        {/* Navigation */}
         <nav className={cn(
-          "flex-1 flex flex-col",
-          isCollapsed ? "lg:px-3 gap-1" : "gap-2 " + SIDEBAR_PADDING
+          "flex-1 flex flex-col py-2",
+          isCollapsed ? "lg:px-3 gap-1" : "gap-0.5 px-3"
         )}>
-          {uniqueNavItems.filter(item => item.visible).map((item) => {
+          {navItems.filter(item => item.visible).map((item) => {
             const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
             const Icon = item.icon
-
             return (
               <Link
                 key={item.href + item.label}
                 href={item.href}
                 prefetch={true}
                 className={cn(
-                  // Base styles
-                  "flex items-center rounded-xl transition-colors duration-150",
-                  // Collapsed: center icon in square button
+                  "flex items-center rounded-lg transition-colors duration-150",
                   isCollapsed
                     ? "lg:justify-center lg:aspect-square lg:p-0 lg:w-full"
-                    : "gap-3 px-3 py-3",
-                  // Active state
+                    : "gap-3 px-3 py-2.5",
                   isActive
-                    ? "bg-primary text-white shadow-sm"
-                    : "text-base-content/70 hover:bg-base-200/60 hover:text-base-content",
+                    ? "bg-primary text-primary-content"
+                    : "text-base-content/70 hover:bg-base-200 hover:text-base-content",
                 )}
               >
-                <Icon
-                  className={cn(
-                    "shrink-0 transition-colors",
-                    isCollapsed ? "w-5 h-5" : "w-[18px] h-[18px]",
-                    isActive ? "text-white" : "text-base-content/50"
-                  )}
-                />
-
-                {/* Label - hidden when collapsed */}
+                <Icon className={cn(
+                  "shrink-0",
+                  isCollapsed ? "w-5 h-5" : "w-[18px] h-[18px]",
+                  isActive ? "text-primary-content" : "text-base-content/50"
+                )} />
                 <div className={cn(
                   "flex flex-col min-w-0 transition-all duration-200",
                   isCollapsed && "lg:hidden"
                 )}>
                   <span className={cn(
-                    "text-xs tracking-normal truncate",
-                    isActive ? "font-bold" : "font-medium"
+                    "text-[13px] tracking-normal truncate",
+                    isActive ? "font-semibold" : "font-medium"
                   )}>
                     {item.label}
                   </span>
-                  {item.sublabel && (
-                    <span className="text-[10px] text-base-content/40 italic truncate">
-                      {item.sublabel}
-                    </span>
-                  )}
                 </div>
               </Link>
             )
           })}
 
-          {/* New Brief Button - Restricted to BDev, CS, Managers & CEO */}
+          {/* New Brief Button */}
           {(isBusinessDev || isCS || isManager || isAdmin || isCEO) && (
             <Link
               href="/tasks/new"
               className={cn(
-                "btn btn-primary shadow-md flex items-center justify-center border-none mt-4 transition-transform hover:scale-[1.02]",
+                "btn btn-primary flex items-center justify-center border-none mt-4 shadow-sm",
                 isCollapsed
                   ? "btn-circle w-10 h-10 p-0 mx-auto"
-                  : "h-11 gap-2 w-full text-xs tracking-normal font-bold"
+                  : "h-10 gap-2 w-full text-xs font-semibold"
               )}
             >
               <FileText className="w-4 h-4 shrink-0" />
@@ -242,32 +183,42 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           )}
         </nav>
 
-        {/* ===== SIDEBAR FOOTER ===== */}
+        {/* Footer */}
         <div className={cn(
-          "mt-auto border-t border-base-200/50 py-4",
-          isCollapsed ? "lg:px-3" : SIDEBAR_PADDING
+          "mt-auto border-t border-base-200 pt-3 pb-4",
+          isCollapsed ? "lg:px-3" : "px-4"
         )}>
+          {/* Theme Toggle */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={cn(
+              "btn btn-ghost btn-sm w-full mb-3 gap-2 text-base-content/60 hover:text-base-content hover:bg-base-200 transition-colors",
+              isCollapsed && "btn-circle lg:w-10 lg:h-10 lg:p-0"
+            )}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {!isCollapsed && <span className="text-xs font-medium">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
+          </button>
+
+          {/* User Info */}
           <div className={cn(
             "flex items-center",
             isCollapsed ? "lg:justify-center" : "gap-3"
           )}>
-            {/* User Avatar */}
-            <div className="w-10 h-10 bg-primary text-primary-content rounded-full grid place-items-center shrink-0 overflow-hidden border border-white/10 shadow-inner">
+            <div className="w-9 h-9 bg-primary text-primary-content rounded-full grid place-items-center shrink-0 overflow-hidden">
               {dbUser?.avatarUrl ? (
                 <img src={dbUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-sm font-bold tracking-tight leading-none">{session.user.name?.charAt(0)}</span>
+                <span className="text-sm font-semibold leading-none">{session.user.name?.charAt(0)}</span>
               )}
             </div>
-
-            {/* User Info - hidden when collapsed */}
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-bold text-base-content truncate">
+                <span className="text-[13px] font-semibold text-base-content truncate">
                   {session.user.name}
                 </span>
-                <span className="text-[10px] text-base-content font-bold uppercase tracking-tight opacity-50">
-                  {dbUser?.department?.name || userRole}
+                <span className="text-[11px] text-base-content/50 font-medium truncate">
+                  {dbUser?.department?.name?.replace(/_/g, ' ') || userRole}
                 </span>
               </div>
             )}

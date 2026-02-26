@@ -38,8 +38,8 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
       {filteredProjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-48 border border-dashed border-base-300 rounded-xl bg-base-100">
           <Briefcase className="w-10 h-10 text-base-content/15 mb-3" />
-          <h3 className="text-sm font-bold opacity-40">No projects found</h3>
-          <p className="text-xs font-normal opacity-30 mt-1">Try a different search term</p>
+          <h3 className="text-sm font-semibold text-base-content/40">No projects found</h3>
+          <p className="text-xs text-base-content/30 mt-1">Try a different search term</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

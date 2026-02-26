@@ -1,6 +1,7 @@
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ['selector', '[data-theme="dark"]'],
   content: [
     './app/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
@@ -55,14 +56,14 @@ module.exports = {
         "dark": {
           "primary": "#BE1E3D",
           "primary-content": "#ffffff",
-          "secondary": "#F8FAFC",
+          "secondary": "#E5E5E5",
           "accent": "#BE1E3D",
-          "neutral": "#1E293B",
+          "neutral": "#1A1A1A",
           "neutral-content": "#ffffff",
-          "base-100": "#0F172A", // Deep Slate background
-          "base-200": "#1E293B",
-          "base-300": "#334155",
-          "base-content": "#F8FAFC",
+          "base-100": "#000000",
+          "base-200": "#111111",
+          "base-300": "#1A1A1A",
+          "base-content": "#E5E5E5",
           "info": "#38BDF8",
           "success": "#34D399",
           "warning": "#FBBF24",

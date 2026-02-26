@@ -97,7 +97,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                         <span className="text-xs text-base-content/70 italic truncate">"{log.newValue}"</span>
                       )}
                       {log.action === 'TASK_CREATED' && (
-                        <span className="text-xs font-semibold text-primary">Directive Initiated</span>
+                        <span className="text-xs font-semibold text-primary">Task Created</span>
                       )}
                     </div>
                   </td>

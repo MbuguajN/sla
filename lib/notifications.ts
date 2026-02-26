@@ -41,6 +41,7 @@ export async function createNotification(userId: number, content: string, type: 
 }
 
 export async function notifyDepartmentHead(departmentId: number, content: string, type: NotificationType, link?: string) {
+  // 1. Get the department head
   const dept = await prisma.department.findUnique({
     where: { id: departmentId },
     select: {
@@ -50,15 +51,32 @@ export async function notifyDepartmentHead(departmentId: number, content: string
     }
   })
 
-  if (dept?.headId) {
-    // Skip admin/system users — they should only get system-level alerts, not department-level
-    if (dept.head?.role === 'ADMIN' || dept.head?.role === 'SYSTEM') {
-      console.log(`⏭️ Skipping department notification for admin/system head (${dept.name}, headId: ${dept.headId})`)
-      return
-    }
-    console.log(`🔔 Notifying department head (${dept.name}, headId: ${dept.headId})`)
-    await createNotification(dept.headId, content, type, link)
+  // 2. Get all managers in the department
+  const managers = await prisma.user.findMany({
+    where: {
+      departmentId: departmentId,
+      role: 'MANAGER',
+      NOT: { id: dept?.headId || undefined } // Don't duplicate if head is already a manager
+    },
+    select: { id: true }
+  })
+
+  const recipients = new Set<number>()
+
+  // Add head if not admin/system
+  if (dept?.headId && dept.head?.role !== 'ADMIN' && dept.head?.role !== 'SYSTEM') {
+    recipients.add(dept.headId)
+  }
+
+  // Add all managers
+  managers.forEach(m => recipients.add(m.id))
+
+  if (recipients.size > 0) {
+    console.log(`🔔 Notifying ${recipients.size} recipients for department ${dept?.name || departmentId}`)
+    await Promise.all(
+      Array.from(recipients).map(userId => createNotification(userId, content, type, link))
+    )
   } else {
-    console.warn(`⚠️ NO DEPARTMENT HEAD FOUND for department ${departmentId}. Notification not sent: "${content.substring(0, 50)}"`)
+    console.warn(`⚠️ NO RECIPIENTS FOUND for department ${departmentId}. Notification not sent: "${content.substring(0, 50)}"`)
   }
 }

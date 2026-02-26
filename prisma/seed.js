@@ -57,10 +57,23 @@ async function main() {
     }
   })
 
+  // Create Technology Head
+  const technologyHead = await prisma.user.upsert({
+    where: { email: 'chris@5dm.africa' },
+    update: { role: 'MANAGER' },
+    create: {
+      email: 'chris@5dm.africa',
+      name: 'Chris',
+      password: hashedPassword,
+      role: 'MANAGER',
+      departmentId: techDept.id
+    }
+  })
+
   // Set Tech Head
   await prisma.department.update({
     where: { id: techDept.id },
-    data: { headId: admin.id }
+    data: { headId: technologyHead.id }
   })
 
   // Create Client Service Head

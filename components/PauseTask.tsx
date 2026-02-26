@@ -30,7 +30,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
         onClick={() => setIsPaused(true)}
         className="btn btn-warning btn-sm"
       >
-        Pause Directive
+        Pause Task
       </button>
 
       {isPaused && (

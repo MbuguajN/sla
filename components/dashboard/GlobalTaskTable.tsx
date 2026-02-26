@@ -6,11 +6,11 @@ import {
     ArrowUpRight,
     CheckCircle2,
     Clock,
-    MoreHorizontal,
     Play,
     AlertOctagon,
     ArrowUpDown,
-    Search
+    Search,
+    ChevronRight
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ type Task = {
     id: number
     title: string
     status: TaskStatus
-    priority: string | null // inferred from SLA tier usually
+    priority: string | null
     dueAt: Date | null
     project: { id: number, title: string } | null
     assignee: { name: string | null, avatarUrl: string | null } | null
@@ -49,28 +49,19 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
             sortableItems.sort((a: any, b: any) => {
                 let aValue = a[sortConfig.key]
                 let bValue = b[sortConfig.key]
-
-                // Handle nested properties
                 if (sortConfig.key === 'project') {
                     aValue = a.project?.title || ''
                     bValue = b.project?.title || ''
                 }
                 if (sortConfig.key === 'sla') {
-                    // Custom sort for tier?
                     aValue = a.sla.tier
                     bValue = b.sla.tier
                 }
-
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'asc' ? -1 : 1
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'asc' ? 1 : -1
-                }
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
                 return 0
             })
         }
-
         if (filter) {
             const lowerFilter = filter.toLowerCase()
             sortableItems = sortableItems.filter(t =>
@@ -79,7 +70,6 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                 t.assignee?.name?.toLowerCase().includes(lowerFilter)
             )
         }
-
         return sortableItems
     }, [tasks, sortConfig, filter])
 
@@ -94,7 +84,6 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
             setProcessingId(task.id)
             try {
                 await advanceTaskStatus(task.id, nextStatus)
-                // Optimistic update
                 setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: nextStatus! } : t))
             } catch (error) {
                 console.error("Failed to update task", error)
@@ -104,31 +93,41 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
         }
     }
 
-    const getStatusColor = (status: string) => {
+    const getStatusBadge = (status: string) => {
+        const map: Record<string, { bg: string; text: string; label: string }> = {
+            [TaskStatus.PENDING]: { bg: 'bg-base-200', text: 'text-base-content/60', label: 'Pending' },
+            [TaskStatus.RECEIVED]: { bg: 'bg-info/10', text: 'text-info', label: 'Received' },
+            [TaskStatus.IN_PROGRESS]: { bg: 'bg-primary/10', text: 'text-primary', label: 'In Progress' },
+            [TaskStatus.REVIEW]: { bg: 'bg-warning/10', text: 'text-warning', label: 'Review' },
+            [TaskStatus.COMPLETED]: { bg: 'bg-success/10', text: 'text-success', label: 'Completed' },
+        }
+        return map[status] || { bg: 'bg-base-200', text: 'text-base-content/60', label: status }
+    }
+
+    const getActionLabel = (status: string) => {
         switch (status) {
-            case TaskStatus.PENDING: return "badge-ghost"
-            case TaskStatus.RECEIVED: return "badge-info"
-            case TaskStatus.IN_PROGRESS: return "badge-primary"
-            case TaskStatus.REVIEW: return "badge-warning"
-            case TaskStatus.COMPLETED: return "badge-success"
-            default: return "badge-ghost"
+            case TaskStatus.PENDING: return 'Acknowledge'
+            case TaskStatus.RECEIVED: return 'Start'
+            case TaskStatus.IN_PROGRESS: return 'Submit'
+            case TaskStatus.REVIEW: return 'Complete'
+            default: return ''
         }
     }
 
     return (
-        <div className="bg-base-100 border border-base-200/50 rounded-2xl shadow-sm hover:shadow-soft transition-all duration-300 overflow-hidden flex flex-col">
-            {/* Header Toolbar */}
-            <div className="p-4 border-b border-base-200/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-base-100 border border-base-200 rounded-xl overflow-hidden">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-bold uppercase tracking-tight">Active Directives</h2>
-                    <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest">Global Task Registry</p>
+                    <h2 className="text-base font-semibold text-base-content">Active Tasks</h2>
+                    <p className="text-sm text-base-content/40 mt-0.5">{sortedTasks.length} tasks requiring attention</p>
                 </div>
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/40" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
                     <input
                         type="text"
-                        placeholder="Search directives..."
-                        className="input input-sm input-bordered pl-9 w-full md:w-64 text-xs font-bold"
+                        placeholder="Search tasks..."
+                        className="input input-sm input-bordered pl-9 w-full md:w-60 text-sm bg-base-100"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                     />
@@ -137,81 +136,77 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
 
             {/* Table */}
             <div className="overflow-x-auto">
-                <table className="table w-full">
+                <table className="w-full">
                     <thead>
-                        <tr className="bg-base-200/40 text-xs font-bold uppercase tracking-wider text-base-content/50">
-                            <th className="pl-6 py-4 cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('title')}>
-                                <div className="flex items-center gap-1">Directive <ArrowUpDown className="w-3 h-3" /></div>
+                        <tr className="bg-base-200/50 text-left">
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('title')}>
+                                <div className="flex items-center gap-1">Task <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th className="cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('project')}>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('project')}>
                                 <div className="flex items-center gap-1">Project <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th>SLA Target</th>
-                            <th className="cursor-pointer hover:text-primary transition-colors" onClick={() => handleSort('status')}>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Deadline</th>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('status')}>
                                 <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th className="text-right pr-6">Quick Action</th>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-base-100">
+                    <tbody className="divide-y divide-base-200/60">
                         {sortedTasks.map(task => {
                             const isProcessing = processingId === task.id
                             const isUrgent = task.sla.tier === 'URGENT'
+                            const statusBadge = getStatusBadge(task.status)
 
                             return (
-                                <tr key={task.id} className="group hover:bg-base-200/30 transition-colors">
-                                    <td className="pl-6 py-3">
-                                        <div className="flex flex-col gap-1">
-                                            <Link href={`/tasks/${task.id}`} className="font-bold text-sm text-base-content hover:text-primary transition-colors flex items-center gap-2">
-                                                {task.title}
-                                                {isUrgent && <AlertOctagon className="w-3 h-3 text-error" />}
-                                            </Link>
-                                            <span className="text-[9px] font-mono opacity-40">#{task.id}</span>
-                                        </div>
+                                <tr key={task.id} className="group">
+                                    <td className="px-6 py-4">
+                                        <Link href={`/tasks/${task.id}`} className="font-medium text-sm text-base-content hover:text-primary transition-colors flex items-center gap-2">
+                                            {task.title}
+                                            {isUrgent && <AlertOctagon className="w-3.5 h-3.5 text-error shrink-0" />}
+                                        </Link>
+                                        <span className="text-xs text-base-content/30 mt-0.5 block">#{task.id}</span>
                                     </td>
-                                    <td>
+                                    <td className="px-6 py-4">
                                         {task.project ? (
-                                            <Link href={`/projects/${task.project.id}`} className="badge badge-sm badge-ghost font-bold text-[9px] hover:bg-base-200">
+                                            <Link href={`/projects/${task.project.id}`} className="text-sm text-base-content/60 hover:text-primary transition-colors">
                                                 {task.project.title}
                                             </Link>
                                         ) : (
-                                            <span className="opacity-30 text-[9px]">—</span>
+                                            <span className="text-sm text-base-content/20">—</span>
                                         )}
                                     </td>
-                                    <td>
+                                    <td className="px-6 py-4">
                                         {task.dueAt && (
-                                            <div className="flex flex-col">
+                                            <div className="flex flex-col gap-0.5">
                                                 <SLACountdown dueDate={task.dueAt} isCompleted={task.status === TaskStatus.COMPLETED} />
-                                                <span className="text-xs font-normal opacity-30 mt-0.5">
+                                                <span className="text-xs text-base-content/30">
                                                     {format(new Date(task.dueAt), 'MMM d, HH:mm')}
                                                 </span>
                                             </div>
                                         )}
                                     </td>
-                                    <td>
-                                        <div className={cn(
-                                            "badge badge-xs font-bold h-5 px-2 text-[8px] uppercase tracking-tighter gap-1",
-                                            getStatusColor(task.status)
+                                    <td className="px-6 py-4">
+                                        <span className={cn(
+                                            "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium",
+                                            statusBadge.bg, statusBadge.text
                                         )}>
-                                            {task.status.replace('_', ' ')}
-                                        </div>
+                                            {statusBadge.label}
+                                        </span>
                                     </td>
-                                    <td className="text-right pr-6">
+                                    <td className="px-6 py-4 text-right">
                                         {task.status !== TaskStatus.COMPLETED && (
                                             <button
                                                 onClick={() => handleQuickAction(task)}
                                                 disabled={isProcessing}
-                                                className="btn btn-xs btn-outline border-base-200 hover:border-primary hover:bg-primary hover:text-white font-bold uppercase tracking-wider text-[9px] h-7 min-h-7 gap-1"
+                                                className="btn btn-sm btn-ghost text-primary hover:bg-primary/10 font-medium text-xs gap-1"
                                             >
                                                 {isProcessing ? (
                                                     <span className="loading loading-spinner loading-xs"></span>
                                                 ) : (
                                                     <>
-                                                        {task.status === TaskStatus.PENDING && 'Confirm'}
-                                                        {task.status === TaskStatus.RECEIVED && 'Start'}
-                                                        {task.status === TaskStatus.IN_PROGRESS && 'Review'}
-                                                        {task.status === TaskStatus.REVIEW && 'Complete'}
-                                                        <Play className="w-2 h-2 ml-0.5" />
+                                                        {getActionLabel(task.status)}
+                                                        <ChevronRight className="w-3 h-3" />
                                                     </>
                                                 )}
                                             </button>
@@ -222,8 +217,8 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                         })}
                         {sortedTasks.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="py-8 text-center text-base-content/30 text-xs font-bold uppercase tracking-widest">
-                                    No directives found
+                                <td colSpan={5} className="py-12 text-center text-sm text-base-content/30">
+                                    No tasks found
                                 </td>
                             </tr>
                         )}
@@ -231,9 +226,9 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                 </table>
             </div>
 
-            <div className="p-2 border-t border-base-200 bg-base-200/20 text-center">
-                <Link href="/tasks" className="text-xs font-bold uppercase tracking-wider text-primary hover:underline">
-                    View Full Registry
+            <div className="px-6 py-3 border-t border-base-200 bg-base-200/20">
+                <Link href="/tasks" className="text-xs font-medium text-primary hover:underline flex items-center gap-1">
+                    View all tasks <ArrowUpRight className="w-3 h-3" />
                 </Link>
             </div>
         </div>

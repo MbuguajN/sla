@@ -38,7 +38,7 @@ const STATUS_MAP: Record<TaskStatus, StatusConfig> = {
     color: 'btn-warning',
     next: TaskStatus.REVIEW,
     secondary: {
-      label: 'Pause Directive',
+      label: 'Pause Task',
       icon: XCircle,
       color: 'btn-ghost text-error',
       next: TaskStatus.AWAITING_INFO

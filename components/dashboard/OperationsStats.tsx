@@ -1,6 +1,6 @@
 import React from 'react'
 import prisma from '@/lib/db'
-import { Activity, AlertOctagon } from 'lucide-react'
+import { Activity, AlertTriangle } from 'lucide-react'
 
 export default async function OperationsStats({
     departmentId,
@@ -9,7 +9,6 @@ export default async function OperationsStats({
     departmentId?: number;
     isAdmin?: boolean
 }) {
-    // Only filter for non-admins if a departmentId is provided
     const filter = (!isAdmin && departmentId) ? { departmentId } : {}
 
     const activeTasksCount = await prisma.task.count({
@@ -29,44 +28,30 @@ export default async function OperationsStats({
 
     return (
         <div className="grid grid-cols-2 gap-4">
-            {/* Active Directives Card */}
-            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm hover:shadow-soft relative overflow-hidden group hover:border-primary/20 transition-all duration-300 h-[100px] hover:-translate-y-1">
-                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Activity className="w-12 h-12 text-primary" />
-                </div>
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-primary/10 rounded-lg text-primary">
-                            <Activity className="w-3 h-3" />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Active Directives</span>
+            {/* Active Tasks */}
+            <div className="bg-base-100 border border-base-200 rounded-xl p-5 flex flex-col justify-between min-h-[110px]">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                        <Activity className="w-4 h-4 text-primary" />
                     </div>
-                    <div>
-                        <span className="text-3xl font-bold text-base-content tracking-tight leading-none block">
-                            {activeTasksCount}
-                        </span>
-                    </div>
+                    <span className="text-xs font-medium text-base-content/50">Active Tasks</span>
                 </div>
+                <span className="text-3xl font-semibold text-base-content tracking-tight mt-3">
+                    {activeTasksCount}
+                </span>
             </div>
 
-            {/* Critical Overdue Card */}
-            <div className="bg-base-100 border border-base-200 p-3 rounded-2xl shadow-sm hover:shadow-soft relative overflow-hidden group hover:border-error/20 transition-all duration-300 h-[100px] hover:-translate-y-1">
-                <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <AlertOctagon className="w-12 h-12 text-error" />
-                </div>
-                <div className="relative z-10 flex flex-col h-full justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 bg-error/10 rounded-lg text-error">
-                            <AlertOctagon className="w-3 h-3" />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Overdue Commitments</span>
+            {/* Overdue Tasks */}
+            <div className="bg-base-100 border border-base-200 rounded-xl p-5 flex flex-col justify-between min-h-[110px]">
+                <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 bg-error/10 rounded-lg flex items-center justify-center">
+                        <AlertTriangle className="w-4 h-4 text-error" />
                     </div>
-                    <div>
-                        <span className="text-3xl font-bold text-error tracking-tight leading-none block">
-                            {overdueTasksCount}
-                        </span>
-                    </div>
+                    <span className="text-xs font-medium text-base-content/50">Overdue</span>
                 </div>
+                <span className="text-3xl font-semibold text-error tracking-tight mt-3">
+                    {overdueTasksCount}
+                </span>
             </div>
         </div>
     )

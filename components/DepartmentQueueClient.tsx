@@ -187,7 +187,7 @@ export default function DepartmentQueueClient({
                 filterMode === 'ALL' ? "bg-base-200 text-base-content" : "text-base-content/50 hover:bg-base-200/50"
               )}
             >
-              All Directives
+              All Tasks
             </button>
             <button
               onClick={() => setFilterMode('MINE')}
@@ -251,7 +251,7 @@ export default function DepartmentQueueClient({
           <table className="table w-full">
             <thead className="bg-base-200/40">
               <tr className="text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-200">
-                <th className="py-2 pl-6">Directive</th>
+                <th className="py-2 pl-6">Task</th>
                 <th className="py-2">Status</th>
                 <th className="py-2">Timeline</th>
                 <th className="py-2">Resource</th>
@@ -457,7 +457,7 @@ export default function DepartmentQueueClient({
           <div className="py-12 text-center text-base-content/30 border-t border-base-200">
             <div className="flex flex-col items-center gap-2">
               <Filter className="w-8 h-8 opacity-20" />
-              <span className="text-xs font-bold uppercase tracking-wider">No Directives Found</span>
+              <span className="text-xs font-bold uppercase tracking-wider">No Tasks Found</span>
             </div>
           </div>
         )}

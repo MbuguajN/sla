@@ -431,7 +431,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                   onClick={handleDismiss}
                 >
                   {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                  Dismiss Directive
+                  Dismiss Task
                 </button>
                 <button
                   className="btn btn-ghost btn-sm font-bold uppercase tracking-widest text-xs opacity-40 hover:opacity-100"

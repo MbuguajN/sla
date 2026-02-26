@@ -118,7 +118,7 @@ export default function CEODashboard({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
                     { label: 'System Health', value: '98.2%', sub: 'Global Uptime', icon: Activity, color: 'text-success' },
-                    { label: 'Active Directives', value: activeCount, sub: 'In Flight', icon: Zap, color: 'text-primary' },
+                    { label: 'Active Tasks', value: activeCount, sub: 'In Flight', icon: Zap, color: 'text-primary' },
                     { label: 'Critical Breaches', value: overdueCount, sub: 'Urgent Action', icon: AlertCircle, color: overdueCount > 0 ? 'text-error' : 'text-base-content/20' },
                     { label: 'Resources Online', value: activeUsers.length, sub: 'Active Sessions', icon: UserCheck, color: 'text-info' }
                 ].map((kpi, i) => (
@@ -186,7 +186,7 @@ export default function CEODashboard({
                                             {project.title}
                                         </h3>
                                         <p className="text-xs text-base-content/40 font-normal mb-4">
-                                            #{project.id} • {total} Directives
+                                            #{project.id} • {total} Tasks
                                         </p>
 
                                         <div className="mt-auto space-y-3">
@@ -265,7 +265,7 @@ export default function CEODashboard({
                 <div className="xl:col-span-12 space-y-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-4 bg-primary rounded-full" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Directives</h2>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Tasks</h2>
                     </div>
 
                     <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
@@ -273,7 +273,7 @@ export default function CEODashboard({
                             <table className="table w-full">
                                 <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">
                                     <tr>
-                                        <th className="pl-8 h-12">Directive Description</th>
+                                        <th className="pl-8 h-12">Task</th>
                                         <th>Origin Cluster</th>
                                         <th>Operator</th>
                                         <th>SLA Timeline</th>

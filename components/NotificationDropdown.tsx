@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { Bell, CheckCircle2, UserPlus, Eye, Clock, Trash2, AlertTriangle, MessageSquare, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDistanceToNow } from 'date-fns'
+import { useRouter } from 'next/navigation'
 
 type Notification = {
   id: number
@@ -20,6 +21,7 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -68,7 +70,8 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
       )
 
       if (link) {
-        window.location.href = link
+        router.push(link)
+        setOpen(false)
       }
     } catch (error) {
       console.error('Failed to mark as read:', error)
@@ -141,24 +144,15 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
       </button>
 
       {open && (
-        <ul className="mt-3 z-[1] p-0 shadow-glass menu menu-sm dropdown-content glass-panel rounded-2xl w-80 border border-white/20 overflow-hidden divide-y divide-base-200/50 animate-in fade-in zoom-in-95">
-          <li className="px-6 py-4 bg-base-200/50 flex flex-row justify-between items-center hover:bg-base-200/50">
+        <div className="mt-3 z-[1] p-0 shadow-2xl dropdown-content bg-base-100 rounded-2xl w-80 border border-base-200 overflow-hidden divide-y divide-base-200/50 animate-in fade-in zoom-in-95">
+          <div className="px-6 py-4 bg-base-200/30 flex flex-row justify-between items-center">
             <span className="text-sm font-bold uppercase tracking-wider text-primary">Notifications</span>
             <div className="flex items-center gap-2">
               {unreadCount > 0 && (
-                <>
-                  <span className="badge badge-primary font-bold text-xs">{unreadCount} New</span>
-                  <button
-                    onClick={markAllAsRead}
-                    className="btn btn-ghost btn-xs text-[9px]"
-                    title="Mark all as read"
-                  >
-                    <CheckCircle2 className="w-3 h-3" />
-                  </button>
-                </>
+                <span className="badge badge-primary font-bold text-xs">{unreadCount} New</span>
               )}
             </div>
-          </li>
+          </div>
 
           <div className="max-h-[400px] overflow-y-auto">
             {notifications.length === 0 ? (
@@ -168,10 +162,10 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
               </div>
             ) : (
               notifications.map(n => (
-                <li
+                <div
                   key={n.id}
                   className={cn(
-                    "hover:bg-primary/5 transition-colors cursor-pointer",
+                    "transition-colors cursor-pointer active:bg-primary/10 border-b border-base-200/50 last:border-0",
                     !n.isRead && "bg-primary/5"
                   )}
                   onClick={() => markAsRead(n.id, n.link)}
@@ -189,23 +183,13 @@ export default function NotificationDropdown({ userId }: { userId: number }) {
                       </span>
                     </div>
                   </div>
-                </li>
+                </div>
               ))
             )}
           </div>
 
-          {notifications.length > 0 && (
-            <li className="p-2 flex items-center justify-center bg-base-200/20">
-              <button
-                onClick={purgeAll}
-                className="btn btn-ghost btn-xs w-full text-xs font-bold uppercase tracking-wider hover:bg-error/10 hover:text-error"
-              >
-                <Trash2 className="w-3 h-3 mr-1" />
-                Purge All Notifications
-              </button>
-            </li>
-          )}
-        </ul>
+          {/* Purge All Removed per user request */}
+        </div>
       )}
     </div>
   )

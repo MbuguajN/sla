@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Activity, Lock, Mail, Loader2, AlertOctagon } from "lucide-react"
+import { Lock, Mail, Loader2, AlertCircle } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -38,7 +37,6 @@ export default function LoginPage() {
     }
   }
 
-  // Fetch logo settings on mount
   const [logos, setLogos] = useState<{ light: string, dark: string }>({ light: '', dark: '' })
 
   useState(() => {
@@ -54,43 +52,39 @@ export default function LoginPage() {
     })
   })
 
-  // ... handleSubmit ...
-
   return (
-    <div className="min-h-screen bg-base-200 flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-primary/5 via-base-200 to-base-200">
-      <div className="max-w-md w-full animate-fade-up">
+    <div className="min-h-screen bg-base-200 flex flex-col items-center justify-center p-6">
+      <div className="max-w-sm w-full animate-fade-up">
+
+        {/* Logo */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-32 h-32 mb-8 overflow-hidden">
-            <img
-              src={logos.light}
-              alt="Logo"
-              className="w-full h-full object-contain dark:hidden"
-            />
-            <img
-              src={logos.dark}
-              alt="Logo"
-              className="w-full h-full object-contain hidden dark:block"
-            />
+          <div className="inline-flex items-center justify-center w-28 h-28 overflow-hidden">
+            <img src={logos.light} alt="Logo" className="w-full h-full object-contain dark:hidden" />
+            <img src={logos.dark} alt="Logo" className="w-full h-full object-contain hidden dark:block" />
           </div>
         </div>
 
-        <div className="card bg-base-100 shadow-[0_40px_80px_-15px_rgba(0,0,0,0.1)] border border-base-content/5 rounded-[2.5rem] overflow-hidden">
+        {/* Card */}
+        <div className="card bg-base-100 shadow-lg border border-base-200 rounded-2xl overflow-hidden">
+          <div className="card-body p-8 gap-6">
 
-          <div className="card-body p-12 gap-8">
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight text-center uppercase">System Access</h2>
-              <p className="text-center text-[10px] font-bold text-base-content/40 uppercase tracking-[0.3em]">Credentials Required</p>
+            <div className="space-y-1 text-center">
+              <h2 className="text-xl font-semibold tracking-tight">Sign In</h2>
+              <p className="text-sm text-base-content/50">Enter your credentials to continue</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="form-control w-full">
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 group-focus-within:text-primary transition-colors" />
+                <label className="label pb-1">
+                  <span className="text-xs font-medium text-base-content/60">Email</span>
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
                   <input
                     required
                     type="email"
-                    placeholder="INTERNAL EMAIL"
-                    className="input input-lg bg-base-200 border-none focus:ring-2 focus:ring-primary/20 w-full pl-12 transition-all font-bold text-xs tracking-wider"
+                    placeholder="you@company.com"
+                    className="input input-bordered bg-base-100 w-full pl-10 text-sm"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -98,13 +92,16 @@ export default function LoginPage() {
               </div>
 
               <div className="form-control w-full">
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30 group-focus-within:text-primary transition-colors" />
+                <label className="label pb-1">
+                  <span className="text-xs font-medium text-base-content/60">Password</span>
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
                   <input
                     required
                     type="password"
-                    placeholder="SECURITY KEY"
-                    className="input input-lg bg-base-200 border-none focus:ring-2 focus:ring-primary/20 w-full pl-12 transition-all font-bold text-xs tracking-wider"
+                    placeholder="••••••••"
+                    className="input input-bordered bg-base-100 w-full pl-10 text-sm"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -112,29 +109,26 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="alert alert-error bg-error/10 text-error text-xs font-bold uppercase tracking-wider border-none py-4 rounded-2xl">
-                  <AlertOctagon className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-error text-sm bg-error/10 px-4 py-3 rounded-lg">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
 
               <button
                 type="submit"
-                className="btn btn-primary btn-lg btn-block shadow-xl shadow-primary/20 rounded-2xl border-none hover:scale-[1.02] active:scale-95 transition-all h-16 group"
+                className="btn btn-primary btn-block shadow-sm border-none h-11 text-sm font-semibold"
                 disabled={loading}
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <span>ENTER OPERATIONAL HUB</span>}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
               </button>
             </form>
-
-            <div className="flex flex-col items-center gap-4 mt-4">
-              <div className="h-px w-12 bg-base-content/10"></div>
-              <p className="text-xs font-bold text-base-content/30 uppercase tracking-wider">
-                Secure Pipeline v0.1
-              </p>
-            </div>
           </div>
         </div>
+
+        <p className="text-center text-xs text-base-content/30 mt-6">
+          5DM Operations Platform
+        </p>
       </div>
     </div>
   )

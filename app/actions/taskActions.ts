@@ -89,12 +89,12 @@ export async function createTask(data: {
     // RECORD AUDIT
     await createAuditLog(task.id, operatorId, 'TASK_CREATED', undefined, task.title)
 
-    // Notify Department Head with a link to the task
+    // Notify Department Head with a link to the Brief Hub (Ticket Pipeline)
     await notifyDepartmentHead(
       data.departmentId,
       `New Brief Assigned: ${data.title}`,
       'TASK_ASSIGNED',
-      `/tasks/${task.id}`
+      `/client-service/tickets`
     )
 
     revalidatePath('/', 'layout')

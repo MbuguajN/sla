@@ -97,11 +97,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               <div className="bg-primary h-full" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <p className="text-[10px] font-bold opacity-60 uppercase">{completedTasksCount} / {project.tasks.length} Directives Finalized</p>
+          <p className="text-[10px] font-bold opacity-60 uppercase">{completedTasksCount} / {project.tasks.length} Tasks Completed</p>
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-6 space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Active Directives</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Active Tasks</span>
           <div className="flex items-center gap-2 text-primary">
             <ClipboardList className="w-5 h-5" />
             <span className="font-black text-2xl">{project.tasks.filter(t => t.status !== 'COMPLETED').length}</span>

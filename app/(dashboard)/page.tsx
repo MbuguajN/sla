@@ -114,7 +114,7 @@ export default async function DashboardPage() {
   })
 
   return (
-    <div className="space-y-10 bg-base-100 min-h-screen pb-20 p-6 lg:p-10">
+    <div className="space-y-8 pb-20">
       {/* Header Section */}
       <div className="animate-fade-in-up" style={{ animationDelay: '0ms' }}>
         <DashboardHeader activeUsers={activeUsers} />
