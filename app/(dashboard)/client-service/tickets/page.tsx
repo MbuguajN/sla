@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import TicketTable from './TicketTable'
 import { Inbox, Filter } from 'lucide-react'
 
-async function TicketList({ departmentId, isManager, currentUserId, isBDUser }: { departmentId?: number, isManager?: boolean, currentUserId: number, isBDUser: boolean }) {
+async function TicketList({ departmentId, isManager, currentUserId, isBDUser, userRole }: { departmentId?: number, isManager?: boolean, currentUserId: number, isBDUser: boolean, userRole: string }) {
   const tickets = await prisma.task.findMany({
     where: {
       isTicket: true,
@@ -60,6 +60,7 @@ async function TicketList({ departmentId, isManager, currentUserId, isBDUser }: 
       slas={slas}
       users={users as any}
       currentUserId={currentUserId}
+      userRole={userRole}
     />
   )
 }
@@ -101,9 +102,9 @@ export default async function ClientServiceTicketsPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <Inbox className="w-8 h-8 text-primary" />
-            <h1 className="text-4xl font-black tracking-tighter uppercase text-base-content">Brief Hub</h1>
+            <h1 className="text-4xl font-black tracking-tighter uppercase text-base-content">Briefs</h1>
           </div>
-          <p className="text-base-content/50 font-bold uppercase tracking-widest text-[10px]">Operational Inbox / Client Service Cluster</p>
+          <p className="text-base-content/50 font-bold uppercase tracking-widest text-[10px]">Incoming Briefs</p>
         </div>
       </div>
 
@@ -114,6 +115,7 @@ export default async function ClientServiceTicketsPage() {
             isManager={filterByDept}
             currentUserId={currentUserId}
             isBDUser={isBD && !isAdmin}
+            userRole={role}
           />
         </Suspense>
       </div>

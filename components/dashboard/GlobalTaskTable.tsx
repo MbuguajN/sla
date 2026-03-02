@@ -26,10 +26,17 @@ type Task = {
     dueAt: Date | null
     project: { id: number, title: string } | null
     assignee: { name: string | null, avatarUrl: string | null } | null
+    assigneeId: number | null
     sla: { tier: string, name: string }
+    reporterId: number | null
 }
 
-export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] }) {
+interface GlobalTaskTableProps {
+    initialTasks: any[]
+    currentUserId: number
+}
+
+export default function GlobalTaskTable({ initialTasks, currentUserId }: GlobalTaskTableProps) {
     const [tasks, setTasks] = useState<Task[]>(initialTasks)
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
     const [filter, setFilter] = useState('')
@@ -77,8 +84,20 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
         let nextStatus: TaskStatus | null = null
         if (task.status === TaskStatus.PENDING) nextStatus = TaskStatus.RECEIVED
         else if (task.status === TaskStatus.RECEIVED) nextStatus = TaskStatus.IN_PROGRESS
-        else if (task.status === TaskStatus.IN_PROGRESS) nextStatus = TaskStatus.REVIEW
-        else if (task.status === TaskStatus.REVIEW) nextStatus = TaskStatus.COMPLETED
+        else if (task.status === TaskStatus.IN_PROGRESS) {
+            if (task.assigneeId !== currentUserId) {
+                alert("Only the assignee can submit this task for review.")
+                return
+            }
+            nextStatus = TaskStatus.REVIEW
+        }
+        else if (task.status === TaskStatus.REVIEW) {
+            if (task.reporterId !== currentUserId) {
+                alert("Only the initiator can mark this task as complete.")
+                return
+            }
+            nextStatus = TaskStatus.COMPLETED
+        }
 
         if (nextStatus) {
             setProcessingId(task.id)
@@ -115,7 +134,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
     }
 
     return (
-        <div className="bg-base-100 border border-base-200 rounded-xl overflow-hidden">
+        <div className="bg-base-100 border border-base-200 rounded-xl">
             {/* Header */}
             <div className="px-6 py-5 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -188,7 +207,7 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={cn(
-                                            "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium",
+                                            "inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium whitespace-nowrap",
                                             statusBadge.bg, statusBadge.text
                                         )}>
                                             {statusBadge.label}
@@ -205,8 +224,16 @@ export default function GlobalTaskTable({ initialTasks }: { initialTasks: any[] 
                                                     <span className="loading loading-spinner loading-xs"></span>
                                                 ) : (
                                                     <>
-                                                        {getActionLabel(task.status)}
-                                                        <ChevronRight className="w-3 h-3" />
+                                                        {task.status === TaskStatus.REVIEW && task.reporterId !== currentUserId ? (
+                                                            <span className="text-[10px] italic opacity-30">Waiting...</span>
+                                                        ) : task.status === TaskStatus.IN_PROGRESS && task.assigneeId !== currentUserId ? (
+                                                            <Link href={`/tasks/${task.id}`} className="text-xs text-primary hover:underline">View</Link>
+                                                        ) : (
+                                                            <>
+                                                                {getActionLabel(task.status)}
+                                                                <ChevronRight className="w-3 h-3" />
+                                                            </>
+                                                        )}
                                                     </>
                                                 )}
                                             </button>

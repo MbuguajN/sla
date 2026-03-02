@@ -13,9 +13,11 @@ module.exports = {
         sans: ['var(--font-inter)', 'Inter', 'sans-serif'],
       },
       boxShadow: {
-        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.05)',
-        'glow': '0 0 20px rgba(190, 30, 61, 0.3)',
+        'soft': '0 10px 30px -5px rgba(0, 0, 0, 0.04), 0 4px 12px -5px rgba(0, 0, 0, 0.03)',
+        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.06)',
+        'glass-ruby': '0 8px 32px 0 rgba(190, 30, 61, 0.15)',
+        'glow': '0 0 25px rgba(190, 30, 61, 0.25)',
+        'ruby-soft': '0 4px 14px 0 rgba(190, 30, 61, 0.39)',
       },
       keyframes: {
         'fade-in-up': {
@@ -28,8 +30,9 @@ module.exports = {
         }
       },
       animation: {
-        'fade-in-up': 'fade-in-up 0.5s ease-out forwards',
+        'fade-in-up': 'fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         'pulse-slow': 'pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'subtle-float': 'subtle-float 4s ease-in-out infinite',
       }
     },
   },

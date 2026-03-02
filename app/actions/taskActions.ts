@@ -110,7 +110,12 @@ export async function assignTask(taskId: number, assigneeId: number) {
   try {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
+    const operatorRole = (session?.user as any)?.role
     if (!operatorId) throw new Error('Unauthorized')
+
+    if (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR') {
+      throw new Error('STRATEGIC DENIAL: Resource allocation is restricted to management personnel.')
+    }
 
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
     if (oldTask?.status === TaskStatus.COMPLETED) {
@@ -306,6 +311,13 @@ export async function processTicket(
 }
 
 export async function dismissTicket(taskId: number) {
+  const session = await auth()
+  const operatorRole = (session?.user as any)?.role
+
+  if (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR') {
+    throw new Error('STRATEGIC DENIAL: Operational dismissal is restricted to management personnel.')
+  }
+
   const task = await prisma.task.update({
     where: { id: taskId },
     data: { status: TaskStatus.DISMISSED }

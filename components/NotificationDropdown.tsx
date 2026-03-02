@@ -1,196 +1,211 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
-import { Bell, CheckCircle2, UserPlus, Eye, Clock, Trash2, AlertTriangle, MessageSquare, Play } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React, { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { Bell, Check, ExternalLink, Clock } from 'lucide-react'
+import { getNotifications, markAsRead, markAllAsRead } from '@/app/actions/notificationActions'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
-type Notification = {
-  id: number
-  content: string
-  type: string
-  link?: string
-  isRead: boolean
-  createdAt: Date
-}
-
-const POLLING_INTERVAL = 5000 // 5 seconds
-
-export default function NotificationDropdown({ userId }: { userId: number }) {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
+export default function NotificationDropdown() {
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
+  const buttonRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [portalCoords, setPortalCoords] = useState({ top: 0, left: 0 })
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
 
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/notifications?t=${Date.now()}`, {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      })
-
-      if (!res.ok) {
-        console.error('🔔 Failed to fetch notifications:', res.status)
-        return
-      }
-
-      const data = await res.json()
-      setNotifications(data)
-      console.log(`🔔 Fetched ${data.length} notifications`)
-    } catch (error) {
-      console.error('🔔 Error fetching notifications:', error)
+  const fetchNotifications = async () => {
+    const res = await getNotifications()
+    if (res.success) {
+      setNotifications(res.notifications || [])
+      setUnreadCount(res.unreadCount || 0)
     }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    setMounted(true)
+    fetchNotifications()
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  // Initial fetch and polling
   useEffect(() => {
-    fetchNotifications()
-
-    // Poll every 30 seconds for new notifications
-    const interval = setInterval(fetchNotifications, POLLING_INTERVAL)
-
-    return () => clearInterval(interval)
-  }, [fetchNotifications])
-
-  // Mark notification as read when clicking on it
-  const markAsRead = async (notificationId: number, link?: string) => {
-    try {
-      await fetch('/api/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notificationId })
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setPortalCoords({
+        top: rect.bottom + 12,
+        left: Math.max(16, rect.right - 384) // 384 = w-96
       })
+    }
+  }, [isOpen])
 
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
-      )
-
-      if (link) {
-        router.push(link)
-        setOpen(false)
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (
+        buttonRef.current && !buttonRef.current.contains(t) &&
+        dropdownRef.current && !dropdownRef.current.contains(t)
+      ) {
+        setIsOpen(false)
       }
-    } catch (error) {
-      console.error('Failed to mark as read:', error)
+    }
+    window.addEventListener('mousedown', handler)
+    return () => window.removeEventListener('mousedown', handler)
+  }, [isOpen])
+
+  const handleMarkAsRead = async (id: number) => {
+    const res = await markAsRead(id)
+    if (res.success) {
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
+      setUnreadCount(prev => Math.max(0, prev - 1))
     }
   }
 
-  // Mark all as read
-  const markAllAsRead = async () => {
-    try {
-      await fetch('/api/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ markAllRead: true })
-      })
-
+  const handleMarkAllAsRead = async () => {
+    const res = await markAllAsRead()
+    if (res.success) {
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
-    } catch (error) {
-      console.error('Failed to mark all as read:', error)
+      setUnreadCount(0)
     }
   }
 
-  // Purge all notifications
-  const purgeAll = async () => {
-    try {
-      await fetch('/api/notifications', { method: 'DELETE' })
-      setNotifications([])
-    } catch (error) {
-      console.error('Failed to purge notifications:', error)
+  // Navigate to notification link and mark as read
+  const handleNotificationClick = async (n: any) => {
+    if (!n.isRead) {
+      handleMarkAsRead(n.id)
     }
+
+    // Determine the correct link
+    let targetLink = n.link
+    if (!targetLink) {
+      // Fallback: map notification types to default pages
+      switch (n.type) {
+        case 'TASK_ASSIGNED':
+        case 'ASSIGNMENT':
+          targetLink = '/client-service/tickets'
+          break
+        case 'STATUS_REVIEW':
+        case 'COMMENT':
+        case 'MESSAGE_RECEIVED':
+          targetLink = n.taskId ? `/tasks/${n.taskId}` : '/'
+          break
+        case 'BREACH_ALERT':
+        case 'PAUSE_ALERT':
+          targetLink = '/'
+          break
+        case 'AUTO_WATCHER':
+        case 'WATCHER':
+          targetLink = n.taskId ? `/tasks/${n.taskId}` : '/'
+          break
+        default:
+          targetLink = '/'
+      }
+    }
+
+    setIsOpen(false)
+    router.push(targetLink)
   }
 
-  const unreadCount = notifications.filter(n => !n.isRead).length
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'TASK_ASSIGNED':
-      case 'ASSIGNMENT':
-        return <UserPlus className="w-4 h-4 text-primary" />
-      case 'WATCHER':
-      case 'AUTO_WATCHER':
-        return <Eye className="w-4 h-4 text-info" />
-      case 'BREACH_ALERT':
-      case 'PAUSE_ALERT':
-        return <AlertTriangle className="w-4 h-4 text-error" />
-      case 'COMMENT':
-      case 'MESSAGE_RECEIVED':
-      case 'DEPT_MESSAGE':
-        return <MessageSquare className="w-4 h-4 text-secondary" />
-      case 'STATUS_REVIEW':
-        return <CheckCircle2 className="w-4 h-4 text-success" />
-      case 'PROJECT_ADDED':
-        return <Play className="w-4 h-4 text-accent" />
-      default:
-        return <Bell className="w-4 h-4" />
-    }
-  }
-
-  return (
-    <div className="dropdown dropdown-end">
-      <button className="btn btn-ghost btn-circle" onClick={() => setOpen(!open)}>
-        <div className="indicator">
-          <Bell className="w-5 h-5" />
+  const dropdown = (
+    <div
+      ref={dropdownRef}
+      style={{ position: 'fixed', top: portalCoords.top, left: portalCoords.left, zIndex: 9999 }}
+      className="w-80 lg:w-96 bg-base-100 !bg-opacity-100 rounded-2xl shadow-2xl border border-base-content/10 overflow-hidden animate-in fade-in slide-in-from-top-2"
+    >
+      {/* Header */}
+      <div className="p-4 border-b border-base-content/5 flex items-center justify-between bg-primary/5">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-black uppercase tracking-widest text-primary">Notifications</h3>
           {unreadCount > 0 && (
-            <>
-              <span className="badge badge-xs badge-primary indicator-item">{unreadCount}</span>
-              <span className="badge badge-xs badge-primary indicator-item animate-ping opacity-75"></span>
-            </>
+            <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
           )}
         </div>
-      </button>
+        {unreadCount > 0 && (
+          <button onClick={handleMarkAllAsRead} className="text-[10px] font-black uppercase tracking-widest text-base-content/40 hover:text-primary transition-colors flex items-center gap-1">
+            <Check size={12} /> Mark All Read
+          </button>
+        )}
+      </div>
 
-      {open && (
-        <div className="mt-3 z-[1] p-0 shadow-2xl dropdown-content bg-base-100 rounded-2xl w-80 border border-base-200 overflow-hidden divide-y divide-base-200/50 animate-in fade-in zoom-in-95">
-          <div className="px-6 py-4 bg-base-200/30 flex flex-row justify-between items-center">
-            <span className="text-sm font-bold uppercase tracking-wider text-primary">Notifications</span>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <span className="badge badge-primary font-bold text-xs">{unreadCount} New</span>
-              )}
-            </div>
+      {/* List */}
+      <div className="max-h-[400px] overflow-y-auto">
+        {loading ? (
+          <div className="p-8 flex flex-col items-center justify-center gap-2 opacity-30">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Loading...</span>
           </div>
-
-          <div className="max-h-[400px] overflow-y-auto">
-            {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 opacity-30 gap-2">
-                <Bell className="w-8 h-8" />
-                <span className="text-xs font-bold uppercase tracking-wider">Awaiting Intel</span>
-              </div>
-            ) : (
-              notifications.map(n => (
-                <div
-                  key={n.id}
-                  className={cn(
-                    "transition-colors cursor-pointer active:bg-primary/10 border-b border-base-200/50 last:border-0",
-                    !n.isRead && "bg-primary/5"
-                  )}
-                  onClick={() => markAsRead(n.id, n.link)}
-                >
-                  <div className="p-5 flex gap-5">
-                    <div className="shrink-0 w-10 h-10 rounded-xl bg-base-200 flex items-center justify-center border border-base-300 shadow-sm">
-                      {getIcon(n.type)}
-                    </div>
-                    <div className="flex flex-col gap-1.5 overflow-hidden">
-                      <p className="text-sm font-bold leading-tight text-base-content break-words">
-                        {n.content}
-                      </p>
-                      <span className="text-xs opacity-60">
-                        {formatDistanceToNow(new Date(n.createdAt))} ago
+        ) : notifications.length === 0 ? (
+          <div className="p-8 flex flex-col items-center justify-center gap-2 opacity-20">
+            <Bell size={24} />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-center">No notifications</span>
+          </div>
+        ) : (
+          <div className="divide-y divide-base-content/5">
+            {notifications.map((n) => (
+              <div
+                key={n.id}
+                onClick={() => handleNotificationClick(n)}
+                className={cn(
+                  "p-3 hover:bg-base-content/5 transition-all relative cursor-pointer group",
+                  !n.isRead && "bg-primary/[0.03]"
+                )}
+              >
+                {!n.isRead && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />}
+                <div className="flex gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                    !n.isRead ? "bg-primary/15 text-primary" : "bg-base-content/5 text-base-content/30"
+                  )}>
+                    <Bell size={14} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">
+                        {n.type?.replace(/_/g, ' ')}
                       </span>
+                      <div className="flex items-center gap-1 text-[9px] font-bold text-base-content/25">
+                        <Clock size={9} />
+                        {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
+                      </div>
                     </div>
+                    <p className={cn(
+                      "text-xs leading-relaxed",
+                      !n.isRead ? "font-semibold text-base-content" : "font-medium text-base-content/50"
+                    )}>
+                      {n.content}
+                    </p>
                   </div>
                 </div>
-              ))
-            )}
+              </div>
+            ))}
           </div>
+        )}
+      </div>
+    </div>
+  )
 
-          {/* Purge All Removed per user request */}
-        </div>
-      )}
+  return (
+    <div className="relative">
+      <div
+        ref={buttonRef}
+        role="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="relative w-11 h-11 rounded-2xl bg-base-content/5 grid place-items-center text-base-content/60 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer"
+      >
+        <Bell size={20} className="group-hover:rotate-12 transition-transform" />
+        {unreadCount > 0 && (
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-primary rounded-full ring-2 ring-base-100 animate-pulse" />
+        )}
+      </div>
+
+      {mounted && isOpen && createPortal(dropdown, document.body)}
     </div>
   )
 }

@@ -54,7 +54,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {/* Breadcrumbs & Header */}
       <div className="flex flex-col gap-5">
         <Link href="/projects" className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em] hover:translate-x-[-4px] transition-transform w-fit opacity-60">
-          <ArrowLeft className="w-3 h-3" /> Back to Fleet Operations
+          <ArrowLeft className="w-3 h-3" /> Back to Projects
         </Link>
 
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
@@ -65,11 +65,11 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               </div>
               <h1 className="text-5xl font-black text-base-content tracking-tighter uppercase">{project.title}</h1>
             </div>
-            <p className="text-base-content/60 max-w-3xl font-medium text-lg leading-relaxed italic">{project.description || "Project operational shell active."}</p>
+            <p className="text-base-content/60 max-w-3xl font-medium text-lg leading-relaxed italic">{project.description || "Project is currently active."}</p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <Link href={`/tasks/new?projectId=${projectId}`} className="btn btn-primary btn-md px-8 rounded-2xl gap-3 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-xs">
-              <Plus className="w-4 h-4" /> Deploy Task
+              <Plus className="w-4 h-4" /> New Task
             </Link>
             <InviteMember projectId={projectId} />
           </div>
@@ -79,7 +79,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {/* Metric Bar */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="card bg-base-100 border border-base-200 shadow-sm p-6 space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Default Protocol</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Default Priority</span>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" />
             <span className="font-black text-lg">{project.defaultSla?.name || "Unset"}</span>
@@ -90,7 +90,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-6 space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Fleet Progress</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Project Progress</span>
           <div className="flex items-center gap-3">
             <span className="font-black text-2xl text-primary">{progress}%</span>
             <div className="flex-1 bg-base-200 h-2 rounded-full overflow-hidden">
@@ -106,16 +106,16 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
             <ClipboardList className="w-5 h-5" />
             <span className="font-black text-2xl">{project.tasks.filter(t => t.status !== 'COMPLETED').length}</span>
           </div>
-          <p className="text-[10px] font-bold opacity-60 uppercase">In-flight Operations</p>
+          <p className="text-[10px] font-bold opacity-60 uppercase">Active Work</p>
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-6 space-y-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Global Status</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Project Status</span>
           <div className="flex items-center gap-2 text-success">
             <CheckCircle2 className="w-5 h-5" />
-            <span className="font-black text-lg uppercase tracking-tighter">Operational</span>
+            <span className="font-black text-lg uppercase tracking-tighter">Active</span>
           </div>
-          <p className="text-[10px] font-bold opacity-60 uppercase">Strategic Health: Optimal</p>
+          <p className="text-[10px] font-bold opacity-60 uppercase">Status: On Track</p>
         </div>
       </div>
 
@@ -130,8 +130,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         {/* Right Column: Feed/Chat */}
         <div className="lg:col-span-1 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/40">Mission Log</h2>
-            <div className="badge badge-primary badge-outline text-[9px] font-black uppercase">{project.messages.length} Entries</div>
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/40">Activity Log</h2>
+            <div className="badge badge-primary badge-outline text-[9px] font-black uppercase">{project.messages.length} Messages</div>
           </div>
           <TaskChat
             taskId={undefined}

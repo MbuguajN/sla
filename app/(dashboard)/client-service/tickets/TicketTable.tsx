@@ -10,12 +10,13 @@ import Link from 'next/link'
 
 type TabType = 'NEW' | 'IN_PROGRESS' | 'DONE'
 
-export default function TicketTable({ initialTickets, departments, slas, users, currentUserId }: {
+export default function TicketTable({ initialTickets, departments, slas, users, currentUserId, userRole }: {
   initialTickets: any[],
   departments: any[],
   slas: any[],
   users: any[],
-  currentUserId: number
+  currentUserId: number,
+  userRole: string
 }) {
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [isPending, startTransition] = useTransition()
@@ -78,7 +79,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
         router.refresh()
       } catch (err) {
         console.error(err)
-        alert('Strategic failure in ticket propagation.')
+        alert('Failed to assign brief.')
       }
     })
   }
@@ -103,9 +104,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
   }
 
   const tabs = [
-    { id: 'NEW' as TabType, label: 'New Briefs', icon: InboxIcon, color: 'text-primary' },
-    { id: 'IN_PROGRESS' as TabType, label: 'In Pipeline', icon: Clock, color: 'text-warning' },
-    { id: 'DONE' as TabType, label: 'Completed Briefs', icon: CheckCircle, color: 'text-success' },
+    { id: 'NEW' as TabType, label: 'Incoming Briefs', icon: InboxIcon, color: 'text-primary' },
+    { id: 'IN_PROGRESS' as TabType, label: 'In Progress', icon: Clock, color: 'text-warning' },
+    { id: 'DONE' as TabType, label: 'Archived Briefs', icon: CheckCircle, color: 'text-success' },
   ]
 
   return (
@@ -160,7 +161,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                 <td colSpan={5} className="text-center py-32 border-none">
                   <div className="flex flex-col items-center gap-4 opacity-10">
                     <ListTodo className="w-20 h-20 stroke-[1]" />
-                    <span className="text-sm font-bold uppercase tracking-[0.4em]">Grid Silent</span>
+                    <span className="text-sm font-bold uppercase tracking-[0.4em]">No briefs found</span>
                   </div>
                 </td>
               </tr>
@@ -204,7 +205,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                   </td>
                   <td className="py-4 border-b border-base-100">
                     <div className={cn(
-                      "badge badge-sm font-bold text-[10px] uppercase tracking-wide h-6 px-4 border-none shadow-sm",
+                      "badge badge-sm font-bold text-[10px] uppercase tracking-wide px-3 py-1 h-auto whitespace-nowrap border-none shadow-sm",
                       ticket.status === 'PENDING' ? "bg-base-200/50 text-base-content/40" :
                         ticket.status === 'IN_PROGRESS' ? "bg-warning/10 text-warning" :
                           ticket.status === 'REVIEW' ? "bg-info/10 text-info" :
@@ -215,7 +216,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                   </td>
                   <td className="py-4 text-right pr-6 border-b border-base-100">
                     <div className="flex items-center justify-end gap-1.5">
-                      {activeTab === 'NEW' && (
+                      {(userRole === 'MANAGER' || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR') && activeTab === 'NEW' && (
                         <button
                           className="btn btn-ghost btn-sm text-error/40 hover:text-error hover:bg-error/5 font-bold gap-2 text-xs"
                           onClick={() => {
@@ -237,7 +238,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                         </Link>
                       ) : activeTab === 'IN_PROGRESS' ? (
                         <div className="flex items-center gap-2">
-                          {ticket.status === 'IN_PROGRESS' && (
+                          {ticket.status === 'IN_PROGRESS' && ticket.assigneeId === currentUserId && (
                             <button
                               className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-info/10 hover:text-info transition-all text-xs h-9 px-4 rounded-xl border border-transparent hover:border-info/20"
                               disabled={isPending}
@@ -258,7 +259,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                           )}
                           {ticket.status === 'REVIEW' && ticket.reporterId === currentUserId && (
                             <button
-                              className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-success/10 hover:text-success transition-all text-xs h-9 px-4 rounded-xl border border-transparent hover:border-success/20"
+                              className="btn btn-success btn-sm font-bold gap-2 shadow-lg shadow-success/20 h-9 px-4 rounded-xl text-xs hover:scale-[1.05] active:scale-95 transition-all text-white"
                               disabled={isPending}
                               onClick={() => {
                                 startTransition(async () => {
@@ -282,7 +283,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                             Track <ArrowRight className="w-3.5 h-3.5" />
                           </Link>
                         </div>
-                      ) : (
+                      ) : (userRole === 'MANAGER' || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR') ? (
                         <button
                           className="btn btn-primary btn-sm font-bold gap-2 shadow-lg shadow-primary/20 h-10 px-6 rounded-xl text-sm"
                           onClick={() => {
@@ -293,6 +294,13 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                         >
                           Manage <ArrowRight className="w-4 h-4" />
                         </button>
+                      ) : (
+                        <Link
+                          href={`/tasks/${ticket.id}`}
+                          className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-primary/10 hover:text-primary transition-all text-sm h-10 px-6 rounded-xl border border-transparent hover:border-primary/20"
+                        >
+                          View Details <ArrowRight className="w-4 h-4" />
+                        </Link>
                       )}
                     </div>
                   </td>
@@ -313,11 +321,11 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                 <div className="p-2 bg-white/20 rounded-lg backdrop-blur-md">
                   <Settings2 className="w-6 h-6" />
                 </div>
-                <h3 className="font-bold text-2xl tracking-tight">Brief Assignment</h3>
+                <h3 className="font-bold text-2xl tracking-tight">Assign Brief</h3>
               </div>
               {selectedTicket && (
                 <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
-                  <p className="text-xs font-bold uppercase opacity-60 tracking-wider mb-2">Target Brief</p>
+                  <p className="text-xs font-bold uppercase opacity-60 tracking-wider mb-2">Selected Brief</p>
                   <p className="font-bold text-lg leading-tight tracking-tight">{selectedTicket.title}</p>
                 </div>
               )}
@@ -347,7 +355,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Personnel Allocation</span>
+                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Assign To</span>
                   </label>
                   <select
                     className="select select-bordered w-full font-bold h-12 bg-base-200/50 border-base-300 transition-all focus:border-primary text-sm"
@@ -367,7 +375,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
 
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50 text-warning">Manual Operational Deadline</span>
+                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50 text-warning">Set Deadline</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -381,7 +389,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
               {!assignment.dueAt && (
                 <div className="form-control w-full">
                   <label className="label">
-                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Strategic SLA Tier</span>
+                    <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Priority Level</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {slas.map(s => (
@@ -405,11 +413,11 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
 
               <div className="form-control w-full">
                 <label className="label">
-                  <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Brief Context / Description</span>
+                  <span className="label-text text-xs font-bold uppercase tracking-wider opacity-50">Brief Description</span>
                 </label>
                 <textarea
                   className="textarea textarea-bordered w-full font-bold bg-base-200/50 border-base-300 transition-all focus:border-primary min-h-[100px]"
-                  placeholder="Provide additional operational context for this directive..."
+                  placeholder="Add more details about this brief..."
                   value={assignment.description}
                   onChange={(e) => setAssignment(prev => ({ ...prev, description: e.target.value }))}
                 />
@@ -422,7 +430,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                   onClick={handleProcess}
                 >
                   {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <CheckCircle2 className="w-6 h-6" />}
-                  {isPending ? 'Processing Assignment...' : 'Finalize Brief Assignment'}
+                  {isPending ? 'Assigning...' : 'Assign Brief'}
                 </button>
 
                 <button
@@ -431,7 +439,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                   onClick={handleDismiss}
                 >
                   {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                  Dismiss Task
+                  Dismiss Brief
                 </button>
                 <button
                   className="btn btn-ghost btn-sm font-bold uppercase tracking-widest text-xs opacity-40 hover:opacity-100"
@@ -440,7 +448,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                     if (modal) modal.close()
                   }}
                 >
-                  Abort Allocation
+                  Cancel
                 </button>
               </div>
             </div>

@@ -14,7 +14,9 @@ import {
   CheckCircle2,
   AlertOctagon,
   MoreHorizontal,
-  ShieldCheck
+  ShieldCheck,
+  ChevronRight,
+  UserPlus
 } from 'lucide-react'
 import SLACountdown from './SLACountdown'
 import { TaskStatus } from '@/lib/enums'
@@ -116,12 +118,9 @@ export default function DepartmentQueueClient({
       setOptimisticTaskStatus({ taskId, newStatus })
       try {
         await advanceTaskStatus(taskId, newStatus)
-        // No need for router.refresh() if optimistic UI is handled well, 
-        // but it's good for ensuring data consistency.
         router.refresh()
       } catch (e) {
         console.error(e)
-        // Backtrack or show error
         alert("Failed to update status")
       } finally {
         setProcessingId(null)
@@ -137,54 +136,44 @@ export default function DepartmentQueueClient({
       router.refresh()
     } catch (e) {
       console.error(e)
-      alert("Failed to reassign mission")
+      alert("Failed to reassign task")
     } finally {
       setProcessingId(null)
     }
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
+    <div className="space-y-10 animate-fade-in-up pb-20">
 
-      {/* Header & Stats Ribbon */}
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary text-primary-content rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-              <Users className="w-6 h-6" />
+      {/* Header & Controls Section */}
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-primary text-white rounded-3xl flex items-center justify-center shadow-ruby-soft relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
+              <Users className="w-7 h-7 transform group-hover:scale-110 transition-transform" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-base-content leading-none">{departmentName} Queue</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="badge badge-neutral font-bold tracking-wider text-[9px] uppercase px-2 py-0 h-4">Workspace</span>
-                {isManager && <span className="badge badge-warning font-bold text-[9px] uppercase px-2 py-0 h-4">Oversight</span>}
-                <button onClick={() => setShowMembers(!showMembers)} className="badge badge-ghost font-bold text-[9px] uppercase hover:bg-base-200 cursor-pointer px-2 py-0 h-4">
-                  {members.length} Agents
+            <div className="space-y-1.5">
+              <h1 className="text-4xl font-extrabold tracking-tight text-base-content leading-none">{departmentName}</h1>
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-primary opacity-60">Dashboard Overview</span>
+                <span className="w-1 h-1 rounded-full bg-base-content/20" />
+                <button
+                  onClick={() => setShowMembers(!showMembers)}
+                  className="text-[11px] font-bold uppercase tracking-widest text-base-content/40 hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  {members.length} Team Members <ChevronRight size={10} />
                 </button>
               </div>
-
-              {showMembers && (
-                <div className="mt-4 p-4 bg-base-100 border border-base-200 rounded-xl shadow-lg absolute z-50 w-64 animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-50">Active Agents</h4>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {members.map((m: any) => (
-                      <div key={m.id} className="flex items-center gap-2 text-xs">
-                        <div className="w-1.5 h-1.5 rounded-full bg-success/50" />
-                        <span className="truncate">{m.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="flex items-center gap-1 bg-base-100 p-1 rounded-xl border border-base-200 shadow-sm">
+          <div className="flex items-center p-1.5 bg-base-content/5 rounded-2xl border border-base-content/5 backdrop-blur-md">
             <button
               onClick={() => setFilterMode('ALL')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                filterMode === 'ALL' ? "bg-base-200 text-base-content" : "text-base-content/50 hover:bg-base-200/50"
+                "px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all",
+                filterMode === 'ALL' ? "bg-white dark:bg-primary text-primary dark:text-white shadow-sm" : "text-base-content/40 hover:text-base-content/60"
               )}
             >
               All Tasks
@@ -192,188 +181,175 @@ export default function DepartmentQueueClient({
             <button
               onClick={() => setFilterMode('MINE')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
-                filterMode === 'MINE' ? "bg-primary text-primary-content shadow-md" : "text-base-content/50 hover:bg-base-200/50"
+                "px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all",
+                filterMode === 'MINE' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/40 hover:text-base-content/60"
               )}
             >
-              My Assignments
+              My Tasks
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Queue Load</span>
-            <span className="text-2xl font-bold text-primary leading-none">{stats.totalActive}</span>
-          </div>
-          <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Pending</span>
-            <span className="text-2xl font-bold text-secondary leading-none">{stats.pendingReceipt}</span>
-          </div>
-          <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Unassigned</span>
-            <span className="text-2xl font-bold text-warning leading-none">{stats.unassigned}</span>
-          </div>
-          <div className="bg-base-100 shadow-sm border border-base-200 rounded-2xl p-4 flex flex-col justify-between">
-            <span className="text-xs uppercase font-bold tracking-wider text-base-content/40 mb-1">Critical</span>
-            <span className="text-2xl font-bold text-error leading-none">{stats.breached}</span>
-          </div>
+        {/* Premium Stats Ribbon */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            { label: 'Active Load', val: stats.totalActive, col: 'text-primary', bg: 'bg-primary/5' },
+            { label: 'Pending Assignment', val: stats.pendingReceipt, col: 'text-secondary', bg: 'bg-secondary/5' },
+            { label: 'Unassigned', val: stats.unassigned, col: 'text-warning', bg: 'bg-warning/5' },
+            { label: 'SLA Breaches', val: stats.breached, col: 'text-error', bg: 'bg-error/5' }
+          ].map((s, i) => (
+            <div key={i} className="glass-panel group p-6 rounded-3xl relative overflow-hidden transition-all hover:scale-[1.02]">
+              <div className={cn("absolute top-0 right-0 w-24 h-24 blur-3xl rounded-full -mr-12 -mt-12 opacity-20", s.bg)} />
+              <span className="text-[10px] uppercase font-bold tracking-[0.2em] text-base-content/30 mb-2 block">{s.label}</span>
+              <span className={cn("text-4xl font-black tracking-tighter", s.col)}>{s.val}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Smart Data Table / Mobile Cards */}
-      <div className="card bg-base-100 shadow-sm border border-base-200 overflow-hidden">
+      {/* Data Environment */}
+      <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-soft border border-base-content/5">
 
-        {/* Ongoing / Completed Tabs */}
-        <div className="flex items-center gap-1 p-2 border-b border-base-200 bg-base-200/20">
-          <button
-            onClick={() => setTabMode('ongoing')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-              tabMode === 'ongoing' ? "bg-base-100 text-base-content shadow-sm" : "text-base-content/40 hover:bg-base-200/50"
-            )}
-          >
-            Ongoing
-          </button>
-          <button
-            onClick={() => setTabMode('completed')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-              tabMode === 'completed' ? "bg-base-100 text-base-content shadow-sm" : "text-base-content/40 hover:bg-base-200/50"
-            )}
-          >
-            Completed
-          </button>
+        {/* State Toggle */}
+        <div className="flex items-center gap-1 p-3 border-b border-base-content/5 bg-base-content/[0.02]">
+          {['ongoing', 'completed'].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setTabMode(mode as any)}
+              className={cn(
+                "px-6 py-3 rounded-2xl text-[11px] font-extrabold uppercase tracking-widest transition-all",
+                tabMode === mode ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/50"
+              )}
+            >
+              {mode}
+            </button>
+          ))}
         </div>
 
-        {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="table w-full">
-            <thead className="bg-base-200/40">
-              <tr className="text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-200">
-                <th className="py-2 pl-6">Task</th>
-                <th className="py-2">Status</th>
-                <th className="py-2">Timeline</th>
-                <th className="py-2">Resource</th>
+        {/* Global Dispatch Table */}
+        <div className="hidden md:block overflow-x-auto px-4">
+          <table className="premium-table">
+            <thead>
+              <tr>
+                <th className="rounded-tl-2xl">Task Details</th>
+                <th>Status</th>
+                <th>Deadline</th>
+                <th className="rounded-tr-2xl">Assigned To</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-base-100">
+            <tbody>
               {optimisticTasks.map(task => {
                 const isCompleted = task.status === TaskStatus.COMPLETED
                 const isPendingReceipt = task.status === TaskStatus.PENDING
                 const isProcessing = processingId === task.id
 
                 return (
-                  <tr key={task.id} className="group hover:bg-base-200/30 transition-colors">
-                    <td className="pl-6 py-3">
-                      <div className="flex flex-col gap-0.5">
-                        <Link href={`/tasks/${task.id}`} className="font-bold text-sm text-base-content hover:text-primary transition-colors flex items-center gap-1.5">
+                  <tr key={task.id} className="group">
+                    <td>
+                      <div className="flex flex-col gap-1">
+                        <Link href={`/tasks/${task.id}`} className="font-bold text-base text-base-content/90 group-hover:text-primary transition-all flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/20 group-hover:bg-primary transition-colors" />
                           {task.title}
-                          <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </Link>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 pl-3.5">
                           <span className={cn(
-                            "badge badge-xs font-bold border-none",
-                            task.sla.tier === 'URGENT' ? "bg-error text-error-content" : "bg-base-300 text-base-content/60"
+                            "text-[9px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded border border-base-content/10",
+                            task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                           )}>
                             {task.sla.name}
                           </span>
-                          <span className="text-[9px] font-mono opacity-40">#{task.id}</span>
+                          <span className="text-[9px] font-mono font-bold text-base-content/20">ID//00{task.id}</span>
                         </div>
                       </div>
                     </td>
 
                     <td>
                       <div className={cn(
-                        "badge badge-xs font-bold gap-1 p-2 h-5",
-                        task.status === TaskStatus.PENDING && "badge-ghost border-base-300 text-base-content/60",
-                        task.status === TaskStatus.IN_PROGRESS && "badge-primary text-primary-content",
-                        task.status === TaskStatus.AWAITING_INFO && "badge-secondary text-secondary-content",
-                        task.status === TaskStatus.REVIEW && "badge-warning text-warning-content",
-                        task.status === TaskStatus.COMPLETED && "badge-accent text-accent-content"
+                        "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest",
+                        task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/40",
+                        task.status === TaskStatus.IN_PROGRESS && "bg-primary/10 text-primary",
+                        task.status === TaskStatus.AWAITING_INFO && "bg-secondary/10 text-secondary",
+                        task.status === TaskStatus.REVIEW && "bg-warning/10 text-warning",
+                        task.status === TaskStatus.COMPLETED && "bg-success/10 text-success"
                       )}>
-                        <span className="text-[9px] uppercase tracking-tighter">{task.status.replace('_', ' ')}</span>
+                        <span className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          task.status === TaskStatus.IN_PROGRESS ? "bg-primary animate-pulse" : "bg-current"
+                        )} />
+                        {task.status.replace(/_/g, ' ')}
                       </div>
                     </td>
 
                     <td>
-                      {task.dueAt && <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />}
+                      {task.dueAt && (
+                        <div className="transform transition-transform group-hover:scale-105 origin-left">
+                          <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />
+                        </div>
+                      )}
                     </td>
 
-                    <td>
-                      <div className="flex items-center gap-2">
+                    <td className="relative">
+                      <div className="flex items-center gap-4">
                         {task.assignee ? (
-                          <>
-                            <div className="avatar placeholder">
-                              <div className="bg-neutral text-neutral-content rounded-full w-6 h-6 grid place-items-center overflow-hidden border border-base-300 shadow-sm">
-                                <span className="text-[10px] font-bold leading-none">{task.assignee?.name?.charAt(0)}</span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] font-bold">{task.assignee?.name}</span>
-                              {(isDeptHead || isManager || isAdmin) && !isCompleted && (
-                                <div className="relative">
-                                  <button
-                                    onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
-                                    className="text-xs text-primary cursor-pointer hover:underline font-bold"
-                                  >
-                                    {reassigningTaskId === task.id ? 'Cancel' : 'Reassign'}
-                                  </button>
-                                  {reassigningTaskId === task.id && (
-                                    <div className="absolute top-full left-0 z-50 bg-base-100 border border-base-300 rounded-xl shadow-2xl p-3 min-w-[200px] animate-in zoom-in-95 mt-2">
-                                      <h5 className="text-xs font-bold uppercase tracking-wider opacity-40 mb-2">Select Agent</h5>
-                                      <div className="space-y-1 max-h-48 overflow-y-auto">
-                                        {members.map(m => (
-                                          <button
-                                            key={m.id}
-                                            onClick={() => handleReassign(task.id, m.id)}
-                                            className="w-full text-left px-3 py-2 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all"
-                                          >
-                                            {m.name}
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
+                          <div className="flex items-center gap-3 bg-base-content/[0.03] pr-4 py-1.5 rounded-2xl group/avatar transition-all hover:bg-base-content/[0.06]">
+                            <div className="w-9 h-9 ring-2 ring-primary/20 bg-primary/10 text-primary rounded-full flex items-center justify-center leading-none shrink-0 overflow-hidden shadow-sm">
+                              {task.assignee?.avatarUrl ? (
+                                <img src={task.assignee.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[11px] font-black flex items-center justify-center w-full h-full translate-y-[0.5px]">{task.assignee?.name?.charAt(0)}</span>
                               )}
                             </div>
-                          </>
-                        ) : (
-                          <div className="flex flex-col gap-1">
-                            <span className="text-xs font-bold text-warning italic">Unassigned</span>
-                            {(isDeptHead || isManager || isAdmin) && !isCompleted && (
-                              <div className="relative">
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-bold text-base-content/80 truncate leading-tight">{task.assignee?.name}</span>
+                              {(isDeptHead || isManager || isAdmin) && !isCompleted && (
                                 <button
                                   onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
-                                  className="btn btn-xs btn-outline btn-warning h-6 min-h-6 text-xs font-bold uppercase px-3"
+                                  className="text-[9px] font-black text-primary uppercase tracking-widest opacity-0 group-hover/avatar:opacity-100 transition-opacity hover:underline"
                                 >
-                                  {reassigningTaskId === task.id ? 'Cancel' : 'Assign Agent'}
+                                  Reassign
                                 </button>
-                                {reassigningTaskId === task.id && (
-                                  <div className="absolute top-full left-0 z-50 bg-base-100 border border-base-300 rounded-xl shadow-2xl p-3 min-w-[200px] animate-in zoom-in-95 mt-2">
-                                    <h5 className="text-xs font-bold uppercase tracking-wider opacity-40 mb-2">Select Agent</h5>
-                                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                                      {members.map(m => (
-                                        <button
-                                          key={m.id}
-                                          onClick={() => handleReassign(task.id, m.id)}
-                                          className="w-full text-left px-3 py-2 hover:bg-primary hover:text-white rounded-lg text-[10px] font-bold transition-all"
-                                        >
-                                          {m.name}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-black italic text-warning/50 uppercase tracking-widest">Unassigned</span>
+                            {(isDeptHead || isManager || isAdmin) && !isCompleted && (
+                              <button
+                                onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
+                                className="inline-flex items-center gap-2 group/btn"
+                              >
+                                <span className="p-1.5 rounded-lg bg-warning/10 text-warning group-hover/btn:bg-warning group-hover/btn:text-white transition-all shadow-sm">
+                                  <UserPlus size={14} />
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-warning opacity-60 group-hover/btn:opacity-100 transition-opacity">Assign</span>
+                              </button>
                             )}
+                          </div>
+                        )}
+
+                        {/* Dropdown Logic Remained Same but restyled */}
+                        {reassigningTaskId === task.id && (
+                          <div className="absolute top-1/2 -translate-y-1/2 right-full mr-4 z-50 glass-panel p-3 rounded-2xl min-w-[200px] shadow-2xl animate-in fade-in slide-in-from-right-4">
+                            <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/20 mb-3 px-2">Team Members</h5>
+                            <div className="space-y-1 max-h-64 overflow-y-auto premium-scrollbar">
+                              {members.map(m => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => handleReassign(task.id, m.id)}
+                                  className="w-full text-left px-3 py-2.5 hover:bg-primary hover:text-white rounded-xl text-[11px] font-bold transition-all flex items-center gap-3 group/item"
+                                >
+                                  <div className="w-6 h-6 rounded-full bg-base-content/5 flex items-center justify-center leading-none group-hover/item:bg-white/20 overflow-hidden">
+                                    <span className="flex items-center justify-center w-full h-full translate-y-[0.5px]">{m.name.charAt(0)}</span>
+                                  </div>
+                                  {m.name}
+                                </button>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
                     </td>
-
-
                   </tr>
                 )
               })}
@@ -381,86 +357,64 @@ export default function DepartmentQueueClient({
           </table>
         </div>
 
-        {/* Mobile Card View */}
-        <div className="md:hidden divide-y divide-base-100">
+        {/* Mobile Environment Restyle */}
+        <div className="md:hidden divide-y divide-base-content/5">
           {optimisticTasks.map(task => {
             const isCompleted = task.status === TaskStatus.COMPLETED
             const isPendingReceipt = task.status === TaskStatus.PENDING
             const isProcessing = processingId === task.id
 
             return (
-              <div key={task.id} className="p-4 space-y-4">
+              <div key={task.id} className="p-6 space-y-5">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex flex-col gap-1">
-                    <Link href={`/tasks/${task.id}`} className="font-bold text-sm text-base-content">
+                  <div className="flex flex-col gap-2">
+                    <Link href={`/tasks/${task.id}`} className="font-extrabold text-[15px] text-base-content leading-tight">
                       {task.title}
                     </Link>
                     <div className="flex items-center gap-2">
                       <span className={cn(
-                        "badge badge-xs font-bold border-none",
-                        task.sla.tier === 'URGENT' ? "bg-error text-error-content" : "bg-base-300 text-base-content/60"
+                        "text-[9px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded border border-base-content/10",
+                        task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                       )}>
                         {task.sla.name}
                       </span>
-                      <span className="text-[9px] font-mono opacity-40">#{task.id}</span>
                     </div>
                   </div>
                   <div className={cn(
-                    "badge badge-xs font-bold p-2 h-5 text-[8px] uppercase tracking-tighter",
-                    task.status === TaskStatus.PENDING && "badge-ghost",
-                    task.status === TaskStatus.IN_PROGRESS && "badge-primary",
-                    task.status === TaskStatus.AWAITING_INFO && "badge-secondary",
-                    task.status === TaskStatus.REVIEW && "badge-warning",
-                    task.status === TaskStatus.COMPLETED && "badge-accent"
+                    "px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest",
+                    task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/40",
+                    task.status === TaskStatus.IN_PROGRESS && "bg-primary text-white shadow-ruby-soft"
                   )}>
-                    {task.status.replace('_', ' ')}
+                    {task.status.replace(/_/g, ' ')}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-base-200/30 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <div className="avatar placeholder">
-                      <div className="bg-neutral text-neutral-content rounded-full w-6 h-6 grid place-items-center overflow-hidden border border-base-300 shadow-sm">
-                        <span className="text-[10px] font-bold leading-none">{task.assignee?.name?.charAt(0)}</span>
-                      </div>
+                <div className="flex items-center justify-between p-4 bg-base-content/[0.03] rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center leading-none font-bold text-[10px]">
+                      {task.assignee?.name?.charAt(0) || '?'}
                     </div>
-                    <span className="text-[10px] font-bold">{task.assignee?.name || 'Unassigned'}</span>
+                    <span className="text-[11px] font-bold text-base-content/60">{task.assignee?.name || 'Unassigned'}</span>
                   </div>
                   {task.dueAt && <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />}
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   {isPendingReceipt && (
-                    <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="btn btn-sm btn-primary flex-1 font-bold h-9 min-h-9 text-[10px] uppercase">
-                      Confirm Receipt
+                    <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="flex-1 h-12 bg-primary text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-ruby-soft">
+                      Acknowledge
                     </button>
                   )}
                   {task.status === TaskStatus.RECEIVED && (
-                    <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="btn btn-sm btn-outline flex-1 font-bold h-9 min-h-9 text-[10px] uppercase">
-                      Start Task
+                    <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="flex-1 h-12 glass-panel text-primary rounded-2xl font-black text-[11px] uppercase tracking-widest">
+                      Start
                     </button>
-                  )}
-                  {task.status === TaskStatus.IN_PROGRESS && (
-                    <>
-                      <button onClick={() => handleStatusChange(task.id, TaskStatus.REVIEW)} disabled={isProcessing} className="btn btn-sm btn-success flex-1 font-bold text-white h-9 min-h-9 text-[10px] uppercase">
-                        Mark Done
-                      </button>
-                    </>
                   )}
                 </div>
               </div>
             )
           })}
         </div>
-
-        {filteredTasks.length === 0 && (
-          <div className="py-12 text-center text-base-content/30 border-t border-base-200">
-            <div className="flex flex-col items-center gap-2">
-              <Filter className="w-8 h-8 opacity-20" />
-              <span className="text-xs font-bold uppercase tracking-wider">No Tasks Found</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

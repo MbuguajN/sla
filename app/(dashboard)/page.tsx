@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react'
 import { auth } from "@/auth"
+import { redirect } from 'next/navigation'
 import DashboardHeader from '@/components/DashboardHeader'
 import OperationsStats from '@/components/dashboard/OperationsStats'
 import GlobalTaskTable from '@/components/dashboard/GlobalTaskTable'
@@ -12,6 +13,9 @@ export default async function DashboardPage() {
   const session = await auth()
   const userId = Number(session?.user?.id)
   const role = (session?.user as any)?.role
+
+  // HR role always lands on the HR dashboard
+  if (role === 'HR') redirect('/hr')
 
   // Presence Pulse: Ensure user remains in "Active" list
   if (userId) {
@@ -60,7 +64,8 @@ export default async function DashboardPage() {
         dueAt: true,
         project: { select: { id: true, title: true } },
         assignee: { select: { name: true } },
-        sla: { select: { name: true, tier: true } }
+        sla: { select: { name: true, tier: true } },
+        reporterId: true
       },
       orderBy: { dueAt: 'asc' }
     })
@@ -105,9 +110,11 @@ export default async function DashboardPage() {
       title: true,
       status: true,
       dueAt: true,
+      assigneeId: true,
       project: { select: { id: true, title: true } },
       assignee: { select: { name: true, avatarUrl: true } },
-      sla: { select: { name: true, tier: true } }
+      sla: { select: { name: true, tier: true } },
+      reporterId: true
     },
     orderBy: { dueAt: 'asc' },
     take: 50
@@ -140,7 +147,7 @@ export default async function DashboardPage() {
       {/* Middle Row: Main Task Table */}
       <div className="grid grid-cols-1 gap-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <Suspense fallback={<div className="h-96 bg-base-200 rounded-2xl animate-pulse" />}>
-          <GlobalTaskTable initialTasks={activeTasks as any} />
+          <GlobalTaskTable initialTasks={activeTasks as any} currentUserId={userId} />
         </Suspense>
       </div>
 

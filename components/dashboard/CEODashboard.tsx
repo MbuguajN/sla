@@ -79,10 +79,10 @@ export default function CEODashboard({
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs opacity-70">
                         <ShieldCheck className="w-3 h-3" />
-                        Executive Command Suite
+                        Executive Dashboard
                     </div>
                     <h1 className="text-4xl font-bold text-base-content tracking-tight leading-none">
-                        Strategic Overview
+                        Global Overview
                     </h1>
                 </div>
 
@@ -91,7 +91,7 @@ export default function CEODashboard({
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
                         <input
                             type="text"
-                            placeholder="Search Strategic Intelligence..."
+                            placeholder="Search projects and tasks..."
                             className="input input-bordered bg-base-200/30 border-base-300 focus:border-primary focus:bg-base-100 w-full md:w-[320px] pl-11 font-medium text-sm"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -115,12 +115,11 @@ export default function CEODashboard({
             </div>
 
             {/* KPI Command Bar - Sleener & more official */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                    { label: 'System Health', value: '98.2%', sub: 'Global Uptime', icon: Activity, color: 'text-success' },
-                    { label: 'Active Tasks', value: activeCount, sub: 'In Flight', icon: Zap, color: 'text-primary' },
-                    { label: 'Critical Breaches', value: overdueCount, sub: 'Urgent Action', icon: AlertCircle, color: overdueCount > 0 ? 'text-error' : 'text-base-content/20' },
-                    { label: 'Resources Online', value: activeUsers.length, sub: 'Active Sessions', icon: UserCheck, color: 'text-info' }
+                    { label: 'Active Tasks', value: activeCount, sub: 'Current Workload', icon: Zap, color: 'text-primary' },
+                    { label: 'Critical Breaches', value: overdueCount, sub: 'Requires Attention', icon: AlertCircle, color: overdueCount > 0 ? 'text-error' : 'text-base-content/20' },
+                    { label: 'Team Online', value: activeUsers.length, sub: 'Active Sessions', icon: UserCheck, color: 'text-info' }
                 ].map((kpi, i) => (
                     <div key={i} className="bg-base-100 border border-base-300 p-5 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all duration-300 shadow-sm">
                         <div className="space-y-1">
@@ -149,7 +148,7 @@ export default function CEODashboard({
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <div className="w-1.5 h-4 bg-primary rounded-full" />
-                            <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Portfolio</h2>
+                            <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Active Projects</h2>
                         </div>
                         <Link href="/projects" className="text-xs font-bold uppercase tracking-wider text-primary hover:underline flex items-center gap-1">
                             Full Inventory <ArrowRight className="w-3 h-3" />
@@ -265,7 +264,7 @@ export default function CEODashboard({
                 <div className="xl:col-span-12 space-y-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-4 bg-primary rounded-full" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Tasks</h2>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Recent Tasks</h2>
                     </div>
 
                     <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
@@ -273,10 +272,10 @@ export default function CEODashboard({
                             <table className="table w-full">
                                 <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">
                                     <tr>
-                                        <th className="pl-8 h-12">Task</th>
-                                        <th>Origin Cluster</th>
-                                        <th>Operator</th>
-                                        <th>SLA Timeline</th>
+                                        <th className="pl-8 h-12">Task Description</th>
+                                        <th>Project</th>
+                                        <th>Assigned To</th>
+                                        <th>Timeline</th>
                                         <th className="text-right pr-8">Status</th>
                                     </tr>
                                 </thead>
@@ -296,7 +295,7 @@ export default function CEODashboard({
                                                             <Link href={`/tasks/${task.id}`} className="font-bold text-xs text-base-content hover:text-primary transition-colors truncate">
                                                                 {task.title}
                                                             </Link>
-                                                            <span className="text-xs font-normal text-base-content/30">SIG-{task.id}</span>
+                                                            <span className="text-xs font-normal text-base-content/30">ID-{task.id}</span>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -349,7 +348,7 @@ export default function CEODashboard({
                             </table>
                         </div>
                         <Link href="/tasks" className="block p-4 bg-base-200/30 text-center text-xs font-bold uppercase tracking-wider text-primary hover:bg-base-200 transition-all border-t border-base-300">
-                            Access Operational Intelligence Registry
+                            View All Active Tasks
                         </Link>
                     </div>
                 </div>

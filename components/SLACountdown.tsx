@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { differenceInMinutes, differenceInHours, isPast } from 'date-fns'
-import { Clock, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Clock, AlertTriangle, CheckCircle, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export default function SLACountdown({
@@ -25,7 +25,7 @@ export default function SLACountdown({
 
       if (isCompleted) {
         setStatus('completed')
-        setTimeLeft('Complete')
+        setTimeLeft('Logged')
         return
       }
 
@@ -34,7 +34,7 @@ export default function SLACountdown({
 
       if (isPast(due)) {
         setStatus('breached')
-        setTimeLeft('BREACHED')
+        setTimeLeft('OVERDUE')
         return
       }
 
@@ -54,46 +54,67 @@ export default function SLACountdown({
     }
 
     calculateTimeLeft()
-    const interval = setInterval(calculateTimeLeft, 60000) // Update every minute
+    const interval = setInterval(calculateTimeLeft, 60000)
 
     return () => clearInterval(interval)
   }, [dueDate, isCompleted])
 
-  // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-base-300 rounded-lg">
-        <Clock className="w-4 h-4 opacity-50" />
-        <span className="text-sm font-bold">--</span>
+      <div className="flex items-center gap-2 px-3 py-1 bg-base-content/5 rounded-xl border border-transparent">
+        <Clock className="w-3.5 h-3.5 opacity-20" />
+        <span className="text-[10px] font-black text-base-content/20 uppercase tracking-widest">Async</span>
       </div>
     )
   }
 
-  const getStyles = () => {
+  const getStatusConfig = () => {
     switch (status) {
       case 'completed':
-        return 'bg-success/20 text-success border-success/30'
+        return {
+          style: 'bg-success/10 text-success border-success/20',
+          icon: <CheckCircle className="w-3 h-3" />,
+          label: 'DONE'
+        }
       case 'breached':
-        return 'bg-error/20 text-error border-error/30 animate-pulse'
+        return {
+          style: 'bg-error text-white border-error shadow-ruby-soft animate-pulse',
+          icon: <AlertTriangle className="w-3 h-3" />,
+          label: 'CRITICAL'
+        }
       case 'critical':
-        return 'bg-error/20 text-error border-error/30'
+        return {
+          style: 'bg-error/10 text-error border-error/20',
+          icon: <Flame className="w-3 h-3 animate-bounce" />,
+          label: 'URGENT'
+        }
       case 'warning':
-        return 'bg-warning/20 text-warning border-warning/30'
+        return {
+          style: 'bg-warning/10 text-warning border-warning/20',
+          icon: <AlertTriangle className="w-3 h-3" />,
+          label: 'NEAR'
+        }
       default:
-        return 'bg-primary/20 text-primary border-primary/30'
+        return {
+          style: 'bg-primary/5 text-primary border-primary/10',
+          icon: <Clock className="w-3 h-3" />,
+          label: 'ON TIME'
+        }
     }
   }
 
-  const getIcon = () => {
-    if (status === 'completed') return <CheckCircle className="w-2.5 h-2.5" />
-    if (status === 'breached' || status === 'critical') return <AlertTriangle className="w-2.5 h-2.5" />
-    return <Clock className="w-2.5 h-2.5" />
-  }
+  const config = getStatusConfig()
 
   return (
-    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border ${getStyles()} transition-all`}>
-      {getIcon()}
-      <span className="text-[9px] font-bold tabular-nums leading-none">{timeLeft}</span>
+    <div className={cn(
+      "flex items-center gap-2 px-2.5 py-1 rounded-xl border transition-all duration-500",
+      config.style
+    )}>
+      {config.icon}
+      <div className="flex flex-col leading-none">
+        <span className="text-[10px] font-black tabular-nums">{timeLeft}</span>
+        <span className="text-[7px] font-black uppercase tracking-[0.1em] opacity-60">{config.label}</span>
+      </div>
     </div>
   )
 }

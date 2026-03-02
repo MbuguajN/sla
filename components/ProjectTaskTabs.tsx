@@ -68,8 +68,8 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                 {displayTasks.length === 0 ? (
                     <div className="p-16 border-2 border-dashed border-base-200 rounded-3xl flex flex-col items-center justify-center opacity-40 text-center">
                         <ClipboardList className="w-10 h-10 mb-3" />
-                        <h4 className="text-sm font-bold uppercase tracking-wider">No {activeTab} status detected</h4>
-                        <p className="text-xs font-normal mt-1 max-w-[200px]">Strategic directives for this segment are currently null or pending initialization.</p>
+                        <h4 className="text-sm font-bold uppercase tracking-wider">No {activeTab} tasks found</h4>
+                        <p className="text-xs font-normal mt-1 max-w-[200px]">There are no tasks in this category at the moment.</p>
                     </div>
                 ) : (
                     displayTasks.map(task => (
@@ -87,8 +87,8 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                                     <h4 className="font-bold text-base tracking-tight group-hover:text-primary transition-colors">{task.title}</h4>
                                     <div className="flex items-center gap-4 mt-1.5 opacity-60">
                                         <div className="flex items-center gap-1.5">
-                                            <div className="w-4 h-4 rounded-full bg-base-200 flex items-center justify-center text-xs font-bold">
-                                                {(task.assignee?.name || 'U').charAt(0)}
+                                            <div className="w-4 h-4 rounded-full bg-base-200 flex items-center justify-center leading-none text-base-content overflow-hidden">
+                                                <span className="text-[8px] font-black flex items-center justify-center w-full h-full">{(task.assignee?.name || 'U').charAt(0)}</span>
                                             </div>
                                             <span className="text-xs font-bold">{task.assignee?.name || 'Unassigned'}</span>
                                         </div>

@@ -8,25 +8,31 @@ datasource db {
 }
 
 model User {
-  id               Int            @id @default(autoincrement())
+  id               Int              @id @default(autoincrement())
   name             String?
-  email            String         @unique
-  role             String         @default("EMPLOYEE")
+  email            String           @unique
+  role             String           @default("EMPLOYEE")
   departmentId     Int?
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  lastActiveAt     DateTime       @default(now())
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  lastActiveAt     DateTime         @default(now())
   password         String?
   avatarUrl        String?
   auditLogs        AuditLog[]
-  headedDepartment Department?    @relation("DepartmentHead")
+  headedDepartment Department?      @relation("DepartmentHead")
   messages         Message[]
   notifications    Notification[]
   stories          Story[]
-  reportedTasks    Task[]         @relation("ReportedTasks")
-  assignedTasks    Task[]         @relation("AssignedTasks")
-  department       Department?    @relation("DepartmentUsers", fields: [departmentId], references: [id])
+  reportedTasks    Task[]           @relation("ReportedTasks")
+  assignedTasks    Task[]           @relation("AssignedTasks")
+  department       Department?      @relation("DepartmentUsers", fields: [departmentId], references: [id])
   watchers         Watcher[]
+  leaveRequests    LeaveRequest[]   @relation("UserLeaves")
+  reviewedLeaves   LeaveRequest[]   @relation("LeaveReviewer")
+  suggestions      Suggestion[]
+  itRequests       ITSupportRequest[] @relation("ITRequestor")
+  itAssigned       ITSupportRequest[] @relation("ITAssigned")
+  itResolved       ITSupportRequest[] @relation("ITResolver")
 
   @@index([departmentId])
 }
@@ -174,3 +180,58 @@ model SystemSettings {
   key   String @unique
   value String
 }
+
+// ─── HR System Models ───
+
+model LeaveRequest {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  type       String    // ANNUAL, SICK, PERSONAL, MATERNITY, PATERNITY, OTHER
+  startDate  DateTime
+  endDate    DateTime
+  reason     String
+  status     String    @default("PENDING") // PENDING, APPROVED, DENIED
+  reviewedBy Int?
+  reviewedAt DateTime?
+  reviewNote String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation("UserLeaves", fields: [userId], references: [id])
+  reviewer   User?     @relation("LeaveReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Suggestion {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  category  String   // COMPLAINT, REQUEST, SUGGESTION, FEEDBACK
+  content   String
+  status    String   @default("OPEN") // OPEN, REVIEWED, RESOLVED
+  adminNote String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([status])
+}
+
+model ITSupportRequest {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  title        String
+  description  String
+  priority     String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  status       String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  assignedToId Int?
+  resolvedById Int?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation("ITRequestor", fields: [userId], references: [id])
+  assignedTo   User?     @relation("ITAssigned", fields: [assignedToId], references: [id])
+  resolvedBy   User?     @relation("ITResolver", fields: [resolvedById], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+

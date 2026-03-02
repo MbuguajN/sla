@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { sendMessage as sendMessageAction } from '../app/actions/taskActions'
 import { Send } from 'lucide-react'
 
@@ -11,45 +11,65 @@ type Message = {
   createdAt?: string
 }
 
-// Simple optimistic hook (local) to mimic `useOptimistic` behaviour
-function useOptimisticList<T>(initial: T[]) {
-  const [list, setList] = useState<T[]>(initial)
-  const push = (item: T) => setList((s) => [...s, item])
-  const replace = (newList: T[]) => setList(newList)
-  return [list, push, replace] as const
-}
-
-export default function TaskChat({ 
-  taskId, 
+export default function TaskChat({
+  taskId,
   projectId,
-  initialMessages = [], 
-  currentUserId 
-}: { 
-  taskId?: number; 
+  initialMessages = [],
+  currentUserId
+}: {
+  taskId?: number;
   projectId?: number;
-  initialMessages?: Message[]; 
-  currentUserId: number 
+  initialMessages?: Message[];
+  currentUserId: number
 }) {
-  const [messages, pushMessage, replaceMessages] = useOptimisticList<Message>(initialMessages)
+  const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  // Real-time polling every 5 seconds
+  useEffect(() => {
+    if (!taskId && !projectId) return
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/messages?taskId=${taskId || ''}&projectId=${projectId || ''}`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data.messages && data.messages.length > messages.length) {
+            setMessages(data.messages)
+          }
+        }
+      } catch (err) {
+        // Silently fail — next poll will retry
+      }
+    }
+
+    const interval = setInterval(poll, 5000)
+    return () => clearInterval(interval)
+  }, [taskId, projectId, messages.length])
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages.length])
 
   async function handleSend(e?: React.FormEvent) {
     e?.preventDefault()
     if (!text.trim()) return
-    const optimistic: Message = { 
-      authorId: currentUserId, 
-      content: text, 
+    const optimistic: Message = {
+      authorId: currentUserId,
+      content: text,
       createdAt: new Date().toISOString(),
       authorName: 'You'
     }
-    pushMessage(optimistic)
+    setMessages(prev => [...prev, optimistic])
     setText('')
     setSending(true)
     try {
       await sendMessageAction(taskId || null, currentUserId, optimistic.content, projectId || null)
     } catch (err) {
-      replaceMessages(messages.filter((m) => m !== optimistic))
+      setMessages(prev => prev.filter(m => m !== optimistic))
       console.error(err)
     } finally {
       setSending(false)
@@ -67,8 +87,8 @@ export default function TaskChat({
             </div>
           ) : (
             messages.map((m, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`chat ${m.authorId === currentUserId ? 'chat-end' : 'chat-start'}`}
               >
                 <div className="chat-header text-xs opacity-60 mb-1">
@@ -83,6 +103,7 @@ export default function TaskChat({
               </div>
             ))
           )}
+          <div ref={bottomRef} />
         </div>
 
         {/* Input */}
@@ -95,8 +116,8 @@ export default function TaskChat({
             disabled={sending}
             className="input input-bordered flex-1"
           />
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={sending || !text.trim()}
             className="btn btn-primary gap-2"
           >

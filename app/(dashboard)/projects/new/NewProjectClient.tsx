@@ -29,10 +29,10 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                 </div>
                 <h1 className="text-2xl font-black uppercase tracking-tighter">Access Denied</h1>
                 <p className="max-w-md opacity-60 font-medium italic">
-                    Project initialization is restricted to the Business Development department per strategic protocol.
+                    Project creation is restricted to the Business Development department.
                 </p>
                 <Link href="/projects" className="btn btn-outline btn-sm uppercase font-black tracking-widest text-[10px] mt-4">
-                    Return to Fleet
+                    Back to Projects
                 </Link>
             </div>
         )
@@ -69,7 +69,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
             <div className="flex items-center gap-4">
                 <Link href="/projects" className="btn btn-ghost btn-sm gap-2 uppercase font-black text-[10px] tracking-widest opacity-60">
                     <ArrowLeft className="w-3 h-3" />
-                    Back to Fleet
+                    Back to Projects
                 </Link>
             </div>
 
@@ -78,8 +78,8 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                     <Folder className="w-8 h-8" />
                 </div>
                 <div>
-                    <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase">Client Onboarding</h1>
-                    <p className="text-sm font-medium text-base-content/60 italic">Initialize a new strategic project shell and define service parameters.</p>
+                    <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase">New Project</h1>
+                    <p className="text-sm font-medium text-base-content/60 italic">Create a new project and define its priority levels.</p>
                 </div>
             </div>
 
@@ -105,11 +105,11 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
 
                             <div className="form-control">
                                 <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Strategic Description</span>
+                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Project Description</span>
                                 </label>
                                 <textarea
                                     required
-                                    placeholder="Outline the core objectives and project scope..."
+                                    placeholder="Describe the project goals and scope..."
                                     className="textarea textarea-bordered h-40 w-full font-medium text-sm bg-base-200/30 border-base-300 focus:border-primary"
                                     value={formData.description}
                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -122,13 +122,13 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                 <div className="lg:col-span-1 space-y-8">
                     <div className="card bg-base-100 shadow-xl border border-warning/20 overflow-hidden">
                         <div className="bg-warning/5 p-6 border-b border-warning/10">
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-warning">Automatic SLA Proxy</h2>
-                            <p className="text-[10px] font-bold opacity-60 mt-1">Define the default response protocols for this client.</p>
+                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-warning">Default Priority</h2>
+                            <p className="text-[10px] font-bold opacity-60 mt-1">Set the default response times for this project.</p>
                         </div>
                         <div className="card-body p-6 space-y-4">
                             <div className="form-control">
                                 <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">SLA Alias</span>
+                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Priority Name</span>
                                 </label>
                                 <input
                                     type="text"
@@ -183,7 +183,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                     </button>
 
                     <Link href="/projects" className="btn btn-ghost btn-block btn-sm uppercase font-black text-[10px] tracking-widest opacity-40">
-                        Abort Mission
+                        Cancel
                     </Link>
                 </div>
             </form>
