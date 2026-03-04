@@ -24,7 +24,7 @@ export default async function NewTaskPage() {
   })
 
   return (
-    <div className="min-h-screen bg-base-100 flex flex-col items-center p-6 py-12 lg:py-20 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-base-100 flex flex-col items-center p-4 py-8 lg:py-12 relative overflow-hidden font-sans">
       {/* Dynamic Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-[60%] bg-gradient-to-b from-primary/[0.03] to-transparent" />
@@ -34,15 +34,15 @@ export default async function NewTaskPage() {
 
       <div className="max-w-3xl w-full flex-1 flex flex-col items-center relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
         {/* Card — Modern Glassmorphism */}
-        <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 w-full">
-          <div className="p-8 lg:p-12 gap-8 flex flex-col">
+        <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 w-full animate-in zoom-in-95 duration-500">
+          <div className="p-6 md:p-8 lg:p-10 gap-4 md:gap-6 flex flex-col">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-inner mb-2">
-                <Briefcase className="w-8 h-8" />
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-xl md:rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-inner mb-1">
+                <Briefcase className="w-6 h-6 md:w-8 md:h-8" />
               </div>
               <div className="space-y-2">
-                <h1 className="text-3xl font-black tracking-tight text-base-content uppercase italic">Initialize Brief</h1>
-                <p className="text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Authorized Executive Initiation</p>
+                <h1 className="text-2xl md:text-3xl font-black tracking-tight text-base-content uppercase italic">Initialize Brief</h1>
+                <p className="text-[9px] md:text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Authorized Executive Initiation</p>
               </div>
             </div>
 

@@ -318,9 +318,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
       </div>
 
       <dialog id="process_modal" className="modal modal-bottom sm:modal-middle">
-        <div className="modal-box p-0 overflow-hidden max-w-lg bg-base-100 rounded-[2rem] shadow-2xl border border-base-content/5 flex flex-col max-h-[90vh]">
+        <div className="modal-box p-0 overflow-hidden max-w-lg bg-base-100 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl border border-base-content/5 flex flex-col max-h-[96vh]">
           {/* Compressed Professional Header */}
-          <div className="bg-primary p-6 text-primary-content relative overflow-hidden flex flex-col items-center text-center">
+          <div className="bg-primary p-4 md:p-5 text-primary-content relative overflow-hidden flex flex-col items-center text-center shrink-0">
             <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
 
             <button
@@ -335,17 +335,17 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
             </button>
 
             <div className="relative z-10 flex flex-col items-center">
-              <div className="w-11 h-11 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-xl border border-white/20 mb-3 shadow-md">
-                <Settings2 size={22} />
+              <div className="w-10 h-10 md:w-11 md:h-11 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-xl border border-white/20 mb-2 shadow-md">
+                <Settings2 size={20} />
               </div>
-              <h3 className="font-bold text-xl tracking-tight uppercase leading-none">Manage Brief</h3>
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1.5">Executive Assignment Portal</p>
+              <h3 className="font-bold text-lg md:text-xl tracking-tight uppercase leading-none">Manage Brief</h3>
+              <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">Executive Assignment Portal</p>
             </div>
 
             {selectedTicket && (
-              <div className="mt-4 w-full max-w-sm p-3 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 text-center animate-in slide-in-from-top-2 duration-500">
-                <p className="text-[8px] font-bold uppercase tracking-[0.2em] opacity-40 mb-1">Target Directive</p>
-                <p className="font-bold text-sm leading-tight uppercase tracking-tight truncate px-2">{selectedTicket.title}</p>
+              <div className="mt-3 w-full max-w-sm p-2 bg-white/5 rounded-xl backdrop-blur-md border border-white/10 text-center animate-in slide-in-from-top-2 duration-500">
+                <p className="text-[7px] font-bold uppercase tracking-[0.2em] opacity-40 mb-0.5">Target Directive</p>
+                <p className="font-bold text-xs leading-tight uppercase tracking-tight truncate px-2">{selectedTicket.title}</p>
               </div>
             )}
           </div>
@@ -368,9 +368,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
             </div>
 
             {/* Assignment Section */}
-            <div className="space-y-4 w-full text-center">
-              <div className="flex flex-col items-center gap-1.5 pt-4">
-                <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-content/40">Assignment Parameters</h4>
+            <div className="space-y-3 w-full text-center">
+              <div className="flex flex-col items-center gap-1.5 pt-2">
+                <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-base-content/40">Assignment Parameters</h4>
                 <div className="h-0.5 w-6 bg-primary/20 rounded-full" />
               </div>
 

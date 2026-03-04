@@ -106,7 +106,7 @@ export default function TaskForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 md:space-y-10 w-full flex flex-col items-center">
+    <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 w-full flex flex-col items-center">
       {/* Title Section */}
       <div className="space-y-2 md:space-y-3 w-full text-center">
         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Task Nomenclature</label>
@@ -116,7 +116,7 @@ export default function TaskForm({
             required
             type="text"
             placeholder="What needs to be done?"
-            className="input input-lg w-full pl-14 pr-6 bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-lg md:text-xl text-center placeholder:text-base-content/10 shadow-inner h-14 md:h-16"
+            className="input input-lg w-full pl-14 pr-6 bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-base md:text-lg text-center placeholder:text-base-content/10 shadow-inner h-12 md:h-14"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -128,7 +128,7 @@ export default function TaskForm({
         <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Operational Directives</label>
         <div className="max-w-xl mx-auto w-full">
           <textarea
-            className="textarea w-full h-32 bg-base-content/5 border-none rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-4 md:p-6 text-center placeholder:text-base-content/10 shadow-inner resize-none"
+            className="textarea w-full h-24 md:h-28 bg-base-content/5 border-none rounded-[1.5rem] md:rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-4 md:p-5 text-center placeholder:text-base-content/10 shadow-inner resize-none"
             placeholder="Codify the full brief here..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -143,7 +143,7 @@ export default function TaskForm({
           <div className="relative group">
             <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
             <select
-              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-sm text-center appearance-none shadow-inner h-12 md:h-14"
+              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
               value={projectId}
               onChange={(e) => setProjectId(e.target.value === '' ? '' : Number(e.target.value))}
             >
@@ -160,7 +160,7 @@ export default function TaskForm({
             <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
             <select
               required
-              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-sm text-center appearance-none shadow-inner h-12 md:h-14"
+              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
               value={departmentId}
               onChange={(e) => setDepartmentId(Number(e.target.value))}
             >
@@ -172,8 +172,8 @@ export default function TaskForm({
       </div>
 
       {/* SLA Section */}
-      <div className="space-y-4 md:space-y-6 w-full flex flex-col items-center">
-        <div className="flex flex-col items-center gap-3 w-full">
+      <div className="space-y-3 md:space-y-4 w-full flex flex-col items-center">
+        <div className="flex flex-col items-center gap-2 w-full">
           <div className="flex flex-wrap items-center justify-center gap-4">
             <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30">Response Protocol (SLA)</label>
             <label className="flex items-center gap-2 cursor-pointer group">
@@ -219,9 +219,9 @@ export default function TaskForm({
       </div>
 
       {/* Due Date Section */}
-      <div className="w-full max-w-xl p-6 md:p-8 bg-base-content/[0.03] rounded-[2rem] md:rounded-[2.5rem] border border-base-content/5 space-y-4 md:space-y-6 flex flex-col items-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="flex items-center gap-6">
+      <div className="w-full max-w-xl p-4 md:p-6 bg-base-content/[0.03] rounded-[1.5rem] md:rounded-[2rem] border border-base-content/5 space-y-3 md:space-y-4 flex flex-col items-center">
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="flex items-center gap-4">
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30">Temporal Deadline</span>
             <label className="flex items-center gap-2 cursor-pointer group">
               <input
@@ -239,16 +239,16 @@ export default function TaskForm({
           <div className="w-full animate-in fade-in zoom-in-95 duration-200">
             <input
               type="datetime-local"
-              className="input input-lg w-full bg-base-100 border-none ring-2 ring-primary/10 focus:ring-primary/30 transition-all font-black text-center rounded-2xl"
+              className="input input-md w-full bg-base-100 border-none ring-2 ring-primary/10 focus:ring-primary/30 transition-all font-black text-center rounded-xl h-10"
               value={dueDate ? format(dueDate, "yyyy-MM-dd'T'HH:mm") : ''}
               onChange={(e) => setDueDate(new Date(e.target.value))}
             />
           </div>
         ) : (
           dueDate && (
-            <div className="text-center py-5 px-10 bg-white dark:bg-slate-900 rounded-[1.5rem] border border-primary/10 shadow-ruby-soft animate-in slide-in-from-top-4 duration-500">
-              <span className="block text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 mb-2 italic">Estimated Completion</span>
-              <span className="text-2xl font-black tracking-tighter text-base-content uppercase">{format(dueDate, 'PPP p')}</span>
+            <div className="text-center py-3 px-8 bg-white dark:bg-slate-900 rounded-[1rem] border border-primary/10 shadow-ruby-soft animate-in slide-in-from-top-4 duration-500">
+              <span className="block text-[9px] font-black uppercase tracking-[0.3em] text-primary/40 mb-1 italic">Estimated Completion</span>
+              <span className="text-xl font-black tracking-tighter text-base-content uppercase">{format(dueDate, 'PPP p')}</span>
             </div>
           )
         )}
@@ -282,11 +282,11 @@ export default function TaskForm({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex flex-col items-center gap-6 pt-10 w-full max-w-sm">
+      <div className="flex flex-col items-center gap-4 pt-6 w-full max-w-sm">
         <button
           type="submit"
           className={cn(
-            "btn btn-primary btn-lg w-full h-16 rounded-[1.5rem] font-black uppercase text-xs tracking-[0.25em] shadow-ruby-massive transition-all hover:scale-[1.03] active:scale-[0.97] border-none",
+            "btn btn-primary btn-lg w-full h-14 rounded-2xl font-black uppercase text-xs tracking-[0.25em] shadow-ruby-massive transition-all hover:scale-[1.03] active:scale-[0.97] border-none",
             loading && "loading"
           )}
           disabled={loading}
