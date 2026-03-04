@@ -100,9 +100,12 @@ export default function StatusControlBar({
   // LOGIC: Check permissions
   const isAssignee = currentUserId === assigneeId
   const isReporter = currentUserId === reporterId
+  const isCS = departmentName === 'CLIENT_SERVICE' || departmentName === 'CLIENT SERVICE'
+  const isBD = departmentName === 'BUSINESS_DEVELOPMENT' || departmentName === 'BUSINESS DEVELOPMENT'
   const isCEO = userRole === 'CEO'
   const isHR = userRole === 'HR'
-  const isAdminCheck = userRole === 'ADMIN' || isCEO || isHR || userRole === 'MANAGER'
+  // Admin check: Only allow if not in restricted departments OR if they are top-level (CEO/HR/ADMIN)
+  const isAdminCheck = userRole === 'ADMIN' || isCEO || isHR || (userRole === 'MANAGER' && !isCS && !isBD)
 
   // Only assignees can CONFIRM or START
   const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && (isAssignee || isAdminCheck)
@@ -137,25 +140,25 @@ export default function StatusControlBar({
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      <div className="flex items-center gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm animate-in fade-in slide-in-from-bottom-2">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-bold uppercase tracking-wider text-base-content/40">Current Workflow State</span>
+      <div className="flex flex-wrap items-center gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+        <div className="flex flex-col gap-0.5 min-w-[120px]">
+          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Workflow State</span>
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full animate-pulse",
               isCompleted ? "bg-success" : "bg-primary"
             )} />
-            <span className="text-sm font-bold tracking-tight">{optimisticStatus}</span>
+            <span className="text-sm font-black tracking-tight">{optimisticStatus.replace('_', ' ')}</span>
           </div>
         </div>
 
-        <div className="divider divider-horizontal mx-2"></div>
+        <div className="hidden md:block divider divider-horizontal mx-1"></div>
 
         {config.next ? (
-          <div className="flex flex-1 md:flex-none gap-2">
+          <div className="flex flex-1 gap-2 min-w-0">
             <button
               className={cn(
-                "btn btn-md flex-1 md:min-w-[200px] gap-3 shadow-lg transition-all active:scale-95",
+                "btn btn-md flex-1 md:flex-none md:min-w-[180px] gap-3 shadow-lg transition-all active:scale-95 text-xs font-black uppercase tracking-wider",
                 config.color,
                 isPending && "loading",
                 isRestricted && "btn-disabled opacity-50 grayscale"
@@ -163,8 +166,8 @@ export default function StatusControlBar({
               onClick={() => handleAction(config.next!)}
               disabled={isPending || isRestricted}
             >
-              {isPending ? null : <config.icon className="w-5 h-5" />}
-              {isPending ? 'Propagating...' : config.label}
+              {isPending ? null : <config.icon className="w-4 h-4" />}
+              {isPending ? 'Syncing...' : config.label}
             </button>
 
             {config.secondary && (

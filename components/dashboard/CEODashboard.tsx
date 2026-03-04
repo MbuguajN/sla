@@ -161,49 +161,56 @@ export default function CEODashboard({
                                 const total = project.tasks.length
                                 const completed = project.tasks.filter(t => t.status === TaskStatus.COMPLETED).length
                                 const overdue = project.tasks.filter(t => t.status !== TaskStatus.COMPLETED && t.dueAt && new Date(t.dueAt) < new Date()).length
-                                const progress = total > 0 ? (completed / total) * 100 : 0
+                                // If 0 tasks, completion is 100% per user request
+                                const progress = total > 0 ? (completed / total) * 100 : 100
+                                const isAccomplished = progress === 100
 
                                 return (
                                     <Link
                                         key={project.id}
                                         href={`/projects/${project.id}`}
-                                        className="bg-base-100 border border-base-300 p-5 rounded-2xl hover:border-primary/40 hover:shadow-lg transition-all duration-300 group flex flex-col h-full relative overflow-hidden"
+                                        className={cn(
+                                            "border p-5 rounded-2xl transition-all duration-300 group flex flex-col h-full relative overflow-hidden",
+                                            isAccomplished
+                                                ? "bg-success/[0.03] border-success/20 hover:border-success/40 hover:shadow-success/5"
+                                                : "bg-error/[0.03] border-error/20 hover:border-error/40 hover:shadow-error/5"
+                                        )}
                                     >
                                         <div className="flex items-start justify-between mb-4">
-                                            <div className="p-2.5 bg-base-200 rounded-xl group-hover:bg-primary/5 group-hover:text-primary transition-colors">
+                                            <div className={cn(
+                                                "p-2.5 rounded-xl transition-colors",
+                                                isAccomplished ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                                            )}>
                                                 <FolderDot className="w-4 h-4" />
                                             </div>
                                             <div className={cn(
-                                                "text-xs font-bold tracking-wider px-2 py-0.5 rounded-full uppercase",
-                                                overdue > 0 ? "bg-error/10 text-error" : "bg-success/10 text-success"
+                                                "text-[9px] font-black tracking-widest px-2.5 py-1 rounded-lg uppercase",
+                                                overdue > 0 ? "bg-error text-white" : (isAccomplished ? "bg-success text-white" : "bg-base-content/10 text-base-content/60")
                                             )}>
-                                                {overdue > 0 ? 'Action Required' : 'Strategic'}
+                                                {overdue > 0 ? 'Action Required' : (isAccomplished ? 'Accomplished' : 'In Progress')}
                                             </div>
                                         </div>
 
-                                        <h3 className="font-bold text-sm text-base-content truncate group-hover:text-primary transition-colors mb-1">
+                                        <h3 className="font-bold text-sm text-base-content truncate transition-colors mb-1">
                                             {project.title}
                                         </h3>
-                                        <p className="text-xs text-base-content/40 font-normal mb-4">
-                                            #{project.id} • {total} Tasks
+                                        <p className="text-[10px] text-base-content/40 font-bold uppercase tracking-tight mb-4">
+                                            Project ID-{project.id} • {total} Tasks
                                         </p>
 
                                         <div className="mt-auto space-y-3">
-                                            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
-                                                <span className="text-base-content/40">Efficiency</span>
-                                                <span className="text-primary">{Math.round(progress)}%</span>
+                                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                                                <span className="text-base-content/40">Completion</span>
+                                                <span className={isAccomplished ? "text-success" : "text-error"}>{Math.round(progress)}%</span>
                                             </div>
-                                            <div className="h-1 bg-base-200 rounded-full overflow-hidden shadow-inner flex">
+                                            <div className="h-1.5 bg-base-content/5 rounded-full overflow-hidden flex">
                                                 <div
-                                                    className="bg-primary h-full transition-all duration-1000"
+                                                    className={cn(
+                                                        "h-full transition-all duration-1000",
+                                                        isAccomplished ? "bg-success" : "bg-error"
+                                                    )}
                                                     style={{ width: `${progress}%` }}
                                                 />
-                                                {overdue > 0 && (
-                                                    <div
-                                                        className="bg-error h-full opacity-50 transition-all duration-1000"
-                                                        style={{ width: `${(overdue / total) * 100}%` }}
-                                                    />
-                                                )}
                                             </div>
                                         </div>
                                     </Link>
@@ -264,7 +271,7 @@ export default function CEODashboard({
                 <div className="xl:col-span-12 space-y-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-4 bg-primary rounded-full" />
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Recent Tasks</h2>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Registry</h2>
                     </div>
 
                     <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">

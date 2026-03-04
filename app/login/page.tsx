@@ -86,95 +86,89 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-base-100 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-      {/* Dynamic Background */}
+    <div className="min-h-screen bg-base-100 flex flex-col items-center justify-start lg:justify-center p-6 py-12 lg:py-6 relative overflow-x-hidden font-sans">
+      {/* Subtle Understated Background */}
       <div className="absolute inset-0 z-0">
-        <div className="absolute top-0 left-0 w-full h-[60%] bg-gradient-to-b from-primary/[0.03] to-transparent" />
-        <div className="absolute top-[20%] left-[10%] w-96 h-96 bg-primary/5 blur-[100px] rounded-full animate-pulse" />
-        <div className="absolute bottom-[20%] right-[10%] w-[30rem] h-[30rem] bg-secondary/5 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(var(--p),0.02),transparent_70%)]" />
+        <div className="absolute top-[10%] right-[10%] w-64 h-64 bg-primary/5 blur-[80px] rounded-full" />
       </div>
 
-      <div className="max-w-md w-full relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
-        {/* Logo — massive and premium */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-64 h-64 overflow-hidden relative group">
-            <div className="absolute inset-0 bg-primary/5 rounded-[3rem] blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-            <img src={logos.light} alt="Logo" className="w-full h-full object-contain dark:hidden transition-all duration-500 hover:scale-105 drop-shadow-2xl" />
-            <img src={logos.dark} alt="Logo" className="w-full h-full object-contain hidden dark:block transition-all duration-500 hover:scale-105 drop-shadow-2xl" />
-          </div>
-        </div>
-
-        {/* Card — Modern Glassmorphism */}
-        <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60">
-          <div className="p-10 lg:p-12 gap-8 flex flex-col">
-
-            <div className="space-y-2 text-center">
-              <h2 className="text-3xl font-black tracking-tight text-base-content uppercase italic">Welcome Back</h2>
-              <p className="text-[11px] font-bold text-base-content/30 uppercase tracking-[0.2em]">Authorized Personnel Only</p>
+      <div className="max-w-[400px] w-full relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-4 flex flex-col items-center">
+        {/* Card — Professional Glassmorphism */}
+        <div className="w-full bg-base-100/40 backdrop-blur-2xl border border-base-content/5 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 lg:p-10 flex flex-col items-center gap-6">
+          <div className="flex flex-col items-center gap-2 text-center">
+            {/* Logo — Prominent & Integrated */}
+            <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 overflow-hidden relative mb-1 md:mb-2">
+              <img src={logos.light} alt="Logo" className="w-full h-full object-contain dark:hidden transition-all duration-500 drop-shadow-md" />
+              <img src={logos.dark} alt="Logo" className="w-full h-full object-contain hidden dark:block transition-all duration-500 drop-shadow-md" />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="form-control w-full">
-                <label className="label py-0 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Email Address</span>
-                </label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
-                  <input
-                    required
-                    type="email"
-                    placeholder="name@company.com"
-                    className="w-full h-14 bg-base-content/5 border-none rounded-2xl pl-12 pr-4 text-sm font-bold focus:ring-2 ring-primary/20 outline-none transition-all placeholder:text-base-content/20"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="form-control w-full">
-                <label className="label py-0 mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Security Password</span>
-                </label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
-                  <input
-                    required
-                    type="password"
-                    placeholder="••••••••"
-                    className="w-full h-14 bg-base-content/5 border-none rounded-2xl pl-12 pr-4 text-sm font-bold focus:ring-2 ring-primary/20 outline-none transition-all placeholder:text-base-content/20"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-3 text-error text-[11px] font-bold uppercase tracking-wide bg-error/5 border border-error/10 px-4 py-4 rounded-2xl animate-in shake">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full h-14 bg-primary text-white rounded-2xl shadow-ruby-soft border-none hover:scale-[1.02] active:scale-[0.98] transition-all text-xs font-black uppercase tracking-[0.2em] relative overflow-hidden group"
-                disabled={loading}
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-                ) : (
-                  <span className="flex items-center justify-center gap-2">
-                    Enter Dashboard
-                  </span>
-                )}
-              </button>
-            </form>
+            <div className="space-y-1">
+              <h2 className="text-lg md:text-xl font-bold tracking-tight text-base-content uppercase">Authorized Access</h2>
+            </div>
           </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5 w-full">
+            <div className="form-control w-full">
+              <label className="label py-0 mb-1.5 ml-1">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/40">Email Address</span>
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20" />
+                <input
+                  required
+                  type="email"
+                  placeholder="name@company.com"
+                  className="w-full h-11 bg-base-content/5 border border-base-content/5 rounded-xl pl-11 pr-4 text-xs font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/10"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-control w-full">
+              <label className="label py-0 mb-1.5 ml-1">
+                <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/40">Password</span>
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20" />
+                <input
+                  required
+                  type="password"
+                  placeholder="••••••••"
+                  className="w-full h-11 bg-base-content/5 border border-base-content/5 rounded-xl pl-11 pr-4 text-xs font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-error text-[10px] font-bold uppercase tracking-wide bg-error/5 border border-error/10 px-4 py-3 rounded-xl animate-in shake">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full h-12 bg-primary text-white rounded-xl shadow-lg border-none hover:brightness-110 active:scale-[0.98] transition-all text-[11px] font-bold uppercase tracking-[0.2em] relative group mt-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+              ) : (
+                <span>Authorize Access</span>
+              )}
+            </button>
+          </form>
         </div>
 
-        <div className="flex flex-col items-center gap-4 mt-12 opacity-30 group cursor-default">
-          <div className="h-px w-12 bg-base-content/40 group-hover:w-24 transition-all duration-700" />
-          <p className="text-[9px] font-black uppercase tracking-[0.4em]">Operations Management Platform v2.0</p>
+        <div className="flex flex-col items-center gap-3 mt-10 opacity-20">
+          <div className="h-px w-8 bg-base-content/40" />
+          <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-center">
+            System Instance v2.4.0
+          </p>
         </div>
       </div>
     </div>

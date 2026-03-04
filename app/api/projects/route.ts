@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
         data: {
           title,
           description: description || null,
-          defaultSlaId: sla?.id || null
+          defaultSlaId: sla?.id || null,
+          createdById: parseInt(session.user!.id!),
         }
       })
     })
@@ -61,6 +62,13 @@ export async function GET() {
       include: {
         tasks: {
           select: { status: true }
+        },
+        subProjects: {
+          where: { parentId: null },
+          select: { id: true }
+        },
+        createdBy: {
+          select: { id: true, name: true }
         }
       },
       orderBy: { updatedAt: 'desc' }

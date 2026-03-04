@@ -22,6 +22,12 @@ export enum SlaTier {
     LOW = 'LOW'
 }
 
+export enum ProjectStatus {
+    ACTIVE = 'ACTIVE',
+    COMPLETED = 'COMPLETED',
+    ON_HOLD = 'ON_HOLD'
+}
+
 export enum DepartmentName {
     BUSINESS_DEVELOPMENT = 'BUSINESS_DEVELOPMENT',
     MEDIA = 'MEDIA',

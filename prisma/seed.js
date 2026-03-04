@@ -125,7 +125,109 @@ async function main() {
     }
   })
 
-  console.log('Seed completed: Roles (ADMIN, CEO, HR, MANAGER, EMPLOYEE) created with department heads assigned.')
+  // Create SLAs (Robust check)
+  const slaTemplates = [
+    { name: 'Standard', durationHrs: 48, tier: 'BRONZE' },
+    { name: 'Urgent', durationHrs: 24, tier: 'SILVER' },
+    { name: 'Critical', durationHrs: 4, tier: 'GOLD' }
+  ]
+
+  for (const template of slaTemplates) {
+    const existing = await prisma.sla.findFirst({ where: { name: template.name } })
+    if (!existing) {
+      await prisma.sla.create({ data: template })
+    }
+  }
+
+  const standardSla = await prisma.sla.findFirst({ where: { name: 'Standard' } })
+  const bdDept = await prisma.department.findUnique({ where: { name: 'BUSINESS_DEVELOPMENT' } })
+
+  // Create Business Development User
+  const bdUser = await prisma.user.upsert({
+    where: { email: 'bd@nexus.com' },
+    update: { role: 'EMPLOYEE' },
+    create: {
+      email: 'bd@nexus.com',
+      name: 'BD Agent',
+      password: hashedPassword,
+      role: 'EMPLOYEE',
+      departmentId: bdDept.id
+    }
+  })
+
+  // Create a Main Project (created by BD)
+  const mainProject = await prisma.project.create({
+    data: {
+      title: 'Global Branding Campaign 2024',
+      description: 'Strategic overhaul of global brand identity across all touchpoints.',
+      status: 'ACTIVE',
+      createdById: bdUser.id,
+      defaultSlaId: standardSla.id
+    }
+  })
+
+  // Create Sub-Projects (created by CS)
+  const subProject1 = await prisma.subProject.create({
+    data: {
+      title: 'Digital Social Strategy',
+      description: 'Defining presence on TikTok, Instagram, and LinkedIn.',
+      projectId: mainProject.id,
+      createdById: csHead.id,
+      status: 'ACTIVE'
+    }
+  })
+
+  const subProject2 = await prisma.subProject.create({
+    data: {
+      title: 'Physical Activation Events',
+      description: 'Pop-up stores and billboard placements.',
+      projectId: mainProject.id,
+      createdById: csHead.id,
+      status: 'ON_HOLD'
+    }
+  })
+
+  // Create a Sublet (created by CS)
+  const sublet1 = await prisma.subProject.create({
+    data: {
+      title: 'TikTok Content Production',
+      description: 'High-energy vertical video assets for TikTok ads.',
+      projectId: mainProject.id,
+      parentId: subProject1.id,
+      createdById: csHead.id,
+      status: 'ACTIVE'
+    }
+  })
+
+  // Create Tasks at different levels
+  await prisma.task.create({
+    data: {
+      title: 'Finalize Campaign Moodboards',
+      description: 'Creative direction validation for the global campaign.',
+      status: 'IN_PROGRESS',
+      slaId: standardSla.id,
+      departmentId: creativeDept.id,
+      reporterId: csHead.id,
+      projectId: mainProject.id,
+      assigneeId: creativeManager.id,
+      dueAt: new Date(Date.now() + 86400000)
+    }
+  })
+
+  await prisma.task.create({
+    data: {
+      title: 'Script 5x TikTok Clips',
+      description: 'Drafting viral-loop scripts for the social launch.',
+      status: 'PENDING',
+      slaId: standardSla.id,
+      departmentId: creativeDept.id,
+      reporterId: csHead.id,
+      subProjectId: sublet1.id,
+      dueAt: new Date(Date.now() + 172800000)
+    }
+  })
+
+  console.log('Seed completed: Hierarchical projects, sub-projects, sublets, and tasks created.')
 }
 
 main()

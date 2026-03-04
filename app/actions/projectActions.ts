@@ -59,19 +59,46 @@ export async function getProjectWatchers(projectId: number) {
 
 export async function createProject(formData: { title: string; description?: string }) {
   const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+
   const role = (session?.user as any)?.role
   const deptName = (session?.user as any)?.departmentName
-  const isCEO = role === 'CEO'
   const isBD = deptName === 'BUSINESS_DEVELOPMENT' || (session?.user as any)?.department?.name === 'BUSINESS_DEVELOPMENT'
 
-  if (role !== 'ADMIN' && !(isCEO && isBD)) {
-    throw new Error('STRATEGIC DENIAL: Project initiation requires both CEO clearance and Business Development alignment.')
+  if (role !== 'ADMIN' && !isBD) {
+    throw new Error('STRATEGIC DENIAL: Project initiation is restricted to Business Development.')
   }
 
   const project = await prisma.project.create({
-    data: { title: formData.title, description: formData.description }
+    data: {
+      title: formData.title,
+      description: formData.description,
+      createdById: parseInt(session.user.id),
+    }
   })
 
   revalidatePath('/projects')
+  return project
+}
+
+export async function updateProjectStatus(projectId: number, status: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+
+  const role = (session?.user as any)?.role
+  const deptName = (session?.user as any)?.departmentName
+  const canUpdate = role === 'ADMIN' || deptName === 'BUSINESS_DEVELOPMENT' || deptName === 'CLIENT_SERVICE'
+
+  if (!canUpdate) {
+    throw new Error('STRATEGIC DENIAL: Project status updates are restricted.')
+  }
+
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { status }
+  })
+
+  revalidatePath('/projects')
+  revalidatePath(`/projects/${projectId}`)
   return project
 }

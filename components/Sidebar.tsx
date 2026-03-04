@@ -68,7 +68,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     { label: 'Suggestions', href: '/hr/suggestions', icon: Inbox, visible: true },
   ] : [
     { label: 'Overview', href: '/', icon: Home, visible: true },
-    { label: 'Briefs', href: '/client-service/tickets', icon: Inbox, visible: isAdmin || isCS || isManager },
+    { label: 'Briefs', href: '/client-service/tickets', icon: Inbox, visible: (isAdmin || isCS || isManager) && !isCEO },
     { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev },
     { label: 'All Tasks', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isManager || isBusinessDev || isCS },
     {
@@ -77,9 +77,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
       icon: Users2,
       visible: !(isAdmin || isCEO),
     },
-    { label: 'HR', href: '/hr', icon: Heart, visible: isAdmin },
-    { label: 'Directory', href: '/admin/users', icon: Settings, visible: isAdmin },
-    { label: 'System', href: '/admin/settings', icon: Settings, visible: isAdmin },
+    { label: 'System', href: '/admin/settings', icon: Settings, visible: isAdmin || isHR },
   ]
 
   return (
@@ -155,7 +153,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           })}
 
           {/* New Brief button */}
-          {(isBusinessDev || isCS || (isManager && !isCEO && !isHR) || isAdmin) && (
+          {(isBusinessDev || isCS) && (
             <div className={cn("mt-4", isCollapsed ? "w-full flex justify-center" : "px-2")}>
               <Link
                 href="/tasks/new"

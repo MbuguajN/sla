@@ -309,21 +309,35 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                     <div className="text-center py-16 text-sm text-base-content/30 italic">No leave requests yet</div>
                 ) : (
                     leaves.map((l: any) => (
-                        <div key={l.id} className="p-4 px-6 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <span className="badge badge-sm bg-base-content/5 text-base-content/50 border-none font-bold text-[10px] uppercase tracking-wider whitespace-nowrap">{l.type}</span>
-                                <div>
-                                    <p className="text-sm font-medium text-base-content">
-                                        {format(new Date(l.startDate), 'MMM d')} — {format(new Date(l.endDate), 'MMM d, yyyy')}
-                                    </p>
-                                    <p className="text-xs text-base-content/40 truncate max-w-[300px]">{l.reason}</p>
+                        <div key={l.id} className="group p-4 px-6 flex items-center justify-between hover:bg-base-content/[0.02] transition-colors">
+                            <div className="flex items-center gap-6">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{l.type}</span>
+                                    <div className="flex items-center gap-2">
+                                        <CalendarOff className="w-3.5 h-3.5 text-base-content/20" />
+                                        <p className="text-sm font-bold text-base-content">
+                                            {format(new Date(l.startDate), 'MMM d')} — {format(new Date(l.endDate), 'MMM d, yyyy')}
+                                        </p>
+                                    </div>
+                                    <p className="text-[11px] text-base-content/40 mt-1 line-clamp-1 max-w-[400px]">{l.reason}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none whitespace-nowrap", statusStyles[l.status])}>
+                            <div className="flex items-center gap-4">
+                                <span className={cn(
+                                    "badge badge-sm font-bold text-[9px] uppercase tracking-widest border-none px-3 h-6",
+                                    l.status === 'PENDING' ? 'bg-warning/10 text-warning' : l.status === 'APPROVED' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                                )}>
+                                    {l.status === 'PENDING' && <Clock className="w-2.5 h-2.5 mr-1" />}
+                                    {l.status === 'APPROVED' && <CheckCircle2 className="w-2.5 h-2.5 mr-1" />}
+                                    {l.status === 'DENIED' && <XCircle className="w-2.5 h-2.5 mr-1" />}
                                     {l.status}
                                 </span>
-                                {l.reviewNote && <span className="text-xs text-base-content/30 hidden md:block max-w-[150px] truncate">{l.reviewNote}</span>}
+                                {l.reviewNote && (
+                                    <div className="hidden md:flex items-center gap-2 bg-base-content/5 px-3 py-1.5 rounded-xl border border-base-content/5">
+                                        <MessageSquare className="w-3 h-3 text-base-content/30" />
+                                        <span className="text-[10px] text-base-content/40 font-medium max-w-[150px] truncate">{l.reviewNote}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))
@@ -393,20 +407,28 @@ function SuggestionsTab({ suggestions }: { suggestions: any[] }) {
                     <div className="text-center py-16 text-sm text-base-content/30 italic">No submissions yet</div>
                 ) : (
                     suggestions.map((s: any) => (
-                        <div key={s.id} className="p-4 px-6">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none whitespace-nowrap bg-base-content/5 text-base-content/40">{s.category}</span>
-                                <div className="flex items-center gap-2">
-                                    <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none whitespace-nowrap",
-                                        s.status === 'OPEN' ? 'bg-warning/10 text-warning' : s.status === 'REVIEWED' ? 'bg-info/10 text-info' : 'bg-success/10 text-success'
-                                    )}>{s.status}</span>
-                                    <span className="text-[10px] text-base-content/20">{format(new Date(s.createdAt), 'MMM d')}</span>
+                        <div key={s.id} className="group p-6 hover:bg-base-content/[0.01] transition-colors">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
+                                <div className="flex items-center gap-3">
+                                    <span className="badge badge-sm font-black text-[9px] uppercase tracking-widest border-none bg-info/10 text-info px-2.5 h-6">{s.category}</span>
+                                    <span className="text-[10px] font-bold text-base-content/20 uppercase tracking-widest">{format(new Date(s.createdAt), 'MMM d, yyyy')}</span>
                                 </div>
+                                <span className={cn(
+                                    "badge badge-sm font-bold text-[9px] uppercase tracking-widest border-none px-3 h-6 w-fit",
+                                    s.status === 'OPEN' ? 'bg-warning/10 text-warning' : s.status === 'REVIEWED' ? 'bg-info/10 text-info' : 'bg-success/10 text-success'
+                                )}>
+                                    {s.status}
+                                </span>
                             </div>
-                            <p className="text-sm text-base-content/60">{s.content}</p>
+                            <p className="text-sm text-base-content/70 leading-relaxed italic">"{s.content}"</p>
                             {s.adminNote && (
-                                <div className="mt-2 bg-primary/5 border border-primary/10 rounded-lg p-2 text-xs text-primary">
-                                    Response: {s.adminNote}
+                                <div className="mt-5 bg-primary/5 border border-primary/10 rounded-2xl p-4 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-primary/20" />
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                        <Shield className="w-3 h-3 text-primary opacity-60" />
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40">Official Response</span>
+                                    </div>
+                                    <p className="text-xs text-base-content/80 font-medium">{s.adminNote}</p>
                                 </div>
                             )}
                         </div>
@@ -443,7 +465,7 @@ function ITSupportTab({ itRequests }: { itRequests: any[] }) {
         LOW: 'bg-base-content/5 text-base-content/40',
         NORMAL: 'bg-info/10 text-info',
         HIGH: 'bg-warning/10 text-warning',
-        URGENT: 'bg-error/10 text-error'
+        URGENT: 'bg-error text-white shadow-sm'
     }
 
     const statusStyles: Record<string, string> = {
@@ -492,24 +514,36 @@ function ITSupportTab({ itRequests }: { itRequests: any[] }) {
                 </form>
             )}
 
-            <div className="glass-panel rounded-3xl overflow-hidden divide-y divide-base-content/5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {itRequests.length === 0 ? (
-                    <div className="text-center py-16 text-sm text-base-content/30 italic">No IT support requests</div>
+                    <div className="col-span-full text-center py-16 text-sm text-base-content/30 italic">No IT support requests</div>
                 ) : (
                     itRequests.map((r: any) => (
-                        <div key={r.id} className="p-4 px-6 flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none whitespace-nowrap", priorityStyles[r.priority])}>{r.priority}</span>
-                                <div>
-                                    <p className="text-sm font-medium text-base-content">{r.title}</p>
-                                    <p className="text-xs text-base-content/40 truncate max-w-[300px]">{r.description}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none whitespace-nowrap", statusStyles[r.status])}>
+                        <div key={r.id} className="glass-panel group p-5 rounded-2xl flex flex-col space-y-3 relative overflow-hidden transition-all hover:scale-[1.01] border border-transparent hover:border-primary/10">
+                            <div className={cn("absolute top-0 left-0 w-full h-1", r.priority === 'URGENT' ? 'bg-error' : r.priority === 'HIGH' ? 'bg-warning' : 'bg-primary/20')} />
+
+                            <div className="flex items-start justify-between">
+                                <span className={cn("badge badge-sm font-bold text-[9px] uppercase tracking-wider border-none", priorityStyles[r.priority])}>
+                                    {r.priority}
+                                </span>
+                                <span className={cn("badge badge-sm font-bold text-[9px] uppercase tracking-wider border-none", statusStyles[r.status])}>
                                     {r.status.replace('_', ' ')}
                                 </span>
-                                {r.assignedTo && <span className="text-xs text-base-content/30 hidden md:block">{r.assignedTo.name}</span>}
+                            </div>
+
+                            <div className="space-y-1">
+                                <h4 className="text-sm font-bold text-base-content truncate group-hover:text-primary transition-colors">{r.title}</h4>
+                                <p className="text-[11px] text-base-content/50 line-clamp-2">{r.description}</p>
+                            </div>
+
+                            <div className="pt-3 flex items-center justify-between border-t border-base-content/5 mt-auto">
+                                <span className="text-[9px] text-base-content/20 font-bold uppercase tracking-widest">{format(new Date(r.createdAt), 'MMM d, HH:mm')}</span>
+                                {r.assignedTo && (
+                                    <div className="flex items-center gap-1.5 text-[9px] text-primary font-bold">
+                                        <User className="w-3 h-3" />
+                                        <span>{r.assignedTo.name}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))

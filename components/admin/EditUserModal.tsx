@@ -1,12 +1,19 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { updateUser } from '@/app/actions/adminActions'
 import { Edit, X, Save } from 'lucide-react'
 
 export default function EditUserModal({ user, departments }: { user: any, departments: any[] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -52,8 +59,8 @@ export default function EditUserModal({ user, departments }: { user: any, depart
         <Edit className="w-4 h-4" />
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      {isOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-base-100 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-200">
             <div className="p-6 border-b border-base-200 flex justify-between items-center bg-base-200/50">
               <h3 className="font-bold text-lg">Edit User: {user.name}</h3>
@@ -139,7 +146,8 @@ export default function EditUserModal({ user, departments }: { user: any, depart
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

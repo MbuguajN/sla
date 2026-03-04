@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { uploadLogo, getSystemSettings, saveSystemSettings } from '@/app/actions/settingsActions'
-import { Upload, CheckCircle2, AlertCircle, Sun, Moon, Heart, Shield, Monitor, Settings2 } from 'lucide-react'
+import { Upload, CheckCircle2, AlertCircle, Sun, Moon, Heart, Shield, Monitor, Settings2, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
@@ -112,6 +112,16 @@ function HRTab() {
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Suggestion Box</h3>
                         <p className="text-[10px] text-base-content/30 mt-1">View employee suggestions and complaints</p>
+                    </div>
+                </Link>
+
+                <Link href="/admin/users" className="glass-panel group p-8 rounded-3xl flex flex-col items-center text-center gap-4 hover:border-secondary/20 border border-transparent transition-all hover:scale-[1.02]">
+                    <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center">
+                        <Users2 className="w-6 h-6 text-secondary" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Directory</h3>
+                        <p className="text-[10px] text-base-content/30 mt-1">Manage personnel and organizational structure</p>
                     </div>
                 </Link>
             </div>

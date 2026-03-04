@@ -48,6 +48,7 @@ export async function createTask(data: {
   watcherIds?: number[]
   dueAt: Date
   projectId?: number
+  subProjectId?: number
   isTicket?: boolean
 }) {
   try {
@@ -57,14 +58,12 @@ export async function createTask(data: {
 
     // STRICTURE: Only BDev can create briefs (tasks without a project)
     // Client Service can initialize tasks but only within specific projects
-    const userRole = (session.user as any).role
     const userDept = (session.user as any).departmentName
-
-    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'ADMIN'
-    const isCS = userDept === 'CLIENT_SERVICE'
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
+    const isCS = userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE'
 
     if (!isBD && !isCS) {
-      throw new Error('STRATEGIC DENIAL: Directive initiation is restricted to Business Development and Client Service departments.')
+      throw new Error('STRATEGIC DENIAL: Directive initiation is restricted to Business Development and Client Service departments. Unauthorized role extension detected.')
     }
 
 
@@ -76,6 +75,7 @@ export async function createTask(data: {
         assigneeId: data.assigneeId,
         departmentId: data.departmentId,
         projectId: data.projectId,
+        subProjectId: data.subProjectId,
         isTicket: data.isTicket ?? true,
         reporterId: operatorId,
         dueAt: data.dueAt,
@@ -83,7 +83,7 @@ export async function createTask(data: {
         watchers: data.watcherIds ? {
           create: data.watcherIds.map(userId => ({ userId }))
         } : undefined
-      }
+      } as any
     })
 
     // RECORD AUDIT
@@ -111,10 +111,15 @@ export async function assignTask(taskId: number, assigneeId: number) {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
     const operatorRole = (session?.user as any)?.role
+    const operatorDept = (session?.user as any)?.departmentName
+
+    const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
+    const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
+
     if (!operatorId) throw new Error('Unauthorized')
 
-    if (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR') {
-      throw new Error('STRATEGIC DENIAL: Resource allocation is restricted to management personnel.')
+    if ((isCS || isBD) || (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR')) {
+      throw new Error('STRATEGIC DENIAL: Resource allocation is restricted to management personnel outside of the initiation departments.')
     }
 
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
@@ -275,6 +280,15 @@ export async function processTicket(
 ) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Unauthorized')
+  const operatorRole = (session?.user as any)?.role
+  const operatorDept = (session?.user as any)?.departmentName
+
+  const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
+  const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
+
+  if ((isCS || isBD) || (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR')) {
+    throw new Error('STRATEGIC DENIAL: Resource allocation and brief processing is restricted to management personnel outside of the initiation departments.')
+  }
 
   const task = await prisma.task.update({
     where: { id: taskId },
@@ -312,16 +326,30 @@ export async function processTicket(
 
 export async function dismissTicket(taskId: number) {
   const session = await auth()
+  if (!session?.user?.id) throw new Error('Unauthorized')
+  const operatorId = Number(session.user.id)
   const operatorRole = (session?.user as any)?.role
 
-  if (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR') {
-    throw new Error('STRATEGIC DENIAL: Operational dismissal is restricted to management personnel.')
+  const task = await prisma.task.findUnique({ where: { id: taskId } })
+  if (!task) throw new Error('STRATEGIC DENIAL: Directive not found.')
+
+  // STRICTURE 1: Only Incoming stage (PENDING or RECEIVED)
+  if (task.status !== 'PENDING' && task.status !== 'RECEIVED') {
+    throw new Error('STRATEGIC DENIAL: Operational dismissal is restricted to the incoming stage.')
   }
 
-  const task = await prisma.task.update({
+  // STRICTURE 2: Only the original initiator (reporter) can dismiss
+  if (task.reporterId !== operatorId && operatorRole !== 'ADMIN') {
+    throw new Error('STRATEGIC DENIAL: Operational dismissal is restricted to the original initiator.')
+  }
+
+  const updatedTask = await prisma.task.update({
     where: { id: taskId },
     data: { status: TaskStatus.DISMISSED }
   })
+
+  await createAuditLog(taskId, operatorId, 'TICKET_DISMISSED', task.status, 'DISMISSED')
+
   revalidatePath('/client-service/tickets')
-  return task
+  return updatedTask
 }

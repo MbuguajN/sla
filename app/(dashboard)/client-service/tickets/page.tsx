@@ -4,14 +4,28 @@ import prisma from '@/lib/db'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import TicketTable from './TicketTable'
-import { Inbox, Filter } from 'lucide-react'
+import { Inbox } from 'lucide-react'
 
-async function TicketList({ departmentId, isManager, currentUserId, isBDUser, userRole }: { departmentId?: number, isManager?: boolean, currentUserId: number, isBDUser: boolean, userRole: string }) {
+async function TicketList({
+  departmentId,
+  isManager,
+  currentUserId,
+  isBDUser,
+  userRole,
+  userDept
+}: {
+  departmentId?: number,
+  isManager?: boolean,
+  currentUserId: number,
+  isBDUser: boolean,
+  userRole: string,
+  userDept: string
+}) {
   const tickets = await prisma.task.findMany({
     where: {
       isTicket: true,
       ...(isBDUser
-        ? { reporterId: currentUserId }  // BD users see only briefs they created
+        ? { reporterId: currentUserId }
         : isManager && departmentId
           ? { departmentId }
           : {}
@@ -33,21 +47,13 @@ async function TicketList({ departmentId, isManager, currentUserId, isBDUser, us
       },
       assignee: {
         select: { id: true, name: true }
-      },
-      senderName: true,
-      senderEmail: true
+      }
     },
     orderBy: { createdAt: 'desc' }
   })
 
-  const departments = await prisma.department.findMany({
-    select: { id: true, name: true }
-  })
-
-  const slas = await prisma.sla.findMany({
-    select: { id: true, name: true, tier: true }
-  })
-
+  const departments = await prisma.department.findMany({ select: { id: true, name: true } })
+  const slas = await prisma.sla.findMany({ select: { id: true, name: true, tier: true } })
   const users = await prisma.user.findMany({
     select: { id: true, name: true, role: true, departmentId: true, department: { select: { name: true } } },
     orderBy: { name: 'asc' }
@@ -61,6 +67,7 @@ async function TicketList({ departmentId, isManager, currentUserId, isBDUser, us
       users={users as any}
       currentUserId={currentUserId}
       userRole={userRole}
+      userDept={userDept}
     />
   )
 }
@@ -71,7 +78,6 @@ function TicketTableSkeleton() {
       <div className="h-8 bg-base-200 animate-pulse rounded-lg w-full" />
       <div className="h-8 bg-base-200 animate-pulse rounded-lg w-full" />
       <div className="h-8 bg-base-200 animate-pulse rounded-lg w-full" />
-      <div className="h-8 bg-base-200 animate-pulse rounded-lg w-full" />
     </div>
   )
 }
@@ -79,7 +85,7 @@ function TicketTableSkeleton() {
 export default async function ClientServiceTicketsPage() {
   const session = await auth()
   const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
+  const deptName = (session?.user as any)?.departmentName || ''
   const deptId = (session?.user as any)?.departmentId
 
   const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
@@ -87,7 +93,6 @@ export default async function ClientServiceTicketsPage() {
   const isManager = role === 'MANAGER'
   const isAdmin = role === 'ADMIN' || role === 'CEO' || role === 'HR'
 
-  // STRICT HIERARCHY: CS and CEO see ALL briefs. BD sees only briefs they reported. Managers see their department's briefs.
   const filterByDept = isManager && !isAdmin && !isCS && !isBD
 
   if (!isAdmin && !isCS && !isManager && !isBD) {
@@ -116,6 +121,7 @@ export default async function ClientServiceTicketsPage() {
             currentUserId={currentUserId}
             isBDUser={isBD && !isAdmin}
             userRole={role}
+            userDept={deptName}
           />
         </Suspense>
       </div>

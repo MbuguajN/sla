@@ -36,7 +36,7 @@ export async function createITSupportRequest(data: {
                     userId: tech.id,
                     content: `New IT support request: ${data.title} (${data.priority})`,
                     type: 'IT_SUPPORT',
-                    link: '/account'
+                    link: '/it-support'
                 }
             })
         }
@@ -92,7 +92,7 @@ export async function assignITRequest(id: number, assigneeId: number) {
             userId: assigneeId,
             content: `You have been assigned an IT support request: ${request.title}`,
             type: 'IT_ASSIGNED',
-            link: '/account'
+            link: '/it-support'
         }
     })
 

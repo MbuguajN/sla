@@ -47,8 +47,8 @@ export async function getSuggestions(statusFilter?: string) {
     if (!session?.user) throw new Error('Unauthorized')
 
     const role = (session.user as any).role
-    if (role !== 'ADMIN') {
-        throw new Error('Only admin can view suggestions')
+    if (role !== 'ADMIN' && role !== 'HR') {
+        throw new Error('Only admin or HR can view suggestions')
     }
 
     const where: any = {}
@@ -70,8 +70,8 @@ export async function updateSuggestionStatus(id: number, status: string, adminNo
     if (!session?.user) throw new Error('Unauthorized')
 
     const role = (session.user as any).role
-    if (role !== 'ADMIN') {
-        throw new Error('Only admin can update suggestions')
+    if (role !== 'ADMIN' && role !== 'HR') {
+        throw new Error('Only admin or HR can update suggestions')
     }
 
     const suggestion = await prisma.suggestion.update({

@@ -65,128 +65,137 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8 pb-12 animate-in fade-in duration-500">
-            <div className="flex items-center gap-4">
-                <Link href="/projects" className="btn btn-ghost btn-sm gap-2 uppercase font-black text-[10px] tracking-widest opacity-60">
-                    <ArrowLeft className="w-3 h-3" />
-                    Back to Projects
-                </Link>
+        <div className="min-h-[calc(100vh-4rem)] bg-base-100 flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans -mt-8">
+            {/* Dynamic Background */}
+            <div className="absolute inset-0 z-0">
+                <div className="absolute top-0 left-0 w-full h-[60%] bg-gradient-to-b from-primary/[0.03] to-transparent" />
+                <div className="absolute top-[20%] left-[10%] w-96 h-96 bg-primary/5 blur-[100px] rounded-full animate-pulse" />
+                <div className="absolute bottom-[20%] right-[10%] w-[30rem] h-[30rem] bg-secondary/5 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
             </div>
 
-            <div className="flex items-center gap-5">
-                <div className="w-16 h-16 bg-primary/10 rounded-[2rem] flex items-center justify-center text-primary border border-primary/20 shadow-inner">
-                    <Folder className="w-8 h-8" />
-                </div>
-                <div>
-                    <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase">New Project</h1>
-                    <p className="text-sm font-medium text-base-content/60 italic">Create a new project and define its priority levels.</p>
-                </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="card bg-base-100 shadow-xl border border-base-200">
-                        <div className="card-body p-8 space-y-6">
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-primary/60 mb-2">Project Identity</h2>
-
-                            <div className="form-control">
-                                <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Client / Project Name</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="e.g., Global Redesign 2024"
-                                    className="input input-bordered w-full font-bold text-sm bg-base-200/30 border-base-300 focus:border-primary"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="form-control">
-                                <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Project Description</span>
-                                </label>
-                                <textarea
-                                    required
-                                    placeholder="Describe the project goals and scope..."
-                                    className="textarea textarea-bordered h-40 w-full font-medium text-sm bg-base-200/30 border-base-300 focus:border-primary"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="lg:col-span-1 space-y-8">
-                    <div className="card bg-base-100 shadow-xl border border-warning/20 overflow-hidden">
-                        <div className="bg-warning/5 p-6 border-b border-warning/10">
-                            <h2 className="text-xs font-black uppercase tracking-[0.2em] text-warning">Default Priority</h2>
-                            <p className="text-[10px] font-bold opacity-60 mt-1">Set the default response times for this project.</p>
-                        </div>
-                        <div className="card-body p-6 space-y-4">
-                            <div className="form-control">
-                                <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Priority Name</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="e.g. Standard 5DM"
-                                    className="input input-bordered input-sm font-bold bg-base-200/30"
-                                    value={formData.slaName}
-                                    onChange={(e) => setFormData({ ...formData, slaName: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="form-control">
-                                <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Turnaround (Hours)</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    placeholder="24"
-                                    className="input input-bordered input-sm font-bold bg-base-200/30"
-                                    value={formData.slaDurationHrs}
-                                    onChange={(e) => setFormData({ ...formData, slaDurationHrs: e.target.value })}
-                                />
-                            </div>
-
-                            <div className="form-control">
-                                <label className="label">
-                                    <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Priority Tier</span>
-                                </label>
-                                <select
-                                    className="select select-bordered select-sm font-bold bg-base-200/30"
-                                    value={formData.slaTier}
-                                    onChange={(e) => setFormData({ ...formData, slaTier: e.target.value })}
-                                >
-                                    <option value="LOW">Low</option>
-                                    <option value="STANDARD">Standard</option>
-                                    <option value="URGENT">Urgent</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={loading || !formData.title.trim()}
-                        className="btn btn-primary btn-block shadow-lg gap-2 h-14 uppercase font-black text-[12px] tracking-widest"
-                    >
-                        {loading ? (
-                            <span className="loading loading-spinner loading-sm" />
-                        ) : (
-                            <Save className="w-5 h-5" />
-                        )}
-                        Initialize Project
-                    </button>
-
-                    <Link href="/projects" className="btn btn-ghost btn-block btn-sm uppercase font-black text-[10px] tracking-widest opacity-40">
-                        Cancel
+            <div className="max-w-4xl w-full relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
+                {/* Back Button */}
+                <div className="absolute -top-12 left-0">
+                    <Link href="/projects" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] opacity-30 hover:opacity-100 hover:text-primary transition-all">
+                        <ArrowLeft className="w-3 h-3" />
+                        Abort Initialization
                     </Link>
                 </div>
-            </form>
+
+                {/* Card — Modern Glassmorphism */}
+                <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 p-10 lg:p-12">
+                    <div className="flex flex-col items-center gap-10">
+                        <div className="flex flex-col items-center gap-4 text-center">
+                            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-inner mb-2">
+                                <Folder className="w-8 h-8" />
+                            </div>
+                            <div className="space-y-2">
+                                <h1 className="text-3xl font-black tracking-tight text-base-content uppercase italic">Initialize Project</h1>
+                                <p className="text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Strategic Framework Creation</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="w-full space-y-12">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                                {/* Left Side: Project Identity */}
+                                <div className="space-y-8 flex flex-col items-center">
+                                    <div className="w-full space-y-8">
+                                        <div className="space-y-3 text-center">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Client / Project Identity</label>
+                                            <input
+                                                type="text"
+                                                required
+                                                placeholder="e.g., Global Redesign 2024"
+                                                className="input input-lg w-full bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-center placeholder:text-base-content/10 shadow-inner h-14"
+                                                value={formData.title}
+                                                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-3 text-center">
+                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Strategic Parameters</label>
+                                            <textarea
+                                                required
+                                                placeholder="Codify project scope and mission objectives..."
+                                                className="textarea w-full h-40 bg-base-content/5 border-none rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-6 text-center placeholder:text-base-content/10 shadow-inner resize-none overflow-y-auto"
+                                                value={formData.description}
+                                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Right Side: SLA Defaults */}
+                                <div className="space-y-8 flex flex-col items-center">
+                                    <div className="w-full h-full p-8 bg-warning/[0.03] rounded-[2.5rem] border border-warning/10 space-y-8 flex flex-col items-center justify-center">
+                                        <div className="text-center space-y-2">
+                                            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-warning italic leading-none">Response Protocol</h2>
+                                            <p className="text-[8px] font-bold opacity-30 uppercase tracking-widest italic leading-none">Baseline Service Level Agreement</p>
+                                        </div>
+
+                                        <div className="w-full space-y-6">
+                                            <div className="space-y-2 text-center">
+                                                <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Protocol Title</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Standard Response"
+                                                    className="input input-sm w-full bg-base-100/50 border-none rounded-xl text-center font-black uppercase text-xs focus:ring-1 ring-warning/30"
+                                                    value={formData.slaName}
+                                                    onChange={(e) => setFormData({ ...formData, slaName: e.target.value })}
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2 text-center">
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Duration (H)</label>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="24"
+                                                        className="input input-sm w-full bg-base-100/50 border-none rounded-xl text-center font-black text-xs focus:ring-1 ring-warning/30"
+                                                        value={formData.slaDurationHrs}
+                                                        onChange={(e) => setFormData({ ...formData, slaDurationHrs: e.target.value })}
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2 text-center">
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Priority Tier</label>
+                                                    <select
+                                                        className="select select-sm w-full bg-base-100/50 border-none rounded-xl text-center font-black uppercase text-[10px] focus:ring-1 ring-warning/30 appearance-none"
+                                                        value={formData.slaTier}
+                                                        onChange={(e) => setFormData({ ...formData, slaTier: e.target.value })}
+                                                    >
+                                                        <option value="LOW">Low Velocity</option>
+                                                        <option value="STANDARD">Standard</option>
+                                                        <option value="URGENT">Critical</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-center pt-6">
+                                <button
+                                    type="submit"
+                                    disabled={loading || !formData.title.trim()}
+                                    className="btn btn-primary btn-lg w-full max-w-sm h-16 rounded-2xl font-black uppercase text-xs tracking-[0.25em] shadow-ruby-soft hover:scale-[1.03] active:scale-[0.97] transition-all border-none"
+                                >
+                                    {loading ? (
+                                        <span className="loading loading-spinner" />
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            <Save className="w-5 h-5" />
+                                            <span>Deploy Protocol</span>
+                                        </div>
+                                    )}
+                                </button>
+                                <p className="mt-4 text-[8px] font-black uppercase tracking-[0.4em] opacity-20 italic">Framework deployment requires strategic authorization.</p>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

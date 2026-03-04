@@ -33,6 +33,8 @@ model User {
   itRequests       ITSupportRequest[] @relation("ITRequestor")
   itAssigned       ITSupportRequest[] @relation("ITAssigned")
   itResolved       ITSupportRequest[] @relation("ITResolver")
+  createdProjects    Project[]      @relation("ProjectCreator")
+  createdSubProjects SubProject[]   @relation("SubProjectCreator")
 
   @@index([departmentId])
 }
@@ -49,21 +51,46 @@ model Sla {
   id              Int       @id @default(autoincrement())
   name            String
   durationHrs     Int
-  tier            String
+  tier            String    @default("BRONZE")
   projectDefaults Project[] @relation("ProjectDefaultSla")
   tasks           Task[]
 }
 
 model Project {
-  id           Int       @id @default(autoincrement())
+  id           Int          @id @default(autoincrement())
   title        String
   description  String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  status       String       @default("ACTIVE")
+  createdById  Int?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   defaultSlaId Int?
   messages     Message[]
-  defaultSla   Sla?      @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
+  defaultSla   Sla?         @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
   tasks        Task[]
+  subProjects  SubProject[]
+  createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id])
+}
+
+model SubProject {
+  id           Int          @id @default(autoincrement())
+  title        String
+  description  String?
+  status       String       @default("ACTIVE")
+  projectId    Int
+  parentId     Int?
+  createdById  Int
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent       SubProject?  @relation("SubProjectTree", fields: [parentId], references: [id])
+  children     SubProject[] @relation("SubProjectTree")
+  createdBy    User         @relation("SubProjectCreator", fields: [createdById], references: [id])
+  tasks        Task[]
+
+  @@index([projectId])
+  @@index([parentId])
 }
 
 model Task {
@@ -83,6 +110,7 @@ model Task {
   parentTaskId Int?
   pauseReason  String?
   projectId    Int?
+  subProjectId Int?
   reporterId   Int?
   senderEmail  String?
   senderName   String?
@@ -92,6 +120,7 @@ model Task {
   sla          Sla?         @relation(fields: [slaId], references: [id])
   reporter     User?        @relation("ReportedTasks", fields: [reporterId], references: [id])
   project      Project?     @relation(fields: [projectId], references: [id])
+  subProject   SubProject?  @relation(fields: [subProjectId], references: [id])
   parentTask   Task?        @relation("SubTasks", fields: [parentTaskId], references: [id])
   subTasks     Task[]       @relation("SubTasks")
   assignee     User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
@@ -100,6 +129,7 @@ model Task {
   @@index([status])
   @@index([assigneeId])
   @@index([projectId])
+  @@index([subProjectId])
   @@index([departmentId])
   @@index([isTicket])
 }

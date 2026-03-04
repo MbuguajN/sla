@@ -328,23 +328,57 @@ export default function DepartmentQueueClient({
                           </div>
                         )}
 
-                        {/* Dropdown Logic Remained Same but restyled */}
+                        {/* Reassign Dropdown Refinement */}
                         {reassigningTaskId === task.id && (
-                          <div className="absolute top-1/2 -translate-y-1/2 right-full mr-4 z-50 glass-panel p-3 rounded-2xl min-w-[200px] shadow-2xl animate-in fade-in slide-in-from-right-4">
-                            <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-base-content/20 mb-3 px-2">Team Members</h5>
-                            <div className="space-y-1 max-h-64 overflow-y-auto premium-scrollbar">
-                              {members.map(m => (
-                                <button
-                                  key={m.id}
-                                  onClick={() => handleReassign(task.id, m.id)}
-                                  className="w-full text-left px-3 py-2.5 hover:bg-primary hover:text-white rounded-xl text-[11px] font-bold transition-all flex items-center gap-3 group/item"
-                                >
-                                  <div className="w-6 h-6 rounded-full bg-base-content/5 flex items-center justify-center leading-none group-hover/item:bg-white/20 overflow-hidden">
-                                    <span className="flex items-center justify-center w-full h-full translate-y-[0.5px]">{m.name.charAt(0)}</span>
+                          <div className="absolute top-1/2 -translate-y-1/2 right-full mr-6 z-50 w-72 bg-base-100 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-base-content/5 p-6 animate-in fade-in slide-in-from-right-6 duration-300 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+
+                            <div className="relative z-10">
+                              <div className="flex items-center gap-3 mb-5 px-1">
+                                <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                                  <UserPlus size={16} />
+                                </div>
+                                <div>
+                                  <h5 className="text-[11px] font-black uppercase tracking-widest text-base-content/80">Reassign Workflow</h5>
+                                  <p className="text-[9px] font-bold text-base-content/30 uppercase tracking-wider">Select New Handler</p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1.5 max-h-[280px] overflow-y-auto premium-scrollbar pr-1 -mr-1">
+                                {members.filter(m => m.id !== task.assigneeId).map(m => (
+                                  <button
+                                    key={m.id}
+                                    onClick={() => handleReassign(task.id, m.id)}
+                                    className="w-full text-left p-3 hover:bg-primary hover:text-white rounded-[1.25rem] text-xs font-bold transition-all flex items-center gap-3 group/item border border-transparent hover:border-primary/20 hover:shadow-lg hover:shadow-primary/20 active:scale-95"
+                                  >
+                                    <div className="w-8 h-8 rounded-xl bg-base-content/5 flex items-center justify-center leading-none group-hover/item:bg-white/20 transition-colors overflow-hidden shrink-0">
+                                      {m.avatarUrl ? (
+                                        <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="text-[10px] font-black translate-y-[0.5px]">{m.name.charAt(0)}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="truncate">{m.name}</span>
+                                      <span className="text-[9px] font-bold opacity-40 group-hover/item:opacity-70 transition-opacity uppercase tracking-widest">
+                                        {m.role || 'Agent'}
+                                      </span>
+                                    </div>
+                                  </button>
+                                ))}
+                                {members.filter(m => m.id !== task.assigneeId).length === 0 && (
+                                  <div className="py-8 text-center bg-base-content/[0.02] rounded-3xl border border-dashed border-base-content/5">
+                                    <p className="text-[10px] font-bold text-base-content/20 uppercase tracking-widest">No other members</p>
                                   </div>
-                                  {m.name}
-                                </button>
-                              ))}
+                                )}
+                              </div>
+
+                              <button
+                                onClick={() => setReassigningTaskId(null)}
+                                className="w-full mt-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] text-base-content/20 hover:text-error hover:bg-error/5 transition-all"
+                              >
+                                Cancel Assignment
+                              </button>
                             </div>
                           </div>
                         )}
