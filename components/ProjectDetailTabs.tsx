@@ -45,8 +45,8 @@ export default function ProjectDetailTabs({
     const completedTasks = directTasks.filter(t => t.status === 'COMPLETED')
 
     const tabs = [
-        { id: 'subprojects' as TabId, label: 'Sub-Projects', icon: FolderOpen, count: subProjects.length },
-        { id: 'tasks' as TabId, label: 'Direct Tasks', icon: ClipboardList, count: directTasks.length },
+        { id: 'subprojects' as TabId, label: 'Phases', icon: FolderOpen, count: subProjects.length },
+        { id: 'tasks' as TabId, label: 'Tasks', icon: ClipboardList, count: directTasks.length },
     ]
 
     return (

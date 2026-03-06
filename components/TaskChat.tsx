@@ -36,6 +36,7 @@ export default function TaskChat({
         const res = await fetch(`/api/messages?taskId=${taskId || ''}&projectId=${projectId || ''}`)
         if (res.ok) {
           const data = await res.json()
+          // Update messages if new ones are found
           if (data.messages && data.messages.length > messages.length) {
             setMessages(data.messages)
           }

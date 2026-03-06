@@ -17,7 +17,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
     const [description, setDescription] = useState('')
 
     const isSublet = !!parentId
-    const label = isSublet ? 'Sublet' : 'Sub-Project'
+    const label = isSublet ? 'Unit' : 'Phase'
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
@@ -74,7 +74,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
                             New {label}
                         </h3>
                         <p className="text-[10px] font-bold text-base-content/40 mt-0.5">
-                            {isSublet ? 'Add a sublet to this sub-project' : 'Add a sub-project to this project'}
+                            {isSublet ? 'Add a unit to this phase' : 'Add a phase to this project'}
                         </p>
                     </div>
                 </div>

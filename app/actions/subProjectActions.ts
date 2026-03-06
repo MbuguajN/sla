@@ -87,6 +87,19 @@ export async function updateSubProject(id: number, data: {
     const session = await auth()
     if (!session?.user?.id) throw new Error('Unauthorized')
 
+    const userDept = (session.user as any).departmentName
+    const userRole = (session.user as any).role
+
+    const isCS = userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE'
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
+    const isAdmin = userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'SUPER_ADMIN'
+
+    if (data.status !== undefined) {
+        if (!isCS && !isBD && !isAdmin) {
+            throw new Error('STRATEGIC DENIAL: Lifecycle management of sub-projects is restricted to Client Service and Business Development.')
+        }
+    }
+
     const subProject = await prisma.subProject.update({
         where: { id },
         data: {

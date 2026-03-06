@@ -156,7 +156,7 @@ export default function DepartmentQueueClient({
             <div className="space-y-1.5 focus-within:">
               <div className="flex items-center gap-2 text-primary font-bold uppercase tracking-wider text-xs opacity-70">
                 <ShieldCheck className="w-3 h-3" />
-                Departmental Queue
+                Active Tasks
               </div>
               <h1 className="text-4xl font-extrabold tracking-tight text-base-content leading-none">{departmentName}</h1>
               <div className="flex items-center gap-3">
@@ -214,11 +214,8 @@ export default function DepartmentQueueClient({
 
       {/* Data Environment */}
       <div className="relative">
-        <div className={cn(
-          "glass-panel rounded-[2.5rem] overflow-hidden shadow-soft border border-base-content/5 transition-all duration-500",
-          showMembers ? "md:mr-80" : "mr-0"
-        )}>
-          {/* State Toggle */}
+        <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-soft border border-base-content/5 transition-all duration-500">
+          {/* List Toggle */}
           <div className="flex items-center gap-1 p-3 border-b border-base-content/5 bg-base-content/[0.02]">
             {['ongoing', 'completed'].map((mode) => (
               <button
@@ -239,7 +236,7 @@ export default function DepartmentQueueClient({
             <table className="premium-table">
               <thead>
                 <tr>
-                  <th className="rounded-tl-2xl uppercase tracking-widest text-[10px] py-6 px-6">Task Details</th>
+                  <th className="rounded-tl-2xl uppercase tracking-widest text-[10px] py-6 px-6">Directives</th>
                   <th className="uppercase tracking-widest text-[10px]">Status</th>
                   <th className="uppercase tracking-widest text-[10px]">Deadline</th>
                   <th className="rounded-tr-2xl uppercase tracking-widest text-[10px]">Handler</th>
@@ -456,48 +453,6 @@ export default function DepartmentQueueClient({
                 </div>
               )
             })}
-          </div>
-        </div>
-
-        {/* Member Sidebar/Drawer */}
-        <div className={cn(
-          "fixed top-0 right-0 h-full w-80 bg-base-100 border-l border-base-content/5 shadow-2xl transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] z-[60] p-8",
-          showMembers ? "translate-x-0" : "translate-x-full"
-        )}>
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-base-content/5">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 text-primary rounded-xl">
-                <Users size={16} />
-              </div>
-              <h3 className="text-sm font-black uppercase tracking-widest">Team Grid</h3>
-            </div>
-            <button
-              onClick={() => setShowMembers(false)}
-              className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center text-base-content/30 hover:bg-error/10 hover:text-error transition-all"
-            >
-              <ChevronRight size={14} className="rotate-180" />
-            </button>
-          </div>
-
-          <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-180px)] premium-scrollbar pr-2">
-            {members.map(member => (
-              <div key={member.id} className="group flex items-center gap-4 p-3 rounded-2xl bg-base-content/[0.02] border border-transparent hover:border-primary/20 hover:bg-primary/[0.02] transition-all">
-                <div className="relative">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm border border-primary/10 group-hover:scale-110 transition-transform">
-                    {member.avatarUrl ? (
-                      <img src={member.avatarUrl} alt="" className="w-full h-full object-cover rounded-xl" />
-                    ) : (
-                      member.name.charAt(0)
-                    )}
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-success border-2 border-base-100 rounded-full" />
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-base-content/80 group-hover:text-primary transition-colors truncate">{member.name}</span>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-base-content/20">{member.role || 'Agent'}</span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

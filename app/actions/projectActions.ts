@@ -2,10 +2,11 @@
 
 import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/auth'
 
 export async function addProjectMember(projectId: number, userId: number, role: string = 'MEMBER') {
   try {
-    await prisma.projectMember.create({
+    await (prisma as any).projectMember.create({
       data: {
         projectId,
         userId,
@@ -22,7 +23,7 @@ export async function addProjectMember(projectId: number, userId: number, role: 
 
 export async function removeProjectMember(projectId: number, userId: number) {
   try {
-    await prisma.projectMember.delete({
+    await (prisma as any).projectMember.delete({
       where: {
         projectId_userId: {
           projectId,
@@ -38,17 +39,34 @@ export async function removeProjectMember(projectId: number, userId: number) {
   }
 }
 
-export async function getEligibleUsers() {
-  return await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      department: {
-        select: { name: true }
+export async function updateProjectStatus(projectId: number, status: string) {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) throw new Error('Unauthorized')
+
+    const userDept = (session.user as any).departmentName
+    const userRole = (session.user as any).role
+
+    // Only Business Development can pause/close main projects
+    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
+    const isAdmin = userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'SUPER_ADMIN'
+
+    if (['PAUSED', 'CLOSED', 'ON_HOLD', 'COMPLETED'].includes(status.toUpperCase())) {
+      if (!isBD && !isAdmin) {
+        throw new Error('STRATEGIC DENIAL: Lifecycle termination or suspension of main projects is restricted to Business Development.')
       }
-    },
-    orderBy: { name: 'asc' }
-  })
+    }
+
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status }
+    })
+
+    revalidatePath('/projects')
+    revalidatePath(`/projects/${projectId}`)
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error updating project status:', error)
+    return { error: error.message || 'Failed to update status' }
+  }
 }

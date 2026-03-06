@@ -66,7 +66,7 @@ export default function SubProjectCard({ sub, isSublet = false }: { sub: SubProj
                         {sub.title}
                     </h3>
                     <p className="text-[12px] text-base-content/50 font-medium leading-relaxed line-clamp-2">
-                        {sub.description || (isSublet ? "Operational sublet unit." : "Strategic sub-project scope.")}
+                        {sub.description || (isSublet ? "Operational unit." : "Strategic phase scope.")}
                     </p>
                 </div>
 
@@ -80,7 +80,7 @@ export default function SubProjectCard({ sub, isSublet = false }: { sub: SubProj
                         {!isSublet && (
                             <div className="flex items-center gap-1.5">
                                 <GitBranch size={13} className="text-warning/40" />
-                                <span>{childCount} Sublets</span>
+                                <span>{childCount} Units</span>
                             </div>
                         )}
                     </div>
