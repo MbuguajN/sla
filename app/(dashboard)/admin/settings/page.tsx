@@ -5,14 +5,15 @@ import { uploadLogo, getSystemSettings, saveSystemSettings } from '@/app/actions
 import { Upload, CheckCircle2, AlertCircle, Sun, Moon, Heart, Shield, Monitor, Settings2, Users2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { LimelightNav } from '@/components/ui/limelight-nav'
 
 export default function AdminSettingsPage() {
     const [activeTab, setActiveTab] = useState('branding')
 
     const tabs = [
-        { id: 'branding', label: 'Branding', icon: Settings2 },
-        { id: 'hr', label: 'HR & People', icon: Heart },
-        { id: 'it', label: 'IT Support', icon: Monitor },
+        { id: 'branding', label: 'Branding', icon: <Settings2 /> },
+        { id: 'hr', label: 'HR & People', icon: <Heart /> },
+        { id: 'it', label: 'IT Support', icon: <Monitor /> },
     ]
 
     return (
@@ -23,28 +24,21 @@ export default function AdminSettingsPage() {
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex items-center gap-1 p-1.5 bg-base-content/5 rounded-2xl w-fit">
-                {tabs.map(t => (
-                    <button
-                        key={t.id}
-                        onClick={() => setActiveTab(t.id)}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all",
-                            activeTab === t.id
-                                ? "bg-white dark:bg-primary/10 text-primary shadow-sm"
-                                : "text-base-content/30 hover:text-base-content/50"
-                        )}
-                    >
-                        <t.icon className="w-3.5 h-3.5" />
-                        {t.label}
-                    </button>
-                ))}
+            <div className="flex justify-center md:justify-start">
+                <LimelightNav
+                    items={tabs}
+                    defaultActiveIndex={tabs.findIndex(t => t.id === activeTab)}
+                    onTabChange={(index) => setActiveTab(tabs[index].id)}
+                    activeColor="#be1e3d"
+                />
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'branding' && <BrandingTab />}
-            {activeTab === 'hr' && <HRTab />}
-            {activeTab === 'it' && <ITTab />}
+            <div className="mt-8 animate-fade-in">
+                {activeTab === 'branding' && <BrandingTab />}
+                {activeTab === 'hr' && <HRTab />}
+                {activeTab === 'it' && <ITTab />}
+            </div>
         </div>
     )
 }

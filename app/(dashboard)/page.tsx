@@ -36,14 +36,19 @@ export default async function DashboardPage() {
     },
     take: 8,
     orderBy: { updatedAt: 'desc' },
-    select: { id: true, name: true }
+    select: { id: true, name: true, role: true, avatarUrl: true }
   })
-  const activeUsers = activeUsersRaw.map((u: { id: number, name: string | null }) => ({
+  const activeUsers = activeUsersRaw.map((u: any) => ({
     ...u,
+    designation: u.role,
+    image: u.avatarUrl || undefined,
     color: u.id === userId ? 'bg-primary' : 'bg-neutral'
   }))
 
-  if (role === 'CEO') {
+  const isAdmin = ['CEO', 'ADMIN', 'SUPER_ADMIN'].includes(role)
+  const isHighVisibility = ['CLIENT_SERVICE', 'BUSINESS_DEVELOPMENT'].includes(role)
+
+  if (isAdmin) {
     const projects = await prisma.project.findMany({
       include: {
         tasks: {
@@ -100,10 +105,12 @@ export default async function DashboardPage() {
   const activeTasks = await prisma.task.findMany({
     where: {
       status: { not: 'COMPLETED' },
-      OR: [
-        { assigneeId: userId },
-        { assignee: { department: { headId: userId } } } // If Dept Head
-      ]
+      ...(isHighVisibility ? {} : {
+        OR: [
+          { assigneeId: userId },
+          { assignee: { department: { headId: userId } } } // Allow Dept Heads to see team tasks
+        ]
+      })
     },
     select: {
       id: true,
@@ -117,7 +124,22 @@ export default async function DashboardPage() {
       reporterId: true
     },
     orderBy: { dueAt: 'asc' },
-    take: 50
+    take: 100
+  })
+
+  const overdueCount = await prisma.task.count({
+    where: {
+      status: { not: 'COMPLETED' },
+      dueAt: { lt: new Date() },
+      ...(isHighVisibility ? {} : { assigneeId: userId })
+    }
+  })
+
+  const activeCount = await prisma.task.count({
+    where: {
+      status: { not: 'COMPLETED' },
+      ...(isHighVisibility ? {} : { assigneeId: userId })
+    }
   })
 
   return (
@@ -132,6 +154,8 @@ export default async function DashboardPage() {
         <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
           <Suspense fallback={<div className="h-32 bg-base-200 rounded-2xl animate-pulse" />}>
             <OperationsStats
+              userId={userId}
+              role={role}
               departmentId={(session?.user as any)?.departmentId ? Number((session?.user as any).departmentId) : undefined}
               isAdmin={role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CEO' || role === 'HR'}
             />
@@ -147,7 +171,7 @@ export default async function DashboardPage() {
       {/* Middle Row: Main Task Table */}
       <div className="grid grid-cols-1 gap-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <Suspense fallback={<div className="h-96 bg-base-200 rounded-2xl animate-pulse" />}>
-          <GlobalTaskTable initialTasks={activeTasks as any} currentUserId={userId} />
+          <GlobalTaskTable initialTasks={activeTasks as any} currentUserId={userId} currentUserRole={role} />
         </Suspense>
       </div>
 

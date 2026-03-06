@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Users, Search, Loader2 } from 'lucide-react'
-import { inviteToProject } from '@/app/actions/projectActions'
+import { addProjectMember, getEligibleUsers } from '@/app/actions/projectActions'
 import { useRouter } from 'next/navigation'
 
 export default function InviteMember({ projectId }: { projectId: number }) {
@@ -14,13 +14,14 @@ export default function InviteMember({ projectId }: { projectId: number }) {
   const router = useRouter()
 
   async function handleSearch() {
-    if (!search.trim()) return
     setIsSearching(true)
     try {
-      // In a real app, this would be a server action to search users
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(search)}`)
-      const data = await response.json()
-      setUsers(data)
+      const allEligible = await getEligibleUsers()
+      if (!search.trim()) {
+        setUsers(allEligible)
+      } else {
+        setUsers(allEligible.filter((u: any) => u.name.toLowerCase().includes(search.toLowerCase())))
+      }
     } catch (e) {
       console.error(e)
     } finally {
@@ -31,9 +32,13 @@ export default function InviteMember({ projectId }: { projectId: number }) {
   async function handleInvite(userId: number) {
     setLoading(true)
     try {
-      await inviteToProject(projectId, userId)
-      setIsOpen(false)
-      router.refresh()
+      const res = await addProjectMember(projectId, userId)
+      if (res.success) {
+        setIsOpen(false)
+        router.refresh()
+      } else {
+        alert(res.error)
+      }
     } catch (e) {
       alert("Failed to invite user")
     } finally {

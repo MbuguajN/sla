@@ -8,13 +8,33 @@ import Link from 'next/link'
 export default async function ProjectsPage() {
   const session = await auth()
   const role = (session?.user as any)?.role
+  const userId = Number(session?.user?.id)
   const deptName = (session?.user as any)?.departmentName
 
+  const isAdmin = ['ADMIN', 'CEO', 'SUPER_ADMIN'].includes(role)
+  const isManagement = isAdmin || ['BUSINESS_DEVELOPMENT', 'CLIENT_SERVICE', 'MANAGER'].includes(role)
+
   // Fetch projects with aggregated stats including sub-projects
+  let whereClause: any = {}
+  if (role === 'CLIENT_SERVICE') {
+    whereClause = { createdById: userId }
+  } else if (!isAdmin && role !== 'BUSINESS_DEVELOPMENT' && role !== 'MANAGER') {
+    // Regular employees see only projects they are invited to
+    whereClause = { members: { some: { userId } } }
+  }
+
   const projects = await prisma.project.findMany({
+    where: whereClause,
     include: {
       tasks: {
         select: { status: true }
+      },
+      members: {
+        include: {
+          user: {
+            select: { name: true }
+          }
+        }
       },
       subProjects: {
         where: { parentId: null },
@@ -56,6 +76,7 @@ export default async function ProjectsPage() {
       directTaskCount: p.tasks.length,
       completedCount: directCompleted,
       subProjectCount: p.subProjects.length,
+      members: p.members,
     }
   })
 

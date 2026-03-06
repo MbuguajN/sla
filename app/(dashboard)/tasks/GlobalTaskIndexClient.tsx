@@ -102,7 +102,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
             </div>
 
             {/* Table Card */}
-            <div className="bg-base-100 border border-base-200 rounded-xl overflow-hidden">
+            <div className="bg-base-100 border border-base-content/10 rounded-xl overflow-hidden shadow-md">
                 {/* Desktop Table */}
                 <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">

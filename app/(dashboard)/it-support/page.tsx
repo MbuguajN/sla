@@ -36,7 +36,7 @@ export default async function ITSupportQueuePage() {
     return (
         <div className="space-y-8 pb-20 animate-fade-in-up">
             {/* Premium Hero Header */}
-            <div className="relative overflow-hidden glass-panel rounded-3xl p-8 md:p-10">
+            <div className="relative overflow-hidden glass-panel rounded-3xl p-8 md:p-10 shadow-md">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] rounded-full -mr-32 -mt-32" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-error/5 blur-[60px] rounded-full -ml-24 -mb-24" />
                 <div className="relative flex items-center gap-6">
@@ -57,7 +57,7 @@ export default async function ITSupportQueuePage() {
                         { label: 'In Progress', val: inProgress, col: 'text-info', ring: 'ring-info/10', icon: Clock },
                         { label: 'Resolved', val: resolved, col: 'text-success', ring: 'ring-success/10', icon: CheckCircle2 },
                     ].map((s, i) => (
-                        <div key={i} className={`bg-base-100/50 backdrop-blur-sm rounded-2xl p-5 ring-1 transition-all hover:scale-[1.03] ${s.ring}`}>
+                        <div key={i} className={`bg-base-100/50 backdrop-blur-sm rounded-2xl p-5 ring-1 ring-base-content/10 transition-all hover:scale-[1.03] shadow-md ${s.ring}`}>
                             <div className="flex items-center gap-2 mb-1">
                                 <s.icon className={`w-3.5 h-3.5 ${s.col} opacity-60`} />
                                 <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20">{s.label}</span>

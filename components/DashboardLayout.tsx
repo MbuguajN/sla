@@ -64,6 +64,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const logoLight = settings.find(s => s.key === 'SYSTEM_LOGO_LIGHT')?.value || settings.find(s => s.key === 'SYSTEM_LOGO')?.value || null
   const logoDark = settings.find(s => s.key === 'SYSTEM_LOGO_DARK')?.value || settings.find(s => s.key === 'SYSTEM_LOGO')?.value || null
 
+  // Check for active review cycle to show Reviews link in sidebar
+  let hasActiveReview = false
+  try {
+    const activeReview = await prisma.reviewCycle.findFirst({
+      where: { status: 'ACTIVE', expiresAt: { gt: new Date() } },
+      select: { id: true }
+    })
+    hasActiveReview = !!activeReview
+  } catch { /* ignore if table doesn't exist yet */ }
+
   if (!dbUser && session.user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-base-100">
@@ -110,6 +120,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         dbUser={dbUser}
         logoLight={logoLight}
         logoDark={logoDark}
+        hasActiveReview={hasActiveReview}
       />
     </div>
   )

@@ -1,18 +1,20 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { updateProfile, uploadAvatar } from '@/app/actions/profileActions'
 import { createLeaveRequest } from '@/app/actions/hrActions'
+import { getMyLeaveBalance } from '@/app/actions/leavePolicyActions'
 import { createSuggestion } from '@/app/actions/suggestionActions'
 import { createITSupportRequest } from '@/app/actions/itSupportActions'
 import { cn } from '@/lib/utils'
 import { format, formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import {
-    User, CalendarDays, MessageSquare, Monitor, Send, Shield,
+    User, CalendarDays, CalendarOff, MessageSquare, Monitor, Send, Shield,
     CheckCircle2, XCircle, Clock, Plus, ChevronDown, ChevronUp,
     Camera, Lock, Eye, EyeOff, Pencil, Activity
 } from 'lucide-react'
+import { LimelightNav } from '@/components/ui/limelight-nav'
 
 type AccountClientProps = {
     user: any
@@ -26,10 +28,10 @@ export default function AccountClient({ user, leaves, suggestions, itRequests }:
     const [activeTab, setActiveTab] = useState('profile')
 
     const tabs = [
-        { id: 'profile', label: 'Profile', icon: User },
-        { id: 'leave', label: 'Leave', icon: CalendarDays },
-        { id: 'suggestions', label: 'Suggestions', icon: MessageSquare },
-        { id: 'it', label: 'IT Support', icon: Monitor },
+        { id: 'profile', label: 'Profile', icon: <User /> },
+        { id: 'leave', label: 'Leave', icon: <CalendarDays /> },
+        { id: 'suggestions', label: 'Suggestions', icon: <MessageSquare /> },
+        { id: 'it', label: 'IT Support', icon: <Monitor /> },
     ]
 
     return (
@@ -38,32 +40,22 @@ export default function AccountClient({ user, leaves, suggestions, itRequests }:
             <ProfileHeader user={user} />
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 p-1.5 bg-base-content/5 rounded-2xl w-fit">
-                {tabs.map(t => (
-                    <button
-                        key={t.id}
-                        onClick={() => setActiveTab(t.id)}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all",
-                            activeTab === t.id
-                                ? "bg-white dark:bg-primary/10 text-primary shadow-sm"
-                                : "text-base-content/30 hover:text-base-content/50"
-                        )}
-                    >
-                        <t.icon className="w-3.5 h-3.5" />
-                        {t.label}
-                        {t.id === 'leave' && leaves.length > 0 && (
-                            <span className="ml-1 text-[9px] opacity-50">{leaves.length}</span>
-                        )}
-                    </button>
-                ))}
+            <div className="flex justify-center md:justify-start">
+                <LimelightNav
+                    items={tabs}
+                    defaultActiveIndex={tabs.findIndex(t => t.id === activeTab)}
+                    onTabChange={(index) => setActiveTab(tabs[index].id)}
+                    activeColor="#be1e3d"
+                />
             </div>
 
             {/* Tab Content */}
-            {activeTab === 'profile' && <ProfileTab user={user} />}
-            {activeTab === 'leave' && <LeaveTab leaves={leaves} />}
-            {activeTab === 'suggestions' && <SuggestionsTab suggestions={suggestions} />}
-            {activeTab === 'it' && <ITSupportTab itRequests={itRequests} />}
+            <div className="mt-8 animate-fade-in">
+                {activeTab === 'profile' && <ProfileTab user={user} />}
+                {activeTab === 'leave' && <LeaveTab leaves={leaves} />}
+                {activeTab === 'suggestions' && <SuggestionsTab suggestions={suggestions} />}
+                {activeTab === 'it' && <ITSupportTab itRequests={itRequests} />}
+            </div>
         </div>
     )
 }
@@ -238,7 +230,12 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
     const [showForm, setShowForm] = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const [form, setForm] = useState({ type: 'ANNUAL', startDate: '', endDate: '', reason: '' })
+    const [balance, setBalance] = useState<any>(null)
     const router = useRouter()
+
+    useEffect(() => {
+        getMyLeaveBalance().then(setBalance).catch(() => { })
+    }, [])
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
@@ -248,6 +245,8 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
             setForm({ type: 'ANNUAL', startDate: '', endDate: '', reason: '' })
             setShowForm(false)
             router.refresh()
+            // Refresh balance
+            getMyLeaveBalance().then(setBalance).catch(() => { })
         } catch (err: any) {
             alert(err.message)
         } finally {
@@ -263,6 +262,34 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
 
     return (
         <div className="space-y-6">
+            {/* Leave Balance */}
+            {balance && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="glass-panel rounded-3xl p-5">
+                        <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20 block mb-2">Annual Leave</span>
+                        <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-2xl font-black text-primary">{balance.annualRemaining}</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.annualAllocation} days remaining</span>
+                        </div>
+                        <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.annualRemaining / balance.annualAllocation) * 100)}%` }} />
+                        </div>
+                        <p className="text-[10px] text-base-content/20 mt-2">{balance.annualUsed} days used this year</p>
+                    </div>
+                    <div className="glass-panel rounded-3xl p-5">
+                        <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20 block mb-2">Sick Leave</span>
+                        <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-2xl font-black text-warning">{balance.sickRemaining}</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.sickAllocation} days remaining</span>
+                        </div>
+                        <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-warning rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.sickRemaining / balance.sickAllocation) * 100)}%` }} />
+                        </div>
+                        <p className="text-[10px] text-base-content/20 mt-2">{balance.sickUsed} days used this year</p>
+                    </div>
+                </div>
+            )}
+
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
                     <CalendarDays className="w-4 h-4 text-warning" /> My Leave Requests

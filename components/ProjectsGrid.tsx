@@ -2,8 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Briefcase, ArrowUpRight, Layers, TrendingUp, Search, FolderOpen, GitBranch, Filter } from 'lucide-react'
+import { Briefcase, ArrowUpRight, Layers, TrendingUp, Search, FolderOpen, GitBranch, Filter, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import InviteMember from '@/components/InviteMember'
 
 type ProjectSummary = {
   id: number
@@ -16,6 +17,7 @@ type ProjectSummary = {
   directTaskCount: number
   completedCount: number
   subProjectCount: number
+  members: any[]
 }
 
 const STATUS_OPTIONS = ['ALL', 'ACTIVE', 'COMPLETED', 'ON_HOLD'] as const
@@ -99,10 +101,9 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
             const pendingCount = project.taskCount - project.completedCount
 
             return (
-              <Link
+              <div
                 key={project.id}
-                href={`/projects/${project.id}`}
-                className="glass-card group flex flex-col h-full relative overflow-hidden"
+                className="glass-card group flex flex-col h-full relative overflow-hidden p-0"
               >
                 {/* Visual Accent */}
                 <div className={cn(
@@ -110,7 +111,7 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                   isAllDone ? "bg-success" : isOnHold ? "bg-warning" : "bg-primary"
                 )} />
 
-                <div className="relative z-10 flex flex-col h-full space-y-4">
+                <div className="relative z-10 flex flex-col h-full space-y-4 p-6">
                   <div className="flex items-start justify-between">
                     <div className={cn(
                       "w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
@@ -163,6 +164,25 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                     </div>
                   </div>
 
+                  {/* Members & Invitation */}
+                  <div className="flex flex-col gap-2 pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex -space-x-2 overflow-hidden items-center">
+                        {(project as any).members?.slice(0, 4).map((m: any, idx: number) => (
+                          <div key={idx} className="inline-block h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-200 text-[8px] font-black flex items-center justify-center text-base-content/40 uppercase" title={m.user?.name}>
+                            {m.user?.name?.charAt(0) || '?'}
+                          </div>
+                        ))}
+                        {(project as any).members?.length > 4 && (
+                          <div className="flex items-center justify-center h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-300 text-[8px] font-black text-base-content/40">
+                            +{(project as any).members.length - 4}
+                          </div>
+                        )}
+                      </div>
+                      <InviteMember projectId={project.id} />
+                    </div>
+                  </div>
+
                   {/* Stats Footer */}
                   <div className="flex items-center justify-between pt-4 mt-auto border-t border-base-content/5">
                     <div className="flex items-center gap-3 text-[10px] font-bold text-base-content/30 uppercase tracking-tighter">
@@ -175,12 +195,15 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                         <span>{project.subProjectCount} Subs</span>
                       </div>
                     </div>
-                    <div className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/40 group-hover:bg-primary group-hover:text-white transition-all transform group-hover:translate-x-1">
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/40 hover:bg-primary hover:text-white transition-all transform hover:translate-x-1"
+                    >
                       <ArrowUpRight size={14} />
-                    </div>
+                    </Link>
                   </div>
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>

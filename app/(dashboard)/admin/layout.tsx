@@ -1,18 +1,23 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Users, Settings, Building2, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LimelightNav } from '@/components/ui/limelight-nav'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   const tabs = [
-    { name: 'User Management', href: '/admin/users', icon: Users },
-    { name: 'Departments', href: '/admin/departments', icon: Building2 },
-    { name: 'SLA Configuration', href: '/admin/sla', icon: Settings },
+    { id: 'settings', label: 'General System', href: '/admin/settings', icon: <Settings /> },
+    { id: 'users', label: 'User Management', href: '/admin/users', icon: <Users /> },
+    { id: 'departments', label: 'Departments', href: '/admin/departments', icon: <Building2 /> },
+    { id: 'sla', label: 'SLA Configuration', href: '/admin/sla', icon: <Settings /> },
   ]
+
+  const activeIndex = tabs.findIndex(tab => pathname.startsWith(tab.href))
 
   return (
     <div className="flex flex-col gap-8">
@@ -28,26 +33,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Admin Navigation Tabs */}
-      <div className="tabs tabs-boxed bg-base-100 p-2 gap-2 border border-base-200 shadow-sm w-fit">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={cn(
-              "tab tab-lg gap-2 font-bold transition-all duration-200 rounded-lg",
-              pathname.startsWith(tab.href)
-                ? "bg-primary text-primary-content shadow-md"
-                : "hover:bg-base-200 text-base-content/60"
-            )}
-          >
-            <tab.icon className="w-4 h-4" />
-            {tab.name}
-          </Link>
-        ))}
+      <div className="flex justify-center md:justify-start">
+        <LimelightNav
+          items={tabs}
+          defaultActiveIndex={activeIndex !== -1 ? activeIndex : 0}
+          activeColor="#be1e3d"
+        />
       </div>
 
       {/* Content Area */}
-      <div className="bg-base-100 border border-base-200 rounded-2xl shadow-sm p-6 min-h-[500px]">
+      <div className="animate-in fade-in duration-500">
         {children}
       </div>
     </div>

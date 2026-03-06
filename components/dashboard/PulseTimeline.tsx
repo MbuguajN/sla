@@ -22,7 +22,7 @@ export default async function PulseTimeline() {
     })
 
     return (
-        <div className="bg-base-100 border border-base-200 rounded-xl p-5">
+        <div className="bg-base-100 border border-base-content/10 rounded-xl p-5 shadow-md">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-base-content">2-Week Timeline</h3>
                 <span className="text-xs text-base-content/40">{format(start, 'MMM d')} — {format(end, 'MMM d')}</span>

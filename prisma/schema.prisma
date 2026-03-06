@@ -35,6 +35,7 @@ model User {
   itResolved       ITSupportRequest[] @relation("ITResolver")
   createdProjects    Project[]      @relation("ProjectCreator")
   createdSubProjects SubProject[]   @relation("SubProjectCreator")
+  projectMemberships ProjectMember[]
 
   @@index([departmentId])
 }
@@ -70,6 +71,7 @@ model Project {
   tasks        Task[]
   subProjects  SubProject[]
   createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id])
+  members      ProjectMember[]
 }
 
 model SubProject {
@@ -263,5 +265,68 @@ model ITSupportRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+// ─── Leave Policy ───
+
+model LeavePolicy {
+  id            Int    @id @default(autoincrement())
+  roleCategory  String @unique  // "CEO", "MANAGER", "EMPLOYEE"
+  annualDays    Int    @default(21)
+  sickDays      Int    @default(10)
+}
+
+// ─── Performance Review System ───
+
+model ReviewCycle {
+  id          Int              @id @default(autoincrement())
+  title       String
+  status      String           @default("ACTIVE") // ACTIVE, CLOSED
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  questions   ReviewQuestion[]
+  responses   ReviewResponse[]
+}
+
+model ReviewQuestion {
+  id          Int              @id @default(autoincrement())
+  cycleId     Int
+  text        String
+  targetType  String           // "EMPLOYEE" (manager rates employee), "MANAGER" (employee rates manager)
+  cycle       ReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  responses   ReviewResponse[]
+
+  @@index([cycleId])
+}
+
+model ReviewResponse {
+  id          Int            @id @default(autoincrement())
+  cycleId     Int
+  questionId  Int
+  reviewerId  Int            // Who is rating
+  revieweeId  Int            // Who is being rated
+  rating      Int            // 1-10
+  createdAt   DateTime       @default(now())
+  cycle       ReviewCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  question    ReviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, questionId, reviewerId, revieweeId])
+  @@index([cycleId])
+  @@index([reviewerId])
+}
+
+model ProjectMember {
+  id        Int      @id @default(autoincrement())
+  projectId Int
+  userId    Int
+  role      String   @default("MEMBER") // MEMBER, INVITED
+  createdAt DateTime @default(now())
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
 }
 

@@ -121,7 +121,7 @@ export default function CEODashboard({
                     { label: 'Critical Breaches', value: overdueCount, sub: 'Requires Attention', icon: AlertCircle, color: overdueCount > 0 ? 'text-error' : 'text-base-content/20' },
                     { label: 'Team Online', value: activeUsers.length, sub: 'Active Sessions', icon: UserCheck, color: 'text-info' }
                 ].map((kpi, i) => (
-                    <div key={i} className="bg-base-100 border border-base-300 p-5 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all duration-300 shadow-sm">
+                    <div key={i} className="bg-base-100 border border-base-content/10 p-5 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all duration-300 shadow-md">
                         <div className="space-y-1">
                             <span className="text-xs font-bold uppercase tracking-wider text-base-content/40 block">
                                 {kpi.label}
@@ -172,8 +172,8 @@ export default function CEODashboard({
                                         className={cn(
                                             "border p-5 rounded-2xl transition-all duration-300 group flex flex-col h-full relative overflow-hidden",
                                             isAccomplished
-                                                ? "bg-success/[0.03] border-success/20 hover:border-success/40 hover:shadow-success/5"
-                                                : "bg-error/[0.03] border-error/20 hover:border-error/40 hover:shadow-error/5"
+                                                ? "bg-success/[0.03] border-success/30 hover:border-success/50 hover:shadow-md"
+                                                : "bg-error/[0.03] border-error/30 hover:border-error/50 hover:shadow-md"
                                         )}
                                     >
                                         <div className="flex items-start justify-between mb-4">
@@ -218,7 +218,7 @@ export default function CEODashboard({
                             })}
                         </div>
                     ) : (
-                        <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
+                        <div className="bg-base-100 border border-base-content/10 rounded-2xl overflow-hidden shadow-md">
                             <table className="table w-full">
                                 <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">
                                     <tr>
@@ -274,7 +274,7 @@ export default function CEODashboard({
                         <h2 className="text-sm font-bold uppercase tracking-wider text-base-content/60">Operational Registry</h2>
                     </div>
 
-                    <div className="bg-base-100 border border-base-300 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="bg-base-100 border border-base-content/10 rounded-2xl overflow-hidden shadow-md">
                         <div className="overflow-x-auto">
                             <table className="table w-full">
                                 <thead className="bg-base-200/50 text-xs font-bold uppercase tracking-wider text-base-content/40 border-b border-base-300">

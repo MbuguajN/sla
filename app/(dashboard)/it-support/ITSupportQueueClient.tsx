@@ -110,7 +110,7 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
             {/* Queue Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filtered.map(r => (
-                    <div key={r.id} className="glass-panel group p-6 rounded-3xl flex flex-col space-y-4 relative overflow-hidden transition-all hover:scale-[1.01] border border-transparent hover:border-primary/10">
+                    <div key={r.id} className="glass-panel group p-6 rounded-3xl flex flex-col space-y-4 relative overflow-hidden transition-all hover:scale-[1.01] border border-base-content/10 hover:border-primary/10 shadow-md">
                         {/* Priority Line */}
                         <div className={cn("absolute top-0 left-0 w-full h-1", r.priority === 'URGENT' ? 'bg-error' : r.priority === 'HIGH' ? 'bg-warning' : 'bg-primary/20')} />
 

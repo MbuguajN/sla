@@ -34,13 +34,16 @@ type Task = {
 interface GlobalTaskTableProps {
     initialTasks: any[]
     currentUserId: number
+    currentUserRole?: string
 }
 
-export default function GlobalTaskTable({ initialTasks, currentUserId }: GlobalTaskTableProps) {
+export default function GlobalTaskTable({ initialTasks, currentUserId, currentUserRole }: GlobalTaskTableProps) {
     const [tasks, setTasks] = useState<Task[]>(initialTasks)
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
     const [filter, setFilter] = useState('')
     const [processingId, setProcessingId] = useState<number | null>(null)
+
+    const isAdmin = ['CEO', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserRole || '')
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc'
@@ -81,18 +84,38 @@ export default function GlobalTaskTable({ initialTasks, currentUserId }: GlobalT
     }, [tasks, sortConfig, filter])
 
     const handleQuickAction = async (task: Task) => {
+        // Manageability check
+        const isInitiator = task.reporterId === currentUserId
+        const isAssignee = task.assigneeId === currentUserId
+
+        // Restricted roles (CS, BD, Employee etc)
+        if (!isAdmin) {
+            if (currentUserRole === 'CLIENT_SERVICE' || currentUserRole === 'BUSINESS_DEVELOPMENT') {
+                if (!isInitiator) {
+                    alert("You can only manage tasks you have individually initiated.")
+                    return
+                }
+            } else {
+                // Default Employee logic
+                if (!isAssignee && !isInitiator) {
+                    alert("You are not authorized to manage this task.")
+                    return
+                }
+            }
+        }
+
         let nextStatus: TaskStatus | null = null
         if (task.status === TaskStatus.PENDING) nextStatus = TaskStatus.RECEIVED
         else if (task.status === TaskStatus.RECEIVED) nextStatus = TaskStatus.IN_PROGRESS
         else if (task.status === TaskStatus.IN_PROGRESS) {
-            if (task.assigneeId !== currentUserId) {
+            if (!isAssignee && !isAdmin) {
                 alert("Only the assignee can submit this task for review.")
                 return
             }
             nextStatus = TaskStatus.REVIEW
         }
         else if (task.status === TaskStatus.REVIEW) {
-            if (task.reporterId !== currentUserId) {
+            if (!isInitiator && !isAdmin) {
                 alert("Only the initiator can mark this task as complete.")
                 return
             }
@@ -134,7 +157,7 @@ export default function GlobalTaskTable({ initialTasks, currentUserId }: GlobalT
     }
 
     return (
-        <div className="bg-base-100 border border-base-200 rounded-xl">
+        <div className="bg-base-100 border border-base-content/10 rounded-xl shadow-md">
             {/* Header */}
             <div className="px-6 py-5 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>

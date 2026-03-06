@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Lock, Mail, Loader2, AlertCircle } from "lucide-react"
+import { Lock, Mail, AlertCircle } from "lucide-react"
+import { LoadingBreadcrumb } from "@/components/ui/animated-loading-svg-text-shimmer"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -44,49 +45,35 @@ export default function LoginPage() {
 
       if (result?.error) {
         setError("Invalid email or password")
+        setLoading(false)
       } else {
         router.push("/")
         router.refresh()
       }
     } catch (err) {
       setError("An unexpected error occurred")
-    } finally {
       setLoading(false)
     }
   }
 
-  // Highly premium loading screen
+  // Highly premium initial loading screen
   if (!pageReady) {
     return (
       <div className="min-h-screen bg-base-100 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        {/* Animated backgrounds */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 blur-[120px] rounded-full animate-pulse" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-        </div>
-
-        <div className="flex flex-col items-center gap-8 relative z-10">
-          <div className="w-32 h-32 relative flex items-center justify-center transition-all duration-700 animate-in zoom-in-50">
-            <div className="absolute inset-0 border-4 border-primary/10 rounded-[2.5rem] animate-ping opacity-20" />
-            <div className="w-24 h-24 bg-primary/5 rounded-[2rem] flex items-center justify-center shadow-inner overflow-hidden ring-1 ring-primary/10">
-              <img src="/logo.svg" alt="Loading" className="w-16 h-16 object-contain opacity-50 grayscale contrast-125" />
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex gap-1.5">
-              {[0, 1, 2].map(i => (
-                <div key={i} className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-              ))}
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-primary/40 mt-2">Preparing Resources</span>
-          </div>
-        </div>
+        <LoadingBreadcrumb text="Preparing Resources" className="scale-150" />
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center justify-start lg:justify-center p-6 py-12 lg:py-6 relative overflow-x-hidden font-sans">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="fixed inset-0 z-[100] bg-base-100 flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <LoadingBreadcrumb text="Authenticating" className="scale-150" />
+        </div>
+      )}
+
       {/* Subtle Understated Background */}
       <div className="absolute inset-0 z-0">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(var(--p),0.02),transparent_70%)]" />
@@ -156,7 +143,11 @@ export default function LoginPage() {
               disabled={loading}
             >
               {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0s' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.1s' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white animate-bounce" style={{ animationDelay: '0.2s' }} />
+                </div>
               ) : (
                 <span>Authorize Access</span>
               )}

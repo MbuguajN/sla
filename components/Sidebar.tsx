@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
+import { signOut } from 'next-auth/react'
 import {
   ClipboardList,
   Settings,
@@ -20,9 +21,11 @@ import {
   LogOut,
   ShieldAlert,
   Heart,
-  HelpCircle
+  HelpCircle,
+  Star
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { LoadingBreadcrumb } from '@/components/ui/animated-loading-svg-text-shimmer'
 
 interface SidebarProps {
   session: any
@@ -30,11 +33,13 @@ interface SidebarProps {
   dbUser: any
   logoLight?: string | null
   logoDark?: string | null
+  hasActiveReview?: boolean
 }
 
-export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark }: SidebarProps) {
+export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark, hasActiveReview }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [isHydrated, setIsHydrated] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
 
@@ -66,11 +71,13 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     { label: 'HR Dashboard', href: '/hr', icon: Heart, visible: true },
     { label: 'Leave Requests', href: '/hr/leaves', icon: ClipboardList, visible: true },
     { label: 'Suggestions', href: '/hr/suggestions', icon: Inbox, visible: true },
+    { label: 'Reviews', href: '/hr/reviews', icon: Star, visible: true },
   ] : [
     { label: 'Overview', href: '/', icon: Home, visible: true },
     { label: 'Briefs', href: '/client-service/tickets', icon: Inbox, visible: (isAdmin || isCS || isManager) && !isCEO },
-    { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev },
+    { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev || (dbUser?.projectMemberships?.length ?? 0) > 0 },
     { label: 'All Tasks', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isManager || isBusinessDev || isCS },
+    { label: 'Reviews', href: '/reviews', icon: Star, visible: !!hasActiveReview },
     {
       label: 'Department',
       href: dbUser?.departmentId ? `/departments/${dbUser.departmentId}` : '/admin/departments',
@@ -80,116 +87,132 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     { label: 'System', href: '/admin/settings', icon: Settings, visible: isAdmin || isHR },
   ]
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true)
+    await signOut({ callbackUrl: '/login' })
+  }
+
   return (
-    <div
-      className={cn(
-        "drawer-side z-50 transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] overflow-visible",
-        isCollapsed ? "lg:w-24" : "lg:w-72"
+    <>
+      {isLoggingOut && (
+        <div className="fixed inset-0 z-[1000] bg-base-100/80 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <LoadingBreadcrumb text="Signing Out" className="scale-150" />
+        </div>
       )}
-    >
-      <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay" />
+      <div
+        className={cn(
+          "drawer-side z-50 transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] overflow-visible",
+          isCollapsed ? "lg:w-24" : "lg:w-72"
+        )}
+      >
+        <label htmlFor="my-drawer-2" aria-label="close sidebar" className="drawer-overlay" />
 
-      <div className={cn(
-        "min-h-[calc(100vh-2rem)] m-4 glass-panel rounded-3xl flex flex-col transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] relative overflow-visible",
-        "w-72 lg:w-auto",
-        isCollapsed ? "lg:w-20" : "lg:w-64"
-      )}>
-        <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent" />
-        </div>
-
-        {/* Logo */}
         <div className={cn(
-          "flex items-center pt-8 pb-6 relative transition-all duration-300 px-6",
-          isCollapsed ? "lg:justify-center lg:px-2" : "justify-between"
+          "min-h-[calc(100vh-2rem)] m-4 glass-panel rounded-3xl flex flex-col transition-all duration-500 ease-[cubic-bezier(0.33,1,0.68,1)] relative overflow-visible",
+          "w-72 lg:w-auto",
+          isCollapsed ? "lg:w-20" : "lg:w-64"
         )}>
-          <Link href="/" className="flex items-center group">
-            <div className={cn(
-              "flex items-center justify-center transition-all duration-500 overflow-hidden",
-              isCollapsed ? "h-14 w-14" : "h-14"
-            )}>
-              <img src={logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain dark:hidden transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
-              <img src={logoDark || logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain hidden dark:block transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
-            </div>
-          </Link>
-
-          {!isCollapsed && (
-            <button onClick={() => setIsCollapsed(true)} className="btn btn-ghost btn-xs btn-circle text-base-content/30 hover:text-primary transition-colors">
-              <ChevronLeft size={16} />
-            </button>
-          )}
-          {isCollapsed && (
-            <button onClick={() => setIsCollapsed(false)} className="absolute -right-4 top-1/2 -translate-y-1/2 btn btn-circle btn-xs glass-panel shadow-ruby-soft text-primary z-[60] border-primary/20 hover:scale-110 active:scale-95 transition-all">
-              <ChevronRight size={10} />
-            </button>
-          )}
-        </div>
-
-        {/* Navigation — no scrollbar */}
-        <nav className={cn("flex-1 flex flex-col py-4 px-4 gap-1.5 overflow-visible", isCollapsed ? "items-center" : "")}>
-          {navItems.filter(item => item.visible).map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href + item.label}
-                href={item.href}
-                prefetch={true}
-                className={cn(
-                  "relative flex items-center gap-3 rounded-xl transition-all duration-200 active:scale-[0.98]",
-                  isCollapsed ? "w-10 h-10 justify-center" : "w-full px-4 py-2.5",
-                  isActive ? "bg-primary text-primary-content shadow-ruby-soft" : "text-base-content/60 hover:bg-primary/10 hover:text-primary"
-                )}
-              >
-                <Icon className="shrink-0 w-[18px] h-[18px]" />
-                {!isCollapsed && (
-                  <span className={cn("text-[13px] tracking-tight truncate", isActive ? "font-bold" : "font-medium")}>{item.label}</span>
-                )}
-                {isActive && !isCollapsed && (
-                  <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
-                )}
-              </Link>
-            )
-          })}
-
-          {/* New Brief button */}
-          {(isBusinessDev || isCS) && (
-            <div className={cn("mt-4", isCollapsed ? "w-full flex justify-center" : "px-2")}>
-              <Link
-                href="/tasks/new"
-                className={cn(
-                  "flex items-center justify-center transition-all duration-300 shadow-ruby-soft",
-                  isCollapsed ? "w-10 h-10 rounded-xl bg-primary text-white hover:rotate-90" : "w-full h-11 rounded-2xl bg-primary text-white gap-3 px-4 hover:scale-[1.02] active:scale-[0.98]"
-                )}
-              >
-                <Plus className={isCollapsed ? "w-4 h-4" : "w-5 h-5"} />
-                {!isCollapsed && <span className="text-[13px] font-bold uppercase tracking-wider">New Brief</span>}
-              </Link>
-            </div>
-          )}
-        </nav>
-
-        {/* Footer */}
-        <div className={cn("mt-auto pt-4 pb-8 px-4 flex flex-col gap-4", isCollapsed ? "items-center" : "")}>
-          {/* Theme Toggle */}
-          <div className={cn("p-1 rounded-2xl bg-base-content/5 flex items-center gap-1", isCollapsed ? "flex-col" : "w-full")}>
-            <button onClick={() => setTheme('light')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'light' ? "bg-white text-primary shadow-sm" : "text-base-content/40 hover:text-base-content")}>
-              <Sun size={14} />
-            </button>
-            <button onClick={() => setTheme('dark')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'dark' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/40 hover:text-base-content")}>
-              <Moon size={14} />
-            </button>
+          <div className="absolute inset-0 rounded-3xl overflow-hidden pointer-events-none">
+            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-primary/5 to-transparent" />
           </div>
 
-          {/* User Profile — Portal menu */}
-          <UserMenu session={session} dbUser={dbUser} userRole={userRole} isCollapsed={isCollapsed} />
+          {/* Logo */}
+          <div className={cn(
+            "flex items-center pt-8 pb-6 relative transition-all duration-300 px-6",
+            isCollapsed ? "lg:justify-center lg:px-2" : "justify-between"
+          )}>
+            <Link href="/" className="flex items-center group">
+              <div className={cn(
+                "flex items-center justify-center transition-all duration-500 overflow-hidden",
+                isCollapsed ? "h-14 w-14" : "h-14"
+              )}>
+                <img src={logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain dark:hidden transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                <img src={logoDark || logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain hidden dark:block transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+              </div>
+            </Link>
+
+            {!isCollapsed && (
+              <button onClick={() => setIsCollapsed(true)} className="btn btn-ghost btn-xs btn-circle text-base-content/30 hover:text-primary transition-colors">
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            {isCollapsed && (
+              <button onClick={() => setIsCollapsed(false)} className="absolute -right-4 top-1/2 -translate-y-1/2 btn btn-circle btn-xs glass-panel shadow-ruby-soft text-primary z-[60] border-primary/20 hover:scale-110 active:scale-95 transition-all">
+                <ChevronRight size={10} />
+              </button>
+            )}
+          </div>
+
+          {/* Navigation — no scrollbar */}
+          <nav className={cn("flex-1 flex flex-col py-4 px-4 gap-1.5 overflow-visible", isCollapsed ? "items-center" : "")}>
+            {navItems.filter(item => item.visible).map((item) => {
+              // Dashboard/home routes: exact match only; sub-page routes: prefix match
+              const exactMatchRoutes = ['/', '/hr']
+              const isActive = exactMatchRoutes.includes(item.href)
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(item.href + '/')
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href + item.label}
+                  href={item.href}
+                  prefetch={true}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-xl transition-all duration-200 active:scale-[0.98]",
+                    isCollapsed ? "w-10 h-10 justify-center" : "w-full px-4 py-2.5",
+                    isActive ? "bg-primary text-primary-content shadow-ruby-soft" : "text-base-content/60 hover:bg-primary/10 hover:text-primary"
+                  )}
+                >
+                  <Icon className="shrink-0 w-[18px] h-[18px]" />
+                  {!isCollapsed && (
+                    <span className={cn("text-[13px] tracking-tight truncate", isActive ? "font-bold" : "font-medium")}>{item.label}</span>
+                  )}
+                  {isActive && !isCollapsed && (
+                    <div className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_white]" />
+                  )}
+                </Link>
+              )
+            })}
+
+            {/* New Brief button */}
+            {(isBusinessDev || isCS) && (
+              <div className={cn("mt-4", isCollapsed ? "w-full flex justify-center" : "px-2")}>
+                <Link
+                  href="/tasks/new"
+                  className={cn(
+                    "flex items-center justify-center transition-all duration-300 shadow-ruby-soft",
+                    isCollapsed ? "w-10 h-10 rounded-xl bg-primary text-white hover:rotate-90" : "w-full h-11 rounded-2xl bg-primary text-white gap-3 px-4 hover:scale-[1.02] active:scale-[0.98]"
+                  )}
+                >
+                  <Plus className={isCollapsed ? "w-4 h-4" : "w-5 h-5"} />
+                  {!isCollapsed && <span className="text-[13px] font-bold uppercase tracking-wider">New Brief</span>}
+                </Link>
+              </div>
+            )}
+          </nav>
+
+          {/* Footer */}
+          <div className={cn("mt-auto pt-4 pb-8 px-4 flex flex-col gap-4", isCollapsed ? "items-center" : "")}>
+            {/* Theme Toggle */}
+            <div className={cn("p-1 rounded-2xl bg-base-content/5 flex items-center gap-1", isCollapsed ? "flex-col" : "w-full")}>
+              <button onClick={() => setTheme('light')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'light' ? "bg-white text-primary shadow-sm" : "text-base-content/40 hover:text-base-content")}>
+                <Sun size={14} />
+              </button>
+              <button onClick={() => setTheme('dark')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'dark' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/40 hover:text-base-content")}>
+                <Moon size={14} />
+              </button>
+            </div>
+
+            {/* User Profile — Portal menu */}
+            <UserMenu session={session} dbUser={dbUser} userRole={userRole} isCollapsed={isCollapsed} onLogout={handleLogout} />
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
-function UserMenu({ session, dbUser, userRole, isCollapsed }: { session: any; dbUser: any; userRole: string; isCollapsed: boolean }) {
+function UserMenu({ session, dbUser, userRole, isCollapsed, onLogout }: { session: any; dbUser: any; userRole: string; isCollapsed: boolean; onLogout: () => void }) {
   const [isOpen, setIsOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const buttonRef = useRef<HTMLDivElement>(null)
@@ -232,7 +255,7 @@ function UserMenu({ session, dbUser, userRole, isCollapsed }: { session: any; db
         <div className="w-7 h-7 bg-base-content/5 rounded-full flex items-center justify-center"><Users2 size={14} /></div>
         My Account
       </Link>
-      <button onClick={() => { setIsOpen(false); window.location.href = '/api/auth/signout' }} className="rounded-xl flex items-center gap-3 py-2.5 px-3 hover:bg-error/5 text-error transition-colors text-[13px] font-bold w-full text-left">
+      <button onClick={() => { setIsOpen(false); onLogout(); }} className="rounded-xl flex items-center gap-3 py-2.5 px-3 hover:bg-error/5 text-error transition-colors text-[13px] font-bold w-full text-left">
         <div className="w-7 h-7 bg-error/5 rounded-full flex items-center justify-center"><LogOut size={14} /></div>
         Logout
       </button>
