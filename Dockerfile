@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install
 
 # Stage 2: Builder
 FROM node:20-bullseye-slim AS builder
@@ -31,7 +31,7 @@ FROM node:20-bullseye-slim AS prod-deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
-RUN npm ci --only=production
+RUN npm install --only=production
 RUN npx prisma generate
 
 # Stage 4: Runner
