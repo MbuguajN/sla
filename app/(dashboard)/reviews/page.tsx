@@ -24,7 +24,7 @@ export default function ReviewFlowPage() {
 
         // Filter out already completed
         if (result.reviewees && result.completedIds) {
-            const remaining = result.reviewees.filter((r: any) => !result.completedIds.includes(r.id))
+            const remaining = result.reviewees.filter((r: any) => !(result.completedIds as number[]).includes(r.id))
             if (remaining.length === 0 && result.reviewees.length > 0) {
                 setAllDone(true)
             }
@@ -52,7 +52,7 @@ export default function ReviewFlowPage() {
         )
     }
 
-    const remainingReviewees = data.reviewees.filter((r: any) => !data.completedIds.includes(r.id))
+    const remainingReviewees = data.reviewees.filter((r: any) => !(data.completedIds as number[]).includes(r.id))
 
     if (allDone || remainingReviewees.length === 0) {
         return (

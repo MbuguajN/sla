@@ -62,9 +62,9 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
 
   // Stats
   const directTaskCount = project.tasks.length
-  const directCompletedCount = project.tasks.filter(t => t.status === 'COMPLETED').length
+  const directCompletedCount = (project.tasks as any[]).filter(t => t.status === 'COMPLETED').length
   const subProjectCount = project.subProjects.length
-  const totalSubletCount = project.subProjects.reduce((acc, s) => acc + s._count.children, 0)
+  const totalSubletCount = (project.subProjects as any[]).reduce((acc: number, s: any) => acc + (s._count?.children || 0), 0)
 
   // Overall progress (direct tasks only for now)
   const progress = directTaskCount > 0

@@ -87,7 +87,7 @@ export async function getReviewAssignments() {
     const userRole = (session.user as any).role
 
     const cycle = await getActiveReviewCycle()
-    if (!cycle) return { cycle: null, reviewees: [], questions: [], completedIds: [] }
+    if (!cycle) return { cycle: null, reviewees: [], questions: [], completedIds: [] as number[] }
 
     // Find current user's department
     const user = await prisma.user.findUnique({

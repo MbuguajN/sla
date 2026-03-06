@@ -57,13 +57,13 @@ export default async function ProjectsPage() {
   // Transform for display
   const projectSummaries = projects.map(p => {
     // Count all tasks: direct tasks + sub-project tasks + sublet tasks
-    const subProjectTaskCount = p.subProjects.reduce((acc, sub) => {
-      const subletTaskCount = sub.children.reduce((a, c) => a + c._count.tasks, 0)
-      return acc + sub._count.tasks + subletTaskCount
+    const subProjectTaskCount = (p.subProjects as any[]).reduce((acc: number, sub: any) => {
+      const subletTaskCount = (sub.children as any[]).reduce((a: number, c: any) => a + (c._count?.tasks || 0), 0)
+      return acc + (sub._count?.tasks || 0) + subletTaskCount
     }, 0)
     const totalTaskCount = p.tasks.length + subProjectTaskCount
 
-    const directCompleted = p.tasks.filter(t => t.status === 'COMPLETED').length
+    const directCompleted = (p.tasks as any[]).filter(t => t.status === 'COMPLETED').length
 
     return {
       id: p.id,

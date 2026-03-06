@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -36,6 +36,8 @@ model User {
   createdProjects    Project[]      @relation("ProjectCreator")
   createdSubProjects SubProject[]   @relation("SubProjectCreator")
   projectMemberships ProjectMember[]
+  reviewerResponses  ReviewResponse[] @relation("ReviewerResponses")
+  revieweeResponses  ReviewResponse[] @relation("RevieweeResponses")
 
   @@index([departmentId])
 }
@@ -307,6 +309,8 @@ model ReviewResponse {
   revieweeId  Int            // Who is being rated
   rating      Int            // 1-10
   createdAt   DateTime       @default(now())
+  reviewer    User           @relation("ReviewerResponses", fields: [reviewerId], references: [id])
+  reviewee    User           @relation("RevieweeResponses", fields: [revieweeId], references: [id])
   cycle       ReviewCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   question    ReviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
