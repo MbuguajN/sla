@@ -20,7 +20,11 @@ export default function InviteMember({ projectId }: { projectId: number }) {
       if (!search.trim()) {
         setUsers(allEligible)
       } else {
-        setUsers(allEligible.filter((u: any) => u.name.toLowerCase().includes(search.toLowerCase())))
+        const term = search.toLowerCase()
+        setUsers(allEligible.filter((u: any) =>
+          u.name?.toLowerCase().includes(term) ||
+          u.email?.toLowerCase().includes(term)
+        ))
       }
     } catch (e) {
       console.error(e)
@@ -81,30 +85,40 @@ export default function InviteMember({ projectId }: { projectId: number }) {
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-60 overflow-y-auto min-h-[100px]">
+              <div className="space-y-2 max-h-[320px] overflow-y-auto px-1 premium-scrollbar">
                 {users.length === 0 ? (
-                  <div className="text-center py-8 opacity-30">
-                    <Users className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-xs font-medium">No users found</p>
+                  <div className="text-center py-12 opacity-20">
+                    <Users className="w-10 h-10 mx-auto mb-3" />
+                    <p className="text-xs font-black uppercase tracking-widest">No candidates found</p>
                   </div>
                 ) : (
                   users.map(user => (
-                    <div key={user.id} className="flex items-center justify-between p-3 bg-base-200/30 rounded-xl border border-transparent hover:border-primary/20 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center leading-none font-black overflow-hidden shrink-0">
-                          <span className="flex items-center justify-center w-full h-full translate-y-[0.5px]">{user.name.charAt(0)}</span>
+                    <div key={user.id} className="group/item flex items-center justify-between p-4 bg-base-content/[0.02] hover:bg-primary/[0.04] rounded-2xl border border-base-content/5 transition-all active:scale-[0.98]">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm shrink-0 border border-primary/10">
+                          {user.name?.charAt(0)}
                         </div>
-                        <div className="flex flex-col text-left min-w-0">
-                          <span className="text-xs font-bold truncate">{user.name}</span>
-                          <span className="text-[10px] opacity-40 truncate">{user.email}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-bold text-base-content/80 group-hover/item:text-primary transition-colors truncate">
+                            {user.name}
+                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-base-content/20 truncate max-w-[120px]">
+                              {user.email}
+                            </span>
+                            <span className="w-1 h-1 rounded-full bg-base-content/10 shrink-0" />
+                            <span className="text-[9px] font-bold text-primary opacity-40 uppercase tracking-widest bg-primary/5 px-1.5 py-0.5 rounded">
+                              {user.role}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <button
                         onClick={() => handleInvite(user.id)}
                         disabled={loading}
-                        className="btn btn-primary btn-xs font-bold uppercase tracking-wider"
+                        className="btn btn-primary btn-sm h-10 px-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-ruby-soft"
                       >
-                        {loading ? '...' : 'Add'}
+                        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Invite'}
                       </button>
                     </div>
                   ))

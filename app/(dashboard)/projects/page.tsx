@@ -16,10 +16,16 @@ export default async function ProjectsPage() {
 
   // Fetch projects with aggregated stats including sub-projects
   let whereClause: any = {}
-  if (role === 'CLIENT_SERVICE') {
-    whereClause = { createdById: userId }
-  } else if (!isAdmin && role !== 'BUSINESS_DEVELOPMENT' && role !== 'MANAGER') {
-    // Regular employees see only projects they are invited to
+
+  // Visibility Logic:
+  // 1. ADMIN, CEO, SUPER_ADMIN see everything
+  // 2. CLIENT SERVICE and BUSINESS DEVELOPMENT see everything
+  // 3. Others (including MANAGERS from other depts) see ONLY what they are members of
+
+  const isSpecialDept = deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE' ||
+    deptName === 'BUSINESS DEVELOPMENT' || deptName === 'BUSINESS_DEVELOPMENT'
+
+  if (!isAdmin && !isSpecialDept) {
     whereClause = { members: { some: { userId } } }
   }
 

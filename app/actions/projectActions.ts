@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from '@/lib/db'
+import prisma from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 
 export async function addProjectMember(projectId: number, userId: number, role: string = 'MEMBER') {
@@ -40,15 +40,15 @@ export async function removeProjectMember(projectId: number, userId: number) {
 
 export async function getEligibleUsers() {
   return await prisma.user.findMany({
-    where: {
-      role: 'EMPLOYEE'
-    },
     select: {
       id: true,
       name: true,
+      email: true,
+      role: true,
       department: {
         select: { name: true }
       }
-    }
+    },
+    orderBy: { name: 'asc' }
   })
 }
