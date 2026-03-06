@@ -126,8 +126,11 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                 "flex items-center justify-center transition-all duration-500 overflow-hidden",
                 isCollapsed ? "h-14 w-14" : "h-14"
               )}>
-                <img src={logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain dark:hidden transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
-                <img src={logoDark || logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain hidden dark:block transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                {isHydrated && theme === 'dark' ? (
+                  <img src={logoDark || logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                ) : (
+                  <img src={logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                )}
               </div>
             </Link>
 

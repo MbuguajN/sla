@@ -110,6 +110,7 @@ export async function uploadLogo(formData: FormData) {
     })
 
     revalidatePath('/')
+    revalidatePath('/admin/settings')
     return { success: true, url: logoUrl }
   } catch (error: any) {
     console.error('Upload error:', error)
