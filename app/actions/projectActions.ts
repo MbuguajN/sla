@@ -70,3 +70,17 @@ export async function updateProjectStatus(projectId: number, status: string) {
     return { error: error.message || 'Failed to update status' }
   }
 }
+export async function getEligibleUsers() {
+  return await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      department: {
+        select: { name: true }
+      }
+    },
+    orderBy: { name: 'asc' }
+  })
+}
