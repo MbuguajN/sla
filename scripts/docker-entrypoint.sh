@@ -8,9 +8,12 @@ npx prisma generate || echo "Prisma generate failed"
 echo "Pushing database schema..."
 npx prisma db push --accept-data-loss || echo "Prisma db push failed"
 
-if [ "$NODE_ENV" = "production" ]; then
+echo "NODE_ENV is set to: $NODE_ENV"
+echo "HOSTNAME is set to: $HOSTNAME"
+
+if [ "$NODE_ENV" = "production" ] || [ "$NODE_ENV" = "PROD" ]; then
   echo "Starting production server at $(date)..."
-  # Set HOSTNAME here just in case
+  # Ensure HOSTNAME is set to 0.0.0.0 for external access
   export HOSTNAME="0.0.0.0"
   node server.js
 else

@@ -27,9 +27,10 @@ services:
     ports:
       - '3000:3000'
     environment:
+      - NODE_ENV=production
       - DATABASE_URL=postgresql://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-password}@db:5432/${DATABASE_NAME:-nexus}?schema=public
       - AUTH_SECRET=${AUTH_SECRET}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_URL=http://192.168.3.208:3000
       - AUTH_TRUST_HOST=true
     volumes:
       - uploads_data:/app/public/uploads
