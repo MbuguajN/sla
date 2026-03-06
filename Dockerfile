@@ -15,6 +15,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Ensure the public/uploads directory exists for persistent storage
+RUN mkdir -p public/uploads/avatars && \
+    chmod -R 777 public/uploads
+
 # Generate Prisma Client
 RUN npx prisma generate
 

@@ -12,6 +12,7 @@ services:
       - '5432:5432'
     volumes:
       - db_data:/var/lib/postgresql/data
+      - uploads_data:/app/public/uploads
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres} -d ${DATABASE_NAME:-nexus}"]
       interval: 10s
@@ -30,9 +31,13 @@ services:
       - AUTH_SECRET=${AUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - AUTH_TRUST_HOST=true
+    volumes:
+      - uploads_data:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
+volumes:
   db_data:
+  uploads_data:

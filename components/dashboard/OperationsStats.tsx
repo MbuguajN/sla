@@ -30,11 +30,16 @@ export default async function OperationsStats({
     if (isAdmin || isBD) {
         filter = {}
     } else if (isManager && departmentId) {
-        filter = { departmentId }
+        filter = {
+            OR: [
+                { departmentId },
+                { assignee: { departmentId: departmentId } }
+            ]
+        }
     } else if (isCS) {
         filter = { reporterId: userId }
     } else {
-        // Default: Employee or others
+        // Default: Employee - individual stats only
         filter = { assigneeId: userId }
     }
 

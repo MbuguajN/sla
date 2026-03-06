@@ -1,11 +1,28 @@
 import React from 'react'
 import prisma from '@/lib/db'
+import { auth } from '@/auth'
 import Link from 'next/link'
 import { FolderGit2, ArrowUpRight } from 'lucide-react'
 import { TaskStatus } from '@/lib/enums'
 
 export default async function ProjectsGrid() {
+    const session = await auth()
+    const role = (session?.user as any)?.role
+    const userId = Number(session?.user?.id)
+
+    const isAdmin = ['ADMIN', 'CEO', 'SUPER_ADMIN'].includes(role)
+    const isBD = role === 'BUSINESS_DEVELOPMENT'
+
+    let whereClause: any = {}
+    if (role === 'CLIENT_SERVICE') {
+        whereClause = { createdById: userId }
+    } else if (!isAdmin && !isBD && role !== 'MANAGER') {
+        // Regular employees see only projects they are invited to
+        whereClause = { members: { some: { userId } } }
+    }
+
     const projects = await prisma.project.findMany({
+        where: whereClause,
         include: {
             tasks: {
                 select: { status: true }
