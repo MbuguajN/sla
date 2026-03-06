@@ -25,6 +25,8 @@ RUN npx prisma generate
 # Build the Next.js app
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
+RUN cp -r public .next/standalone/public
+RUN cp -r .next/static .next/standalone/.next/static
 
 # Stage 3: Production Dependencies
 FROM node:20-bullseye-slim AS prod-deps
