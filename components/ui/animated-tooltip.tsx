@@ -54,7 +54,7 @@ const TooltipItem = ({ item }: { item: Item }) => {
                     onMouseMove={(e) =>
                         x.set(e.nativeEvent.offsetX - e.currentTarget.offsetWidth / 2)
                     }
-                    className={`h-8 w-8 rounded-full border-2 border-base-100 flex items-center justify-center text-[10px] font-bold text-white transition duration-500 group-hover:z-30 group-hover:scale-105 ${item.color || 'bg-neutral'}`}
+                    className={`h-8 w-8 rounded-full border-2 border-base-100 flex items-center justify-center text-sm font-bold text-white transition duration-500 group-hover:z-30 group-hover:scale-105 ${item.color || 'bg-neutral'}`}
                 >
                     {item.name.charAt(0)}
                 </div>

@@ -7,12 +7,20 @@ import GlobalTaskTable from '@/components/dashboard/GlobalTaskTable'
 import ProjectsGrid from '@/components/dashboard/ProjectsGrid'
 import PulseTimeline from '@/components/dashboard/PulseTimeline'
 import CEODashboard from '@/components/dashboard/CEODashboard'
+import FinanceDashboard from '@/components/dashboard/FinanceDashboard'
 import prisma from '@/lib/db'
+import {
+  OperationsStatsSkeleton,
+  PulseTimelineSkeleton,
+  GlobalTaskTableSkeleton,
+  ProjectsGridSkeleton
+} from '@/components/dashboard/DashboardSkeletons'
 
 export default async function DashboardPage() {
   const session = await auth()
   const userId = Number(session?.user?.id)
   const role = (session?.user as any)?.role
+  const deptName = (session?.user as any)?.department?.name
 
   // HR role always lands on the HR dashboard
   if (role === 'HR') redirect('/hr')
@@ -46,7 +54,7 @@ export default async function DashboardPage() {
   }))
 
   const isAdmin = ['CEO', 'ADMIN', 'SUPER_ADMIN'].includes(role)
-  const isHighVisibility = ['CLIENT_SERVICE', 'BUSINESS_DEVELOPMENT'].includes(role)
+  const isFinance = role === 'FINANCE' || deptName === 'FINANCE'
 
   if (isAdmin) {
     const projects = await prisma.project.findMany({
@@ -101,11 +109,30 @@ export default async function DashboardPage() {
     )
   }
 
+  if (isFinance) {
+    const requisitions = await prisma.requisition.findMany({
+      include: {
+        items: true,
+        user: { select: { id: true, name: true, role: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    return (
+      <div className="bg-base-100 min-h-screen pb-20 p-6 lg:p-10 animate-in fade-in duration-500">
+        <FinanceDashboard
+          requisitions={requisitions as any}
+          activeUsers={activeUsers}
+        />
+      </div>
+    )
+  }
+
   // Fetch active tasks for the Global Table
   const activeTasks = await prisma.task.findMany({
     where: {
       status: { not: 'COMPLETED' },
-      ...(isHighVisibility ? {} : {
+      ...(['CLIENT_SERVICE', 'BUSINESS_DEVELOPMENT'].includes(role) ? {} : {
         OR: [
           { assigneeId: userId },
           { assignee: { department: { headId: userId } } } // Allow Dept Heads to see team tasks
@@ -127,21 +154,6 @@ export default async function DashboardPage() {
     take: 100
   })
 
-  const overdueCount = await prisma.task.count({
-    where: {
-      status: { not: 'COMPLETED' },
-      dueAt: { lt: new Date() },
-      ...(isHighVisibility ? {} : { assigneeId: userId })
-    }
-  })
-
-  const activeCount = await prisma.task.count({
-    where: {
-      status: { not: 'COMPLETED' },
-      ...(isHighVisibility ? {} : { assigneeId: userId })
-    }
-  })
-
   return (
     <div className="space-y-8 pb-20">
       {/* Header Section */}
@@ -152,7 +164,7 @@ export default async function DashboardPage() {
       {/* Top Row: Stats & Pulse Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
-          <Suspense fallback={<div className="h-32 bg-base-200 rounded-2xl animate-pulse" />}>
+          <Suspense fallback={<OperationsStatsSkeleton />}>
             <OperationsStats
               userId={userId}
               role={role}
@@ -162,7 +174,7 @@ export default async function DashboardPage() {
           </Suspense>
         </div>
         <div className="lg:col-span-3 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-          <Suspense fallback={<div className="h-24 bg-base-200 rounded-xl animate-pulse" />}>
+          <Suspense fallback={<PulseTimelineSkeleton />}>
             <PulseTimeline />
           </Suspense>
         </div>
@@ -170,14 +182,14 @@ export default async function DashboardPage() {
 
       {/* Middle Row: Main Task Table */}
       <div className="grid grid-cols-1 gap-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-        <Suspense fallback={<div className="h-96 bg-base-200 rounded-2xl animate-pulse" />}>
+        <Suspense fallback={<GlobalTaskTableSkeleton />}>
           <GlobalTaskTable initialTasks={activeTasks as any} currentUserId={userId} currentUserRole={role} />
         </Suspense>
       </div>
 
       {/* Bottom Row: Active Projects Overview */}
       <div className="pt-4 border-t border-base-200/50 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
-        <Suspense fallback={<div className="h-48 bg-base-200 rounded-2xl animate-pulse" />}>
+        <Suspense fallback={<ProjectsGridSkeleton />}>
           <ProjectsGrid />
         </Suspense>
       </div>

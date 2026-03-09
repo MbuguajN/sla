@@ -117,6 +117,7 @@ export default function EditUserModal({ user, departments }: { user: any, depart
                   >
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
+                    <option value="FINANCE">Finance</option>
                     <option value="HR">HR</option>
                     <option value="CEO">CEO</option>
                     <option value="ADMIN">Admin</option>

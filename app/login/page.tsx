@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Lock, Mail, AlertCircle } from "lucide-react"
@@ -12,24 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const [pageReady, setPageReady] = useState(false)
-  const [logos, setLogos] = useState<{ light: string, dark: string }>({ light: '', dark: '' })
 
-  useEffect(() => {
-    import('../actions/settingsActions').then(mod => {
-      mod.getSystemSettings(['SYSTEM_LOGO_LIGHT', 'SYSTEM_LOGO_DARK', 'SYSTEM_LOGO']).then((settings: any) => {
-        setLogos({
-          light: settings['SYSTEM_LOGO_LIGHT'] || settings['SYSTEM_LOGO'] || '/logo.svg',
-          dark: settings['SYSTEM_LOGO_DARK'] || settings['SYSTEM_LOGO'] || '/logo.svg'
-        })
-        // Small delay for smooth fade-in
-        setTimeout(() => setPageReady(true), 200)
-      })
-    }).catch(() => {
-      setLogos({ light: '/logo.svg', dark: '/logo.svg' })
-      setPageReady(true)
-    })
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,15 +39,6 @@ export default function LoginPage() {
     }
   }
 
-  // Highly premium initial loading screen
-  if (!pageReady) {
-    return (
-      <div className="min-h-screen bg-base-100 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-        <LoadingBreadcrumb text="Preparing Resources" className="scale-150" />
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center justify-start lg:justify-center p-6 py-12 lg:py-6 relative overflow-x-hidden font-sans">
       {/* Loading Overlay */}
@@ -82,12 +56,12 @@ export default function LoginPage() {
 
       <div className="max-w-[400px] w-full relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-4 flex flex-col items-center">
         {/* Card — Professional Glassmorphism */}
-        <div className="w-full bg-base-100/40 backdrop-blur-2xl border border-base-content/5 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 lg:p-10 flex flex-col items-center gap-6">
+        <div className="w-full bg-base-100/40 backdrop-blur-2xl border border-base-content/20 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 lg:p-10 flex flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2 text-center">
             {/* Logo — Prominent & Integrated */}
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 overflow-hidden relative mb-1 md:mb-2">
-              <img src={logos.light} alt="Logo" className="w-full h-full object-contain dark:hidden transition-all duration-500 drop-shadow-md" />
-              <img src={logos.dark} alt="Logo" className="w-full h-full object-contain hidden dark:block transition-all duration-500 drop-shadow-md" />
+              <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain dark:hidden transition-all duration-500 drop-shadow-md" />
+              <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain hidden dark:block transition-all duration-500 drop-shadow-md" />
             </div>
 
             <div className="space-y-1">
@@ -98,15 +72,15 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-5 w-full">
             <div className="form-control w-full">
               <label className="label py-0 mb-1.5 ml-1">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/40">Email Address</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-base-content/70">Email Address</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/70" />
                 <input
                   required
                   type="email"
                   placeholder="name@company.com"
-                  className="w-full h-11 bg-base-content/5 border border-base-content/5 rounded-xl pl-11 pr-4 text-xs font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/10"
+                  className="w-full h-11 bg-base-content/5 border border-base-content/20 rounded-xl pl-11 pr-4 text-sm font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/70"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -115,15 +89,15 @@ export default function LoginPage() {
 
             <div className="form-control w-full">
               <label className="label py-0 mb-1.5 ml-1">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-base-content/40">Password</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-base-content/70">Password</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/70" />
                 <input
                   required
                   type="password"
                   placeholder="••••••••"
-                  className="w-full h-11 bg-base-content/5 border border-base-content/5 rounded-xl pl-11 pr-4 text-xs font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/10"
+                  className="w-full h-11 bg-base-content/5 border border-base-content/20 rounded-xl pl-11 pr-4 text-sm font-semibold focus:ring-1 ring-primary/30 outline-none transition-all placeholder:text-base-content/70"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -131,7 +105,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-error text-[10px] font-bold uppercase tracking-wide bg-error/5 border border-error/10 px-4 py-3 rounded-xl animate-in shake">
+              <div className="flex items-center gap-2 text-error text-sm font-bold uppercase tracking-wide bg-error/5 border border-error/10 px-4 py-3 rounded-xl animate-in shake">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -139,7 +113,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="w-full h-12 bg-primary text-white rounded-xl shadow-lg border-none hover:brightness-110 active:scale-[0.98] transition-all text-[11px] font-bold uppercase tracking-[0.2em] relative group mt-2"
+              className="w-full h-12 bg-primary text-white rounded-xl shadow-lg border-none hover:brightness-110 active:scale-[0.98] transition-all text-sm font-bold uppercase tracking-[0.2em] relative group mt-2"
               disabled={loading}
             >
               {loading ? (
@@ -155,9 +129,9 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <div className="flex flex-col items-center gap-3 mt-10 opacity-20">
+        <div className="flex flex-col items-center gap-3 mt-10 opacity-40">
           <div className="h-px w-8 bg-base-content/40" />
-          <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-center">
+          <p className="text-sm font-bold uppercase tracking-[0.3em] text-center">
             System Instance v2.4.0
           </p>
         </div>

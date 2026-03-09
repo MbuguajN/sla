@@ -64,7 +64,7 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
     }
 
     const priorityStyles: Record<string, string> = {
-        LOW: 'bg-base-content/5 text-base-content/40',
+        LOW: 'bg-base-content/5 text-base-content/70',
         NORMAL: 'bg-info/10 text-info',
         HIGH: 'bg-warning/10 text-warning',
         URGENT: 'bg-error text-white shadow-sm'
@@ -74,7 +74,7 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
         OPEN: 'bg-warning/10 text-warning',
         IN_PROGRESS: 'bg-primary/10 text-primary',
         RESOLVED: 'bg-success/10 text-success',
-        CLOSED: 'bg-base-content/5 text-base-content/40'
+        CLOSED: 'bg-base-content/5 text-base-content/70'
     }
 
     return (
@@ -87,11 +87,11 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
                             key={t}
                             onClick={() => setTab(t)}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                                tab === t ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/50"
+                                "px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                                tab === t ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/70"
                             )}
                         >
-                            {t.replace('_', ' ')} <span className="ml-1 text-[10px] opacity-50">{t === 'ALL' ? initialRequests.length : initialRequests.filter(r => r.status === t).length}</span>
+                            {t.replace('_', ' ')} <span className="ml-1 text-sm opacity-50">{t === 'ALL' ? initialRequests.length : initialRequests.filter(r => r.status === t).length}</span>
                         </button>
                     ))}
                 </div>
@@ -116,29 +116,29 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
 
                         <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
-                                <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none", priorityStyles[r.priority])}>
+                                <span className={cn("badge badge-sm font-bold text-sm uppercase tracking-wider border-none", priorityStyles[r.priority])}>
                                     {r.priority}
                                 </span>
-                                <span className="text-[10px] text-base-content/30 font-bold uppercase tracking-widest">{format(new Date(r.createdAt), 'MMM d, HH:mm')}</span>
+                                <span className="text-sm text-base-content/30 font-bold uppercase tracking-widest">{format(new Date(r.createdAt), 'MMM d, HH:mm')}</span>
                             </div>
-                            <span className={cn("badge badge-sm font-bold text-[10px] uppercase tracking-wider border-none", statusStyles[r.status])}>
+                            <span className={cn("badge badge-sm font-bold text-sm uppercase tracking-wider border-none", statusStyles[r.status])}>
                                 {r.status.replace('_', ' ')}
                             </span>
                         </div>
 
                         <div className="space-y-1">
                             <h3 className="text-base font-bold text-base-content group-hover:text-primary transition-colors leading-tight">{r.title}</h3>
-                            <p className="text-xs text-base-content/50 line-clamp-2">{r.description}</p>
+                            <p className="text-xs text-base-content/70 line-clamp-2">{r.description}</p>
                         </div>
 
-                        <div className="pt-4 flex items-center justify-between border-t border-base-content/5 mt-auto">
+                        <div className="pt-4 flex items-center justify-between border-t border-base-content/20 mt-auto">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center text-[10px] font-black text-base-content/40">
+                                <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center text-sm font-black text-base-content/70">
                                     {r.user.name?.charAt(0) || '?'}
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[11px] font-bold text-base-content/70">{r.user.name}</span>
-                                    <span className="text-[9px] text-base-content/30 uppercase tracking-tighter">{r.user.department?.name || 'User'}</span>
+                                    <span className="text-sm font-bold text-base-content/70">{r.user.name}</span>
+                                    <span className="text-xs text-base-content/30 uppercase tracking-tighter">{r.user.department?.name || 'User'}</span>
                                 </div>
                             </div>
 
@@ -148,7 +148,7 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
                                     <span>{r.assignedTo.name}</span>
                                 </div>
                             ) : (
-                                <span className="text-[11px] text-warning font-black uppercase tracking-widest">Unassigned</span>
+                                <span className="text-sm text-warning font-black uppercase tracking-widest">Unassigned</span>
                             )}
                         </div>
 
@@ -185,17 +185,17 @@ export default function ITSupportQueueClient({ initialRequests, techUsers }: { i
                                     <CheckCircle2 className="w-3 h-3" /> Resolve
                                 </button>
                             ) : (
-                                <div className="text-[10px] text-base-content/20 italic w-full text-center">Ticket Closed</div>
+                                <div className="text-sm text-base-content/70 italic w-full text-center">Ticket Closed</div>
                             )}
                         </div>
                     </div>
                 ))}
                 {filtered.length === 0 && (
                     <div className="col-span-full py-20 text-center">
-                        <div className="w-16 h-16 bg-base-content/5 rounded-3xl flex items-center justify-center text-base-content/20 mx-auto mb-4">
+                        <div className="w-16 h-16 bg-base-content/5 rounded-3xl flex items-center justify-center text-base-content/70 mx-auto mb-4">
                             <HelpCircle className="w-8 h-8" />
                         </div>
-                        <p className="text-sm text-base-content/40 italic">No tickets found in this state</p>
+                        <p className="text-sm text-base-content/70 italic">No tickets found in this state</p>
                     </div>
                 )}
             </div>

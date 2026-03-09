@@ -31,7 +31,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                 <p className="max-w-md opacity-60 font-medium italic">
                     Project creation is restricted to the Business Development department.
                 </p>
-                <Link href="/projects" className="btn btn-outline btn-sm uppercase font-black tracking-widest text-[10px] mt-4">
+                <Link href="/projects" className="btn btn-outline btn-sm uppercase font-black tracking-widest text-sm mt-4">
                     Back to Projects
                 </Link>
             </div>
@@ -76,14 +76,14 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
             <div className="max-w-4xl w-full relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
                 {/* Back Button */}
                 <div className="absolute -top-12 left-0">
-                    <Link href="/projects" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] opacity-30 hover:opacity-100 hover:text-primary transition-all">
+                    <Link href="/projects" className="flex items-center gap-2 text-sm font-black uppercase tracking-[0.3em] opacity-30 hover:opacity-100 hover:text-primary transition-all">
                         <ArrowLeft className="w-3 h-3" />
                         Abort Initialization
                     </Link>
                 </div>
 
                 {/* Card — Modern Glassmorphism */}
-                <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 p-10 lg:p-12">
+                <div className="glass-panel shadow-ruby-massive border border-base-content/20 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 p-10 lg:p-12">
                     <div className="flex flex-col items-center gap-10">
                         <div className="flex flex-col items-center gap-4 text-center">
                             <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-inner mb-2">
@@ -91,7 +91,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                             </div>
                             <div className="space-y-2">
                                 <h1 className="text-3xl font-black tracking-tight text-base-content uppercase italic">Initialize Project</h1>
-                                <p className="text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Strategic Framework Creation</p>
+                                <p className="text-sm font-black text-base-content/30 uppercase tracking-[0.2em]">Strategic Framework Creation</p>
                             </div>
                         </div>
 
@@ -101,23 +101,23 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                                 <div className="space-y-8 flex flex-col items-center">
                                     <div className="w-full space-y-8">
                                         <div className="space-y-3 text-center">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Client / Project Identity</label>
+                                            <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Client / Project Identity</label>
                                             <input
                                                 type="text"
                                                 required
                                                 placeholder="e.g., Global Redesign 2024"
-                                                className="input input-lg w-full bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-center placeholder:text-base-content/10 shadow-inner h-14"
+                                                className="input input-lg w-full bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-center placeholder:text-base-content/40 shadow-inner h-14"
                                                 value={formData.title}
                                                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                             />
                                         </div>
 
                                         <div className="space-y-3 text-center">
-                                            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Strategic Parameters</label>
+                                            <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Strategic Parameters</label>
                                             <textarea
                                                 required
                                                 placeholder="Codify project scope and mission objectives..."
-                                                className="textarea w-full h-40 bg-base-content/5 border-none rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-6 text-center placeholder:text-base-content/10 shadow-inner resize-none overflow-y-auto"
+                                                className="textarea w-full h-40 bg-base-content/5 border-none rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-6 text-center placeholder:text-base-content/40 shadow-inner resize-none overflow-y-auto"
                                                 value={formData.description}
                                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             />
@@ -129,13 +129,13 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                                 <div className="space-y-8 flex flex-col items-center">
                                     <div className="w-full h-full p-8 bg-warning/[0.03] rounded-[2.5rem] border border-warning/10 space-y-8 flex flex-col items-center justify-center">
                                         <div className="text-center space-y-2">
-                                            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-warning italic leading-none">Response Protocol</h2>
-                                            <p className="text-[8px] font-bold opacity-30 uppercase tracking-widest italic leading-none">Baseline Service Level Agreement</p>
+                                            <h2 className="text-sm font-black uppercase tracking-[0.3em] text-warning italic leading-none">Response Protocol</h2>
+                                            <p className="text-sm font-bold opacity-30 uppercase tracking-widest italic leading-none">Baseline Service Level Agreement</p>
                                         </div>
 
                                         <div className="w-full space-y-6">
                                             <div className="space-y-2 text-center">
-                                                <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Protocol Title</label>
+                                                <label className="text-xs font-black uppercase tracking-widest text-base-content/70">Protocol Title</label>
                                                 <input
                                                     type="text"
                                                     placeholder="Standard Response"
@@ -147,7 +147,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
 
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2 text-center">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Duration (H)</label>
+                                                    <label className="text-xs font-black uppercase tracking-widest text-base-content/70">Duration (H)</label>
                                                     <input
                                                         type="number"
                                                         placeholder="24"
@@ -158,9 +158,9 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                                                 </div>
 
                                                 <div className="space-y-2 text-center">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-base-content/20">Priority Tier</label>
+                                                    <label className="text-xs font-black uppercase tracking-widest text-base-content/70">Priority Tier</label>
                                                     <select
-                                                        className="select select-sm w-full bg-base-100/50 border-none rounded-xl text-center font-black uppercase text-[10px] focus:ring-1 ring-warning/30 appearance-none"
+                                                        className="select select-sm w-full bg-base-100/50 border-none rounded-xl text-center font-black uppercase text-sm focus:ring-1 ring-warning/30 appearance-none"
                                                         value={formData.slaTier}
                                                         onChange={(e) => setFormData({ ...formData, slaTier: e.target.value })}
                                                     >
@@ -190,7 +190,7 @@ export default function NewProjectClient({ userDepartment }: NewProjectClientPro
                                         </div>
                                     )}
                                 </button>
-                                <p className="mt-4 text-[8px] font-black uppercase tracking-[0.4em] opacity-20 italic">Framework deployment requires strategic authorization.</p>
+                                <p className="mt-4 text-sm font-black uppercase tracking-[0.4em] opacity-20 italic">Framework deployment requires strategic authorization.</p>
                             </div>
                         </form>
                     </div>

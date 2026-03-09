@@ -45,7 +45,7 @@ export default async function ITSupportQueuePage() {
                     </div>
                     <div>
                         <h1 className="text-3xl font-extrabold tracking-tight text-base-content mb-0">IT Support Queue</h1>
-                        <p className="text-[11px] font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Technical Support Management</p>
+                        <p className="text-sm font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Technical Support Management</p>
                     </div>
                 </div>
 
@@ -60,7 +60,7 @@ export default async function ITSupportQueuePage() {
                         <div key={i} className={`bg-base-100/50 backdrop-blur-sm rounded-2xl p-5 ring-1 ring-base-content/10 transition-all hover:scale-[1.03] shadow-md ${s.ring}`}>
                             <div className="flex items-center gap-2 mb-1">
                                 <s.icon className={`w-3.5 h-3.5 ${s.col} opacity-60`} />
-                                <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20">{s.label}</span>
+                                <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70">{s.label}</span>
                             </div>
                             <span className={`text-3xl font-black tracking-tighter ${s.col}`}>{s.val}</span>
                         </div>

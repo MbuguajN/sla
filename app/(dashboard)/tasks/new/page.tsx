@@ -34,7 +34,7 @@ export default async function NewTaskPage() {
 
       <div className="max-w-3xl w-full flex-1 flex flex-col items-center relative z-10 transition-all duration-700 animate-in fade-in slide-in-from-bottom-8">
         {/* Card — Modern Glassmorphism */}
-        <div className="glass-panel shadow-ruby-massive border border-base-content/5 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 w-full animate-in zoom-in-95 duration-500">
+        <div className="glass-panel shadow-ruby-massive border border-base-content/20 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden backdrop-blur-3xl bg-base-100/60 w-full animate-in zoom-in-95 duration-500">
           <div className="p-6 md:p-8 lg:p-10 gap-4 md:gap-6 flex flex-col">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-xl md:rounded-2xl flex items-center justify-center text-primary border border-primary/20 shadow-inner mb-1">
@@ -42,7 +42,7 @@ export default async function NewTaskPage() {
               </div>
               <div className="space-y-2">
                 <h1 className="text-2xl md:text-3xl font-black tracking-tight text-base-content uppercase italic">Initialize Brief</h1>
-                <p className="text-[9px] md:text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">Authorized Executive Initiation</p>
+                <p className="text-xs md:text-sm font-black text-base-content/30 uppercase tracking-[0.2em]">Authorized Executive Initiation</p>
               </div>
             </div>
 
@@ -57,7 +57,7 @@ export default async function NewTaskPage() {
 
         <div className="flex flex-col items-center gap-4 mt-12 opacity-30 group cursor-default">
           <div className="h-px w-12 bg-base-content/40 group-hover:w-24 transition-all duration-700" />
-          <p className="text-[9px] font-black uppercase tracking-[0.4em]">Operations Command</p>
+          <p className="text-xs font-black uppercase tracking-[0.4em]">Operations Command</p>
         </div>
       </div>
     </div>

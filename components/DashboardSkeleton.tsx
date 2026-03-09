@@ -2,7 +2,7 @@ import React from 'react';
 
 const CardSkeleton = ({ height = '160px', className = '' }) => (
     <div
-        className={`bg-base-200/50 animate-pulse rounded-3xl border border-base-content/5 ${className}`}
+        className={`bg-base-200/50 animate-pulse rounded-3xl border border-base-content/20 ${className}`}
         style={{ height }}
     />
 );
@@ -44,7 +44,7 @@ export default function DashboardSkeleton() {
             </div>
 
             {/* Bottom Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-base-content/5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-base-content/20">
                 <CardSkeleton height="180px" />
                 <CardSkeleton height="180px" />
                 <CardSkeleton height="180px" />

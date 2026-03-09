@@ -83,7 +83,7 @@ export default function TaskChat({
         {/* Messages */}
         <div className="space-y-4 min-h-[300px] max-h-[500px] overflow-y-auto mb-6">
           {messages.length === 0 ? (
-            <div className="flex items-center justify-center h-40 text-base-content/40 text-sm italic">
+            <div className="flex items-center justify-center h-40 text-base-content/70 text-sm italic">
               No messages yet. Start the conversation!
             </div>
           ) : (

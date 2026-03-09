@@ -68,20 +68,20 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
                             key={t}
                             onClick={() => setTab(t)}
                             className={cn(
-                                "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
-                                tab === t ? "bg-base-100 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/50"
+                                "px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-widest transition-all",
+                                tab === t ? "bg-base-100 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/70"
                             )}
                         >
-                            {t} <span className="ml-1 text-[9px] opacity-40">{initialSuggestions.filter(s => s.status === t).length}</span>
+                            {t} <span className="ml-1 text-xs opacity-40">{initialSuggestions.filter(s => s.status === t).length}</span>
                         </button>
                     ))}
                 </div>
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/70" />
                     <input
                         type="text"
                         placeholder="Search feedback..."
-                        className="input input-sm input-bordered pl-9 w-full md:w-60 text-[11px] font-bold bg-base-100 rounded-xl"
+                        className="input input-sm input-bordered pl-9 w-full md:w-60 text-sm font-bold bg-base-100 rounded-xl"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                     />
@@ -91,7 +91,7 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
             <div className="bg-base-100 border border-base-content/10 rounded-2xl overflow-hidden shadow-sm">
                 <table className="table w-full">
                     <thead>
-                        <tr className="bg-base-200/30 text-[10px] font-bold uppercase tracking-widest text-base-content/25 border-b border-base-content/5">
+                        <tr className="bg-base-200/30 text-sm font-bold uppercase tracking-widest text-base-content/25 border-b border-base-content/20">
                             <th className="pl-6 h-10 w-48">Sender</th>
                             <th className="w-24">Category</th>
                             <th>Content</th>
@@ -105,16 +105,16 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
                                     <div className="flex flex-col pt-1">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded-lg bg-base-content/5 flex items-center justify-center">
-                                                <User className="w-3 h-3 text-base-content/40" />
+                                                <User className="w-3 h-3 text-base-content/70" />
                                             </div>
                                             <span className="text-xs font-bold text-base-content">{s.user.name}</span>
                                         </div>
-                                        <span className="text-[10px] text-base-content/20 ml-8">{s.user.department?.name || 'No Dept'}</span>
-                                        <span className="text-[9px] text-base-content/15 ml-8 mt-1 italic">{format(new Date(s.createdAt), 'MMM d, HH:mm')}</span>
+                                        <span className="text-sm text-base-content/70 ml-8">{s.user.department?.name || 'No Dept'}</span>
+                                        <span className="text-xs text-base-content/15 ml-8 mt-1 italic">{format(new Date(s.createdAt), 'MMM d, HH:mm')}</span>
                                     </div>
                                 </td>
                                 <td className="align-top font-bold">
-                                    <span className={cn("inline-block px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider mt-1.5", categoryStyles[s.category] || 'bg-base-200 text-base-content/40')}>
+                                    <span className={cn("inline-block px-1.5 py-0.5 rounded text-xs uppercase tracking-wider mt-1.5", categoryStyles[s.category] || 'bg-base-200 text-base-content/70')}>
                                         {s.category}
                                     </span>
                                 </td>
@@ -122,7 +122,7 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
                                     <div className="space-y-3">
                                         <p className="text-sm text-base-content/70 leading-relaxed font-medium">{s.content}</p>
                                         {s.adminNote && (
-                                            <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 text-[11px] text-primary font-bold flex gap-2">
+                                            <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 text-sm text-primary font-bold flex gap-2">
                                                 <div className="shrink-0"><CheckCircle2 className="w-3.5 h-3.5" /></div>
                                                 <span>Note: {s.adminNote}</span>
                                             </div>
@@ -132,7 +132,7 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
                                                 <input
                                                     type="text"
                                                     placeholder="Add internal note..."
-                                                    className="input input-xs input-bordered flex-1 text-[11px]"
+                                                    className="input input-xs input-bordered flex-1 text-sm"
                                                     value={adminNote}
                                                     onChange={e => setAdminNote(e.target.value)}
                                                 />
@@ -158,7 +158,7 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
                                     {s.status === 'OPEN' && respondingId !== s.id && (
                                         <button
                                             onClick={() => setRespondingId(s.id)}
-                                            className="btn btn-ghost btn-xs text-primary font-bold uppercase tracking-wider text-[10px]"
+                                            className="btn btn-ghost btn-xs text-primary font-bold uppercase tracking-wider text-sm"
                                         >
                                             Process
                                         </button>
@@ -171,8 +171,8 @@ export default function SuggestionBoxClient({ initialSuggestions }: { initialSug
 
                 {filtered.length === 0 && (
                     <div className="text-center py-20 bg-base-100">
-                        <MessageSquare className="w-8 h-8 text-base-content/10 mx-auto mb-3" />
-                        <p className="text-[11px] text-base-content/15 italic font-medium">No {tab.toLowerCase()} suggestions found</p>
+                        <MessageSquare className="w-8 h-8 text-base-content/40 mx-auto mb-3" />
+                        <p className="text-sm text-base-content/15 italic font-medium">No {tab.toLowerCase()} suggestions found</p>
                     </div>
                 )}
             </div>

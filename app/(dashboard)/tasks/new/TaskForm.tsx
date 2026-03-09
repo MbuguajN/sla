@@ -38,7 +38,7 @@ export default function TaskForm({
           <ShieldAlert className="w-10 h-10" />
         </div>
         <h2 className="text-2xl font-black uppercase tracking-tight text-base-content">Access Restricted</h2>
-        <p className="text-base-content/60 max-w-md mx-auto font-medium">
+        <p className="text-base-content/80 max-w-md mx-auto font-medium">
           ACCESS DENIED: Directive initiation is strictly restricted to Business Development and Client Service departments.
         </p>
         <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm font-bold uppercase tracking-widest mt-4">
@@ -109,14 +109,14 @@ export default function TaskForm({
     <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 w-full flex flex-col items-center">
       {/* Title Section */}
       <div className="space-y-2 md:space-y-3 w-full text-center">
-        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Task Nomenclature</label>
+        <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Task Nomenclature</label>
         <div className="relative group max-w-xl mx-auto w-full">
-          <Tag className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
+          <Tag className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
           <input
             required
             type="text"
             placeholder="What needs to be done?"
-            className="input input-lg w-full pl-14 pr-6 bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-base md:text-lg text-center placeholder:text-base-content/10 shadow-inner h-12 md:h-14"
+            className="input input-lg w-full pl-14 pr-6 bg-base-content/5 border-none rounded-2xl focus:ring-2 ring-primary/20 transition-all font-black text-base md:text-lg text-center placeholder:text-base-content/40 shadow-inner h-12 md:h-14"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
@@ -125,10 +125,10 @@ export default function TaskForm({
 
       {/* Description */}
       <div className="space-y-2 md:space-y-3 w-full text-center">
-        <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Operational Directives</label>
+        <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Operational Directives</label>
         <div className="max-w-xl mx-auto w-full">
           <textarea
-            className="textarea w-full h-24 md:h-28 bg-base-content/5 border-none rounded-[1.5rem] md:rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-4 md:p-5 text-center placeholder:text-base-content/10 shadow-inner resize-none"
+            className="textarea w-full h-24 md:h-28 bg-base-content/5 border-none rounded-[1.5rem] md:rounded-[2rem] focus:ring-2 ring-primary/20 transition-all font-bold text-sm p-4 md:p-5 text-center placeholder:text-base-content/40 shadow-inner resize-none"
             placeholder="Codify the full brief here..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -139,9 +139,9 @@ export default function TaskForm({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full">
         {/* Project Picker */}
         <div className="space-y-2 md:space-y-3 text-center">
-          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Associated Project</label>
+          <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Associated Project</label>
           <div className="relative group">
-            <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
+            <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
             <select
               className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
               value={projectId}
@@ -155,9 +155,9 @@ export default function TaskForm({
 
         {/* Department Picker */}
         <div className="space-y-2 md:space-y-3 text-center">
-          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 block">Target Department</label>
+          <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Target Department</label>
           <div className="relative group">
-            <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors" />
+            <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
             <select
               required
               className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
@@ -175,7 +175,7 @@ export default function TaskForm({
       <div className="space-y-3 md:space-y-4 w-full flex flex-col items-center">
         <div className="flex flex-col items-center gap-2 w-full">
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <label className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30">Response Protocol (SLA)</label>
+            <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30">Response Protocol (SLA)</label>
             <label className="flex items-center gap-2 cursor-pointer group">
               <input
                 type="checkbox"
@@ -190,13 +190,13 @@ export default function TaskForm({
                   }
                 }}
               />
-              <span className="text-[9px] font-black uppercase tracking-widest text-base-content/20 group-hover:text-primary transition-colors">SLA Override</span>
+              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">SLA Override</span>
             </label>
           </div>
 
           {(isSlaOverride || !projectId) && (
             <div className="relative group max-w-md w-full animate-in slide-in-from-top-2">
-              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/20 group-focus-within:text-primary transition-colors font-black" />
+              <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors font-black" />
               <select
                 required={!isCustomDueDate}
                 className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-sm text-center appearance-none shadow-inner h-12 md:h-14"
@@ -212,17 +212,17 @@ export default function TaskForm({
           {projectId && !isSlaOverride && (
             <div className="py-2.5 px-6 bg-primary/5 rounded-full border border-primary/10 flex items-center justify-center gap-3 max-w-md w-full animate-in zoom-in-95">
               <Clock className="w-3 h-3 text-primary" />
-              <span className="text-[9px] font-black uppercase tracking-wider text-primary">Inheriting Project SLA: {slas.find(s => s.id === selectedSlaId)?.name || 'Fetching...'}</span>
+              <span className="text-xs font-black uppercase tracking-wider text-primary">Inheriting Project SLA: {slas.find(s => s.id === selectedSlaId)?.name || 'Fetching...'}</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Due Date Section */}
-      <div className="w-full max-w-xl p-4 md:p-6 bg-base-content/[0.03] rounded-[1.5rem] md:rounded-[2rem] border border-base-content/5 space-y-3 md:space-y-4 flex flex-col items-center">
+      <div className="w-full max-w-xl p-4 md:p-6 bg-base-content/[0.03] rounded-[1.5rem] md:rounded-[2rem] border border-base-content/20 space-y-3 md:space-y-4 flex flex-col items-center">
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center gap-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30">Temporal Deadline</span>
+            <span className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30">Temporal Deadline</span>
             <label className="flex items-center gap-2 cursor-pointer group">
               <input
                 type="checkbox"
@@ -230,7 +230,7 @@ export default function TaskForm({
                 checked={isCustomDueDate}
                 onChange={(e) => setIsCustomDueDate(e.target.checked)}
               />
-              <span className="text-[9px] font-black uppercase tracking-widest text-base-content/20 group-hover:text-primary transition-colors">Manual Override</span>
+              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">Manual Override</span>
             </label>
           </div>
         </div>
@@ -247,7 +247,7 @@ export default function TaskForm({
         ) : (
           dueDate && (
             <div className="text-center py-3 px-8 bg-white dark:bg-slate-900 rounded-[1rem] border border-primary/10 shadow-ruby-soft animate-in slide-in-from-top-4 duration-500">
-              <span className="block text-[9px] font-black uppercase tracking-[0.3em] text-primary/40 mb-1 italic">Estimated Completion</span>
+              <span className="block text-xs font-black uppercase tracking-[0.3em] text-primary/40 mb-1 italic">Estimated Completion</span>
               <span className="text-xl font-black tracking-tighter text-base-content uppercase">{format(dueDate, 'PPP p')}</span>
             </div>
           )
@@ -257,7 +257,7 @@ export default function TaskForm({
       {/* Watchers */}
       <div className="space-y-6 w-full text-center">
         <div className="flex flex-col items-center gap-2">
-          <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30">Operational Observers</h4>
+          <h4 className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30">Operational Observers</h4>
         </div>
         <div className="flex flex-wrap justify-center gap-3 max-w-2xl mx-auto">
           {users.slice(0, 10).map(u => (
@@ -268,17 +268,17 @@ export default function TaskForm({
                 setWatcherIds(prev => prev.includes(u.id) ? prev.filter(id => id !== u.id) : [...prev, u.id])
               }}
               className={cn(
-                "px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                "px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all border-2",
                 watcherIds.includes(u.id)
                   ? "bg-primary border-primary text-white shadow-ruby-soft animate-in zoom-in-105"
-                  : "bg-base-content/5 border-transparent text-base-content/40 hover:bg-base-content/10"
+                  : "bg-base-content/5 border-transparent text-base-content/70 hover:bg-base-content/10"
               )}
             >
               {u.name || u.email.split('@')[0]}
             </button>
           ))}
         </div>
-        <p className="text-[8px] font-bold text-base-content/10 uppercase tracking-[0.4em] italic leading-none">Observers monitored via priority notification protocol.</p>
+        <p className="text-sm font-bold text-base-content/40 uppercase tracking-[0.4em] italic leading-none">Observers monitored via priority notification protocol.</p>
       </div>
 
       {/* Footer Actions */}
@@ -301,7 +301,7 @@ export default function TaskForm({
 
         <button
           type="button"
-          className="text-[11px] font-black uppercase tracking-[0.3em] text-base-content/30 hover:text-base-content hover:scale-110 transition-all px-8 py-2"
+          className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 hover:text-base-content hover:scale-110 transition-all px-8 py-2"
           onClick={() => router.back()}
         >
           Abort Protocol

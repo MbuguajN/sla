@@ -39,7 +39,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={() => setIsPaused(false)}
           />
-          <div className="relative w-full max-w-md bg-base-100 rounded-[2.5rem] shadow-ruby-massive border border-base-content/5 p-10 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col items-center text-center">
+          <div className="relative w-full max-w-md bg-base-100 rounded-[2.5rem] shadow-ruby-massive border border-base-content/20 p-10 animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col items-center text-center">
             {/* Ambient Background */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-warning/10 rounded-full -mr-16 -mt-16 blur-2xl" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-warning/5 rounded-full -ml-16 -mb-16 blur-2xl opacity-50" />
@@ -51,7 +51,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
 
               <div className="space-y-2 mb-8">
                 <h3 className="text-2xl font-black uppercase tracking-tighter text-base-content leading-none italic">Pause Instance</h3>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-warning/60 leading-none">Operational Justification Required</p>
+                <p className="text-sm font-black uppercase tracking-[0.2em] text-warning/60 leading-none">Operational Justification Required</p>
               </div>
 
               <div className="w-full space-y-8">
@@ -61,7 +61,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     placeholder="Provide context for this operational halt..."
-                    className="textarea w-full h-32 bg-base-content/5 border-none focus:ring-2 ring-warning/20 transition-all font-bold text-sm p-6 rounded-[2rem] resize-none text-center placeholder:text-base-content/10 shadow-inner"
+                    className="textarea w-full h-32 bg-base-content/5 border-none focus:ring-2 ring-warning/20 transition-all font-bold text-sm p-6 rounded-[2rem] resize-none text-center placeholder:text-base-content/40 shadow-inner"
                   />
                 </div>
 
@@ -81,7 +81,7 @@ export default function PauseTask({ taskId, onComplete }: { taskId: number, onCo
 
                   <button
                     onClick={() => setIsPaused(false)}
-                    className="btn btn-ghost w-full h-12 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] text-base-content/30 hover:text-base-content transition-all hover:bg-transparent"
+                    className="btn btn-ghost w-full h-12 rounded-2xl text-sm font-black uppercase tracking-[0.3em] text-base-content/30 hover:text-base-content transition-all hover:bg-transparent"
                   >
                     Abort & Resume
                   </button>

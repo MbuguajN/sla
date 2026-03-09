@@ -12,18 +12,20 @@ import { useRouter } from 'next/navigation'
 import {
     User, CalendarDays, CalendarOff, MessageSquare, Monitor, Send, Shield,
     CheckCircle2, XCircle, Clock, Plus, ChevronDown, ChevronUp,
-    Camera, Lock, Eye, EyeOff, Pencil, Activity
+    Camera, Lock, Eye, EyeOff, Pencil, Activity, DollarSign, Trash2, Calculator
 } from 'lucide-react'
 import { LimelightNav } from '@/components/ui/limelight-nav'
+import { createRequisition } from '@/app/actions/financeActions'
 
 type AccountClientProps = {
     user: any
     leaves: any[]
     suggestions: any[]
     itRequests: any[]
+    requisitions: any[]
 }
 
-export default function AccountClient({ user, leaves, suggestions, itRequests }: AccountClientProps) {
+export default function AccountClient({ user, leaves, suggestions, itRequests, requisitions }: AccountClientProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState('profile')
 
@@ -32,6 +34,7 @@ export default function AccountClient({ user, leaves, suggestions, itRequests }:
         { id: 'leave', label: 'Leave', icon: <CalendarDays /> },
         { id: 'suggestions', label: 'Suggestions', icon: <MessageSquare /> },
         { id: 'it', label: 'IT Support', icon: <Monitor /> },
+        { id: 'finance', label: 'Finance', icon: <DollarSign /> },
     ]
 
     return (
@@ -55,6 +58,7 @@ export default function AccountClient({ user, leaves, suggestions, itRequests }:
                 {activeTab === 'leave' && <LeaveTab leaves={leaves} />}
                 {activeTab === 'suggestions' && <SuggestionsTab suggestions={suggestions} />}
                 {activeTab === 'it' && <ITSupportTab itRequests={itRequests} />}
+                {activeTab === 'finance' && <FinanceTab requisitions={requisitions} />}
             </div>
         </div>
     )
@@ -74,21 +78,21 @@ function ProfileHeader({ user }: { user: any }) {
             </div>
             <div className="text-center md:text-left">
                 <h1 className="text-3xl font-extrabold tracking-tight text-base-content">{user.name}</h1>
-                <p className="text-sm text-base-content/40 mt-0.5">{user.email}</p>
+                <p className="text-sm text-base-content/70 mt-0.5">{user.email}</p>
                 <div className="flex items-center gap-3 mt-2 justify-center md:justify-start">
-                    <span className="badge badge-sm bg-primary/10 text-primary border-none font-bold text-[10px] uppercase tracking-wider">{user.role}</span>
+                    <span className="badge badge-sm bg-primary/10 text-primary border-none font-bold text-sm uppercase tracking-wider">{user.role}</span>
                     {user.department && (
-                        <span className="badge badge-sm bg-base-content/5 text-base-content/40 border-none font-bold text-[10px] uppercase tracking-wider">{user.department.name}</span>
+                        <span className="badge badge-sm bg-base-content/5 text-base-content/70 border-none font-bold text-sm uppercase tracking-wider">{user.department.name}</span>
                     )}
-                    <span className="flex items-center gap-1 text-[10px] text-success font-bold uppercase tracking-wider">
+                    <span className="flex items-center gap-1 text-sm text-success font-bold uppercase tracking-wider">
                         <Activity className="w-3 h-3" /> Active
                     </span>
                 </div>
             </div>
             <div className="md:ml-auto text-center md:text-right">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-base-content/20">Member Since</p>
-                <p className="text-sm font-bold text-base-content/50">{user.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : '—'}</p>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-base-content/20 mt-2">Last Active</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-base-content/70">Member Since</p>
+                <p className="text-sm font-bold text-base-content/70">{user.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : '—'}</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-base-content/70 mt-2">Last Active</p>
                 <p className="text-xs font-bold text-success">{user.lastActiveAt ? formatDistanceToNow(new Date(user.lastActiveAt), { addSuffix: true }) : '—'}</p>
             </div>
         </div>
@@ -151,73 +155,87 @@ function ProfileTab({ user }: { user: any }) {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Avatar Upload */}
-            <div className="glass-panel rounded-3xl p-8 space-y-6">
-                <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
-                    <Camera className="w-4 h-4 text-primary" /> Profile Picture
+            <div className="glass-panel rounded-[32px] p-10 space-y-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-10 -mt-10 group-hover:bg-primary/10 transition-colors" />
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-2">
+                    <Camera className="w-4 h-4 text-primary" /> Visual Identity
                 </h3>
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-28 h-28 rounded-3xl bg-primary/10 flex items-center justify-center overflow-hidden ring-4 ring-primary/10">
-                        {user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                        ) : (
-                            <span className="text-4xl font-black text-primary">{user.name?.charAt(0) || '?'}</span>
+                <div className="flex flex-col items-center gap-6">
+                    <div className="relative">
+                        <div className="w-32 h-32 rounded-[40px] bg-primary/10 flex items-center justify-center overflow-hidden ring-8 ring-primary/5 shadow-2xl transition-transform group-hover:scale-105">
+                            {user.avatarUrl ? (
+                                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-5xl font-black text-primary uppercase">{user.name?.charAt(0) || '?'}</span>
+                            )}
+                        </div>
+                        {avatarUploading && (
+                            <div className="absolute inset-0 rounded-[40px] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+                                <span className="loading loading-spinner text-white" />
+                            </div>
                         )}
                     </div>
                     <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
-                    <button
-                        onClick={() => fileRef.current?.click()}
-                        disabled={avatarUploading}
-                        className="btn btn-sm btn-primary gap-2"
-                    >
-                        {avatarUploading ? <span className="loading loading-spinner loading-xs" /> : <Camera className="w-3.5 h-3.5" />}
-                        {avatarUploading ? 'Uploading...' : 'Change Photo'}
-                    </button>
+                    <div className="text-center">
+                        <button
+                            onClick={() => fileRef.current?.click()}
+                            disabled={avatarUploading}
+                            className="btn btn-primary rounded-2xl px-8 shadow-lg shadow-primary/20 gap-2"
+                        >
+                            <Pencil className="w-4 h-4" />
+                            Update Avatar
+                        </button>
+                        <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-widest mt-4">JPG, PNG or WEBP. Max 2MB.</p>
+                    </div>
                 </div>
             </div>
 
             {/* Password Reset */}
-            <div className="glass-panel rounded-3xl p-8 space-y-6">
-                <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
-                    <Lock className="w-4 h-4 text-warning" /> Change Password
+            <div className="glass-panel rounded-[32px] p-10 space-y-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-warning/5 blur-3xl rounded-full -mr-10 -mt-10" />
+                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/40 flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-warning" /> Security Protocol
                 </h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 block mb-1.5">New Password</label>
+                <div className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">New Password</label>
                         <div className="relative">
                             <input
                                 type={showPassword ? 'text' : 'password'}
-                                className="input input-bordered input-sm w-full pr-10"
-                                placeholder="Min 6 characters"
+                                className="input input-bordered h-12 w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-warning/20 font-bold"
+                                placeholder="••••••••"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
                             />
-                            <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/30 hover:text-primary">
+                            <button onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-base-content/30 hover:text-warning transition-colors">
                                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </button>
                         </div>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 block mb-1.5">Confirm Password</label>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Confirm Identity</label>
                         <input
                             type="password"
-                            className="input input-bordered input-sm w-full"
-                            placeholder="Repeat password"
+                            className="input input-bordered h-12 w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-warning/20 font-bold"
+                            placeholder="••••••••"
                             value={confirmPassword}
                             onChange={e => setConfirmPassword(e.target.value)}
                         />
                     </div>
+
                     {msg && (
-                        <div className={cn("flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest py-2 px-3 rounded-lg",
-                            msg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
-                            {msg.type === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        <div className={cn("flex items-center gap-3 text-xs font-black uppercase tracking-widest py-4 px-5 rounded-2xl animate-in slide-in-from-top-2",
+                            msg.type === 'success' ? 'bg-success/10 text-success border border-success/10' : 'bg-error/10 text-error border border-error/10')}>
+                            {msg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                             {msg.text}
                         </div>
                     )}
-                    <button onClick={handlePasswordReset} disabled={saving} className="btn btn-sm btn-warning text-white gap-2">
-                        {saving ? <span className="loading loading-spinner loading-xs" /> : <Lock className="w-3.5 h-3.5" />}
-                        Update Password
+
+                    <button onClick={handlePasswordReset} disabled={saving} className="btn w-full h-12 rounded-2xl bg-warning text-white border-none shadow-lg shadow-warning/20 font-black uppercase tracking-widest text-xs gap-2 hover:brightness-110">
+                        {saving ? <span className="loading loading-spinner loading-xs" /> : <Shield className="w-4 h-4" />}
+                        Commit Changes
                     </button>
                 </div>
             </div>
@@ -266,7 +284,7 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
             {balance && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="glass-panel rounded-3xl p-5">
-                        <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20 block mb-2">Annual Leave</span>
+                        <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Annual Leave</span>
                         <div className="flex items-baseline gap-2 mb-3">
                             <span className="text-2xl font-black text-primary">{balance.annualRemaining}</span>
                             <span className="text-xs text-base-content/30 font-bold">/ {balance.annualAllocation} days remaining</span>
@@ -274,10 +292,10 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                         <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
                             <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.annualRemaining / balance.annualAllocation) * 100)}%` }} />
                         </div>
-                        <p className="text-[10px] text-base-content/20 mt-2">{balance.annualUsed} days used this year</p>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.annualUsed} days used this year</p>
                     </div>
                     <div className="glass-panel rounded-3xl p-5">
-                        <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20 block mb-2">Sick Leave</span>
+                        <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Sick Leave</span>
                         <div className="flex items-baseline gap-2 mb-3">
                             <span className="text-2xl font-black text-warning">{balance.sickRemaining}</span>
                             <span className="text-xs text-base-content/30 font-bold">/ {balance.sickAllocation} days remaining</span>
@@ -285,7 +303,7 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                         <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
                             <div className="h-full bg-warning rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.sickRemaining / balance.sickAllocation) * 100)}%` }} />
                         </div>
-                        <p className="text-[10px] text-base-content/20 mt-2">{balance.sickUsed} days used this year</p>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.sickUsed} days used this year</p>
                     </div>
                 </div>
             )}
@@ -304,7 +322,7 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                 <form onSubmit={handleSubmit} className="glass-panel rounded-3xl p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Leave Type</label>
+                            <label className="text-sm font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Leave Type</label>
                             <select className="select select-bordered select-sm w-full" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
                                 {['ANNUAL', 'SICK', 'PERSONAL', 'MATERNITY', 'PATERNITY', 'OTHER'].map(t => (
                                     <option key={t} value={t}>{t}</option>
@@ -312,16 +330,16 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                             </select>
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Start Date</label>
+                            <label className="text-sm font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Start Date</label>
                             <input type="date" className="input input-bordered input-sm w-full" value={form.startDate} onChange={e => setForm({ ...form, startDate: e.target.value })} required />
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">End Date</label>
+                            <label className="text-sm font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">End Date</label>
                             <input type="date" className="input input-bordered input-sm w-full" value={form.endDate} onChange={e => setForm({ ...form, endDate: e.target.value })} required />
                         </div>
                     </div>
                     <div>
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Reason</label>
+                        <label className="text-sm font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Reason</label>
                         <textarea className="textarea textarea-bordered w-full text-sm" rows={2} placeholder="Brief explanation..." value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} required />
                     </div>
                     <button type="submit" disabled={submitting} className="btn btn-primary btn-sm gap-2">
@@ -331,44 +349,65 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                 </form>
             )}
 
-            <div className="glass-panel rounded-3xl overflow-hidden divide-y divide-base-content/5">
-                {leaves.length === 0 ? (
-                    <div className="text-center py-16 text-sm text-base-content/30 italic">No leave requests yet</div>
-                ) : (
-                    leaves.map((l: any) => (
-                        <div key={l.id} className="group p-4 px-6 flex items-center justify-between hover:bg-base-content/[0.02] transition-colors">
-                            <div className="flex items-center gap-6">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">{l.type}</span>
-                                    <div className="flex items-center gap-2">
-                                        <CalendarOff className="w-3.5 h-3.5 text-base-content/20" />
-                                        <p className="text-sm font-bold text-base-content">
-                                            {format(new Date(l.startDate), 'MMM d')} — {format(new Date(l.endDate), 'MMM d, yyyy')}
-                                        </p>
-                                    </div>
-                                    <p className="text-[11px] text-base-content/40 mt-1 line-clamp-1 max-w-[400px]">{l.reason}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className={cn(
-                                    "badge badge-sm font-bold text-[9px] uppercase tracking-widest border-none px-3 h-6",
-                                    l.status === 'PENDING' ? 'bg-warning/10 text-warning' : l.status === 'APPROVED' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
-                                )}>
-                                    {l.status === 'PENDING' && <Clock className="w-2.5 h-2.5 mr-1" />}
-                                    {l.status === 'APPROVED' && <CheckCircle2 className="w-2.5 h-2.5 mr-1" />}
-                                    {l.status === 'DENIED' && <XCircle className="w-2.5 h-2.5 mr-1" />}
-                                    {l.status}
-                                </span>
-                                {l.reviewNote && (
-                                    <div className="hidden md:flex items-center gap-2 bg-base-content/5 px-3 py-1.5 rounded-xl border border-base-content/5">
-                                        <MessageSquare className="w-3 h-3 text-base-content/30" />
-                                        <span className="text-[10px] text-base-content/40 font-medium max-w-[150px] truncate">{l.reviewNote}</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    ))
-                )}
+            <div className="glass-panel rounded-[32px] overflow-hidden border border-base-content/10 shadow-sm">
+                <div className="overflow-x-auto">
+                    <table className="table w-full">
+                        <thead>
+                            <tr className="bg-base-content/5 border-b border-base-content/10">
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Request Type</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Duration</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Status</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Response</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-base-content/5">
+                            {leaves.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="text-center py-20 text-sm text-base-content/30 italic font-medium">No leave cycles recorded</td>
+                                </tr>
+                            ) : (
+                                leaves.map((l: any) => (
+                                    <tr key={l.id} className="hover:bg-base-content/[0.02] transition-colors group">
+                                        <td>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-black uppercase tracking-widest text-primary mb-0.5">{l.type}</span>
+                                                <span className="text-sm font-medium text-base-content/70 line-clamp-1">{l.reason}</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="flex items-center gap-2">
+                                                <div className="p-1.5 rounded-lg bg-base-content/5 text-base-content/40">
+                                                    <Clock className="w-3 h-3" />
+                                                </div>
+                                                <span className="text-sm font-black tabular-nums italic">
+                                                    {format(new Date(l.startDate), 'MMM d')} — {format(new Date(l.endDate), 'MMM d, yyyy')}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className={cn(
+                                                "badge badge-sm font-black text-[10px] uppercase tracking-widest border-none px-3 h-6",
+                                                l.status === 'PENDING' ? 'bg-warning/10 text-warning' : l.status === 'APPROVED' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                                            )}>
+                                                {l.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {l.reviewNote ? (
+                                                <div className="flex items-center gap-2 bg-base-content/5 px-3 py-1.5 rounded-xl border border-base-content/10 w-fit">
+                                                    <MessageSquare className="w-3 h-3 text-base-content/30" />
+                                                    <span className="text-[11px] font-bold text-base-content/70 max-w-[120px] truncate">{l.reviewNote}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-base-content/20 italic">Awaiting...</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     )
@@ -397,65 +436,83 @@ function SuggestionsTab({ suggestions }: { suggestions: any[] }) {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-info" /> Suggestions & Complaints
-                </h3>
-                <button onClick={() => setShowForm(!showForm)} className="btn btn-sm btn-info text-white gap-2">
-                    {showForm ? <ChevronUp className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                    {showForm ? 'Cancel' : 'New Submission'}
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-info/10 text-info rounded-xl flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Open Dialogue</h3>
+                        <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest">Share insights or concerns anonymously</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowForm(!showForm)} className="btn btn-sm h-10 px-6 rounded-xl bg-info text-white border-none shadow-lg shadow-info/20 gap-2">
+                    {showForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showForm ? 'Close' : 'New Submission'}
                 </button>
             </div>
 
             {showForm && (
-                <form onSubmit={handleSubmit} className="glass-panel rounded-3xl p-6 space-y-4">
-                    <div>
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Category</label>
-                        <select className="select select-bordered select-sm w-full md:w-60" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
-                            {['COMPLAINT', 'REQUEST', 'SUGGESTION', 'FEEDBACK'].map(c => (
-                                <option key={c} value={c}>{c}</option>
-                            ))}
-                        </select>
+                <form onSubmit={handleSubmit} className="glass-panel rounded-[32px] p-8 space-y-6 border-info/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-info/5 blur-3xl rounded-full -mr-10 -mt-10" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Classification</label>
+                            <select className="select select-bordered h-12 w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-info/20 font-bold" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+                                {['COMPLAINT', 'REQUEST', 'SUGGESTION', 'FEEDBACK'].map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Your Message</label>
-                        <textarea className="textarea textarea-bordered w-full text-sm" rows={3} placeholder="Speak freely — this is anonymous to everyone except the admin..." value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} required />
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Communication Content</label>
+                        <textarea className="textarea textarea-bordered w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-info/20 font-bold text-sm min-h-[120px]" placeholder="Your message will be transmitted securely..." value={form.content} onChange={e => setForm({ ...form, content: e.target.value })} required />
                     </div>
-                    <button type="submit" disabled={submitting} className="btn btn-info btn-sm gap-2 text-white">
-                        {submitting ? <span className="loading loading-spinner loading-xs" /> : <Send className="w-3.5 h-3.5" />}
-                        Submit Anonymously
-                    </button>
+                    <div className="flex justify-end">
+                        <button type="submit" disabled={submitting} className="btn bg-info text-white border-none h-12 px-10 rounded-2xl shadow-lg shadow-info/20 gap-3 font-black uppercase tracking-widest text-xs">
+                            {submitting ? <span className="loading loading-spinner" /> : <Send className="w-4 h-4" />}
+                            Transmit Anonymously
+                        </button>
+                    </div>
                 </form>
             )}
 
-            <div className="glass-panel rounded-3xl overflow-hidden divide-y divide-base-content/5">
+            <div className="grid grid-cols-1 gap-4">
                 {suggestions.length === 0 ? (
-                    <div className="text-center py-16 text-sm text-base-content/30 italic">No submissions yet</div>
+                    <div className="glass-panel rounded-[32px] py-20 flex flex-col items-center justify-center opacity-40">
+                        <MessageSquare size={48} className="mb-4" />
+                        <p className="text-sm font-black uppercase tracking-widest italic">No prior transmissions</p>
+                    </div>
                 ) : (
                     suggestions.map((s: any) => (
-                        <div key={s.id} className="group p-6 hover:bg-base-content/[0.01] transition-colors">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3">
-                                <div className="flex items-center gap-3">
-                                    <span className="badge badge-sm font-black text-[9px] uppercase tracking-widest border-none bg-info/10 text-info px-2.5 h-6">{s.category}</span>
-                                    <span className="text-[10px] font-bold text-base-content/20 uppercase tracking-widest">{format(new Date(s.createdAt), 'MMM d, yyyy')}</span>
+                        <div key={s.id} className="glass-panel group p-8 rounded-[32px] hover:border-info/20 transition-all border-transparent">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <div className="flex items-center gap-4">
+                                    <span className="badge h-8 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest border-none bg-info/10 text-info">{s.category}</span>
+                                    <span className="text-[10px] font-black text-base-content/30 uppercase tracking-[0.2em]">{format(new Date(s.createdAt), 'MMMM dd, yyyy')}</span>
                                 </div>
                                 <span className={cn(
-                                    "badge badge-sm font-bold text-[9px] uppercase tracking-widest border-none px-3 h-6 w-fit",
+                                    "badge h-7 px-3 rounded-lg font-black text-[10px] uppercase tracking-widest border-none w-fit",
                                     s.status === 'OPEN' ? 'bg-warning/10 text-warning' : s.status === 'REVIEWED' ? 'bg-info/10 text-info' : 'bg-success/10 text-success'
                                 )}>
                                     {s.status}
                                 </span>
                             </div>
-                            <p className="text-sm text-base-content/70 leading-relaxed italic">"{s.content}"</p>
+                            <p className="text-base font-medium text-base-content/80 leading-relaxed italic border-l-4 border-base-content/10 pl-6 py-1">
+                                "{s.content}"
+                            </p>
                             {s.adminNote && (
-                                <div className="mt-5 bg-primary/5 border border-primary/10 rounded-2xl p-4 relative overflow-hidden">
-                                    <div className="absolute top-0 left-0 w-1 h-full bg-primary/20" />
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                        <Shield className="w-3 h-3 text-primary opacity-60" />
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/40">Official Response</span>
+                                <div className="mt-8 bg-primary/5 border border-primary/10 rounded-3xl p-6 relative overflow-hidden group-hover:bg-primary/[0.08] transition-colors">
+                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-primary/20" />
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="p-1.5 bg-primary/10 rounded-lg">
+                                            <Shield className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <span className="text-xs font-black uppercase tracking-[0.2em] text-primary/60">Administrative Resolution</span>
                                     </div>
-                                    <p className="text-xs text-base-content/80 font-medium">{s.adminNote}</p>
+                                    <p className="text-sm text-base-content/70 font-bold leading-relaxed">{s.adminNote}</p>
                                 </div>
                             )}
                         </div>
@@ -489,10 +546,10 @@ function ITSupportTab({ itRequests }: { itRequests: any[] }) {
     }
 
     const priorityStyles: Record<string, string> = {
-        LOW: 'bg-base-content/5 text-base-content/40',
-        NORMAL: 'bg-info/10 text-info',
-        HIGH: 'bg-warning/10 text-warning',
-        URGENT: 'bg-error text-white shadow-sm'
+        LOW: 'bg-base-content/5 text-base-content/50 border-base-content/10',
+        NORMAL: 'bg-info/10 text-info border-info/20',
+        HIGH: 'bg-warning/10 text-warning border-warning/20',
+        URGENT: 'bg-error/10 text-error border-error/50 font-black animate-pulse'
     }
 
     const statusStyles: Record<string, string> = {
@@ -503,78 +560,309 @@ function ITSupportTab({ itRequests }: { itRequests: any[] }) {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
-                    <Monitor className="w-4 h-4 text-primary" /> IT Support Requests
-                </h3>
-                <button onClick={() => setShowForm(!showForm)} className="btn btn-sm btn-primary gap-2">
-                    {showForm ? <ChevronUp className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
-                    {showForm ? 'Cancel' : 'New Request'}
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center">
+                        <Monitor className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Technical Logistics</h3>
+                        <p className="text-[10px] font-bold text-base-content/40 uppercase tracking-widest">Submit and track infrastructure requests</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowForm(!showForm)} className="btn btn-sm h-10 px-6 rounded-xl btn-primary gap-2 shadow-lg shadow-primary/20">
+                    {showForm ? <ChevronUp className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                    {showForm ? 'Cancel' : 'Initiate Request'}
                 </button>
             </div>
 
             {showForm && (
-                <form onSubmit={handleSubmit} className="glass-panel rounded-3xl p-6 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Title</label>
-                            <input type="text" className="input input-bordered input-sm w-full" placeholder="Brief title..." value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
+                <form onSubmit={handleSubmit} className="glass-panel rounded-[32px] p-8 space-y-6 border-primary/10 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-10 -mt-10" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Engagement Title</label>
+                            <input type="text" className="input input-bordered h-12 w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-primary/20 font-bold" placeholder="E.g., Virtual Machine Access..." value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required />
                         </div>
-                        <div>
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Priority</label>
-                            <select className="select select-bordered select-sm w-full" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Priority Matrix</label>
+                            <select className="select select-bordered h-12 w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-primary/20 font-bold px-4" value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                                 {['LOW', 'NORMAL', 'HIGH', 'URGENT'].map(p => (
                                     <option key={p} value={p}>{p}</option>
                                 ))}
                             </select>
                         </div>
                     </div>
-                    <div>
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Description</label>
-                        <textarea className="textarea textarea-bordered w-full text-sm" rows={3} placeholder="Describe the issue..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-base-content/40 block ml-1">Technical Context</label>
+                        <textarea className="textarea textarea-bordered w-full rounded-2xl bg-base-content/5 border-none focus:ring-2 ring-primary/20 font-bold text-sm min-h-[100px]" placeholder="Detailed description of requirements..." value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} required />
                     </div>
-                    <button type="submit" disabled={submitting} className="btn btn-primary btn-sm gap-2">
-                        {submitting ? <span className="loading loading-spinner loading-xs" /> : <Send className="w-3.5 h-3.5" />}
-                        Submit Request
-                    </button>
+                    <div className="flex justify-end">
+                        <button type="submit" disabled={submitting} className="btn btn-primary h-12 px-10 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-black uppercase tracking-widest text-xs">
+                            {submitting ? <span className="loading loading-spinner" /> : <Send className="w-4 h-4" />}
+                            Submit Requisition
+                        </button>
+                    </div>
                 </form>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {itRequests.length === 0 ? (
-                    <div className="col-span-full text-center py-16 text-sm text-base-content/30 italic">No IT support requests</div>
+                    <div className="col-span-full glass-panel rounded-[32px] py-20 flex flex-col items-center justify-center opacity-40">
+                        <Monitor size={48} className="mb-4" />
+                        <p className="text-sm font-black uppercase tracking-widest italic">No active logistics</p>
+                    </div>
                 ) : (
                     itRequests.map((r: any) => (
-                        <div key={r.id} className="glass-panel group p-5 rounded-2xl flex flex-col space-y-3 relative overflow-hidden transition-all hover:scale-[1.01] border border-transparent hover:border-primary/10">
-                            <div className={cn("absolute top-0 left-0 w-full h-1", r.priority === 'URGENT' ? 'bg-error' : r.priority === 'HIGH' ? 'bg-warning' : 'bg-primary/20')} />
+                        <div key={r.id} className="glass-panel group p-6 rounded-[32px] flex flex-col space-y-4 relative overflow-hidden transition-all hover:scale-[1.02] border-transparent hover:border-primary/20 shadow-sm hover:shadow-xl">
+                            <div className={cn("absolute top-0 left-0 w-full h-1.5 opacity-40", r.priority === 'URGENT' ? 'bg-error' : r.priority === 'HIGH' ? 'bg-warning' : 'bg-primary')} />
 
-                            <div className="flex items-start justify-between">
-                                <span className={cn("badge badge-sm font-bold text-[9px] uppercase tracking-wider border-none", priorityStyles[r.priority])}>
+                            <div className="flex items-center justify-between">
+                                <span className={cn("badge h-6 rounded-lg font-black text-[9px] uppercase tracking-widest border", priorityStyles[r.priority])}>
                                     {r.priority}
                                 </span>
-                                <span className={cn("badge badge-sm font-bold text-[9px] uppercase tracking-wider border-none", statusStyles[r.status])}>
+                                <span className={cn("badge h-6 rounded-lg font-black text-[9px] uppercase tracking-widest border-none", statusStyles[r.status])}>
                                     {r.status.replace('_', ' ')}
                                 </span>
                             </div>
 
-                            <div className="space-y-1">
-                                <h4 className="text-sm font-bold text-base-content truncate group-hover:text-primary transition-colors">{r.title}</h4>
-                                <p className="text-[11px] text-base-content/50 line-clamp-2">{r.description}</p>
+                            <div className="space-y-2 min-h-[80px]">
+                                <h4 className="text-sm font-black text-base-content truncate group-hover:text-primary transition-colors uppercase tracking-tight">{r.title}</h4>
+                                <p className="text-xs font-medium text-base-content/60 line-clamp-3 leading-relaxed">{r.description}</p>
                             </div>
 
-                            <div className="pt-3 flex items-center justify-between border-t border-base-content/5 mt-auto">
-                                <span className="text-[9px] text-base-content/20 font-bold uppercase tracking-widest">{format(new Date(r.createdAt), 'MMM d, HH:mm')}</span>
-                                {r.assignedTo && (
-                                    <div className="flex items-center gap-1.5 text-[9px] text-primary font-bold">
-                                        <User className="w-3 h-3" />
-                                        <span>{r.assignedTo.name}</span>
+                            <div className="pt-4 flex items-center justify-between border-t border-base-content/5 mt-auto">
+                                <div className="flex flex-col">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-base-content/30 mb-0.5">Logged</span>
+                                    <span className="text-[10px] font-black italic text-base-content/60">{format(new Date(r.createdAt), 'MMM d, HH:mm')}</span>
+                                </div>
+                                {r.assignedTo ? (
+                                    <div className="flex items-center gap-2 bg-primary/5 px-3 py-1.5 rounded-xl">
+                                        <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <User className="w-3 h-3 text-primary" />
+                                        </div>
+                                        <span className="text-[10px] font-black text-primary uppercase">{r.assignedTo.name.split(' ')[0]}</span>
                                     </div>
+                                ) : (
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-base-content/20 bg-base-content/5 px-2 py-1 rounded-lg">Awaiting Tech</span>
                                 )}
                             </div>
                         </div>
                     ))
                 )}
+            </div>
+        </div>
+    )
+}
+// ─── Finance / Requisitions Tab ───
+function FinanceTab({ requisitions }: { requisitions: any[] }) {
+    const [showForm, setShowForm] = useState(false)
+    const [submitting, setSubmitting] = useState(false)
+    const [items, setItems] = useState([{ itemName: '', quantity: 1, unitPrice: 0, vatInclusive: false }])
+    const [reason, setReason] = useState('')
+    const router = useRouter()
+
+    const addItem = () => setItems([...items, { itemName: '', quantity: 1, unitPrice: 0, vatInclusive: false }])
+    const removeItem = (index: number) => setItems(items.filter((_, i) => i !== index))
+    const updateItem = (index: number, field: string, value: any) => {
+        const newItems = [...items]
+            ; (newItems[index] as any)[field] = value
+        setItems(newItems)
+    }
+
+    const calculateTotal = () => {
+        return items.reduce((sum, item) => {
+            const lineTotal = item.quantity * item.unitPrice
+            return sum + (item.vatInclusive ? lineTotal : lineTotal * 1.16)
+        }, 0)
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault()
+        if (items.some(i => !i.itemName || i.unitPrice <= 0)) {
+            alert('Please fill all item details correctly')
+            return
+        }
+        setSubmitting(true)
+        try {
+            const res = await createRequisition({ items, reason })
+            if (res.success) {
+                setItems([{ itemName: '', quantity: 1, unitPrice: 0, vatInclusive: false }])
+                setReason('')
+                setShowForm(false)
+                router.refresh()
+            } else {
+                alert(res.error)
+            }
+        } catch (err: any) {
+            alert(err.message)
+        } finally {
+            setSubmitting(false)
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-tight text-base-content flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-primary" /> Purchase Requisitions
+                </h3>
+                <button onClick={() => setShowForm(!showForm)} className="btn btn-sm btn-primary gap-2">
+                    {showForm ? <ChevronUp className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+                    {showForm ? 'Cancel' : 'New Requisition'}
+                </button>
+            </div>
+
+            {showForm && (
+                <form onSubmit={handleSubmit} className="glass-panel rounded-3xl p-6 space-y-6 border border-primary/10">
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between border-b border-base-content/10 pb-2">
+                            <span className="text-xs font-black uppercase tracking-widest text-base-content/40">Itemized Entries</span>
+                            <button type="button" onClick={addItem} className="btn btn-ghost btn-xs text-primary gap-1 font-bold">
+                                <Plus className="w-3 h-3" /> Add Item
+                            </button>
+                        </div>
+
+                        {items.map((item, idx) => (
+                            <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end bg-base-content/5 p-4 rounded-2xl relative group">
+                                <div className="md:col-span-5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 mb-1 block">Description</label>
+                                    <input
+                                        type="text"
+                                        className="input input-bordered input-sm w-full font-bold"
+                                        placeholder="What are we buying?"
+                                        value={item.itemName}
+                                        onChange={e => updateItem(idx, 'itemName', e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 mb-1 block">Qty</label>
+                                    <input
+                                        type="number"
+                                        className="input input-bordered input-sm w-full font-bold"
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={e => updateItem(idx, 'quantity', parseInt(e.target.value))}
+                                        required
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 mb-1 block">Unit Price</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        className="input input-bordered input-sm w-full font-bold"
+                                        placeholder="0.00"
+                                        value={item.unitPrice}
+                                        onChange={e => updateItem(idx, 'unitPrice', parseFloat(e.target.value))}
+                                        required
+                                    />
+                                </div>
+                                <div className="md:col-span-2 pb-2 flex flex-col items-center">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 mb-1 block">Incl. VAT</label>
+                                    <input
+                                        type="checkbox"
+                                        className="checkbox checkbox-primary checkbox-sm"
+                                        checked={item.vatInclusive}
+                                        onChange={e => updateItem(idx, 'vatInclusive', e.target.checked)}
+                                    />
+                                </div>
+                                <div className="md:col-span-1 pb-1">
+                                    {items.length > 1 && (
+                                        <button type="button" onClick={() => removeItem(idx)} className="btn btn-ghost btn-xs text-error">
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-base-content/10">
+                        <div>
+                            <label className="text-xs font-black uppercase tracking-widest text-base-content/30 block mb-2">Internal Reason / Reference</label>
+                            <textarea
+                                className="textarea textarea-bordered w-full text-sm font-medium"
+                                rows={2}
+                                placeholder="Why is this purchase required?"
+                                value={reason}
+                                onChange={e => setReason(e.target.value)}
+                            />
+                        </div>
+                        <div className="bg-primary/5 rounded-2xl p-6 flex flex-col justify-center items-end border border-primary/10">
+                            <div className="flex items-center gap-2 text-primary/60 mb-1">
+                                <Calculator className="w-4 h-4" />
+                                <span className="text-xs font-black uppercase tracking-widest">Estimated Total</span>
+                            </div>
+                            <span className="text-3xl font-black text-primary tabular-nums">
+                                KES {calculateTotal().toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <p className="text-[10px] font-bold text-base-content/40 mt-1 uppercase tracking-tighter">* Non-inclusive items auto-calculated with 16% VAT</p>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end">
+                        <button type="submit" disabled={submitting} className="btn btn-primary gap-2 shadow-lg shadow-primary/20">
+                            {submitting ? <span className="loading loading-spinner" /> : <Send className="w-4 h-4" />}
+                            Submit Requisition
+                        </button>
+                    </div>
+                </form>
+            )}
+
+            <div className="glass-panel rounded-3xl overflow-hidden border border-base-content/10">
+                <div className="overflow-x-auto">
+                    <table className="table w-full">
+                        <thead>
+                            <tr className="bg-base-content/5 border-b border-base-content/10">
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Req ID</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Items</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40 text-right">Total Amount</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Status</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-base-content/5">
+                            {requisitions.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-16 text-sm text-base-content/30 italic font-medium">No requisitions found</td>
+                                </tr>
+                            ) : (
+                                requisitions.map((r: any) => (
+                                    <tr key={r.id} className="hover:bg-base-content/[0.02] transition-colors">
+                                        <td className="font-black text-xs text-base-content/40">#REQ-{r.id.toString().padStart(4, '0')}</td>
+                                        <td>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-sm font-bold text-base-content">{r.items[0]?.itemName}</span>
+                                                {r.items.length > 1 && (
+                                                    <span className="text-[10px] font-black text-primary uppercase">+{r.items.length - 1} more items</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="text-right font-black tabular-nums text-sm">
+                                            KES {r.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td>
+                                            <span className={cn(
+                                                "badge badge-sm font-black text-[10px] uppercase tracking-widest border-none px-2.5 h-6",
+                                                r.status === 'PENDING' ? 'bg-warning/10 text-warning' :
+                                                    r.status === 'APPROVED' ? 'bg-success/10 text-success' :
+                                                        r.status === 'SENT_FOR_REVIEW' ? 'bg-info/10 text-info' : 'bg-error/10 text-error'
+                                            )}>
+                                                {r.status.replace(/_/g, ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="text-xs font-bold text-base-content/60">
+                                            {format(new Date(r.createdAt), 'MMM d, h:mm a')}
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     )

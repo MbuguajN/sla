@@ -142,7 +142,7 @@ export default function StatusControlBar({
     <div className="flex flex-col gap-3 w-full">
       <div className="flex flex-wrap items-center gap-4 bg-base-100 p-4 rounded-2xl border border-base-300 shadow-sm animate-in fade-in slide-in-from-bottom-2">
         <div className="flex flex-col gap-0.5 min-w-[120px]">
-          <span className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Workflow State</span>
+          <span className="text-sm font-black uppercase tracking-widest text-base-content/70">Workflow State</span>
           <div className="flex items-center gap-2">
             <div className={cn(
               "w-2 h-2 rounded-full animate-pulse",

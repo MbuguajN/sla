@@ -19,7 +19,7 @@ export default async function LeaveTrackerPage() {
     return (
         <div className="space-y-6 pb-20">
             {/* Clean Header */}
-            <div className="flex items-end justify-between border-b border-base-content/5 pb-6">
+            <div className="flex items-end justify-between border-b border-base-content/20 pb-6">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2 text-warning font-bold uppercase tracking-wider text-xs opacity-70">
                         <CalendarOff className="w-3 h-3" />
@@ -35,7 +35,7 @@ export default async function LeaveTrackerPage() {
                     ].map((s, i) => (
                         <div key={i} className="text-right">
                             <span className={`text-lg font-bold ${s.color}`}>{s.val}</span>
-                            <span className="text-[9px] uppercase tracking-wider text-base-content/20 font-bold block">{s.label}</span>
+                            <span className="text-xs uppercase tracking-wider text-base-content/70 font-bold block">{s.label}</span>
                         </div>
                     ))}
                 </div>

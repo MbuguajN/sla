@@ -51,7 +51,7 @@ export default function GlobalSearch() {
       {/* Search Trigger Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-3 px-4 py-2 bg-base-200 hover:bg-base-300 rounded-xl border border-base-300 transition-all text-base-content/50 hover:text-base-content min-w-[240px] group"
+        className="flex items-center gap-3 px-4 py-2 bg-base-200 hover:bg-base-300 rounded-xl border border-base-300 transition-all text-base-content/70 hover:text-base-content min-w-[240px] group"
       >
         <Search className="w-4 h-4" />
         <span className="text-sm font-normal flex-1 text-left">Search...</span>
@@ -90,7 +90,7 @@ export default function GlobalSearch() {
 
             <div className="p-4 bg-base-200/20">
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold tracking-wide text-base-content/40 px-2">Quick Navigation</span>
+                <span className="text-xs font-semibold tracking-wide text-base-content/70 px-2">Quick Navigation</span>
                 <div className="grid grid-cols-1 gap-1">
                   <button
                     onClick={() => { router.push('/'); setIsOpen(false); }}
@@ -101,7 +101,7 @@ export default function GlobalSearch() {
                     </div>
                     <div className="flex flex-col flex-1">
                       <span className="text-sm font-medium">Dashboard</span>
-                      <span className="text-xs text-base-content/40">View all active tasks</span>
+                      <span className="text-xs text-base-content/70">View all active tasks</span>
                     </div>
                     <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
@@ -111,12 +111,12 @@ export default function GlobalSearch() {
 
             <div className="p-2 border-t border-base-200 flex items-center justify-center gap-4">
               <div className="flex items-center gap-1 opacity-40">
-                <span className="text-[10px] font-medium px-1.5 py-0.5 bg-base-300 rounded">ESC</span>
-                <span className="text-[10px] font-medium">to close</span>
+                <span className="text-sm font-medium px-1.5 py-0.5 bg-base-300 rounded">ESC</span>
+                <span className="text-sm font-medium">to close</span>
               </div>
               <div className="flex items-center gap-1 opacity-40">
-                <span className="text-[10px] font-medium px-1.5 py-0.5 bg-base-300 rounded">ENTER</span>
-                <span className="text-[10px] font-medium">to search</span>
+                <span className="text-sm font-medium px-1.5 py-0.5 bg-base-300 rounded">ENTER</span>
+                <span className="text-sm font-medium">to search</span>
               </div>
             </div>
           </div>

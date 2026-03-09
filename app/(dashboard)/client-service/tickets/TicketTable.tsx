@@ -126,14 +126,14 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
               "flex items-center gap-2.5 px-6 py-5 text-xs font-bold transition-all relative",
               activeTab === tab.id
                 ? "text-primary"
-                : "text-base-content/40 hover:text-base-content/60 hover:bg-base-200/30"
+                : "text-base-content/70 hover:text-base-content/80 hover:bg-base-200/30"
             )}
           >
             <tab.icon className={cn("w-4 h-4 transition-colors", activeTab === tab.id ? tab.color : "opacity-30")} />
             {tab.label}
             <span className={cn(
-              "ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold",
-              activeTab === tab.id ? "bg-primary/10 text-primary" : "bg-base-200/50 text-base-content/40"
+              "ml-1 px-1.5 py-0.5 rounded text-sm font-bold",
+              activeTab === tab.id ? "bg-primary/10 text-primary" : "bg-base-200/50 text-base-content/70"
             )}>
               {initialTickets.filter(t => {
                 if (tab.id === 'NEW') return t.status === 'PENDING' || t.status === 'RECEIVED'
@@ -184,7 +184,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                       </div>
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <span className="font-bold text-sm text-base-content tracking-tight group-hover:text-primary transition-colors truncate">{ticket.title}</span>
-                        <span className="text-[10px] font-medium opacity-20 uppercase tracking-wider">REF-{ticket.id.toString().padStart(4, '0')}</span>
+                        <span className="text-sm font-medium opacity-20 uppercase tracking-wider">REF-{ticket.id.toString().padStart(4, '0')}</span>
                       </div>
                     </div>
                   </td>
@@ -193,25 +193,25 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                       <span className="text-xs font-bold text-base-content/80 truncate">
                         {ticket.senderName || ticket.reporter?.name || 'External'}
                       </span>
-                      <span className="text-[10px] opacity-30 font-medium truncate">
+                      <span className="text-sm opacity-30 font-medium truncate">
                         {ticket.senderEmail || ticket.reporter?.email || 'System'}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 border-b border-base-100">
                     <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-bold text-base-content/30 uppercase tracking-wider">
+                      <span className="text-sm font-bold text-base-content/30 uppercase tracking-wider">
                         {ticket.senderEmail ? 'External' : 'Internal'}
                       </span>
-                      <span className="text-[10px] font-bold tabular-nums text-base-content/50">
+                      <span className="text-sm font-bold tabular-nums text-base-content/70">
                         {format(new Date(ticket.createdAt), 'MMM dd • HH:mm')}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 border-b border-base-100 text-center">
                     <div className={cn(
-                      "badge badge-sm font-bold text-[10px] uppercase tracking-wide px-3 py-1 h-auto whitespace-nowrap border-none shadow-sm",
-                      ticket.status === 'PENDING' ? "bg-base-200/50 text-base-content/40" :
+                      "badge badge-sm font-bold text-sm uppercase tracking-wide px-3 py-1 h-auto whitespace-nowrap border-none shadow-sm",
+                      ticket.status === 'PENDING' ? "bg-base-200/50 text-base-content/70" :
                         ticket.status === 'IN_PROGRESS' ? "bg-warning/10 text-warning" :
                           ticket.status === 'REVIEW' ? "bg-info/10 text-info" :
                             ticket.status === 'COMPLETED' ? "bg-success/10 text-success" : "bg-error/10 text-error"
@@ -223,7 +223,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                     <div className="flex items-center justify-end gap-2 flex-nowrap">
                       {activeTab === 'NEW' && (ticket.reporterId === currentUserId || userRole === 'ADMIN') && (
                         <button
-                          className="btn btn-ghost btn-sm text-error/40 hover:text-error hover:bg-error/5 font-bold gap-2 text-[10px] h-9 px-3 rounded-xl whitespace-nowrap border border-transparent hover:border-error/10"
+                          className="btn btn-ghost btn-sm text-error/40 hover:text-error hover:bg-error/5 font-bold gap-2 text-sm h-9 px-3 rounded-xl whitespace-nowrap border border-transparent hover:border-error/10"
                           onClick={() => {
                             setSelectedTicket(ticket)
                             const modal = document.getElementById('process_modal') as any
@@ -318,7 +318,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
       </div>
 
       <dialog id="process_modal" className="modal modal-bottom sm:modal-middle">
-        <div className="modal-box p-0 overflow-hidden max-w-lg bg-base-100 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl border border-base-content/5 flex flex-col max-h-[96vh]">
+        <div className="modal-box p-0 overflow-hidden max-w-lg bg-base-100 rounded-[1.5rem] md:rounded-[2rem] shadow-2xl border border-base-content/20 flex flex-col max-h-[96vh]">
           {/* Compressed Professional Header */}
           <div className="bg-primary p-4 md:p-5 text-primary-content relative overflow-hidden flex flex-col items-center text-center shrink-0">
             <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
@@ -339,7 +339,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                 <Settings2 size={20} />
               </div>
               <h3 className="font-bold text-lg md:text-xl tracking-tight uppercase leading-none">Manage Brief</h3>
-              <p className="text-[8px] md:text-[9px] font-bold uppercase tracking-[0.2em] opacity-60 mt-1">Executive Assignment Portal</p>
+              <p className="text-sm md:text-xs font-bold uppercase tracking-[0.2em] opacity-60 mt-1">Executive Assignment Portal</p>
             </div>
 
             {selectedTicket && (
@@ -353,14 +353,14 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
           <div className="flex-1 overflow-y-auto bg-base-100 p-4 md:p-6 space-y-4 md:space-y-6 flex flex-col items-center premium-scrollbar">
             {/* Context Info Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-              <div className="p-4 rounded-2xl bg-base-200/50 border border-base-content/5 text-center group transition-colors">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-base-content/30 block mb-1.5">Department</span>
+              <div className="p-4 rounded-2xl bg-base-200/50 border border-base-content/20 text-center group transition-colors">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/30 block mb-1.5">Department</span>
                 <span className="font-bold text-xs uppercase text-primary tracking-tight">
                   {departments.find(d => d.id === Number(assignment.departmentId))?.name || 'Unassigned'}
                 </span>
               </div>
-              <div className="p-4 rounded-2xl bg-base-200/50 border border-base-content/5 text-center group transition-colors">
-                <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-base-content/30 block mb-1.5">Project</span>
+              <div className="p-4 rounded-2xl bg-base-200/50 border border-base-content/20 text-center group transition-colors">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/30 block mb-1.5">Project</span>
                 <span className="font-bold text-xs text-base-content/80 uppercase tracking-tight block truncate">
                   {selectedTicket?.project?.title || 'Standalone'}
                 </span>
@@ -370,15 +370,15 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
             {/* Assignment Section */}
             <div className="space-y-3 w-full text-center">
               <div className="flex flex-col items-center gap-1.5 pt-2">
-                <h4 className="text-[9px] font-bold uppercase tracking-[0.2em] text-base-content/40">Assignment Parameters</h4>
+                <h4 className="text-xs font-bold uppercase tracking-[0.2em] text-base-content/70">Assignment Parameters</h4>
                 <div className="h-0.5 w-6 bg-primary/20 rounded-full" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-base-content/30 block">Assignee</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-base-content/30 block">Assignee</label>
                   <div className="relative group">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20 group-focus-within:text-primary transition-colors" />
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/70 group-focus-within:text-primary transition-colors" />
                     <select
                       className="select select-md w-full pl-10 rounded-xl font-bold bg-base-content/5 border-none focus:ring-1 ring-primary/20 transition-all text-xs appearance-none"
                       value={assignment.assigneeId}
@@ -397,9 +397,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-base-content/30 block">Temporal Deadline</label>
+                  <label className="text-xs font-bold uppercase tracking-wider text-base-content/30 block">Temporal Deadline</label>
                   <div className="relative group">
-                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/20 group-focus-within:text-primary transition-colors" />
+                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-base-content/70 group-focus-within:text-primary transition-colors" />
                     <input
                       type="datetime-local"
                       className="input input-md w-full pl-10 rounded-xl font-bold bg-base-content/5 border-none focus:ring-1 ring-primary/20 transition-all text-xs text-center"
@@ -415,7 +415,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
             {!assignment.dueAt && (
               <div className="space-y-4 w-full text-center py-1">
                 <div className="flex flex-col items-center gap-1.5">
-                  <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-content/40">Response Protocol</h4>
+                  <h4 className="text-sm font-bold uppercase tracking-[0.2em] text-base-content/70">Response Protocol</h4>
                   {selectedTicket?.project?.defaultSlaId && (
                     <span className="text-[7px] font-bold uppercase px-2 py-0.5 bg-primary/20 text-primary rounded-full tracking-widest">Inherited Default</span>
                   )}
@@ -427,10 +427,10 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                       type="button"
                       onClick={() => setAssignment(prev => ({ ...prev, slaId: s.id.toString() }))}
                       className={cn(
-                        "px-4 py-2 rounded-lg border text-[9px] font-bold uppercase tracking-wider transition-all",
+                        "px-4 py-2 rounded-lg border text-xs font-bold uppercase tracking-wider transition-all",
                         Number(assignment.slaId) === s.id
                           ? "bg-primary border-primary text-white shadow-lg"
-                          : "bg-base-200/50 border-transparent text-base-content/40 hover:bg-base-200"
+                          : "bg-base-200/50 border-transparent text-base-content/70 hover:bg-base-200"
                       )}
                     >
                       {s.name}
@@ -442,9 +442,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
 
             {/* Instructions */}
             <div className="space-y-3 w-full text-center">
-              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-content/40">Operational Directives</h4>
+              <h4 className="text-sm font-bold uppercase tracking-[0.2em] text-base-content/70">Operational Directives</h4>
               <textarea
-                className="textarea w-full h-24 rounded-2xl font-bold bg-base-content/5 border-none focus:ring-1 ring-primary/20 transition-all resize-none text-xs p-4 text-center placeholder:text-base-content/10"
+                className="textarea w-full h-24 rounded-2xl font-bold bg-base-content/5 border-none focus:ring-1 ring-primary/20 transition-all resize-none text-xs p-4 text-center placeholder:text-base-content/40"
                 placeholder="Codify instructions here..."
                 value={assignment.description}
                 onChange={(e) => setAssignment(prev => ({ ...prev, description: e.target.value }))}
@@ -453,12 +453,12 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
           </div>
 
           {/* Compact Action Footer */}
-          <div className="p-4 md:p-5 bg-base-200/20 border-t border-base-content/5 flex flex-col items-center gap-3 md:gap-4 shrink-0">
+          <div className="p-4 md:p-5 bg-base-200/20 border-t border-base-content/20 flex flex-col items-center gap-3 md:gap-4 shrink-0">
             <div className="flex items-center justify-center gap-6 w-full">
               {(selectedTicket?.reporterId === currentUserId || userRole === 'ADMIN') && (
                 <button
                   type="button"
-                  className="text-[10px] font-bold uppercase tracking-[0.2em] text-error opacity-40 hover:opacity-100 transition-all"
+                  className="text-sm font-bold uppercase tracking-[0.2em] text-error opacity-40 hover:opacity-100 transition-all"
                   disabled={isPending}
                   onClick={handleDismiss}
                 >
@@ -472,7 +472,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
 
               <button
                 type="button"
-                className="text-[10px] font-bold uppercase tracking-[0.2em] text-base-content/40 hover:text-base-content transition-all"
+                className="text-sm font-bold uppercase tracking-[0.2em] text-base-content/70 hover:text-base-content transition-all"
                 onClick={() => {
                   const modal = document.getElementById('process_modal') as any
                   if (modal) modal.close()
@@ -484,7 +484,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
 
             <button
               type="button"
-              className="btn btn-primary w-full max-w-xs h-12 rounded-xl font-bold uppercase text-[11px] tracking-wider shadow-ruby-soft transition-all hover:brightness-110 active:scale-[0.98]"
+              className="btn btn-primary w-full max-w-xs h-12 rounded-xl font-bold uppercase text-sm tracking-wider shadow-ruby-soft transition-all hover:brightness-110 active:scale-[0.98]"
               disabled={isPending || !assignment.departmentId || (!assignment.slaId && !assignment.dueAt)}
               onClick={handleProcess}
             >

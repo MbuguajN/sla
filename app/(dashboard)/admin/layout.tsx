@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Users, Settings, Building2, Shield } from 'lucide-react'
+import { Users, Settings, Building2, Shield, DollarSign } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LimelightNav } from '@/components/ui/limelight-nav'
 
@@ -14,7 +14,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { id: 'settings', label: 'General System', href: '/admin/settings', icon: <Settings /> },
     { id: 'users', label: 'User Management', href: '/admin/users', icon: <Users /> },
     { id: 'departments', label: 'Departments', href: '/admin/departments', icon: <Building2 /> },
-    { id: 'sla', label: 'SLA Configuration', href: '/admin/sla', icon: <Settings /> },
   ]
 
   const activeIndex = tabs.findIndex(tab => pathname.startsWith(tab.href))
@@ -28,7 +27,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <div>
           <h1 className="text-3xl font-black tracking-tight text-base-content uppercase">5DM Administration</h1>
-          <p className="text-sm font-medium text-base-content/60">System Administration & Configuration</p>
+          <p className="text-sm font-medium text-base-content/80">System Administration & Configuration</p>
         </div>
       </div>
 

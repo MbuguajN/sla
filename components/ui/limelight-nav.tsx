@@ -93,7 +93,7 @@ export const LimelightNav = ({
                         })}
                         {label && (
                             <span
-                                className={`text-[11px] font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeIndex === index ? 'opacity-100' : 'opacity-30'
+                                className={`text-sm font-black uppercase tracking-[0.2em] transition-all duration-300 ${activeIndex === index ? 'opacity-100' : 'opacity-30'
                                     }`}
                                 style={{ color: activeIndex === index ? activeColor : undefined }}
                             >

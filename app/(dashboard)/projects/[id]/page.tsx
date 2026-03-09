@@ -17,6 +17,7 @@ import Link from 'next/link'
 import TaskChat from '@/components/TaskChat'
 import InviteMember from '@/components/InviteMember'
 import ProjectDetailTabs from '@/components/ProjectDetailTabs'
+import ProjectStatusManager from '@/components/ProjectStatusManager'
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
   const session = await auth()
@@ -79,7 +80,7 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     <div className="space-y-10 animate-in fade-in duration-700 pb-12">
       {/* Breadcrumbs & Header */}
       <div className="flex flex-col gap-5">
-        <Link href="/projects" className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-[0.2em] hover:translate-x-[-4px] transition-transform w-fit opacity-60">
+        <Link href="/projects" className="flex items-center gap-2 text-sm font-black text-primary uppercase tracking-[0.2em] hover:translate-x-[-4px] transition-transform w-fit opacity-60">
           <ArrowLeft className="w-3 h-3" /> Back to Projects
         </Link>
 
@@ -92,19 +93,19 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
               <div>
                 <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase">{project.title}</h1>
                 {project.createdBy && (
-                  <p className="text-[10px] font-bold text-base-content/30 uppercase tracking-wider mt-1">
+                  <p className="text-sm font-bold text-base-content/30 uppercase tracking-wider mt-1">
                     Created by {project.createdBy.name}
                   </p>
                 )}
               </div>
             </div>
-            <p className="text-base-content/60 max-w-3xl font-medium text-base leading-relaxed italic">
+            <p className="text-base-content/80 max-w-3xl font-medium text-base leading-relaxed italic">
               {project.description || "Project is currently active."}
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {(userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE' || userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT') && (
-              <Link href={`/tasks/new?projectId=${projectId}`} className="btn btn-primary btn-md px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-[10px]">
+              <Link href={`/tasks/new?projectId=${projectId}`} className="btn btn-primary btn-md px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-sm">
                 <Plus className="w-4 h-4" /> New Task
               </Link>
             )}
@@ -116,53 +117,51 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
       {/* Metric Bar */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">Default SLA</span>
+          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Default SLA</span>
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-primary" />
             <span className="font-black text-base">{project.defaultSla?.name || "Unset"}</span>
           </div>
           {project.defaultSla && (
-            <p className="text-[9px] font-bold opacity-60 uppercase">{project.defaultSla.durationHrs}H / {project.defaultSla.tier}</p>
+            <p className="text-xs font-bold opacity-60 uppercase">{project.defaultSla.durationHrs}H / {project.defaultSla.tier}</p>
           )}
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">Progress</span>
+          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Progress</span>
           <div className="flex items-center gap-3">
             <span className="font-black text-xl text-primary">{progress}%</span>
             <div className="flex-1 bg-base-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <p className="text-[9px] font-bold opacity-60 uppercase">{directCompletedCount}/{directTaskCount} Direct Tasks</p>
+          <p className="text-xs font-bold opacity-60 uppercase">{directCompletedCount}/{directTaskCount} Direct Tasks</p>
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">Sub-Projects</span>
+          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Sub-Projects</span>
           <div className="flex items-center gap-2 text-warning">
             <FolderOpen className="w-4 h-4" />
             <span className="font-black text-xl">{subProjectCount}</span>
           </div>
-          <p className="text-[9px] font-bold opacity-60 uppercase">Active Scopes</p>
+          <p className="text-xs font-bold opacity-60 uppercase">Active Scopes</p>
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">Sublets</span>
+          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Sublets</span>
           <div className="flex items-center gap-2 text-info">
             <GitBranch className="w-4 h-4" />
             <span className="font-black text-xl">{totalSubletCount}</span>
           </div>
-          <p className="text-[9px] font-bold opacity-60 uppercase">Nested Units</p>
+          <p className="text-xs font-bold opacity-60 uppercase">Nested Units</p>
         </div>
 
-        <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-[9px] font-black uppercase tracking-widest text-base-content/40">Status</span>
-          <div className="flex items-center gap-2 text-success">
-            <CheckCircle2 className="w-4 h-4" />
-            <span className="font-black text-base uppercase tracking-tighter">{(project as any).status || 'Active'}</span>
-          </div>
-          <p className="text-[9px] font-bold opacity-60 uppercase">On Track</p>
-        </div>
+        <ProjectStatusManager
+          projectId={projectId}
+          initialStatus={project.status || 'ACTIVE'}
+          userDept={userDept || ''}
+          userRole={userRole || ''}
+        />
       </div>
 
       {/* Main Content Grid */}
@@ -180,8 +179,8 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         {/* Right Column: Activity Feed */}
         <div className="lg:col-span-1 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-base-content/40">Activity Log</h2>
-            <div className="badge badge-primary badge-outline text-[9px] font-black uppercase">{project.messages.length} Messages</div>
+            <h2 className="text-sm font-black uppercase tracking-[0.3em] text-base-content/70">Activity Log</h2>
+            <div className="badge badge-primary badge-outline text-xs font-black uppercase">{project.messages.length} Messages</div>
           </div>
           <TaskChat
             taskId={undefined}

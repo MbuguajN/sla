@@ -31,14 +31,14 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                         "flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
                         activeTab === 'ongoing'
                             ? "bg-white dark:bg-slate-900 text-primary shadow-sm"
-                            : "text-base-content/40 hover:text-base-content/60"
+                            : "text-base-content/70 hover:text-base-content/80"
                     )}
                 >
                     <Clock className="w-3.5 h-3.5" />
                     Ongoing
                     <span className={cn(
-                        "ml-1 px-1.5 py-0.5 rounded-md text-[9px]",
-                        activeTab === 'ongoing' ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/40"
+                        "ml-1 px-1.5 py-0.5 rounded-md text-xs",
+                        activeTab === 'ongoing' ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/70"
                     )}>
                         {ongoingTasks.length}
                     </span>
@@ -49,14 +49,14 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                         "flex items-center gap-2 px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
                         activeTab === 'completed'
                             ? "bg-white dark:bg-slate-900 text-success shadow-sm"
-                            : "text-base-content/40 hover:text-base-content/60"
+                            : "text-base-content/70 hover:text-base-content/80"
                     )}
                 >
                     <CheckCircle2 className="w-3.5 h-3.5" />
                     Completed
                     <span className={cn(
                         "ml-1 px-1.5 py-0.5 rounded-md text-xs font-bold",
-                        activeTab === 'completed' ? "bg-success/10 text-success" : "bg-base-300 text-base-content/40"
+                        activeTab === 'completed' ? "bg-success/10 text-success" : "bg-base-300 text-base-content/70"
                     )}>
                         {completedTasks.length}
                     </span>
@@ -88,7 +88,7 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                                     <div className="flex items-center gap-4 mt-1.5 opacity-60">
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-4 h-4 rounded-full bg-base-200 flex items-center justify-center leading-none text-base-content overflow-hidden">
-                                                <span className="text-[8px] font-black flex items-center justify-center w-full h-full">{(task.assignee?.name || 'U').charAt(0)}</span>
+                                                <span className="text-sm font-black flex items-center justify-center w-full h-full">{(task.assignee?.name || 'U').charAt(0)}</span>
                                             </div>
                                             <span className="text-xs font-bold">{task.assignee?.name || 'Unassigned'}</span>
                                         </div>
@@ -106,7 +106,7 @@ export default function ProjectTaskTabs({ tasks }: { tasks: Task[] }) {
                                     "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border",
                                     task.status === 'COMPLETED' ? "bg-success/5 border-success/20 text-success" :
                                         task.status === 'IN_PROGRESS' ? "bg-primary/5 border-primary/20 text-primary" :
-                                            "bg-base-200 border-base-300 text-base-content/40"
+                                            "bg-base-200 border-base-300 text-base-content/70"
                                 )}>
                                     {task.status.replace('_', ' ')}
                                 </div>

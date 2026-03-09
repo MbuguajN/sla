@@ -38,7 +38,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
       case 'TASK_CREATED': return <PlusCircle className="w-4 h-4 text-primary" />
       case 'STATUS_CHANGE': return <ArrowRightLeft className="w-4 h-4 text-info" />
       case 'COMMENT_ADDED': return <MessageSquare className="w-4 h-4 text-success" />
-      default: return <Activity className="w-4 h-4 text-base-content/40" />
+      default: return <Activity className="w-4 h-4 text-base-content/70" />
     }
   }
 
@@ -59,10 +59,10 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
           <table className="table table-md w-full border-collapse">
             <thead>
               <tr className="bg-base-100 border-b border-base-200">
-                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40 pl-6">Operator</th>
-                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40">Action</th>
-                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40">Details</th>
-                <th className="text-xs uppercase font-bold tracking-wider text-base-content/40 text-right pr-6">Timestamp</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/70 pl-6">Operator</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/70">Action</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/70">Details</th>
+                <th className="text-xs uppercase font-bold tracking-wider text-base-content/70 text-right pr-6">Timestamp</th>
               </tr>
             </thead>
             <tbody>
@@ -79,7 +79,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                   <td>
                     <div className="flex items-center gap-2">
                       {getIcon(log.action)}
-                      <span className="text-xs font-bold uppercase tracking-tight text-base-content/60">
+                      <span className="text-xs font-bold uppercase tracking-tight text-base-content/80">
                         {log.action.replace('_', ' ')}
                       </span>
                     </div>
@@ -88,7 +88,7 @@ export default function TaskActivity({ logs }: { logs: AuditLog[] }) {
                     <div className="flex flex-col gap-1">
                       {log.action === 'STATUS_CHANGE' && (
                         <div className="flex items-center gap-1.5 text-xs font-bold">
-                          <span className="px-1.5 py-0.5 bg-base-300 rounded text-base-content/60">{log.oldValue}</span>
+                          <span className="px-1.5 py-0.5 bg-base-300 rounded text-base-content/80">{log.oldValue}</span>
                           <span className="text-primary">→</span>
                           <span className="px-1.5 py-0.5 bg-primary/20 text-primary rounded">{log.newValue}</span>
                         </div>

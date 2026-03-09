@@ -22,7 +22,9 @@ import {
   ShieldAlert,
   Heart,
   HelpCircle,
-  Star
+  Star,
+  DollarSign,
+  ShieldCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { LoadingBreadcrumb } from '@/components/ui/animated-loading-svg-text-shimmer'
@@ -65,6 +67,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
   const isManager = userRole === 'MANAGER' || isAdmin || isCEO
   const isCS = dbUser?.department?.name === 'CLIENT_SERVICE'
   const isBusinessDev = dbUser?.department?.name === 'BUSINESS_DEVELOPMENT'
+  const isFinance = dbUser?.department?.name === 'FINANCE' || userRole === 'FINANCE'
 
   // HR gets a completely separate nav — only HR-specific pages
   const navItems = isHR ? [
@@ -77,12 +80,14 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     { label: 'Briefs', href: '/client-service/tickets', icon: Inbox, visible: (isAdmin || isCS || isManager) && !isCEO },
     { label: 'Active Projects', href: '/projects', icon: Briefcase, visible: isAdmin || isManager || isBusinessDev || (dbUser?.projectMemberships?.length ?? 0) > 0 },
     { label: 'All Tasks', href: '/tasks', icon: ClipboardList, visible: isAdmin || isCEO || isManager || isBusinessDev || isCS },
+    { label: 'Finance Pool', href: '/finance-pool', icon: DollarSign, visible: isAdmin || isFinance },
+    { label: 'Exec Review', href: '/executive-review', icon: ShieldCheck, visible: isCEO || isAdmin },
     { label: 'Reviews', href: '/reviews', icon: Star, visible: !!hasActiveReview },
     {
       label: 'Department',
       href: dbUser?.departmentId ? `/departments/${dbUser.departmentId}` : '/admin/departments',
       icon: Users2,
-      visible: !(isAdmin || isCEO),
+      visible: !(isAdmin || isCEO || isFinance),
     },
     { label: 'System', href: '/admin/settings', icon: Settings, visible: isAdmin || isHR },
   ]
@@ -163,7 +168,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                   className={cn(
                     "relative flex items-center gap-3 rounded-xl transition-all duration-200 active:scale-[0.98]",
                     isCollapsed ? "w-10 h-10 justify-center" : "w-full px-4 py-2.5",
-                    isActive ? "bg-primary text-primary-content shadow-ruby-soft" : "text-base-content/60 hover:bg-primary/10 hover:text-primary"
+                    isActive ? "bg-primary text-primary-content shadow-ruby-soft" : "text-base-content/80 hover:bg-primary/10 hover:text-primary"
                   )}
                 >
                   <Icon className="shrink-0 w-[18px] h-[18px]" />
@@ -198,10 +203,10 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           <div className={cn("mt-auto pt-4 pb-8 px-4 flex flex-col gap-4", isCollapsed ? "items-center" : "")}>
             {/* Theme Toggle */}
             <div className={cn("p-1 rounded-2xl bg-base-content/5 flex items-center gap-1", isCollapsed ? "flex-col" : "w-full")}>
-              <button onClick={() => setTheme('light')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'light' ? "bg-white text-primary shadow-sm" : "text-base-content/40 hover:text-base-content")}>
+              <button onClick={() => setTheme('light')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'light' ? "bg-white text-primary shadow-sm" : "text-base-content/70 hover:text-base-content")}>
                 <Sun size={14} />
               </button>
-              <button onClick={() => setTheme('dark')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'dark' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/40 hover:text-base-content")}>
+              <button onClick={() => setTheme('dark')} className={cn("flex-1 h-8 rounded-xl flex items-center justify-center transition-all", theme === 'dark' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/70 hover:text-base-content")}>
                 <Moon size={14} />
               </button>
             </div>
@@ -253,7 +258,7 @@ function UserMenu({ session, dbUser, userRole, isCollapsed, onLogout }: { sessio
       style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 9999 }}
       className="menu p-2 shadow-2xl bg-base-100 !bg-opacity-100 rounded-2xl w-56 border border-base-content/10 animate-in fade-in slide-in-from-bottom-2"
     >
-      <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest opacity-40">User Account</div>
+      <div className="px-4 py-2 text-sm font-bold uppercase tracking-widest opacity-40">User Account</div>
       <Link href="/account" onClick={() => setIsOpen(false)} className="rounded-xl flex items-center gap-3 py-2.5 px-3 hover:bg-primary/5 hover:text-primary transition-colors text-[13px] font-bold">
         <div className="w-7 h-7 bg-base-content/5 rounded-full flex items-center justify-center"><Users2 size={14} /></div>
         My Account
@@ -278,7 +283,7 @@ function UserMenu({ session, dbUser, userRole, isCollapsed, onLogout }: { sessio
             {dbUser?.avatarUrl ? (
               <img src={dbUser.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
             ) : (
-              <span className={cn("font-black flex items-center justify-center w-full h-full leading-none translate-y-[0.5px]", isCollapsed ? "text-[10px]" : "text-xs")}>{session.user.name?.charAt(0)}</span>
+              <span className={cn("font-black flex items-center justify-center w-full h-full leading-none translate-y-[0.5px]", isCollapsed ? "text-sm" : "text-xs")}>{session.user.name?.charAt(0)}</span>
             )}
           </div>
           <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full ring-2 ring-base-100" />
@@ -286,7 +291,7 @@ function UserMenu({ session, dbUser, userRole, isCollapsed, onLogout }: { sessio
         {!isCollapsed && (
           <div className="flex flex-col min-w-0">
             <span className="text-[13px] font-bold text-base-content/90 truncate">{session.user.name}</span>
-            <span className="text-[10px] text-primary font-bold uppercase tracking-widest opacity-70">{dbUser?.department?.name?.replace(/_/g, ' ') || userRole}</span>
+            <span className="text-sm text-primary font-bold uppercase tracking-widest opacity-70">{dbUser?.department?.name?.replace(/_/g, ' ') || userRole}</span>
           </div>
         )}
       </div>

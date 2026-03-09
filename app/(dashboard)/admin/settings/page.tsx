@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { uploadLogo, getSystemSettings, saveSystemSettings } from '@/app/actions/settingsActions'
-import { Upload, CheckCircle2, AlertCircle, Sun, Moon, Heart, Shield, Monitor, Settings2, Users2 } from 'lucide-react'
+import { uploadLogo, getSystemSettings, saveSystemSettings, purgeCache } from '@/app/actions/settingsActions'
+import { Upload, CheckCircle2, AlertCircle, Sun, Moon, Heart, Shield, Monitor, Settings2, Users2, Activity, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { LimelightNav } from '@/components/ui/limelight-nav'
@@ -14,13 +14,14 @@ export default function AdminSettingsPage() {
         { id: 'branding', label: 'Branding', icon: <Settings2 /> },
         { id: 'hr', label: 'HR & People', icon: <Heart /> },
         { id: 'it', label: 'IT Support', icon: <Monitor /> },
+        { id: 'health', label: 'System Health', icon: <Activity /> },
     ]
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
             <div>
                 <h1 className="text-3xl font-extrabold tracking-tight text-base-content">System Settings</h1>
-                <p className="text-[11px] font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Administration & Configuration</p>
+                <p className="text-sm font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Administration & Configuration</p>
             </div>
 
             {/* Tab Navigation */}
@@ -38,6 +39,7 @@ export default function AdminSettingsPage() {
                 {activeTab === 'branding' && <BrandingTab />}
                 {activeTab === 'hr' && <HRTab />}
                 {activeTab === 'it' && <ITTab />}
+                {activeTab === 'health' && <HealthTab />}
             </div>
         </div>
     )
@@ -49,7 +51,7 @@ function BrandingTab() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-lg font-black tracking-tight uppercase text-base-content">System Branding</h2>
-                <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Visual Identity Management</p>
+                <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Visual Identity Management</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <LogoUploader
@@ -75,7 +77,7 @@ function HRTab() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-lg font-black tracking-tight uppercase text-base-content">HR & People Management</h2>
-                <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Leave tracking, suggestions, and employee management</p>
+                <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Leave tracking, suggestions, and employee management</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -85,7 +87,7 @@ function HRTab() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">HR Dashboard</h3>
-                        <p className="text-[10px] text-base-content/30 mt-1">View employee attendance, stats, and overview</p>
+                        <p className="text-sm text-base-content/30 mt-1">View employee attendance, stats, and overview</p>
                     </div>
                 </Link>
 
@@ -95,7 +97,7 @@ function HRTab() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Leave Tracker</h3>
-                        <p className="text-[10px] text-base-content/30 mt-1">Approve or deny employee leave requests</p>
+                        <p className="text-sm text-base-content/30 mt-1">Approve or deny employee leave requests</p>
                     </div>
                 </Link>
 
@@ -105,7 +107,7 @@ function HRTab() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Suggestion Box</h3>
-                        <p className="text-[10px] text-base-content/30 mt-1">View employee suggestions and complaints</p>
+                        <p className="text-sm text-base-content/30 mt-1">View employee suggestions and complaints</p>
                     </div>
                 </Link>
 
@@ -115,7 +117,7 @@ function HRTab() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Directory</h3>
-                        <p className="text-[10px] text-base-content/30 mt-1">Manage personnel and organizational structure</p>
+                        <p className="text-sm text-base-content/30 mt-1">Manage personnel and organizational structure</p>
                     </div>
                 </Link>
             </div>
@@ -158,7 +160,7 @@ function HRSettingsForm() {
             <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Leave Policy</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-base-content/30 block mb-2">
+                    <label className="text-sm font-black uppercase tracking-widest text-base-content/30 block mb-2">
                         Max Annual Leave Days
                     </label>
                     <input
@@ -167,16 +169,16 @@ function HRSettingsForm() {
                         value={maxLeaveDays}
                         onChange={e => setMaxLeaveDays(e.target.value)}
                     />
-                    <p className="text-[9px] text-base-content/20 mt-1">Default maximum leave allocation per employee per year</p>
+                    <p className="text-xs text-base-content/70 mt-1">Default maximum leave allocation per employee per year</p>
                 </div>
             </div>
             {message && (
-                <div className={cn("flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest py-2 px-3 rounded-lg", message.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
+                <div className={cn("flex items-center gap-2 text-sm font-bold uppercase tracking-widest py-2 px-3 rounded-lg", message.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
                     {message.type === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                     {message.text}
                 </div>
             )}
-            <button onClick={handleSave} disabled={loading} className="btn btn-primary btn-sm font-black uppercase tracking-widest text-[10px]">
+            <button onClick={handleSave} disabled={loading} className="btn btn-primary btn-sm font-black uppercase tracking-widest text-sm">
                 {loading ? <span className="loading loading-spinner loading-xs" /> : 'Save Settings'}
             </button>
         </div>
@@ -189,7 +191,7 @@ function ITTab() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-lg font-black tracking-tight uppercase text-base-content">IT Support Configuration</h2>
-                <p className="text-[10px] font-bold opacity-40 uppercase tracking-widest">Technical support request management</p>
+                <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Technical support request management</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -199,19 +201,19 @@ function ITTab() {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-tight text-base-content">IT Support Queue</h3>
-                        <p className="text-[10px] text-base-content/30 mt-1">View and manage all IT support tickets</p>
+                        <p className="text-sm text-base-content/30 mt-1">View and manage all IT support tickets</p>
                     </div>
                 </Link>
 
                 <div className="glass-panel p-8 rounded-3xl space-y-4">
                     <h3 className="text-sm font-black uppercase tracking-tight text-base-content">Support Routing</h3>
-                    <p className="text-[10px] text-base-content/30 leading-relaxed">
+                    <p className="text-sm text-base-content/30 leading-relaxed">
                         IT Support requests submitted by employees are automatically routed to the <strong className="text-primary">Technology Department</strong>.
                         Any member of the technology team can assign and resolve tickets.
                     </p>
                     <div className="flex items-center gap-2 bg-primary/5 border border-primary/10 rounded-xl px-4 py-3">
                         <Shield className="w-4 h-4 text-primary" />
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Auto-routed to TECHNOLOGY dept</span>
+                        <span className="text-sm font-bold text-primary uppercase tracking-wider">Auto-routed to TECHNOLOGY dept</span>
                     </div>
                 </div>
             </div>
@@ -261,7 +263,7 @@ function LogoUploader({ type, title, description, icon }: { type: string, title:
                     {icon}
                     <h3 className="font-black text-sm uppercase tracking-tight">{title}</h3>
                 </div>
-                <p className="text-[10px] font-bold opacity-40 uppercase tracking-wider leading-relaxed mb-6">
+                <p className="text-sm font-bold opacity-40 uppercase tracking-wider leading-relaxed mb-6">
                     {description}
                 </p>
 
@@ -272,7 +274,7 @@ function LogoUploader({ type, title, description, icon }: { type: string, title:
                                 <img src={preview} alt="Preview" className="h-12 object-contain" />
                             </div>
                         ) : (
-                            <div className="w-12 h-12 bg-base-content/5 rounded-full flex items-center justify-center mb-4 text-base-content/20">
+                            <div className="w-12 h-12 bg-base-content/5 rounded-full flex items-center justify-center mb-4 text-base-content/70">
                                 <Upload className="w-6 h-6" />
                             </div>
                         )}
@@ -281,14 +283,14 @@ function LogoUploader({ type, title, description, icon }: { type: string, title:
                             type="file"
                             name="file"
                             accept="image/*"
-                            className="file-input file-input-bordered file-input-xs w-full max-w-xs font-bold uppercase tracking-widest text-[9px]"
+                            className="file-input file-input-bordered file-input-xs w-full max-w-xs font-bold uppercase tracking-widest text-xs"
                             onChange={handleFileChange}
                             required
                         />
                     </div>
 
                     {message && (
-                        <div className={cn("flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest py-2 px-3 rounded-lg", message.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
+                        <div className={cn("flex items-center gap-2 text-sm font-bold uppercase tracking-widest py-2 px-3 rounded-lg", message.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
                             {message.type === 'success' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
                             {message.text}
                         </div>
@@ -297,13 +299,73 @@ function LogoUploader({ type, title, description, icon }: { type: string, title:
                     <div className="flex justify-end pt-2">
                         <button
                             type="submit"
-                            className="btn btn-primary btn-sm font-black uppercase tracking-widest text-[10px] h-9 min-h-9 px-6"
+                            className="btn btn-primary btn-sm font-black uppercase tracking-widest text-sm h-9 min-h-9 px-6"
                             disabled={isUploading}
                         >
                             {isUploading ? <span className="loading loading-spinner loading-xs"></span> : 'Update Logo'}
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    )
+}
+
+// ─── Health Tab ───
+function HealthTab() {
+    const [purging, setPurging] = useState(false)
+    const [msg, setMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+
+    async function handlePurge() {
+        setPurging(true)
+        setMsg(null)
+        try {
+            const res = await purgeCache()
+            if (res.success) {
+                setMsg({ type: 'success', text: 'Operational cache purged across all vectors' })
+            } else {
+                setMsg({ type: 'error', text: res.error || 'Purge failed' })
+            }
+        } catch {
+            setMsg({ type: 'error', text: 'Connection failure' })
+        } finally {
+            setPurging(false)
+        }
+    }
+
+    return (
+        <div className="space-y-6">
+            <div>
+                <h2 className="text-lg font-black tracking-tight uppercase text-base-content">System Performance & Health</h2>
+                <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Global cache and state management</p>
+            </div>
+
+            <div className="glass-panel p-10 rounded-[32px] border border-transparent hover:border-primary/10 transition-all flex flex-col md:flex-row items-center gap-10">
+                <div className="w-24 h-24 bg-primary/5 rounded-[32px] flex items-center justify-center shrink-0">
+                    <Activity className="w-12 h-12 text-primary opacity-40" />
+                </div>
+                <div className="space-y-4 flex-1">
+                    <h3 className="text-xl font-black text-base-content uppercase tracking-tight">System Cache Recalibration</h3>
+                    <p className="text-sm text-base-content/60 leading-relaxed font-medium">
+                        If the system feels sluggish or data appears stale, triggering a global cache purge forces
+                        the operational matrix to refetch and revalidate all server-side paths. Use this as a
+                        primary troubleshooting step for perceived latency.
+                    </p>
+                    {msg && (
+                        <div className={cn("flex items-center gap-2 text-sm font-black uppercase tracking-widest py-3 px-4 rounded-xl", msg.type === 'success' ? 'bg-success/10 text-success' : 'bg-error/10 text-error')}>
+                            {msg.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                            {msg.text}
+                        </div>
+                    )}
+                    <button
+                        onClick={handlePurge}
+                        disabled={purging}
+                        className="btn btn-primary h-12 px-8 rounded-2xl shadow-lg shadow-primary/20 gap-3 font-black uppercase tracking-widest text-xs"
+                    >
+                        {purging ? <span className="loading loading-spinner" /> : <RefreshCw className="w-4 h-4" />}
+                        Purge All Operational Buffers
+                    </button>
+                </div>
             </div>
         </div>
     )

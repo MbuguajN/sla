@@ -4,7 +4,6 @@ import React from 'react'
 import Link from 'next/link'
 import { Briefcase, ArrowUpRight, Layers, TrendingUp, Search, FolderOpen, GitBranch, Filter, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import InviteMember from '@/components/InviteMember'
 
 type ProjectSummary = {
   id: number
@@ -51,16 +50,16 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
               key={status}
               onClick={() => setStatusFilter(status)}
               className={cn(
-                "flex items-center gap-1.5 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all",
+                "flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
                 statusFilter === status
                   ? "bg-white dark:bg-slate-900 text-primary shadow-sm"
-                  : "text-base-content/40 hover:text-base-content/60"
+                  : "text-base-content/70 hover:text-base-content/80"
               )}
             >
               {status === 'ALL' ? 'All' : status.replace('_', ' ')}
               <span className={cn(
-                "px-1.5 py-0.5 rounded-md text-[9px]",
-                statusFilter === status ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/40"
+                "px-1.5 py-0.5 rounded-md text-xs",
+                statusFilter === status ? "bg-primary/10 text-primary" : "bg-base-300 text-base-content/70"
               )}>
                 {counts[status as keyof typeof counts]}
               </span>
@@ -84,10 +83,10 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
 
       {filteredProjects.length === 0 ? (
         <div className="glass-panel flex flex-col items-center justify-center py-24 rounded-3xl border-dashed border-2 border-base-content/10">
-          <div className="w-16 h-16 bg-base-content/5 rounded-2xl flex items-center justify-center text-base-content/20 mb-6">
+          <div className="w-16 h-16 bg-base-content/5 rounded-2xl flex items-center justify-center text-base-content/70 mb-6">
             <Briefcase size={32} />
           </div>
-          <h3 className="text-xl font-bold text-base-content/40 italic">No Projects Found</h3>
+          <h3 className="text-xl font-bold text-base-content/70 italic">No Projects Found</h3>
           <p className="text-sm text-base-content/30 mt-2 font-medium">No projects match the current filter criteria.</p>
         </div>
       ) : (
@@ -123,7 +122,7 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                     </div>
 
                     <div className={cn(
-                      "badge border-none py-1.5 px-3 text-[10px] font-black uppercase tracking-wider",
+                      "badge border-none py-1.5 px-3 text-sm font-black uppercase tracking-wider",
                       isAllDone ? "bg-success/10 text-success" :
                         isOnHold ? "bg-warning/10 text-warning" :
                           "bg-primary/10 text-primary"
@@ -137,11 +136,11 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                     <h3 className="text-base font-bold text-base-content/90 group-hover:text-primary transition-colors leading-tight">
                       {project.title}
                     </h3>
-                    <p className="text-[12px] text-base-content/50 font-medium leading-relaxed line-clamp-2">
+                    <p className="text-[12px] text-base-content/70 font-medium leading-relaxed line-clamp-2">
                       {project.description || "Core operational objective with defined SLA parameters."}
                     </p>
                     {project.createdBy && (
-                      <p className="text-[10px] text-base-content/30 font-bold mt-1">
+                      <p className="text-sm text-base-content/30 font-bold mt-1">
                         by {project.createdBy}
                       </p>
                     )}
@@ -149,11 +148,11 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
 
                   {/* Progress */}
                   <div className="space-y-2 pt-3">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-base-content/40">
+                    <div className="flex items-center justify-between text-sm font-bold uppercase tracking-widest text-base-content/70">
                       <span>Progress</span>
                       <span className={isAllDone ? "text-success" : "text-primary"}>{progress}%</span>
                     </div>
-                    <div className="w-full h-1.5 bg-base-content/5 rounded-full overflow-hidden border border-base-content/5">
+                    <div className="w-full h-1.5 bg-base-content/5 rounded-full overflow-hidden border border-base-content/20">
                       <div
                         className={cn(
                           "h-full rounded-full transition-all duration-1000 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
@@ -164,28 +163,27 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                     </div>
                   </div>
 
-                  {/* Members & Invitation */}
+                  {/* Members */}
                   <div className="flex flex-col gap-2 pt-2">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center">
                       <div className="flex -space-x-2 overflow-hidden items-center">
                         {(project as any).members?.slice(0, 4).map((m: any, idx: number) => (
-                          <div key={idx} className="inline-block h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-200 text-[8px] font-black flex items-center justify-center text-base-content/40 uppercase" title={m.user?.name}>
+                          <div key={idx} className="inline-block h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-200 text-sm font-black flex items-center justify-center text-base-content/70 uppercase" title={m.user?.name}>
                             {m.user?.name?.charAt(0) || '?'}
                           </div>
                         ))}
                         {(project as any).members?.length > 4 && (
-                          <div className="flex items-center justify-center h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-300 text-[8px] font-black text-base-content/40">
+                          <div className="flex items-center justify-center h-6 w-6 rounded-lg ring-2 ring-base-100 bg-base-300 text-sm font-black text-base-content/70">
                             +{(project as any).members.length - 4}
                           </div>
                         )}
                       </div>
-                      <InviteMember projectId={project.id} />
                     </div>
                   </div>
 
                   {/* Stats Footer */}
-                  <div className="flex items-center justify-between pt-4 mt-auto border-t border-base-content/5">
-                    <div className="flex items-center gap-3 text-[10px] font-bold text-base-content/30 uppercase tracking-tighter">
+                  <div className="flex items-center justify-between pt-4 mt-auto border-t border-base-content/20">
+                    <div className="flex items-center gap-3 text-sm font-bold text-base-content/30 uppercase tracking-tighter">
                       <div className="flex items-center gap-1">
                         <Layers size={12} className="text-primary/40" />
                         <span>{project.taskCount} Tasks</span>
@@ -197,7 +195,7 @@ export default function ProjectsGrid({ projects }: { projects: ProjectSummary[] 
                     </div>
                     <Link
                       href={`/projects/${project.id}`}
-                      className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/40 hover:bg-primary hover:text-white transition-all transform hover:translate-x-1"
+                      className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/70 hover:bg-primary hover:text-white transition-all transform hover:translate-x-1"
                     >
                       <ArrowUpRight size={14} />
                     </Link>

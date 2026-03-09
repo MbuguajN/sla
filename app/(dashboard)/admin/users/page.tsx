@@ -27,13 +27,13 @@ export default async function UsersPage() {
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-base-content mb-0">Directory</h1>
-              <p className="text-[11px] font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Personnel & Organizational Structure</p>
+              <p className="text-sm font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Personnel & Organizational Structure</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="bg-base-100/50 backdrop-blur-sm rounded-2xl px-6 py-3 ring-1 ring-primary/10 flex flex-col items-center">
-              <span className="text-[9px] uppercase font-black tracking-[0.3em] text-base-content/20 mb-1">Total Staff</span>
+              <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 mb-1">Total Staff</span>
               <span className="text-2xl font-black tracking-tighter text-primary">{users.length}</span>
             </div>
             <AddUserModal departments={departments} />

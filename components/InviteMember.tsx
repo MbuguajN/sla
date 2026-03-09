@@ -64,7 +64,7 @@ export default function InviteMember({ projectId }: { projectId: number }) {
           <div className="bg-base-100 border border-base-200 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="p-6 border-b border-base-200 bg-base-200/20">
               <h3 className="text-sm font-bold uppercase tracking-wider">Add Team Member to Project</h3>
-              <p className="text-xs font-normal text-base-content/40 mt-1">Add a user to this project</p>
+              <p className="text-xs font-normal text-base-content/70 mt-1">Add a user to this project</p>
             </div>
 
             <div className="p-6 space-y-4">
@@ -93,7 +93,7 @@ export default function InviteMember({ projectId }: { projectId: number }) {
                   </div>
                 ) : (
                   users.map(user => (
-                    <div key={user.id} className="group/item flex items-center justify-between p-4 bg-base-content/[0.02] hover:bg-primary/[0.04] rounded-2xl border border-base-content/5 transition-all active:scale-[0.98]">
+                    <div key={user.id} className="group/item flex items-center justify-between p-4 bg-base-content/[0.02] hover:bg-primary/[0.04] rounded-2xl border border-base-content/20 transition-all active:scale-[0.98]">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-sm shrink-0 border border-primary/10">
                           {user.name?.charAt(0)}
@@ -103,11 +103,11 @@ export default function InviteMember({ projectId }: { projectId: number }) {
                             {user.name}
                           </span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-base-content/20 truncate max-w-[120px]">
+                            <span className="text-sm font-black uppercase tracking-wider text-base-content/70 truncate max-w-[120px]">
                               {user.email}
                             </span>
                             <span className="w-1 h-1 rounded-full bg-base-content/10 shrink-0" />
-                            <span className="text-[9px] font-bold text-primary opacity-40 uppercase tracking-widest bg-primary/5 px-1.5 py-0.5 rounded">
+                            <span className="text-xs font-bold text-primary opacity-40 uppercase tracking-widest bg-primary/5 px-1.5 py-0.5 rounded">
                               {user.role}
                             </span>
                           </div>
@@ -116,7 +116,7 @@ export default function InviteMember({ projectId }: { projectId: number }) {
                       <button
                         onClick={() => handleInvite(user.id)}
                         disabled={loading}
-                        className="btn btn-primary btn-sm h-10 px-4 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-ruby-soft"
+                        className="btn btn-primary btn-sm h-10 px-4 rounded-xl font-bold uppercase tracking-widest text-sm shadow-ruby-soft"
                       >
                         {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Invite'}
                       </button>

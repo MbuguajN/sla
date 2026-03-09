@@ -147,7 +147,7 @@ export default function DepartmentQueueClient({
 
       {/* Header & Controls Section */}
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-base-content/5">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-base-content/20">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-primary text-white rounded-3xl flex items-center justify-center shadow-ruby-soft relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent pointer-events-none" />
@@ -162,7 +162,7 @@ export default function DepartmentQueueClient({
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowMembers(!showMembers)}
-                  className="text-[10px] font-bold uppercase tracking-widest text-base-content/30 hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5"
+                  className="text-sm font-bold uppercase tracking-widest text-base-content/30 hover:text-primary transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <Users size={10} /> {members.length} Team Members <ChevronRight size={10} />
                 </button>
@@ -170,12 +170,12 @@ export default function DepartmentQueueClient({
             </div>
           </div>
 
-          <div className="flex items-center p-1.5 bg-base-content/5 rounded-2xl border border-base-content/5 backdrop-blur-md">
+          <div className="flex items-center p-1.5 bg-base-content/5 rounded-2xl border border-base-content/20 backdrop-blur-md">
             <button
               onClick={() => setFilterMode('ALL')}
               className={cn(
-                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                filterMode === 'ALL' ? "bg-white dark:bg-slate-900 text-primary shadow-sm" : "text-base-content/40 hover:text-base-content/60"
+                "px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
+                filterMode === 'ALL' ? "bg-white dark:bg-slate-900 text-primary shadow-sm" : "text-base-content/70 hover:text-base-content/80"
               )}
             >
               Overview
@@ -183,8 +183,8 @@ export default function DepartmentQueueClient({
             <button
               onClick={() => setFilterMode('MINE')}
               className={cn(
-                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                filterMode === 'MINE' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/40 hover:text-base-content/60"
+                "px-5 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all",
+                filterMode === 'MINE' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/70 hover:text-base-content/80"
               )}
             >
               My Assignments
@@ -202,10 +202,10 @@ export default function DepartmentQueueClient({
           ].map((kpi, i) => (
             <div key={i} className="bg-base-100 border border-base-content/10 p-5 rounded-2xl space-y-1 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-16 h-16 bg-base-content/[0.02] rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150" />
-              <span className="text-[9px] font-black uppercase tracking-[0.25em] text-base-content/25 block relative z-10">{kpi.label}</span>
+              <span className="text-xs font-black uppercase tracking-[0.25em] text-base-content/25 block relative z-10">{kpi.label}</span>
               <div className="flex items-baseline gap-2 relative z-10">
                 <span className={cn("text-2xl font-bold tracking-tight", kpi.color)}>{kpi.value}</span>
-                <span className="text-[9px] font-normal text-base-content/20 italic">{kpi.sub}</span>
+                <span className="text-xs font-normal text-base-content/70 italic">{kpi.sub}</span>
               </div>
             </div>
           ))}
@@ -214,16 +214,16 @@ export default function DepartmentQueueClient({
 
       {/* Data Environment */}
       <div className="relative">
-        <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-soft border border-base-content/5 transition-all duration-500">
+        <div className="glass-panel rounded-[2.5rem] overflow-hidden shadow-soft border border-base-content/20 transition-all duration-500">
           {/* List Toggle */}
-          <div className="flex items-center gap-1 p-3 border-b border-base-content/5 bg-base-content/[0.02]">
+          <div className="flex items-center gap-1 p-3 border-b border-base-content/20 bg-base-content/[0.02]">
             {['ongoing', 'completed'].map((mode) => (
               <button
                 key={mode}
                 onClick={() => setTabMode(mode as any)}
                 className={cn(
-                  "px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all",
-                  tabMode === mode ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/50"
+                  "px-6 py-3 rounded-2xl text-sm font-black uppercase tracking-widest transition-all",
+                  tabMode === mode ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/70"
                 )}
               >
                 {mode}
@@ -236,10 +236,10 @@ export default function DepartmentQueueClient({
             <table className="premium-table">
               <thead>
                 <tr>
-                  <th className="rounded-tl-2xl uppercase tracking-widest text-[10px] py-6 px-6">Directives</th>
-                  <th className="uppercase tracking-widest text-[10px]">Status</th>
-                  <th className="uppercase tracking-widest text-[10px]">Deadline</th>
-                  <th className="rounded-tr-2xl uppercase tracking-widest text-[10px]">Handler</th>
+                  <th className="rounded-tl-2xl uppercase tracking-widest text-sm py-6 px-6">Directives</th>
+                  <th className="uppercase tracking-widest text-sm">Status</th>
+                  <th className="uppercase tracking-widest text-sm">Deadline</th>
+                  <th className="rounded-tr-2xl uppercase tracking-widest text-sm">Handler</th>
                 </tr>
               </thead>
               <tbody>
@@ -258,20 +258,20 @@ export default function DepartmentQueueClient({
                           </Link>
                           <div className="flex items-center gap-3 pl-3.5">
                             <span className={cn(
-                              "text-[8px] font-black tracking-[0.2em] uppercase px-1.5 py-0.5 rounded-md border border-base-content/10",
+                              "text-sm font-black tracking-[0.2em] uppercase px-1.5 py-0.5 rounded-md border border-base-content/10",
                               task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                             )}>
                               {task.sla.name}
                             </span>
-                            <span className="text-[9px] font-mono font-bold text-base-content/15">ID#{task.id}</span>
+                            <span className="text-xs font-mono font-bold text-base-content/15">ID#{task.id}</span>
                           </div>
                         </div>
                       </td>
 
                       <td>
                         <div className={cn(
-                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest",
-                          task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/40",
+                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest",
+                          task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/70",
                           task.status === TaskStatus.IN_PROGRESS && "bg-primary/10 text-primary",
                           task.status === TaskStatus.AWAITING_INFO && "bg-secondary/10 text-secondary",
                           task.status === TaskStatus.REVIEW && "bg-warning/10 text-warning",
@@ -301,15 +301,15 @@ export default function DepartmentQueueClient({
                                 {task.assignee?.avatarUrl ? (
                                   <img src={task.assignee.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
-                                  <span className="text-[10px] font-black flex items-center justify-center w-full h-full translate-y-[0.5px]">{task.assignee?.name?.charAt(0)}</span>
+                                  <span className="text-sm font-black flex items-center justify-center w-full h-full translate-y-[0.5px]">{task.assignee?.name?.charAt(0)}</span>
                                 )}
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="text-[11px] font-bold text-base-content/80 truncate leading-tight">{task.assignee?.name}</span>
+                                <span className="text-sm font-bold text-base-content/80 truncate leading-tight">{task.assignee?.name}</span>
                                 {(isDeptHead || isManager || isAdmin) && !isCompleted && (
                                   <button
                                     onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
-                                    className="text-[8px] font-black text-primary uppercase tracking-widest opacity-0 group-hover/avatar:opacity-100 transition-opacity hover:underline"
+                                    className="text-sm font-black text-primary uppercase tracking-widest opacity-0 group-hover/avatar:opacity-100 transition-opacity hover:underline"
                                   >
                                     Reassign
                                   </button>
@@ -318,7 +318,7 @@ export default function DepartmentQueueClient({
                             </div>
                           ) : (
                             <div className="flex flex-col gap-1.5">
-                              <span className="text-[10px] font-black italic text-warning/50 uppercase tracking-widest">Unassigned</span>
+                              <span className="text-sm font-black italic text-warning/50 uppercase tracking-widest">Unassigned</span>
                               {(isDeptHead || isManager || isAdmin) && !isCompleted && (
                                 <button
                                   onClick={() => setReassigningTaskId(reassigningTaskId === task.id ? null : task.id)}
@@ -327,7 +327,7 @@ export default function DepartmentQueueClient({
                                   <span className="p-1.5 rounded-lg bg-warning/10 text-warning group-hover/btn:bg-warning group-hover/btn:text-white transition-all shadow-sm">
                                     <UserPlus size={12} />
                                   </span>
-                                  <span className="text-[8px] font-black uppercase tracking-widest text-warning opacity-60 group-hover/btn:opacity-100 transition-opacity">Assign</span>
+                                  <span className="text-sm font-black uppercase tracking-widest text-warning opacity-60 group-hover/btn:opacity-100 transition-opacity">Assign</span>
                                 </button>
                               )}
                             </div>
@@ -335,7 +335,7 @@ export default function DepartmentQueueClient({
 
                           {/* Reassign Dropdown Refinement */}
                           {reassigningTaskId === task.id && (
-                            <div className="absolute top-1/2 -translate-y-1/2 right-full mr-6 z-50 w-72 bg-base-100 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-base-content/5 p-6 animate-in fade-in slide-in-from-right-6 duration-300 overflow-hidden">
+                            <div className="absolute top-1/2 -translate-y-1/2 right-full mr-6 z-50 w-72 bg-base-100 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-base-content/20 p-6 animate-in fade-in slide-in-from-right-6 duration-300 overflow-hidden">
                               <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
 
                               <div className="relative z-10">
@@ -344,8 +344,8 @@ export default function DepartmentQueueClient({
                                     <UserPlus size={16} />
                                   </div>
                                   <div>
-                                    <h5 className="text-[11px] font-black uppercase tracking-widest text-base-content/80">Reassign Workflow</h5>
-                                    <p className="text-[9px] font-bold text-base-content/30 uppercase tracking-wider">Select New Handler</p>
+                                    <h5 className="text-sm font-black uppercase tracking-widest text-base-content/80">Reassign Workflow</h5>
+                                    <p className="text-xs font-bold text-base-content/30 uppercase tracking-wider">Select New Handler</p>
                                   </div>
                                 </div>
 
@@ -360,27 +360,27 @@ export default function DepartmentQueueClient({
                                         {m.avatarUrl ? (
                                           <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" />
                                         ) : (
-                                          <span className="text-[10px] font-black translate-y-[0.5px]">{m.name.charAt(0)}</span>
+                                          <span className="text-sm font-black translate-y-[0.5px]">{m.name.charAt(0)}</span>
                                         )}
                                       </div>
                                       <div className="flex flex-col min-w-0">
                                         <span className="truncate">{m.name}</span>
-                                        <span className="text-[9px] font-bold opacity-40 group-hover/item:opacity-70 transition-opacity uppercase tracking-widest">
+                                        <span className="text-xs font-bold opacity-40 group-hover/item:opacity-70 transition-opacity uppercase tracking-widest">
                                           {m.role || 'Agent'}
                                         </span>
                                       </div>
                                     </button>
                                   ))}
                                   {members.filter(m => m.id !== task.assigneeId).length === 0 && (
-                                    <div className="py-8 text-center bg-base-content/[0.02] rounded-3xl border border-dashed border-base-content/5">
-                                      <p className="text-[10px] font-bold text-base-content/20 uppercase tracking-widest">No other members</p>
+                                    <div className="py-8 text-center bg-base-content/[0.02] rounded-3xl border border-dashed border-base-content/20">
+                                      <p className="text-sm font-bold text-base-content/70 uppercase tracking-widest">No other members</p>
                                     </div>
                                   )}
                                 </div>
 
                                 <button
                                   onClick={() => setReassigningTaskId(null)}
-                                  className="w-full mt-4 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] text-base-content/20 hover:text-error hover:bg-error/5 transition-all"
+                                  className="w-full mt-4 py-3 rounded-2xl text-xs font-black uppercase tracking-[0.2em] text-base-content/70 hover:text-error hover:bg-error/5 transition-all"
                                 >
                                   Cancel Assignment
                                 </button>
@@ -412,7 +412,7 @@ export default function DepartmentQueueClient({
                       </Link>
                       <div className="flex items-center gap-2">
                         <span className={cn(
-                          "text-[9px] font-black tracking-widest uppercase px-1.5 py-0.5 rounded border border-base-content/10",
+                          "text-xs font-black tracking-widest uppercase px-1.5 py-0.5 rounded border border-base-content/10",
                           task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                         )}>
                           {task.sla.name}
@@ -420,8 +420,8 @@ export default function DepartmentQueueClient({
                       </div>
                     </div>
                     <div className={cn(
-                      "px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest",
-                      task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/40",
+                      "px-2.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-widest",
+                      task.status === TaskStatus.PENDING && "bg-base-content/5 text-base-content/70",
                       task.status === TaskStatus.IN_PROGRESS && "bg-primary text-white shadow-ruby-soft"
                     )}>
                       {task.status.replace(/_/g, ' ')}
@@ -430,22 +430,22 @@ export default function DepartmentQueueClient({
 
                   <div className="flex items-center justify-between p-4 bg-base-content/[0.03] rounded-2xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center leading-none font-bold text-[10px]">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center leading-none font-bold text-sm">
                         {task.assignee?.name?.charAt(0) || '?'}
                       </div>
-                      <span className="text-[11px] font-bold text-base-content/60">{task.assignee?.name || 'Unassigned'}</span>
+                      <span className="text-sm font-bold text-base-content/80">{task.assignee?.name || 'Unassigned'}</span>
                     </div>
                     {task.dueAt && <SLACountdown dueDate={task.dueAt} isCompleted={isCompleted} />}
                   </div>
 
                   <div className="flex gap-3">
                     {isPendingReceipt && (
-                      <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="flex-1 h-12 bg-primary text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-ruby-soft">
+                      <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="flex-1 h-12 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-ruby-soft">
                         Acknowledge
                       </button>
                     )}
                     {task.status === TaskStatus.RECEIVED && (
-                      <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="flex-1 h-12 glass-panel text-primary rounded-2xl font-black text-[11px] uppercase tracking-widest">
+                      <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="flex-1 h-12 glass-panel text-primary rounded-2xl font-black text-sm uppercase tracking-widest">
                         Start
                       </button>
                     )}

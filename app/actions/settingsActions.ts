@@ -117,3 +117,23 @@ export async function uploadLogo(formData: FormData) {
     return { success: false, error: error.message }
   }
 }
+
+export async function purgeCache() {
+  try {
+    const session = await auth()
+    if (!session?.user) return { success: false, error: 'Unauthorized' }
+
+    // Purge all main routes
+    revalidatePath('/')
+    revalidatePath('/admin/settings')
+    revalidatePath('/admin/users')
+    revalidatePath('/admin/finance')
+    revalidatePath('/projects')
+    revalidatePath('/tasks')
+    revalidatePath('/account')
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message }
+  }
+}

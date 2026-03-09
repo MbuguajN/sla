@@ -2,7 +2,7 @@ import React from 'react';
 
 const CardSkeleton = ({ height = '120px', className = '' }) => (
     <div
-        className={`bg-base-200/40 animate-pulse rounded-3xl border border-base-content/5 ${className}`}
+        className={`bg-base-200/40 animate-pulse rounded-3xl border border-base-content/20 ${className}`}
         style={{ height }}
     />
 );

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -38,6 +38,7 @@ model User {
   projectMemberships ProjectMember[]
   reviewerResponses  ReviewResponse[] @relation("ReviewerResponses")
   revieweeResponses  ReviewResponse[] @relation("RevieweeResponses")
+  requisitions       Requisition[]    @relation("UserRequisitions")
 
   @@index([departmentId])
 }
@@ -332,5 +333,31 @@ model ProjectMember {
   @@unique([projectId, userId])
   @@index([projectId])
   @@index([userId])
+}
+
+model Requisition {
+  id          Int               @id @default(autoincrement())
+  userId      Int
+  status      String            @default("PENDING")
+  reason      String?
+  totalAmount Float             @default(0)
+  reviewNote  String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation("UserRequisitions", fields: [userId], references: [id])
+  items       RequisitionItem[]
+  @@index([userId])
+  @@index([status])
+}
+
+model RequisitionItem {
+  id            Int         @id @default(autoincrement())
+  requisitionId Int
+  itemName      String
+  quantity      Int
+  unitPrice     Float
+  vatInclusive  Boolean     @default(false)
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  @@index([requisitionId])
 }
 

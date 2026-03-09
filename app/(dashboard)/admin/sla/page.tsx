@@ -56,7 +56,7 @@ function SlaCard({ sla }: { sla: any }) {
             />
             <button type="submit" className="btn btn-sm btn-primary join-item">Hours</button>
           </div>
-          <span className="text-[10px] text-base-content/40 uppercase font-bold tracking-widest">Target Duration</span>
+          <span className="text-sm text-base-content/70 uppercase font-bold tracking-widest">Target Duration</span>
         </form>
       </div>
     </div>

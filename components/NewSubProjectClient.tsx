@@ -54,7 +54,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
         return (
             <button
                 onClick={() => setIsOpen(true)}
-                className="btn btn-primary btn-md px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-[10px]"
+                className="btn btn-primary btn-md px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-sm"
             >
                 {isSublet ? <GitBranch className="w-4 h-4" /> : <FolderPlus className="w-4 h-4" />}
                 New {label}
@@ -73,7 +73,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
                         <h3 className="text-xs font-black uppercase tracking-[0.15em] text-primary">
                             New {label}
                         </h3>
-                        <p className="text-[10px] font-bold text-base-content/40 mt-0.5">
+                        <p className="text-sm font-bold text-base-content/70 mt-0.5">
                             {isSublet ? 'Add a unit to this phase' : 'Add a phase to this project'}
                         </p>
                     </div>
@@ -86,7 +86,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
                 <div className="form-control">
                     <label className="label">
-                        <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">{label} Name</span>
+                        <span className="label-text font-black text-sm uppercase tracking-wider opacity-60">{label} Name</span>
                     </label>
                     <input
                         type="text"
@@ -101,7 +101,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
 
                 <div className="form-control">
                     <label className="label">
-                        <span className="label-text font-black text-[10px] uppercase tracking-wider opacity-60">Description (Optional)</span>
+                        <span className="label-text font-black text-sm uppercase tracking-wider opacity-60">Description (Optional)</span>
                     </label>
                     <textarea
                         placeholder="Brief scope description..."
@@ -115,7 +115,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
                     <button
                         type="submit"
                         disabled={loading || !title.trim()}
-                        className="btn btn-primary btn-sm px-6 gap-2 uppercase font-black tracking-widest text-[10px]"
+                        className="btn btn-primary btn-sm px-6 gap-2 uppercase font-black tracking-widest text-sm"
                     >
                         {loading ? (
                             <span className="loading loading-spinner loading-xs" />
@@ -127,7 +127,7 @@ export default function NewSubProjectClient({ projectId, parentId, onCreated }: 
                     <button
                         type="button"
                         onClick={() => { setIsOpen(false); setTitle(''); setDescription('') }}
-                        className="btn btn-ghost btn-sm uppercase font-black tracking-widest text-[10px] opacity-50"
+                        className="btn btn-ghost btn-sm uppercase font-black tracking-widest text-sm opacity-50"
                     >
                         Cancel
                     </button>

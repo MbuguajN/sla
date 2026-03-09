@@ -56,7 +56,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     </div>
                     <div>
                         <h1 className="text-2xl font-semibold text-base-content tracking-tight">Tasks</h1>
-                        <p className="text-sm text-base-content/40 mt-0.5">
+                        <p className="text-sm text-base-content/70 mt-0.5">
                             {initialTasks.filter(t => t.status !== 'COMPLETED').length} active tasks
                         </p>
                     </div>
@@ -83,7 +83,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     onClick={() => setActiveTab('ACTIVE')}
                     className={cn(
                         "px-4 py-3 text-sm font-medium transition-colors relative",
-                        activeTab === 'ACTIVE' ? "text-primary" : "text-base-content/40 hover:text-base-content/60"
+                        activeTab === 'ACTIVE' ? "text-primary" : "text-base-content/70 hover:text-base-content/80"
                     )}
                 >
                     Active
@@ -93,7 +93,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     onClick={() => setActiveTab('COMPLETED')}
                     className={cn(
                         "px-4 py-3 text-sm font-medium transition-colors relative",
-                        activeTab === 'COMPLETED' ? "text-success" : "text-base-content/40 hover:text-base-content/60"
+                        activeTab === 'COMPLETED' ? "text-success" : "text-base-content/70 hover:text-base-content/80"
                     )}
                 >
                     Completed
@@ -108,11 +108,11 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     <table className="w-full">
                         <thead>
                             <tr className="bg-base-200/40 text-left">
-                                <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Task</th>
-                                <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Assignee</th>
-                                <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Deadline</th>
-                                <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Status</th>
-                                <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Last Update</th>
+                                <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Task</th>
+                                <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Assignee</th>
+                                <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Deadline</th>
+                                <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Last Update</th>
                                 <th className="px-6 py-3 text-right"></th>
                             </tr>
                         </thead>
@@ -129,14 +129,14 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-base-content/30">#{task.id}</span>
                                                     <span className="text-xs text-base-content/30">·</span>
-                                                    <span className="text-xs text-base-content/40">{task.sla.name}</span>
+                                                    <span className="text-xs text-base-content/70">{task.sla.name}</span>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2.5">
                                                 <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                                                    <span className="text-[10px] font-semibold">{task.assignee?.name?.charAt(0) || '?'}</span>
+                                                    <span className="text-sm font-semibold">{task.assignee?.name?.charAt(0) || '?'}</span>
                                                 </div>
                                                 <span className="text-sm text-base-content/70">{task.assignee?.name || 'Unassigned'}</span>
                                             </div>
@@ -152,7 +152,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                 task.status === 'COMPLETED' ? "bg-success/10 text-success" :
                                                     task.status === 'IN_PROGRESS' ? "bg-primary/10 text-primary" :
                                                         task.status === 'REVIEW' ? "bg-warning/10 text-warning" :
-                                                            "bg-base-200 text-base-content/50"
+                                                            "bg-base-200 text-base-content/70"
                                             )}>
                                                 {task.status.replace('_', ' ')}
                                             </span>
@@ -162,7 +162,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                 <div className="group/msg relative cursor-help">
                                                     <div className="flex items-center gap-2">
                                                         <MessageCircle className="w-3.5 h-3.5 text-base-content/25" />
-                                                        <span className="text-xs text-base-content/40 max-w-[140px] truncate italic">
+                                                        <span className="text-xs text-base-content/70 max-w-[140px] truncate italic">
                                                             {lastMessage.content}
                                                         </span>
                                                     </div>
@@ -175,7 +175,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="text-xs text-base-content/20">—</span>
+                                                <span className="text-xs text-base-content/70">—</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -203,14 +203,14 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                         </Link>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-xs text-base-content/30">#{task.id}</span>
-                                            <span className="text-xs text-base-content/40">{task.sla.name}</span>
+                                            <span className="text-xs text-base-content/70">{task.sla.name}</span>
                                         </div>
                                     </div>
                                     <span className={cn(
-                                        "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium shrink-0",
+                                        "inline-flex items-center px-2 py-0.5 rounded text-sm font-medium shrink-0",
                                         task.status === 'COMPLETED' ? "bg-success/10 text-success" :
                                             task.status === 'IN_PROGRESS' ? "bg-primary/10 text-primary" :
-                                                "bg-base-200 text-base-content/50"
+                                                "bg-base-200 text-base-content/70"
                                     )}>
                                         {task.status.replace('_', ' ')}
                                     </span>
@@ -218,9 +218,9 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                 <div className="flex items-center justify-between bg-base-200/30 rounded-lg px-3 py-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                                            <span className="text-[9px] font-semibold">{task.assignee?.name?.charAt(0) || '?'}</span>
+                                            <span className="text-xs font-semibold">{task.assignee?.name?.charAt(0) || '?'}</span>
                                         </div>
-                                        <span className="text-xs text-base-content/60">{task.assignee?.name || 'Unassigned'}</span>
+                                        <span className="text-xs text-base-content/80">{task.assignee?.name || 'Unassigned'}</span>
                                     </div>
                                     {task.dueAt && <SLACountdown dueDate={new Date(task.dueAt)} isCompleted={isCompleted} />}
                                 </div>
@@ -231,7 +231,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
 
                 {sortedTasks.length === 0 && (
                     <div className="py-20 text-center">
-                        <ClipboardList className="w-12 h-12 mx-auto mb-3 text-base-content/10" />
+                        <ClipboardList className="w-12 h-12 mx-auto mb-3 text-base-content/40" />
                         <span className="text-sm text-base-content/30">No tasks found</span>
                     </div>
                 )}

@@ -57,7 +57,7 @@ export default async function ProjectsGrid() {
                             </div>
 
                             <h4 className="font-medium text-sm text-base-content mb-1 truncate">{project.title}</h4>
-                            <p className="text-xs text-base-content/40 mb-4">
+                            <p className="text-xs text-base-content/70 mb-4">
                                 {completed} of {total} tasks completed
                             </p>
 

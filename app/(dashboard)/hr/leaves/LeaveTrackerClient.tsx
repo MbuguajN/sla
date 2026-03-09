@@ -118,14 +118,14 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                             key={t}
                             onClick={() => setTab(t)}
                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all",
-                                tab === t ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/50"
+                                "px-5 py-2.5 rounded-xl text-sm font-bold uppercase tracking-widest transition-all",
+                                tab === t ? "bg-white dark:bg-primary/10 text-primary shadow-sm" : "text-base-content/30 hover:text-base-content/70"
                             )}
                         >
                             {t === 'POLICY' ? (
                                 <span className="flex items-center gap-1"><Settings2 className="w-3 h-3" /> Policy</span>
                             ) : (
-                                <>{t} <span className="ml-1 text-[10px] opacity-50">{initialLeaves.filter(l => l.status === t).length}</span></>
+                                <>{t} <span className="ml-1 text-sm opacity-50">{initialLeaves.filter(l => l.status === t).length}</span></>
                             )}
                         </button>
                     ))}
@@ -150,7 +150,7 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                     <div className="bg-base-100 border border-base-content/10 rounded-2xl overflow-hidden shadow-sm">
                         <table className="table w-full">
                             <thead>
-                                <tr className="bg-base-200/50 text-[10px] font-bold uppercase tracking-widest text-base-content/30 border-b border-base-content/5">
+                                <tr className="bg-base-200/50 text-sm font-bold uppercase tracking-widest text-base-content/30 border-b border-base-content/20">
                                     <th className="pl-6 h-12">Role Category</th>
                                     <th>Annual Leave Days</th>
                                     <th>Sick Leave Days</th>
@@ -163,7 +163,7 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                                         <tr key={role.key} className="hover:bg-base-content/[0.02]">
                                             <td className="pl-6">
                                                 <p className="text-xs font-bold text-base-content">{role.label}</p>
-                                                <p className="text-[9px] text-base-content/20">{role.description}</p>
+                                                <p className="text-xs text-base-content/70">{role.description}</p>
                                             </td>
                                             <td>
                                                 <input
@@ -192,11 +192,11 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                         </table>
                     </div>
                     <div className="flex items-center gap-3">
-                        <button onClick={handleSavePolicy} disabled={savingPolicy} className="btn btn-primary btn-sm font-bold uppercase tracking-widest text-[10px]">
+                        <button onClick={handleSavePolicy} disabled={savingPolicy} className="btn btn-primary btn-sm font-bold uppercase tracking-widest text-sm">
                             {savingPolicy ? <span className="loading loading-spinner loading-xs" /> : 'Save Policies'}
                         </button>
                         {policyMessage && (
-                            <span className="text-[10px] font-bold text-success uppercase tracking-wider flex items-center gap-1">
+                            <span className="text-sm font-bold text-success uppercase tracking-wider flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" /> {policyMessage}
                             </span>
                         )}
@@ -208,7 +208,7 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                     <div className="overflow-x-auto">
                         <table className="table w-full">
                             <thead>
-                                <tr className="bg-base-200/50 text-[10px] font-bold uppercase tracking-widest text-base-content/30 border-b border-base-content/5">
+                                <tr className="bg-base-200/50 text-sm font-bold uppercase tracking-widest text-base-content/30 border-b border-base-content/20">
                                     <th className="pl-6 h-12">Employee</th>
                                     <th>Type</th>
                                     <th>Period</th>
@@ -222,29 +222,29 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                                     <tr key={leave.id} className="hover:bg-base-content/[0.02] transition-colors">
                                         <td className="pl-6">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-[10px]">
+                                                <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
                                                     {leave.user.name?.charAt(0) || '?'}
                                                 </div>
                                                 <div>
                                                     <p className="text-xs font-bold text-base-content">{leave.user.name}</p>
-                                                    <p className="text-[9px] text-base-content/20 uppercase tracking-wider">{leave.user.department?.name || 'N/A'}</p>
+                                                    <p className="text-xs text-base-content/70 uppercase tracking-wider">{leave.user.department?.name || 'N/A'}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td>
-                                            <span className="text-[10px] font-bold uppercase tracking-wider text-base-content/40">{leave.type}</span>
+                                            <span className="text-sm font-bold uppercase tracking-wider text-base-content/70">{leave.type}</span>
                                         </td>
                                         <td>
-                                            <div className="flex items-center gap-1 text-[11px] text-base-content/40">
+                                            <div className="flex items-center gap-1 text-sm text-base-content/70">
                                                 <CalendarDays className="w-3 h-3 text-base-content/15" />
                                                 {format(new Date(leave.startDate), 'MMM d')} — {format(new Date(leave.endDate), 'MMM d')}
                                             </div>
                                         </td>
                                         <td>
-                                            <p className="text-[11px] text-base-content/40 max-w-[180px] truncate">{leave.reason}</p>
+                                            <p className="text-sm text-base-content/70 max-w-[180px] truncate">{leave.reason}</p>
                                         </td>
                                         <td>
-                                            <span className={cn("badge badge-sm font-bold text-[9px] uppercase tracking-wider border-none", statusStyles[leave.status]?.bg, statusStyles[leave.status]?.text)}>
+                                            <span className={cn("badge badge-sm font-bold text-xs uppercase tracking-wider border-none", statusStyles[leave.status]?.bg, statusStyles[leave.status]?.text)}>
                                                 {leave.status}
                                             </span>
                                         </td>
@@ -268,22 +268,22 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <button onClick={() => setReviewingId(leave.id)} className="btn btn-xs btn-ghost text-primary hover:bg-primary/10 font-bold text-[10px]">
+                                                        <button onClick={() => setReviewingId(leave.id)} className="btn btn-xs btn-ghost text-primary hover:bg-primary/10 font-bold text-sm">
                                                             Review
                                                         </button>
                                                     )}
                                                 </div>
                                             ) : leave.status !== 'PENDING' && leave.reviewer ? (
-                                                <span className="text-[10px] text-base-content/20">by {leave.reviewer.name}</span>
+                                                <span className="text-sm text-base-content/70">by {leave.reviewer.name}</span>
                                             ) : (
-                                                <span className="text-[10px] text-base-content/10">—</span>
+                                                <span className="text-sm text-base-content/40">—</span>
                                             )}
                                         </td>
                                     </tr>
                                 ))}
                                 {filtered.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-center py-12 text-[11px] text-base-content/15 italic">No {tab.toLowerCase()} leave requests</td>
+                                        <td colSpan={6} className="text-center py-12 text-sm text-base-content/15 italic">No {tab.toLowerCase()} leave requests</td>
                                     </tr>
                                 )}
                             </tbody>

@@ -109,7 +109,7 @@ export default async function ClientServiceTicketsPage() {
             <Inbox className="w-8 h-8 text-primary" />
             <h1 className="text-4xl font-black tracking-tighter uppercase text-base-content">Briefs</h1>
           </div>
-          <p className="text-base-content/50 font-bold uppercase tracking-widest text-[10px]">Incoming Briefs</p>
+          <p className="text-base-content/70 font-bold uppercase tracking-widest text-sm">Incoming Briefs</p>
         </div>
       </div>
 

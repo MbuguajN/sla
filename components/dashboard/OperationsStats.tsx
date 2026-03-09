@@ -73,7 +73,7 @@ export default async function OperationsStats({
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-base-content/70">Active Tasks</h3>
-                                <p className="text-[10px] text-base-content/30 uppercase tracking-[0.2em] font-black">Operations Pulse</p>
+                                <p className="text-sm text-base-content/30 uppercase tracking-[0.2em] font-black">Operations Pulse</p>
                             </div>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -85,7 +85,7 @@ export default async function OperationsStats({
                         <span className="text-5xl font-black tracking-tighter text-base-content group-hover:text-primary transition-colors">
                             {activeTasksCount}
                         </span>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
+                        <div className="flex items-center gap-1 text-sm font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
                             <span>{Math.max(0, activeTasksCount - 2)} New</span>
                         </div>
                     </div>
@@ -105,7 +105,7 @@ export default async function OperationsStats({
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-base-content/70">Overdue</h3>
-                                <p className="text-[10px] text-base-content/30 uppercase tracking-[0.2em] font-black">Urgent Attention</p>
+                                <p className="text-sm text-base-content/30 uppercase tracking-[0.2em] font-black">Urgent Attention</p>
                             </div>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -116,12 +116,12 @@ export default async function OperationsStats({
                     <div className="flex items-baseline gap-3 mt-auto">
                         <span className={cn(
                             "text-5xl font-black tracking-tighter transition-colors",
-                            overdueTasksCount > 0 ? "text-error" : "text-base-content/20"
+                            overdueTasksCount > 0 ? "text-error" : "text-base-content/70"
                         )}>
                             {overdueTasksCount}
                         </span>
                         {overdueTasksCount > 0 && (
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-error bg-error/10 px-2 py-0.5 rounded-full">
+                            <div className="flex items-center gap-1 text-sm font-bold text-error bg-error/10 px-2 py-0.5 rounded-full">
                                 <TrendingDown className="w-3 h-3" />
                                 <span>Critical</span>
                             </div>

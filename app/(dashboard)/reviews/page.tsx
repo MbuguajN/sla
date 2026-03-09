@@ -44,10 +44,10 @@ export default function ReviewFlowPage() {
         return (
             <div className="max-w-2xl mx-auto text-center py-20 animate-in fade-in duration-500">
                 <div className="w-20 h-20 bg-base-content/5 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Star className="w-8 h-8 text-base-content/20" />
+                    <Star className="w-8 h-8 text-base-content/70" />
                 </div>
                 <h1 className="text-2xl font-extrabold tracking-tight text-base-content">No Active Review</h1>
-                <p className="text-sm text-base-content/40 mt-2">There is no active performance review cycle at this time.</p>
+                <p className="text-sm text-base-content/70 mt-2">There is no active performance review cycle at this time.</p>
             </div>
         )
     }
@@ -61,7 +61,7 @@ export default function ReviewFlowPage() {
                     <CheckCircle2 className="w-8 h-8 text-success" />
                 </div>
                 <h1 className="text-2xl font-extrabold tracking-tight text-base-content">All Done!</h1>
-                <p className="text-sm text-base-content/40 mt-2">You have completed all your reviews for "{data.cycle.title}". Thank you!</p>
+                <p className="text-sm text-base-content/70 mt-2">You have completed all your reviews for "{data.cycle.title}". Thank you!</p>
             </div>
         )
     }
@@ -109,9 +109,9 @@ export default function ReviewFlowPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-extrabold tracking-tight text-base-content">Performance Review</h1>
-                    <p className="text-[11px] font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">{data.cycle.title}</p>
+                    <p className="text-sm font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">{data.cycle.title}</p>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-base-content/30 uppercase tracking-wider">
+                <div className="flex items-center gap-2 text-sm font-bold text-base-content/30 uppercase tracking-wider">
                     <Clock className="w-3.5 h-3.5" />
                     {remainingReviewees.length - currentPersonIndex} remaining
                 </div>
@@ -139,7 +139,7 @@ export default function ReviewFlowPage() {
                 </div>
                 <div>
                     <h2 className="text-lg font-black tracking-tight text-base-content">{currentPerson.name}</h2>
-                    <p className="text-[10px] text-base-content/30 uppercase tracking-wider">{currentPerson.role}</p>
+                    <p className="text-sm text-base-content/30 uppercase tracking-wider">{currentPerson.role}</p>
                 </div>
             </div>
 
@@ -161,14 +161,14 @@ export default function ReviewFlowPage() {
                                             ? "bg-primary text-primary-content scale-110 shadow-lg shadow-primary/30"
                                             : ratings[q.id] && n <= ratings[q.id]
                                                 ? "bg-primary/20 text-primary"
-                                                : "bg-base-content/5 text-base-content/40 hover:bg-base-content/10"
+                                                : "bg-base-content/5 text-base-content/70 hover:bg-base-content/10"
                                     )}
                                 >
                                     {n}
                                 </button>
                             ))}
                         </div>
-                        <div className="flex justify-between text-[9px] uppercase tracking-widest text-base-content/20 font-bold">
+                        <div className="flex justify-between text-xs uppercase tracking-widest text-base-content/70 font-bold">
                             <span>Poor</span>
                             <span>Excellent</span>
                         </div>
@@ -181,7 +181,7 @@ export default function ReviewFlowPage() {
                 <button
                     onClick={handleSubmitPerson}
                     disabled={submitting}
-                    className="btn btn-primary btn-sm font-black uppercase tracking-widest text-[10px] gap-1"
+                    className="btn btn-primary btn-sm font-black uppercase tracking-widest text-sm gap-1"
                 >
                     {submitting ? (
                         <span className="loading loading-spinner loading-xs" />

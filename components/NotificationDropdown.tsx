@@ -120,15 +120,15 @@ export default function NotificationDropdown() {
       className="w-80 lg:w-96 bg-base-100 !bg-opacity-100 rounded-2xl shadow-2xl border border-base-content/10 overflow-hidden animate-in fade-in slide-in-from-top-2"
     >
       {/* Header */}
-      <div className="p-4 border-b border-base-content/5 flex items-center justify-between bg-primary/5">
+      <div className="p-4 border-b border-base-content/20 flex items-center justify-between bg-primary/5">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-black uppercase tracking-widest text-primary">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
+            <span className="bg-primary text-white text-sm font-bold px-1.5 py-0.5 rounded-full">{unreadCount}</span>
           )}
         </div>
         {unreadCount > 0 && (
-          <button onClick={handleMarkAllAsRead} className="text-[10px] font-black uppercase tracking-widest text-base-content/40 hover:text-primary transition-colors flex items-center gap-1">
+          <button onClick={handleMarkAllAsRead} className="text-sm font-black uppercase tracking-widest text-base-content/70 hover:text-primary transition-colors flex items-center gap-1">
             <Check size={12} /> Mark All Read
           </button>
         )}
@@ -139,12 +139,12 @@ export default function NotificationDropdown() {
         {loading ? (
           <div className="p-8 flex flex-col items-center justify-center gap-2 opacity-30">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Loading...</span>
+            <span className="text-sm font-bold uppercase tracking-widest">Loading...</span>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-8 flex flex-col items-center justify-center gap-2 opacity-20">
             <Bell size={24} />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-center">No notifications</span>
+            <span className="text-sm font-bold uppercase tracking-widest text-center">No notifications</span>
           </div>
         ) : (
           <div className="divide-y divide-base-content/5">
@@ -167,17 +167,17 @@ export default function NotificationDropdown() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary/60">
+                      <span className="text-sm font-black uppercase tracking-widest text-primary/60">
                         {n.type?.replace(/_/g, ' ')}
                       </span>
-                      <div className="flex items-center gap-1 text-[9px] font-bold text-base-content/25">
+                      <div className="flex items-center gap-1 text-xs font-bold text-base-content/25">
                         <Clock size={9} />
                         {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                       </div>
                     </div>
                     <p className={cn(
                       "text-xs leading-relaxed",
-                      !n.isRead ? "font-semibold text-base-content" : "font-medium text-base-content/50"
+                      !n.isRead ? "font-semibold text-base-content" : "font-medium text-base-content/70"
                     )}>
                       {n.content}
                     </p>
@@ -197,7 +197,7 @@ export default function NotificationDropdown() {
         ref={buttonRef}
         role="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-11 h-11 rounded-2xl bg-base-content/5 grid place-items-center text-base-content/60 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer"
+        className="relative w-11 h-11 rounded-2xl bg-base-content/5 grid place-items-center text-base-content/80 hover:bg-primary/10 hover:text-primary transition-all group cursor-pointer"
       >
         <Bell size={20} className="group-hover:rotate-12 transition-transform" />
         {unreadCount > 0 && (

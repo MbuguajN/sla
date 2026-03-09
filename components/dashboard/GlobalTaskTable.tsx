@@ -137,13 +137,13 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
 
     const getStatusBadge = (status: string) => {
         const map: Record<string, { bg: string; text: string; label: string }> = {
-            [TaskStatus.PENDING]: { bg: 'bg-base-200', text: 'text-base-content/60', label: 'Pending' },
+            [TaskStatus.PENDING]: { bg: 'bg-base-200', text: 'text-base-content/80', label: 'Pending' },
             [TaskStatus.RECEIVED]: { bg: 'bg-info/10', text: 'text-info', label: 'Received' },
             [TaskStatus.IN_PROGRESS]: { bg: 'bg-primary/10', text: 'text-primary', label: 'In Progress' },
             [TaskStatus.REVIEW]: { bg: 'bg-warning/10', text: 'text-warning', label: 'Review' },
             [TaskStatus.COMPLETED]: { bg: 'bg-success/10', text: 'text-success', label: 'Completed' },
         }
-        return map[status] || { bg: 'bg-base-200', text: 'text-base-content/60', label: status }
+        return map[status] || { bg: 'bg-base-200', text: 'text-base-content/80', label: status }
     }
 
     const getActionLabel = (status: string) => {
@@ -162,7 +162,7 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
             <div className="px-6 py-5 border-b border-base-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-base font-semibold text-base-content">Active Tasks</h2>
-                    <p className="text-sm text-base-content/40 mt-0.5">{sortedTasks.length} tasks requiring attention</p>
+                    <p className="text-sm text-base-content/70 mt-0.5">{sortedTasks.length} tasks requiring attention</p>
                 </div>
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/30" />
@@ -181,17 +181,17 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                 <table className="w-full">
                     <thead>
                         <tr className="bg-base-200/50 text-left">
-                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('title')}>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('title')}>
                                 <div className="flex items-center gap-1">Task <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('project')}>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('project')}>
                                 <div className="flex items-center gap-1">Project <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider">Deadline</th>
-                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('status')}>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider">Deadline</th>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider cursor-pointer" onClick={() => handleSort('status')}>
                                 <div className="flex items-center gap-1">Status <ArrowUpDown className="w-3 h-3" /></div>
                             </th>
-                            <th className="px-6 py-3 text-xs font-medium text-base-content/50 uppercase tracking-wider text-right">Action</th>
+                            <th className="px-6 py-3 text-xs font-medium text-base-content/70 uppercase tracking-wider text-right">Action</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-base-200/60">
@@ -211,11 +211,11 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                                     </td>
                                     <td className="px-6 py-4">
                                         {task.project ? (
-                                            <Link href={`/projects/${task.project.id}`} className="text-sm text-base-content/60 hover:text-primary transition-colors">
+                                            <Link href={`/projects/${task.project.id}`} className="text-sm text-base-content/80 hover:text-primary transition-colors">
                                                 {task.project.title}
                                             </Link>
                                         ) : (
-                                            <span className="text-sm text-base-content/20">—</span>
+                                            <span className="text-sm text-base-content/70">—</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
@@ -248,7 +248,7 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                                                 ) : (
                                                     <>
                                                         {task.status === TaskStatus.REVIEW && task.reporterId !== currentUserId ? (
-                                                            <span className="text-[10px] italic opacity-30">Waiting...</span>
+                                                            <span className="text-sm italic opacity-30">Waiting...</span>
                                                         ) : task.status === TaskStatus.IN_PROGRESS && task.assigneeId !== currentUserId ? (
                                                             <Link href={`/tasks/${task.id}`} className="text-xs text-primary hover:underline">View</Link>
                                                         ) : (

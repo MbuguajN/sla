@@ -50,7 +50,7 @@ export default function SubProjectCard({ sub, isSublet = false }: { sub: SubProj
                     </div>
 
                     <div className={cn(
-                        "badge border-none py-1.5 px-3 text-[10px] font-black uppercase tracking-wider",
+                        "badge border-none py-1.5 px-3 text-sm font-black uppercase tracking-wider",
                         isCompleted ? "bg-success/10 text-success" :
                             isOnHold ? "bg-warning/10 text-warning" :
                                 "bg-primary/10 text-primary"
@@ -65,14 +65,14 @@ export default function SubProjectCard({ sub, isSublet = false }: { sub: SubProj
                     <h3 className="text-base font-bold text-base-content/90 group-hover:text-primary transition-colors leading-tight">
                         {sub.title}
                     </h3>
-                    <p className="text-[12px] text-base-content/50 font-medium leading-relaxed line-clamp-2">
+                    <p className="text-[12px] text-base-content/70 font-medium leading-relaxed line-clamp-2">
                         {sub.description || (isSublet ? "Operational unit." : "Strategic phase scope.")}
                     </p>
                 </div>
 
                 {/* Stats Footer */}
-                <div className="flex items-center justify-between pt-4 mt-auto border-t border-base-content/5">
-                    <div className="flex items-center gap-4 text-[10px] font-bold text-base-content/30 uppercase tracking-tighter">
+                <div className="flex items-center justify-between pt-4 mt-auto border-t border-base-content/20">
+                    <div className="flex items-center gap-4 text-sm font-bold text-base-content/30 uppercase tracking-tighter">
                         <div className="flex items-center gap-1.5">
                             <Layers size={13} className="text-primary/40" />
                             <span>{taskCount} Tasks</span>
@@ -84,7 +84,7 @@ export default function SubProjectCard({ sub, isSublet = false }: { sub: SubProj
                             </div>
                         )}
                     </div>
-                    <div className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/40 group-hover:bg-primary group-hover:text-white transition-all transform group-hover:translate-x-1">
+                    <div className="w-7 h-7 rounded-lg bg-base-content/5 flex items-center justify-center text-base-content/70 group-hover:bg-primary group-hover:text-white transition-all transform group-hover:translate-x-1">
                         <ArrowUpRight size={14} />
                     </div>
                 </div>

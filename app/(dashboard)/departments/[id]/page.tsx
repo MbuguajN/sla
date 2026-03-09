@@ -107,7 +107,7 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
           </div>
           <div>
             <h1 className="text-2xl font-black uppercase tracking-tight">Restricted Access</h1>
-            <p className="text-base-content/60 font-medium">You are not authorized to view the <strong>{department.name}</strong> queue.</p>
+            <p className="text-base-content/80 font-medium">You are not authorized to view the <strong>{department.name}</strong> queue.</p>
           </div>
           <Link href="/" className="btn btn-primary mt-4 uppercase font-black">Return to Dashboard</Link>
         </div>

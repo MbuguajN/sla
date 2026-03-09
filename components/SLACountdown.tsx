@@ -63,7 +63,7 @@ export default function SLACountdown({
     return (
       <div className="flex items-center gap-2 px-3 py-1 bg-base-content/5 rounded-xl border border-transparent">
         <Clock className="w-3.5 h-3.5 opacity-20" />
-        <span className="text-[10px] font-black text-base-content/20 uppercase tracking-widest">Async</span>
+        <span className="text-sm font-black text-base-content/70 uppercase tracking-widest">Async</span>
       </div>
     )
   }
@@ -112,7 +112,7 @@ export default function SLACountdown({
     )}>
       {config.icon}
       <div className="flex flex-col leading-none">
-        <span className="text-[10px] font-black tabular-nums">{timeLeft}</span>
+        <span className="text-sm font-black tabular-nums">{timeLeft}</span>
         <span className="text-[7px] font-black uppercase tracking-[0.1em] opacity-60">{config.label}</span>
       </div>
     </div>

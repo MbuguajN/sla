@@ -5,6 +5,7 @@ import prisma from '@/lib/db'
 import { getMyLeaveRequests } from '@/app/actions/hrActions'
 import { getMySuggestions } from '@/app/actions/suggestionActions'
 import { getMyITRequests } from '@/app/actions/itSupportActions'
+import { getMyRequisitions } from '@/app/actions/financeActions'
 import AccountClient from './AccountClient'
 
 export default async function AccountPage() {
@@ -17,10 +18,11 @@ export default async function AccountPage() {
         include: { department: { select: { name: true } } }
     })
 
-    const [leaves, suggestions, itRequests] = await Promise.all([
+    const [leaves, suggestions, itRequests, requisitions] = await Promise.all([
         getMyLeaveRequests(),
         getMySuggestions(),
-        getMyITRequests()
+        getMyITRequests(),
+        getMyRequisitions()
     ])
 
     return (
@@ -30,6 +32,7 @@ export default async function AccountPage() {
                 leaves={JSON.parse(JSON.stringify(leaves))}
                 suggestions={JSON.parse(JSON.stringify(suggestions))}
                 itRequests={JSON.parse(JSON.stringify(itRequests))}
+                requisitions={JSON.parse(JSON.stringify(requisitions))}
             />
         </div>
     )
