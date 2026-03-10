@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useTransform, useMotionValue, useSpring } from "motion/react";
+import { motion, useTransform, useMotionValue, useSpring } from "framer-motion";
 import React from "react";
 
 type Item = {
