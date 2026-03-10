@@ -56,20 +56,20 @@ export default function TaskForm({
   const [watcherIds, setWatcherIds] = useState<number[]>([])
   const [dueDate, setDueDate] = useState<Date | null>(null)
   const [isCustomDueDate, setIsCustomDueDate] = useState(false)
-  const [isSlaOverride, setIsSlaOverride] = useState(false)
+  const [isTemporaryOverride, setIsTemporaryOverride] = useState(false)
 
   // Auto-SLA logic: When project changes, apply its default SLA if not overriding
   useEffect(() => {
-    if (projectId && !isSlaOverride) {
+    if (projectId && !isTemporaryOverride) {
       const project = projects.find(p => p.id === projectId)
       if (project?.defaultSlaId) {
         setSelectedSlaId(project.defaultSlaId)
       }
     }
-  }, [projectId, isSlaOverride, projects])
+  }, [projectId, isTemporaryOverride, projects])
 
   useEffect(() => {
-    if (!isCustomDueDate) {
+    if (!isManualDeadline) {
       if (selectedSlaId) {
         const sla = slas.find(s => s.id === selectedSlaId)
         if (sla) {
@@ -80,11 +80,11 @@ export default function TaskForm({
         setDueDate(null)
       }
     }
-  }, [selectedSlaId, slas, isCustomDueDate])
+  }, [selectedSlaId, slas, isManualDeadline])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!dueDate || (!isCustomDueDate && !selectedSlaId) || !departmentId) return
+    if (!dueDate || (!isManualDeadline && !selectedSlaId) || !departmentId) return
 
     setLoading(true)
     try {
@@ -143,7 +143,7 @@ export default function TaskForm({
           <div className="relative group">
             <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
             <select
-              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
+              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border border-base-content/20 focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12 dark:bg-slate-900"
               value={projectId}
               onChange={(e) => setProjectId(e.target.value === '' ? '' : Number(e.target.value))}
             >
@@ -160,7 +160,7 @@ export default function TaskForm({
             <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
             <select
               required
-              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12"
+              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border border-base-content/20 focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12 dark:bg-slate-900"
               value={departmentId}
               onChange={(e) => setDepartmentId(Number(e.target.value))}
             >
@@ -180,9 +180,9 @@ export default function TaskForm({
               <input
                 type="checkbox"
                 className="checkbox checkbox-xs border-2 border-primary/30 checked:border-primary"
-                checked={isSlaOverride}
+                checked={isTemporaryOverride}
                 onChange={(e) => {
-                  setIsSlaOverride(e.target.checked)
+                  setIsTemporaryOverride(e.target.checked)
                   if (!e.target.checked) {
                     const project = projects.find(p => p.id === projectId)
                     if (project?.defaultSlaId) setSelectedSlaId(project.defaultSlaId)
@@ -190,29 +190,37 @@ export default function TaskForm({
                   }
                 }}
               />
-              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">SLA Override</span>
+              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">Temporary Deadline Override</span>
             </label>
           </div>
 
-          {(isSlaOverride || !projectId) && (
+          {/* SLA Selection: Shown if override is ON, OR if no project selected, OR if selected project has no default SLA */}
+          {(isTemporaryOverride || !projectId || (projectId && !projects.find(p => p.id === projectId)?.defaultSlaId)) && (
             <div className="relative group max-w-md w-full animate-in slide-in-from-top-2">
               <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors font-black" />
               <select
-                required={!isCustomDueDate}
-                className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border-none focus:ring-2 ring-primary/20 transition-all text-sm text-center appearance-none shadow-inner h-12 md:h-14"
+                required={!isManualDeadline}
+                className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border border-base-content/20 focus:ring-2 ring-primary/20 transition-all text-sm text-center appearance-none shadow-inner h-12 md:h-14 dark:bg-slate-900"
                 value={selectedSlaId}
                 onChange={(e) => setSelectedSlaId(Number(e.target.value))}
               >
-                <option value="" disabled>Select Priority Protocol</option>
+                <option value="" disabled>
+                  {projectId && !projects.find(p => p.id === projectId)?.defaultSlaId
+                    ? 'Set Temporary SLA (Tier Required)'
+                    : 'Select Priority Protocol'}
+                </option>
                 {slas.map(s => <option key={s.id} value={s.id}>{s.name} ({s.durationHrs}H)</option>)}
               </select>
             </div>
           )}
 
-          {projectId && !isSlaOverride && (
+          {/* Inheriting Label: Only shown when inheriting from project */}
+          {projectId && !isTemporaryOverride && projects.find(p => p.id === projectId)?.defaultSlaId && (
             <div className="py-2.5 px-6 bg-primary/5 rounded-full border border-primary/10 flex items-center justify-center gap-3 max-w-md w-full animate-in zoom-in-95">
               <Clock className="w-3 h-3 text-primary" />
-              <span className="text-xs font-black uppercase tracking-wider text-primary">Inheriting Project SLA: {slas.find(s => s.id === selectedSlaId)?.name || 'Fetching...'}</span>
+              <span className="text-xs font-black uppercase tracking-wider text-primary">
+                Inheriting Project SLA: {slas.find(s => s.id === selectedSlaId)?.name || 'Fetching...'}
+              </span>
             </div>
           )}
         </div>
@@ -227,19 +235,19 @@ export default function TaskForm({
               <input
                 type="checkbox"
                 className="checkbox checkbox-xs border-2 border-primary/30 checked:border-primary"
-                checked={isCustomDueDate}
-                onChange={(e) => setIsCustomDueDate(e.target.checked)}
+                checked={isManualDeadline}
+                onChange={(e) => setIsManualDeadline(e.target.checked)}
               />
-              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">Manual Override</span>
+              <span className="text-xs font-black uppercase tracking-widest text-base-content/70 group-hover:text-primary transition-colors">Temporary Override</span>
             </label>
           </div>
         </div>
 
-        {isCustomDueDate ? (
+        {isManualDeadline ? (
           <div className="w-full animate-in fade-in zoom-in-95 duration-200">
             <input
               type="datetime-local"
-              className="input input-md w-full bg-base-100 border-none ring-2 ring-primary/10 focus:ring-primary/30 transition-all font-black text-center rounded-xl h-10"
+              className="input input-md w-full bg-base-100 border border-base-content/20 ring-2 ring-primary/10 focus:ring-primary/30 transition-all font-black text-center rounded-xl h-10 dark:bg-slate-900"
               value={dueDate ? format(dueDate, "yyyy-MM-dd'T'HH:mm") : ''}
               onChange={(e) => setDueDate(new Date(e.target.value))}
             />
@@ -307,6 +315,6 @@ export default function TaskForm({
           Abort Protocol
         </button>
       </div>
-    </form>
+    </form >
   )
 }

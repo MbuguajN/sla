@@ -73,7 +73,6 @@ export default async function OperationsStats({
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-base-content/70">Active Tasks</h3>
-                                <p className="text-sm text-base-content/30 uppercase tracking-[0.2em] font-black">Operations Pulse</p>
                             </div>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -105,7 +104,6 @@ export default async function OperationsStats({
                             </div>
                             <div>
                                 <h3 className="text-sm font-bold text-base-content/70">Overdue</h3>
-                                <p className="text-sm text-base-content/30 uppercase tracking-[0.2em] font-black">Urgent Attention</p>
                             </div>
                         </div>
                         <div className="w-8 h-8 rounded-full bg-base-content/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">

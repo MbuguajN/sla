@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Lock, Mail, AlertCircle } from "lucide-react"
 import { LoadingBreadcrumb } from "@/components/ui/animated-loading-svg-text-shimmer"
+import { getSystemSettings } from "@/app/actions/settingsActions"
+import { useTheme } from "next-themes"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +14,25 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [logos, setLogos] = useState<{ light: string | null, dark: string | null }>({ light: null, dark: null })
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+    async function fetchLogos() {
+      try {
+        const settings = await getSystemSettings(['SYSTEM_LOGO_LIGHT', 'SYSTEM_LOGO_DARK'])
+        setLogos({
+          light: settings.SYSTEM_LOGO_LIGHT || settings.system_logo_light || null,
+          dark: settings.SYSTEM_LOGO_DARK || settings.system_logo_dark || null
+        })
+      } catch (err) {
+        console.error("Failed to fetch login logos:", err)
+      }
+    }
+    fetchLogos()
+  }, [])
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +60,8 @@ export default function LoginPage() {
     }
   }
 
+  const currentLogo = mounted ? (resolvedTheme === 'dark' ? logos.dark : logos.light) : null
+
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center justify-start lg:justify-center p-6 py-12 lg:py-6 relative overflow-x-hidden font-sans">
       {/* Loading Overlay */}
@@ -58,10 +81,14 @@ export default function LoginPage() {
         {/* Card — Professional Glassmorphism */}
         <div className="w-full bg-base-100/40 backdrop-blur-2xl border border-base-content/20 rounded-3xl shadow-2xl overflow-hidden p-6 md:p-8 lg:p-10 flex flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2 text-center">
-            {/* Logo — Prominent & Integrated */}
-            <div className="inline-flex items-center justify-center w-24 h-24 md:w-32 md:h-32 overflow-hidden relative mb-1 md:mb-2">
-              <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain dark:hidden transition-all duration-500 drop-shadow-md" />
-              <img src="/logo.svg" alt="Logo" className="w-full h-full object-contain hidden dark:block transition-all duration-500 drop-shadow-md" />
+            {/* Branding — Prominent & Integrated */}
+            <div className="flex flex-col items-center gap-2 mb-4">
+              {currentLogo ? (
+                <img src={currentLogo} alt="5DM" className="h-16 md:h-20 object-contain mb-4" />
+              ) : (
+                <div className="text-5xl md:text-6xl font-black tracking-tighter text-primary">5DM</div>
+              )}
+              <div className="h-1 w-12 bg-primary/20 rounded-full" />
             </div>
 
             <div className="space-y-1">

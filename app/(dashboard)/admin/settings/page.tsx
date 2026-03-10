@@ -48,26 +48,139 @@ export default function AdminSettingsPage() {
 // ─── Branding Tab ───
 function BrandingTab() {
     return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-lg font-black tracking-tight uppercase text-base-content">System Branding</h2>
-                <p className="text-sm font-bold opacity-40 uppercase tracking-widest">Visual Identity Management</p>
+        <div className="space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-black tracking-tight uppercase text-base-content">System Branding</h2>
+                    <p className="text-sm font-bold opacity-40 uppercase tracking-widest mt-1">Visual Identity Management</p>
+                </div>
+                <div className="bg-primary/5 rounded-2xl px-4 py-2 border border-primary/10 flex items-center gap-3">
+                    <Shield className="w-5 h-5 text-primary" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Operational Branding Authority</span>
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <LogoUploader
-                    type="SYSTEM_LOGO_LIGHT"
-                    title="Light Mode Logo"
-                    description="Displayed on light backgrounds. Recommended: Dark or colored logo."
-                    icon={<Sun className="w-4 h-4 text-warning" />}
-                />
-                <LogoUploader
-                    type="SYSTEM_LOGO_DARK"
-                    title="Dark Mode Logo"
-                    description="Displayed on dark backgrounds. Recommended: White or light-colored logo."
-                    icon={<Moon className="w-4 h-4 text-primary" />}
-                />
+
+            <div className="glass-panel rounded-[32px] p-8 md:p-12 space-y-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-warning/10 rounded-xl flex items-center justify-center">
+                                <Sun className="w-5 h-5 text-warning" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-sm uppercase tracking-tight">Light Mode Logo</h3>
+                                <p className="text-[10px] font-bold opacity-40 uppercase tracking-wider">Visible on White/Light surfaces</p>
+                            </div>
+                        </div>
+                        <LogoUploaderSmall
+                            type="SYSTEM_LOGO_LIGHT"
+                            description="Recommended: Dark logo on transparent background."
+                        />
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                                <Moon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                                <h3 className="font-black text-sm uppercase tracking-tight">Dark Mode Logo</h3>
+                                <p className="text-[10px] font-bold opacity-40 uppercase tracking-wider">Visible on Dark/Glass surfaces</p>
+                            </div>
+                        </div>
+                        <LogoUploaderSmall
+                            type="SYSTEM_LOGO_DARK"
+                            description="Recommended: White logo on transparent background."
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-8 border-t border-base-content/5 flex items-center gap-4">
+                    <AlertCircle className="w-5 h-5 text-info" />
+                    <p className="text-xs font-bold text-base-content/40 leading-relaxed uppercase tracking-wide">
+                        Logo changes are cached globally. If and when you update a logo, trigger a <strong className="text-base-content underline decoration-primary underline-offset-4">Cache Purge</strong> below to force immediate propagation across all client sessions.
+                    </p>
+                </div>
             </div>
         </div>
+    )
+}
+
+function LogoUploaderSmall({ type, description }: { type: string, description: string }) {
+    const [isUploading, setIsUploading] = useState(false)
+    const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+    const [preview, setPreview] = useState<string | null>(null)
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (file) {
+            setPreview(URL.createObjectURL(file))
+        }
+    }
+
+    const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault()
+        setIsUploading(true)
+        setMessage(null)
+
+        const formData = new FormData(e.currentTarget)
+        formData.append('type', type)
+
+        try {
+            const result = await uploadLogo(formData)
+            if (result.success) {
+                setMessage({ type: 'success', text: 'Propagated' })
+            } else {
+                setMessage({ type: 'error', text: result.error || 'Failed' })
+            }
+        } catch (error) {
+            setMessage({ type: 'error', text: 'Link error' })
+        } finally {
+            setIsUploading(false)
+        }
+    }
+
+    return (
+        <form onSubmit={handleUpload} className="space-y-4">
+            <div className="group relative flex flex-col items-center justify-center border-2 border-dashed border-base-content/10 rounded-2xl p-6 hover:bg-base-content/[0.02] transition-all hover:border-primary/20">
+                {preview ? (
+                    <div className="bg-base-content/5 p-4 rounded-xl flex items-center justify-center min-h-[60px] w-full">
+                        <img src={preview} alt="Preview" className="h-10 object-contain" />
+                    </div>
+                ) : (
+                    <div className="w-10 h-10 bg-base-content/5 rounded-full flex items-center justify-center text-base-content/40">
+                        <Upload className="w-5 h-5" />
+                    </div>
+                )}
+
+                <input
+                    type="file"
+                    name="file"
+                    accept="image/*"
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    onChange={handleFileChange}
+                    required
+                />
+                {!preview && <p className="text-[9px] font-black uppercase tracking-widest text-base-content/30 mt-3 group-hover:text-primary transition-colors">Select Asset</p>}
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+                <p className="text-[10px] font-bold text-base-content/30 leading-tight flex-1 italic">{description}</p>
+                <button
+                    type="submit"
+                    className="btn btn-primary btn-xs h-8 px-4 font-black uppercase tracking-widest text-[10px] rounded-lg shadow-lg shadow-primary/20"
+                    disabled={isUploading}
+                >
+                    {isUploading ? <span className="loading loading-spinner loading-[10px]"></span> : 'Upload'}
+                </button>
+            </div>
+
+            {message && (
+                <div className={cn("text-[9px] font-black uppercase tracking-[0.2em] py-1 text-center", message.type === 'success' ? 'text-success' : 'text-error')}>
+                    {message.text}
+                </div>
+            )}
+        </form>
     )
 }
 

@@ -25,7 +25,6 @@ export default function DashboardHeader({ activeUsers = [] }: { activeUsers?: an
             <AnimatedTooltipMotion items={displayUsers.map(u => ({ ...u, name: u.name || 'User' }))} />
             <div className="flex flex-col justify-center">
               <span className="text-[12px] font-bold leading-none">{displayUsers.length} active</span>
-              <span className="text-sm font-black text-success uppercase tracking-widest mt-0.5">Live now</span>
             </div>
           </div>
         )}

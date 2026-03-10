@@ -132,9 +132,17 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                 isCollapsed ? "h-14 w-14" : "h-14"
               )}>
                 {isHydrated && theme === 'dark' ? (
-                  <img src={logoDark || logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                  logoDark ? (
+                    <img src={logoDark} alt="5DM" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                  ) : (
+                    <div className="text-2xl font-black tracking-tighter text-white">5DM</div>
+                  )
                 ) : (
-                  <img src={logoLight || "/logo.svg"} alt="Logo" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                  logoLight ? (
+                    <img src={logoLight} alt="5DM" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
+                  ) : (
+                    <div className="text-2xl font-black tracking-tighter text-primary">5DM</div>
+                  )
                 )}
               </div>
             </Link>
