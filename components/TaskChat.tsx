@@ -14,11 +14,13 @@ type Message = {
 export default function TaskChat({
   taskId,
   projectId,
+  subProjectId,
   initialMessages = [],
   currentUserId
 }: {
   taskId?: number;
   projectId?: number;
+  subProjectId?: number;
   initialMessages?: Message[];
   currentUserId: number
 }) {
@@ -29,11 +31,11 @@ export default function TaskChat({
 
   // Real-time polling every 5 seconds
   useEffect(() => {
-    if (!taskId && !projectId) return
+    if (!taskId && !projectId && !subProjectId) return
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/messages?taskId=${taskId || ''}&projectId=${projectId || ''}`)
+        const res = await fetch(`/api/messages?taskId=${taskId || ''}&projectId=${projectId || ''}&subProjectId=${subProjectId || ''}`)
         if (res.ok) {
           const data = await res.json()
           // Update messages if new ones are found
@@ -48,7 +50,7 @@ export default function TaskChat({
 
     const interval = setInterval(poll, 5000)
     return () => clearInterval(interval)
-  }, [taskId, projectId, messages.length])
+  }, [taskId, projectId, subProjectId, messages.length])
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -68,7 +70,7 @@ export default function TaskChat({
     setText('')
     setSending(true)
     try {
-      await sendMessageAction(taskId || null, currentUserId, optimistic.content, projectId || null)
+      await sendMessageAction(taskId || null, currentUserId, optimistic.content, projectId || null, subProjectId || null)
     } catch (err) {
       setMessages(prev => prev.filter(m => m !== optimistic))
       console.error(err)

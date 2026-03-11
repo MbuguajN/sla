@@ -94,6 +94,7 @@ model SubProject {
   children     SubProject[] @relation("SubProjectTree")
   createdBy    User         @relation("SubProjectCreator", fields: [createdById], references: [id])
   tasks        Task[]
+  messages     Message[]
 
   @@index([projectId])
   @@index([parentId])
@@ -165,15 +166,18 @@ model Watcher {
 }
 
 model Message {
-  id        Int      @id @default(autoincrement())
-  taskId    Int?
-  authorId  Int
-  content   String
-  createdAt DateTime @default(now())
-  projectId Int?
-  task      Task?    @relation(fields: [taskId], references: [id])
-  project   Project? @relation(fields: [projectId], references: [id])
-  author    User     @relation(fields: [authorId], references: [id])
+  id           Int          @id @default(autoincrement())
+  taskId       Int?
+  projectId    Int?
+  subProjectId Int?
+  authorId     Int
+  content      String
+  createdAt    DateTime     @default(now())
+
+  task         Task?        @relation(fields: [taskId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+  subProject   SubProject?  @relation(fields: [subProjectId], references: [id])
+  author       User         @relation(fields: [authorId], references: [id])
 }
 
 model Notification {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { format } from 'date-fns'
 import Link from 'next/link'
 import {
@@ -9,38 +9,90 @@ import {
     ExternalLink,
     ClipboardList,
     Search,
-    Hash
+    Hash,
+    ChevronLeft,
+    ChevronRight,
+    RefreshCw
 } from 'lucide-react'
 import SLACountdown from '@/components/SLACountdown'
 import ExportCSVButton from '@/components/ExportCSVButton'
 import { cn } from '@/lib/utils'
+import { getTasksForDashboard } from '@/app/actions/taskActions'
+
+const ITEMS_PER_PAGE = 10
+const AUTO_REFRESH_INTERVAL = 30000 // 30 seconds
 
 export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: any[] }) {
+    const [tasks, setTasks] = useState(initialTasks)
     const [search, setSearch] = useState('')
     const [activeTab, setActiveTab] = useState<'ACTIVE' | 'COMPLETED'>('ACTIVE')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [isRefreshing, setIsRefreshing] = useState(false)
+
+    // Auto-refresh tasks every 30 seconds
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                setIsRefreshing(true)
+                const freshTasks = await getTasksForDashboard()
+                setTasks(freshTasks)
+            } catch (error) {
+                console.error('Failed to refresh tasks:', error)
+            } finally {
+                setIsRefreshing(false)
+            }
+        }, AUTO_REFRESH_INTERVAL)
+
+        return () => clearInterval(interval)
+    }, [])
+
+    const handleManualRefresh = async () => {
+        try {
+            setIsRefreshing(true)
+            const freshTasks = await getTasksForDashboard()
+            setTasks(freshTasks)
+        } catch (error) {
+            console.error('Failed to refresh tasks:', error)
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
 
     const filteredTasks = useMemo(() => {
-        return initialTasks.filter(t => {
+        return tasks.filter(t => {
             const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) ||
                 t.id.toString().includes(search)
             if (!matchesSearch) return false
-            return activeTab === 'ACTIVE' ? t.status !== 'COMPLETED' : t.status === 'COMPLETED'
+            return activeTab === 'ACTIVE'
+                ? (t.status !== 'COMPLETED' && t.status !== 'DISMISSED')
+                : (t.status === 'COMPLETED' || t.status === 'DISMISSED')
         })
-    }, [initialTasks, search, activeTab])
+    }, [tasks, search, activeTab])
 
     const sortedTasks = useMemo(() => {
         return [...filteredTasks].sort((a: any, b: any) => {
             const tierPriority: Record<string, number> = { 'URGENT': 0, 'STANDARD': 1, 'LOW': 2 }
-            return (tierPriority[a.sla.tier] ?? 3) - (tierPriority[b.sla.tier] ?? 3)
+            return (tierPriority[a.sla?.tier] ?? 3) - (tierPriority[b.sla?.tier] ?? 3)
         })
     }, [filteredTasks])
+
+    const totalPages = Math.ceil(sortedTasks.length / ITEMS_PER_PAGE)
+    const paginatedTasks = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+        return sortedTasks.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+    }, [sortedTasks, currentPage])
+
+    // Reset to page 1 when filters change
+    React.useEffect(() => {
+        setCurrentPage(1)
+    }, [search, activeTab])
 
     const exportData = sortedTasks.map((t: any) => ({
         ID: `#${t.id}`,
         Title: t.title,
         Assignee: t.assignee?.name || 'Unassigned',
-        SLA: t.sla.name,
-        Tier: t.sla.tier,
+        SLA: t.sla?.name || 'No SLA',
+        Tier: t.sla?.tier || 'N/A',
         Status: t.status,
         CreatedAt: new Date(t.createdAt).toISOString(),
         DueAt: t.dueAt ? new Date(t.dueAt).toISOString() : 'N/A'
@@ -57,7 +109,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     <div>
                         <h1 className="text-2xl font-semibold text-base-content tracking-tight">Tasks</h1>
                         <p className="text-sm text-base-content/70 mt-0.5">
-                            {initialTasks.filter(t => t.status !== 'COMPLETED').length} active tasks
+                            {tasks.filter(t => t.status !== 'COMPLETED' && t.status !== 'DISMISSED').length} active tasks
                         </p>
                     </div>
                 </div>
@@ -73,6 +125,15 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
+                    <button
+                        onClick={handleManualRefresh}
+                        disabled={isRefreshing}
+                        className="btn btn-ghost btn-sm gap-2"
+                        title="Refresh tasks (auto-refreshes every 30 seconds)"
+                    >
+                        <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+                        {!isRefreshing && 'Refresh'}
+                    </button>
                     <ExportCSVButton data={exportData} filename="Task_Export" />
                 </div>
             </div>
@@ -102,7 +163,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
             </div>
 
             {/* Table Card */}
-            <div className="bg-base-100 border border-base-content/10 rounded-xl overflow-hidden shadow-md">
+            <div className="bg-base-100 border border-base-content/10 rounded-xl overflow-hidden shadow-md flex flex-col">
                 {/* Desktop Table */}
                 <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">
@@ -117,7 +178,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-base-200/60">
-                            {sortedTasks.map((task: any) => {
+                            {paginatedTasks.map((task: any) => {
                                 const lastMessage = task.messages?.[0]
                                 const isCompleted = task.status === 'COMPLETED'
 
@@ -129,7 +190,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-xs text-base-content/30">#{task.id}</span>
                                                     <span className="text-xs text-base-content/30">·</span>
-                                                    <span className="text-xs text-base-content/70">{task.sla.name}</span>
+                                                    <span className="text-xs text-base-content/70">{task.sla?.name || 'No SLA'}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -192,7 +253,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
 
                 {/* Mobile View */}
                 <div className="lg:hidden divide-y divide-base-200">
-                    {sortedTasks.map((task: any) => {
+                    {paginatedTasks.map((task: any) => {
                         const isCompleted = task.status === 'COMPLETED'
                         return (
                             <div key={task.id} className="p-5 space-y-3">
@@ -203,7 +264,7 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                                         </Link>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className="text-xs text-base-content/30">#{task.id}</span>
-                                            <span className="text-xs text-base-content/70">{task.sla.name}</span>
+                                            <span className="text-xs text-base-content/70">{task.sla?.name || 'No SLA'}</span>
                                         </div>
                                     </div>
                                     <span className={cn(
@@ -229,10 +290,51 @@ export default function GlobalTaskIndexClient({ initialTasks }: { initialTasks: 
                     })}
                 </div>
 
-                {sortedTasks.length === 0 && (
+                {paginatedTasks.length === 0 && (
                     <div className="py-20 text-center">
                         <ClipboardList className="w-12 h-12 mx-auto mb-3 text-base-content/40" />
                         <span className="text-sm text-base-content/30">No tasks found</span>
+                    </div>
+                )}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="mt-auto border-t border-base-content/10 px-6 py-4 flex items-center justify-between">
+                        <div className="text-sm text-base-content/70">
+                            Showing <span className="font-medium">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> to <span className="font-medium">{Math.min(currentPage * ITEMS_PER_PAGE, sortedTasks.length)}</span> of <span className="font-medium">{sortedTasks.length}</span> tasks
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="btn btn-sm btn-ghost gap-2 disabled:opacity-50"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                            </button>
+                            <div className="flex items-center gap-1">
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={cn(
+                                            "btn btn-xs",
+                                            currentPage === page ? "btn-primary" : "btn-ghost"
+                                        )}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="btn btn-sm btn-ghost gap-2 disabled:opacity-50"
+                            >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

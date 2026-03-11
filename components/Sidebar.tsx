@@ -97,6 +97,22 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
     await signOut({ callbackUrl: '/login' })
   }
 
+  const isNavItemActive = (href: string) => {
+    if (href === '/' || href === '/hr') {
+      return pathname === href
+    }
+
+    if (href === '/tasks') {
+      return pathname === '/tasks' || /^\/tasks\/(?!new(?:\/|$))[^/]+(?:\/.*)?$/.test(pathname)
+    }
+
+    if (href === '/projects') {
+      return pathname === '/projects' || /^\/projects\/(?!new(?:\/|$))[^/]+(?:\/.*)?$/.test(pathname)
+    }
+
+    return pathname === href || pathname.startsWith(href + '/')
+  }
+
   return (
     <>
       {isLoggingOut && (
@@ -164,11 +180,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
           {/* Navigation — no scrollbar */}
           <nav className={cn("flex-1 flex flex-col py-4 px-4 gap-1.5 overflow-visible", isCollapsed ? "items-center" : "")}>
             {navItems.filter(item => item.visible).map((item) => {
-              // Dashboard/home routes: exact match only; sub-page routes: prefix match
-              const exactMatchRoutes = ['/', '/hr']
-              const isActive = exactMatchRoutes.includes(item.href)
-                ? pathname === item.href
-                : pathname === item.href || pathname.startsWith(item.href + '/')
+              const isActive = isNavItemActive(item.href)
               const Icon = item.icon
               return (
                 <Link
@@ -301,7 +313,7 @@ function UserMenu({ session, dbUser, userRole, isCollapsed, onLogout }: { sessio
         {!isCollapsed && (
           <div className="flex flex-col min-w-0">
             <span className="text-[13px] font-bold text-base-content/90 truncate">{session.user.name}</span>
-            <span className="text-sm text-primary font-bold uppercase tracking-widest opacity-70">{dbUser?.department?.name?.replace(/_/g, ' ') || userRole}</span>
+            <span className="text-[13px] text-primary font-bold uppercase tracking-widest opacity-70">{dbUser?.department?.name?.replace(/_/g, ' ') || userRole}</span>
           </div>
         )}
       </div>

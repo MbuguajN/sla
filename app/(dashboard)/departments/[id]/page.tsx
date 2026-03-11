@@ -59,13 +59,20 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
   const deptUserIds = department.users.map((u: any) => u.id)
 
   const tasks = await prisma.task.findMany({
-    where: { assigneeId: { in: deptUserIds } },
+    where: {
+      OR: [
+        { assigneeId: { in: deptUserIds } },
+        { reporterId: Number(user.id) }
+      ]
+    },
     select: {
       id: true,
       title: true,
       status: true,
       dueAt: true,
       createdAt: true,
+      assigneeId: true,
+      reporterId: true,
       sla: {
         select: {
           name: true,
@@ -98,7 +105,9 @@ async function DepartmentQueueDataWrapper({ department, user }: { department: an
   let visibleTasks = tasks
 
   if (!hasGeneralAccess) {
-    visibleTasks = tasks.filter(t => t.watchers.some(w => w.userId === Number(user.id)))
+    visibleTasks = tasks.filter(
+      t => t.watchers.some(w => w.userId === Number(user.id)) || t.reporterId === Number(user.id)
+    )
     if (visibleTasks.length === 0) {
       return (
         <div className="p-10 flex flex-col items-center justify-center gap-4 text-center animate-in fade-in">

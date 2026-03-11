@@ -4,12 +4,20 @@ import React, { useState, useEffect } from 'react'
 import { addHours, format } from 'date-fns'
 import { createTask } from '@/app/actions/taskActions'
 import { useRouter } from 'next/navigation'
-import { Calendar, Clock, User, Users, Tag, Briefcase, ShieldAlert } from 'lucide-react'
+import { Clock, Users, Tag, Briefcase, ShieldAlert, GitBranch, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type Department = { id: number; name: string }
 type Sla = { id: number; name: string; durationHrs: number; tier: string }
 type User = { id: number; name: string | null; email: string }
+type Project = { id: number; title: string; defaultSlaId?: number | null }
+type SubProject = {
+  id: number
+  title: string
+  projectId: number
+  parentId: number | null
+  parent: { id: number; title: string } | null
+}
 
 import { useSession } from 'next-auth/react'
 
@@ -17,12 +25,18 @@ export default function TaskForm({
   departments,
   slas,
   users,
-  projects
+  projects,
+  subProjects,
+  initialProjectId,
+  initialSubProjectId
 }: {
   departments: Department[],
   slas: Sla[],
   users: User[],
-  projects: any[]
+  projects: Project[],
+  subProjects: SubProject[],
+  initialProjectId?: number,
+  initialSubProjectId?: number
 }) {
   const { data: session } = useSession()
   const userDept = (session?.user as any)?.departmentName
@@ -30,33 +44,46 @@ export default function TaskForm({
     userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE'
 
   const router = useRouter()
-
-  if (session && !isAuthorized) {
-    return (
-      <div className="p-12 text-center space-y-4">
-        <div className="w-20 h-20 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-6">
-          <ShieldAlert className="w-10 h-10" />
-        </div>
-        <h2 className="text-2xl font-black uppercase tracking-tight text-base-content">Access Restricted</h2>
-        <p className="text-base-content/80 max-w-md mx-auto font-medium">
-          ACCESS DENIED: Directive initiation is strictly restricted to Business Development and Client Service departments.
-        </p>
-        <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm font-bold uppercase tracking-widest mt-4">
-          Return to Hub
-        </button>
-      </div>
-    )
-  }
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [projectId, setProjectId] = useState<number | ''>('')
+  const [projectId, setProjectId] = useState<number | ''>(initialProjectId ?? '')
+  const [subProjectId, setSubProjectId] = useState<number | ''>(initialSubProjectId ?? '')
   const [selectedSlaId, setSelectedSlaId] = useState<number | ''>('')
   const [departmentId, setDepartmentId] = useState<number | ''>('')
   const [watcherIds, setWatcherIds] = useState<number[]>([])
   const [dueDate, setDueDate] = useState<Date | null>(null)
   const [isManualDeadline, setIsManualDeadline] = useState(false)
   const [isTemporaryOverride, setIsTemporaryOverride] = useState(false)
+
+  const selectedProject = projectId ? projects.find(project => project.id === projectId) : undefined
+  const selectedSubProject = subProjectId ? subProjects.find(subProject => subProject.id === subProjectId) : undefined
+  const availableSubProjects = projectId
+    ? subProjects.filter(subProject => subProject.projectId === projectId)
+    : []
+
+  const selectedContextLabel = selectedSubProject
+    ? `${selectedSubProject.parentId ? 'Sublet' : 'Sub-Project'}: ${selectedSubProject.title}`
+    : selectedProject
+      ? `Project: ${selectedProject.title}`
+      : 'Standalone Brief'
+
+  const selectedContextHelper = selectedSubProject?.parent
+    ? `Nested under ${selectedSubProject.parent.title}`
+    : selectedProject
+      ? 'Tasks cannot belong directly to a main project. Choose a phase or sublet below.'
+      : 'This brief will be created without a linked project context.'
+
+  const requiresNestedContext = Boolean(projectId)
+  const canSubmit = Boolean(
+    !loading &&
+    title.trim() &&
+    departmentId &&
+    dueDate &&
+    (isManualDeadline || selectedSlaId) &&
+    (!requiresNestedContext || subProjectId)
+  )
 
   // Auto-SLA logic: When project changes, apply its default SLA if not overriding
   useEffect(() => {
@@ -82,24 +109,81 @@ export default function TaskForm({
     }
   }, [selectedSlaId, slas, isManualDeadline])
 
+  useEffect(() => {
+    if (!projectId && subProjectId) {
+      setSubProjectId('')
+      return
+    }
+
+    if (!subProjectId) {
+      return
+    }
+
+    const nextSubProject = subProjects.find(subProject => subProject.id === subProjectId)
+    if (!nextSubProject || nextSubProject.projectId !== projectId) {
+      setSubProjectId('')
+    }
+  }, [projectId, subProjectId, subProjects])
+
+  if (session && !isAuthorized) {
+    return (
+      <div className="p-12 text-center space-y-4">
+        <div className="w-20 h-20 bg-error/10 text-error rounded-full flex items-center justify-center mx-auto mb-6">
+          <ShieldAlert className="w-10 h-10" />
+        </div>
+        <h2 className="text-2xl font-black uppercase tracking-tight text-base-content">Access Restricted</h2>
+        <p className="text-base-content/80 max-w-md mx-auto font-medium">
+          ACCESS DENIED: Directive initiation is strictly restricted to Business Development and Client Service departments.
+        </p>
+        <button onClick={() => router.push('/')} className="btn btn-ghost btn-sm font-bold uppercase tracking-widest mt-4">
+          Return to Hub
+        </button>
+      </div>
+    )
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!dueDate || (!isManualDeadline && !selectedSlaId) || !departmentId) return
 
+    if (projectId && !subProjectId) {
+      setError('Select a sub-project or sublet. Main projects cannot contain tasks directly.')
+      return
+    }
+
     setLoading(true)
+    setError('')
     try {
-      await createTask({
+      const result = await createTask({
         title,
         description,
-        slaId: selectedSlaId as number,
+        slaId: selectedSlaId ? Number(selectedSlaId) : undefined,
         departmentId: departmentId as number,
         watcherIds,
         dueAt: dueDate,
-        projectId: projectId || undefined
+        projectId: projectId || undefined,
+        subProjectId: subProjectId || undefined
       })
+
+      if (!result.success) {
+        setError(result.error || 'Unable to initialize the brief.')
+        return
+      }
+
+      if (projectId && subProjectId) {
+        router.push(`/projects/${projectId}/sub/${subProjectId}`)
+        return
+      }
+
+      if (projectId) {
+        router.push(`/projects/${projectId}`)
+        return
+      }
+
       router.push('/')
     } catch (err) {
       console.error(err)
+      setError('Unable to initialize the brief.')
     } finally {
       setLoading(false)
     }
@@ -107,6 +191,31 @@ export default function TaskForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 w-full flex flex-col items-center">
+      <div className="w-full max-w-2xl rounded-[1.5rem] border border-primary/15 bg-primary/[0.04] px-6 py-5 text-center shadow-inner">
+        <div className="flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.3em] text-primary/70">
+          {selectedSubProject ? <GitBranch className="w-3.5 h-3.5" /> : <FolderOpen className="w-3.5 h-3.5" />}
+          Linked Context
+        </div>
+        <div className="mt-2 text-lg font-black uppercase tracking-tight text-base-content">
+          {selectedContextLabel}
+        </div>
+        <p className="mt-1 text-sm font-medium text-base-content/70">
+          {selectedContextHelper}
+        </p>
+      </div>
+
+      {error && (
+        <div className="w-full max-w-xl rounded-2xl border border-error/20 bg-error/10 px-5 py-4 text-center text-sm font-bold text-error">
+          {error}
+        </div>
+      )}
+
+      {requiresNestedContext && !subProjectId && (
+        <div className="w-full max-w-xl rounded-2xl border border-warning/20 bg-warning/10 px-5 py-4 text-center text-sm font-bold text-warning">
+          Choose a sub-project or sublet before deploying this brief. Main projects only retain coordination and chat.
+        </div>
+      )}
+
       {/* Title Section */}
       <div className="space-y-2 md:space-y-3 w-full text-center">
         <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Task Nomenclature</label>
@@ -136,7 +245,7 @@ export default function TaskForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full">
         {/* Project Picker */}
         <div className="space-y-2 md:space-y-3 text-center">
           <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Associated Project</label>
@@ -149,6 +258,27 @@ export default function TaskForm({
             >
               <option value="">Standalone Instance</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2 md:space-y-3 text-center">
+          <label className="text-sm font-black uppercase tracking-[0.3em] text-base-content/30 block">Sub-Project / Sublet</label>
+          <div className="relative group">
+            <GitBranch className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-base-content/70 group-focus-within:text-primary transition-colors" />
+            <select
+              className="select select-lg w-full pl-12 rounded-2xl font-black bg-base-content/5 border border-base-content/20 focus:ring-2 ring-primary/20 transition-all text-xs md:text-sm text-center appearance-none shadow-inner h-10 md:h-12 dark:bg-slate-900"
+              value={subProjectId}
+              disabled={!projectId}
+              onChange={(e) => setSubProjectId(e.target.value === '' ? '' : Number(e.target.value))}
+            >
+              <option value="">{projectId ? 'Project-Level Task' : 'Select project first'}</option>
+              {availableSubProjects.map(subProject => (
+                <option key={subProject.id} value={subProject.id}>
+                  {subProject.parentId ? `Sublet: ${subProject.title}` : `Sub-Project: ${subProject.title}`}
+                  {subProject.parent ? ` (${subProject.parent.title})` : ''}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -297,7 +427,7 @@ export default function TaskForm({
             "btn btn-primary btn-lg w-full h-14 rounded-2xl font-black uppercase text-xs tracking-[0.25em] shadow-ruby-massive transition-all hover:scale-[1.03] active:scale-[0.97] border-none",
             loading && "loading"
           )}
-          disabled={loading}
+          disabled={!canSubmit}
         >
           {loading ? 'Initializing Interface...' : (
             <div className="flex items-center gap-3">

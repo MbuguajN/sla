@@ -32,9 +32,6 @@ export default async function ProjectsPage() {
   const projects = await prisma.project.findMany({
     where: whereClause,
     include: {
-      tasks: {
-        select: { status: true }
-      },
       members: {
         include: {
           user: {
@@ -45,9 +42,15 @@ export default async function ProjectsPage() {
       subProjects: {
         where: { parentId: null },
         include: {
+          tasks: {
+            select: { status: true }
+          },
           _count: { select: { tasks: true, children: true } },
           children: {
             include: {
+              tasks: {
+                select: { status: true }
+              },
               _count: { select: { tasks: true } }
             }
           }
@@ -62,14 +65,18 @@ export default async function ProjectsPage() {
 
   // Transform for display
   const projectSummaries = projects.map(p => {
-    // Count all tasks: direct tasks + sub-project tasks + sublet tasks
     const subProjectTaskCount = (p.subProjects as any[]).reduce((acc: number, sub: any) => {
       const subletTaskCount = (sub.children as any[]).reduce((a: number, c: any) => a + (c._count?.tasks || 0), 0)
       return acc + (sub._count?.tasks || 0) + subletTaskCount
     }, 0)
-    const totalTaskCount = p.tasks.length + subProjectTaskCount
-
-    const directCompleted = (p.tasks as any[]).filter(t => t.status === 'COMPLETED').length
+    const subProjectCompletedCount = (p.subProjects as any[]).reduce((acc: number, sub: any) => {
+      const childCompletedCount = (sub.children as any[]).reduce(
+        (childAcc: number, child: any) => childAcc + (child.tasks as any[]).filter((task: any) => task.status === 'COMPLETED').length,
+        0
+      )
+      return acc + (sub.tasks as any[]).filter((task: any) => task.status === 'COMPLETED').length + childCompletedCount
+    }, 0)
+    const totalTaskCount = subProjectTaskCount
 
     return {
       id: p.id,
@@ -79,8 +86,7 @@ export default async function ProjectsPage() {
       createdAt: p.createdAt,
       createdBy: p.createdBy?.name || null,
       taskCount: totalTaskCount,
-      directTaskCount: p.tasks.length,
-      completedCount: directCompleted,
+      completedCount: subProjectCompletedCount,
       subProjectCount: p.subProjects.length,
       members: p.members,
     }

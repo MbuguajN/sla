@@ -17,6 +17,7 @@ import SubProjectCard from '@/components/SubProjectCard'
 import NewSubProjectClient from '@/components/NewSubProjectClient'
 import ProjectTaskTabs from '@/components/ProjectTaskTabs'
 import SubProjectStatusManager from '@/components/SubProjectStatusManager'
+import TaskChat from '@/components/TaskChat'
 
 export default async function SubProjectDetailPage({
     params
@@ -165,42 +166,58 @@ export default async function SubProjectDetailPage({
             </div>
 
             {/* Content */}
-            <div className="space-y-8">
-                {/* Sublets Section (only for sub-projects, not sublets themselves) */}
-                {!isSublet && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/70 flex items-center gap-2">
-                                <GitBranch className="w-3.5 h-3.5" /> Sublets
-                            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                {/* Left Column: Main Content */}
+                <div className="lg:col-span-2 space-y-8">
+                    {/* Sublets Section (only for sub-projects, not sublets themselves) */}
+                    {!isSublet && (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/70 flex items-center gap-2">
+                                    <GitBranch className="w-3.5 h-3.5" /> Sublets
+                                </h2>
+                            </div>
+
+                            {canCreateSub && (
+                                <NewSubProjectClient projectId={projectId} parentId={subProjectId} />
+                            )}
+
+                            {subProject.children.length === 0 ? (
+                                <div className="p-10 border-2 border-dashed border-base-200 rounded-2xl flex flex-col items-center justify-center opacity-40 text-center">
+                                    <GitBranch className="w-8 h-8 mb-2" />
+                                    <h4 className="text-xs font-bold uppercase tracking-wider">No Sublets</h4>
+                                    <p className="text-sm font-normal mt-1 max-w-[200px]">Break down work further by adding sublets.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {subProject.children.map(child => (
+                                        <SubProjectCard key={child.id} sub={child as any} isSublet />
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                    )}
 
-                        {canCreateSub && (
-                            <NewSubProjectClient projectId={projectId} parentId={subProjectId} />
-                        )}
-
-                        {subProject.children.length === 0 ? (
-                            <div className="p-10 border-2 border-dashed border-base-200 rounded-2xl flex flex-col items-center justify-center opacity-40 text-center">
-                                <GitBranch className="w-8 h-8 mb-2" />
-                                <h4 className="text-xs font-bold uppercase tracking-wider">No Sublets</h4>
-                                <p className="text-sm font-normal mt-1 max-w-[200px]">Break down work further by adding sublets.</p>
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {subProject.children.map(child => (
-                                    <SubProjectCard key={child.id} sub={child as any} isSublet />
-                                ))}
-                            </div>
-                        )}
+                    {/* Tasks Section */}
+                    <div className="space-y-4">
+                        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/70 flex items-center gap-2">
+                            <Layers className="w-3.5 h-3.5" /> Tasks
+                        </h2>
+                        <ProjectTaskTabs tasks={subProject.tasks as any} />
                     </div>
-                )}
+                </div>
 
-                {/* Tasks Section */}
-                <div className="space-y-4">
-                    <h2 className="text-sm font-black uppercase tracking-[0.2em] text-base-content/70 flex items-center gap-2">
-                        <Layers className="w-3.5 h-3.5" /> Tasks
-                    </h2>
-                    <ProjectTaskTabs tasks={subProject.tasks as any} />
+                {/* Right Column: Activity Feed */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-sm font-black uppercase tracking-[0.3em] text-base-content/70">Activity Log</h2>
+                        <div className="badge badge-primary badge-outline text-xs font-black uppercase">{subProject._count.tasks} Tasks</div>
+                    </div>
+                    <TaskChat
+                        subProjectId={subProjectId}
+                        initialMessages={[]}
+                        currentUserId={parseInt(session?.user?.id || "0")}
+                    />
                 </div>
             </div>
         </div>

@@ -10,21 +10,23 @@ async function TicketList({
   departmentId,
   isManager,
   currentUserId,
-  isBDUser,
+  currentUserDepartmentId,
+  isInitiatorUser,
   userRole,
   userDept
 }: {
   departmentId?: number,
   isManager?: boolean,
   currentUserId: number,
-  isBDUser: boolean,
+  currentUserDepartmentId?: number,
+  isInitiatorUser: boolean,
   userRole: string,
   userDept: string
 }) {
   const tickets = await prisma.task.findMany({
     where: {
       isTicket: true,
-      ...(isBDUser
+      ...(isInitiatorUser
         ? { reporterId: currentUserId }
         : isManager && departmentId
           ? { departmentId }
@@ -66,6 +68,7 @@ async function TicketList({
       slas={slas}
       users={users as any}
       currentUserId={currentUserId}
+      currentUserDepartmentId={currentUserDepartmentId}
       userRole={userRole}
       userDept={userDept}
     />
@@ -119,7 +122,8 @@ export default async function ClientServiceTicketsPage() {
             departmentId={deptId ? Number(deptId) : undefined}
             isManager={filterByDept}
             currentUserId={currentUserId}
-            isBDUser={isBD && !isAdmin}
+            currentUserDepartmentId={deptId ? Number(deptId) : undefined}
+            isInitiatorUser={(isBD || isCS) && !isAdmin}
             userRole={role}
             userDept={deptName}
           />

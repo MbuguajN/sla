@@ -42,7 +42,7 @@ async function performAutoWatcherLogic(taskId: number, assigneeId: number) {
 export async function createTask(data: {
   title: string
   description?: string
-  slaId: number
+  slaId?: number
   assigneeId?: number
   departmentId: number
   watcherIds?: number[]
@@ -66,21 +66,55 @@ export async function createTask(data: {
       throw new Error('STRATEGIC DENIAL: Directive initiation is restricted to Business Development and Client Service departments. Unauthorized role extension detected.')
     }
 
+    let projectId = data.projectId
+
+    if (projectId && !data.subProjectId) {
+      throw new Error('STRATEGIC DENIAL: Main projects cannot contain direct tasks. Link this brief to a sub-project or sublet.')
+    }
+
+    if (data.subProjectId) {
+      const subProject = await prisma.subProject.findUnique({
+        where: { id: data.subProjectId },
+        select: { id: true, projectId: true }
+      })
+
+      if (!subProject) {
+        throw new Error('STRATEGIC DENIAL: Linked sub-project context is invalid.')
+      }
+
+      if (projectId && subProject.projectId !== projectId) {
+        throw new Error('STRATEGIC DENIAL: Linked project and sub-project context do not align.')
+      }
+
+      projectId = subProject.projectId
+    }
+
+    if (projectId) {
+      const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        select: { id: true }
+      })
+
+      if (!project) {
+        throw new Error('STRATEGIC DENIAL: Linked project context is invalid.')
+      }
+    }
+
 
     const task = await prisma.task.create({
       data: {
         title: data.title,
         description: data.description,
-        slaId: data.slaId,
+        slaId: data.slaId ?? undefined,
         assigneeId: data.assigneeId,
         departmentId: data.departmentId,
-        projectId: data.projectId,
+        projectId,
         subProjectId: data.subProjectId,
         isTicket: data.isTicket ?? true,
         reporterId: operatorId,
         dueAt: data.dueAt,
         status: 'PENDING',
-        watchers: data.watcherIds ? {
+        watchers: data.watcherIds && data.watcherIds.length > 0 ? {
           create: data.watcherIds.map(userId => ({ userId }))
         } : undefined
       } as any
@@ -99,6 +133,12 @@ export async function createTask(data: {
 
     revalidatePath('/', 'layout')
     revalidatePath('/tasks')
+    if (projectId) {
+      revalidatePath(`/projects/${projectId}`)
+    }
+    if (projectId && data.subProjectId) {
+      revalidatePath(`/projects/${projectId}/sub/${data.subProjectId}`)
+    }
     return { success: true, task }
   } catch (error: any) {
     console.error('Create Task Error:', error)
@@ -112,6 +152,7 @@ export async function assignTask(taskId: number, assigneeId: number) {
     const operatorId = Number(session?.user?.id)
     const operatorRole = (session?.user as any)?.role
     const operatorDept = (session?.user as any)?.departmentName
+    const operatorDeptId = Number((session?.user as any)?.departmentId)
 
     const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
     const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
@@ -123,6 +164,26 @@ export async function assignTask(taskId: number, assigneeId: number) {
     }
 
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!oldTask) throw new Error('Task not found')
+
+    const assignee = await prisma.user.findUnique({
+      where: { id: assigneeId },
+      select: { id: true, departmentId: true }
+    })
+    if (!assignee) throw new Error('STRATEGIC DENIAL: Selected assignee does not exist.')
+
+    if (operatorRole === 'MANAGER') {
+      if (!operatorDeptId) {
+        throw new Error('STRATEGIC DENIAL: Manager context missing department scope.')
+      }
+      if (oldTask.departmentId && oldTask.departmentId !== operatorDeptId) {
+        throw new Error('STRATEGIC DENIAL: Managers may only allocate directives within their own department queue.')
+      }
+      if (assigneeId !== operatorId && assignee.departmentId !== operatorDeptId) {
+        throw new Error('STRATEGIC DENIAL: Managers may assign directives only to themselves or members of their department.')
+      }
+    }
+
     if (oldTask?.status === TaskStatus.COMPLETED) {
       throw new Error('STRATEGIC DENIAL: Cannot reassign a finalized directive.')
     }
@@ -131,7 +192,9 @@ export async function assignTask(taskId: number, assigneeId: number) {
       where: { id: taskId },
       data: {
         assigneeId,
-        status: TaskStatus.IN_PROGRESS // Auto-advance to IN_PROGRESS on assignment
+        status: TaskStatus.PENDING,
+        startedAt: null,
+        pauseReason: null
       }
     })
 
@@ -181,9 +244,15 @@ export async function advanceTaskStatus(taskId: number, newStatus: TaskStatus) {
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
     if (!oldTask) throw new Error('Task not found')
 
+    if ([TaskStatus.RECEIVED, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW].includes(newStatus)) {
+      if (!oldTask.assigneeId || oldTask.assigneeId !== operatorId) {
+        throw new Error('STRATEGIC DENIAL: Only the assigned handler may receive, start, or submit this directive for review.')
+      }
+    }
+
     // STRICTURE: Only the person who initiated the task (reporter) can mark it as COMPLETED
     if (newStatus === TaskStatus.COMPLETED) {
-      if (oldTask.reporterId !== operatorId && (session?.user as any).role !== 'ADMIN') {
+      if (oldTask.reporterId !== operatorId) {
         throw new Error('STRATEGIC DENIAL: Only the original initiator can finalize this directive.')
       }
     }
@@ -250,13 +319,14 @@ export async function checkAndNotifyBreaches() {
   }
 }
 
-export async function sendMessage(taskId: number | null, authorId: number, content: string, projectId?: number | null) {
+export async function sendMessage(taskId: number | null, authorId: number, content: string, projectId?: number | null, subProjectId?: number | null) {
   const msg = await prisma.message.create({
     data: {
       taskId: taskId || undefined,
       authorId,
       content,
       projectId: projectId || undefined,
+      subProjectId: subProjectId || undefined,
     },
   })
 
@@ -280,14 +350,35 @@ export async function processTicket(
 ) {
   const session = await auth()
   if (!session?.user?.id) throw new Error('Unauthorized')
+  const operatorId = Number(session.user.id)
   const operatorRole = (session?.user as any)?.role
   const operatorDept = (session?.user as any)?.departmentName
+  const operatorDeptId = Number((session?.user as any)?.departmentId)
 
   const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
   const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
 
   if ((isCS || isBD) || (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR')) {
     throw new Error('STRATEGIC DENIAL: Resource allocation and brief processing is restricted to management personnel outside of the initiation departments.')
+  }
+
+  if (operatorRole === 'MANAGER') {
+    if (!operatorDeptId || departmentId !== operatorDeptId) {
+      throw new Error('STRATEGIC DENIAL: Managers may only route briefs into their own department queue.')
+    }
+  }
+
+  if (assigneeId) {
+    const assignee = await prisma.user.findUnique({
+      where: { id: assigneeId },
+      select: { id: true, departmentId: true }
+    })
+    if (!assignee) {
+      throw new Error('STRATEGIC DENIAL: Selected assignee does not exist.')
+    }
+    if (operatorRole === 'MANAGER' && assigneeId !== operatorId && assignee.departmentId !== operatorDeptId) {
+      throw new Error('STRATEGIC DENIAL: Managers may assign briefs only to themselves or members of their department.')
+    }
   }
 
   const task = await prisma.task.update({
@@ -299,12 +390,13 @@ export async function processTicket(
       description: options?.description || undefined,
       dueAt: options?.dueAt || undefined,
       isTicket: true,
-      status: assigneeId ? TaskStatus.IN_PROGRESS : TaskStatus.PENDING
+      status: TaskStatus.PENDING,
+      startedAt: null,
+      pauseReason: null
     }
   })
 
   if (assigneeId) {
-    const operatorId = Number(session.user.id)
     await createAuditLog(taskId, operatorId, 'TICKET_ASSIGNED', undefined, `Assigned to user ${assigneeId}`)
     await performAutoWatcherLogic(taskId, assigneeId)
     await createSystemNotification(assigneeId, `New Ticket Assignment: ${task.title}`, 'TASK_ASSIGNED', `/tasks/${taskId}`)
@@ -352,4 +444,56 @@ export async function dismissTicket(taskId: number) {
 
   revalidatePath('/client-service/tickets')
   return updatedTask
+}
+
+export async function getTasksForDashboard() {
+  const session = await auth()
+  const role = (session?.user as any)?.role
+  const deptName = (session?.user as any)?.departmentName
+
+  const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
+  const isCEO = role === 'CEO'
+  const isHR = role === 'HR'
+  const isManager = role === 'MANAGER' || isCEO || isHR
+  const isBusinessDev = deptName === 'BUSINESS_DEVELOPMENT'
+  const isAdmin = role === 'ADMIN'
+
+  if (!isAdmin && !isManager && !isCS && !isBusinessDev && !isCEO && !isHR) {
+    return []
+  }
+
+  const tasks = await prisma.task.findMany({
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      dueAt: true,
+      createdAt: true,
+      assigneeId: true,
+      reporterId: true,
+      sla: {
+        select: {
+          name: true,
+          tier: true,
+        }
+      },
+      assignee: {
+        select: {
+          name: true,
+          id: true,
+        }
+      },
+      messages: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          content: true,
+          createdAt: true,
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  }) as any
+
+  return tasks
 }

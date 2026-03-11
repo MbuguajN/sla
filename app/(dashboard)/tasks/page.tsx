@@ -29,6 +29,8 @@ export default async function GlobalTaskIndexPage() {
       status: true,
       dueAt: true,
       createdAt: true,
+      assigneeId: true,
+      reporterId: true,
       sla: {
         select: {
           name: true,

@@ -100,21 +100,13 @@ export default function StatusControlBar({
   // LOGIC: Check permissions
   const isAssignee = currentUserId === assigneeId
   const isReporter = currentUserId === reporterId
-  const isCS = departmentName === 'CLIENT_SERVICE' || departmentName === 'CLIENT SERVICE'
-  const isBD = departmentName === 'BUSINESS_DEVELOPMENT' || departmentName === 'BUSINESS DEVELOPMENT'
-  const isCEO = userRole === 'CEO'
-  const isHR = userRole === 'HR'
-  // Admin check: Only allow if not in restricted departments OR if they are top-level (CEO/HR/ADMIN)
-  const isAdminCheck = userRole === 'ADMIN' || isCEO || isHR || (userRole === 'MANAGER' && !isCS && !isBD)
-
-  // Only assignees can CONFIRM or START
-  const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && (isAssignee || isAdminCheck)
-  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && (isAssignee || isAdminCheck)
-  // Only the assignee can submit for review or pause — no admin override
+  // Only assignees can CONFIRM, START, or SUBMIT REVIEW
+  const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && isAssignee
+  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && isAssignee
   const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && isAssignee
 
-  // Only reporter can COMPLETE (Admin fallback)
-  const canComplete = optimisticStatus === TaskStatus.REVIEW && (isReporter || userRole === 'ADMIN')
+  // Only initiator can COMPLETE
+  const canComplete = optimisticStatus === TaskStatus.REVIEW && isReporter
 
   const isRestricted = (optimisticStatus === TaskStatus.REVIEW && !canComplete) ||
     (optimisticStatus === TaskStatus.PENDING && !canAdvanceFromPending) ||

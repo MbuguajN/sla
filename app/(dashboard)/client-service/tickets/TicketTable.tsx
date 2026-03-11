@@ -3,25 +3,27 @@
 import React, { useState, useTransition, useMemo, useEffect } from 'react'
 import { format } from 'date-fns'
 import { processTicket, dismissTicket, advanceTaskStatus } from '@/app/actions/taskActions'
-import { ArrowRight, Ticket, User, Calendar, Settings2, Loader2, CheckCircle2, Inbox as InboxIcon, Clock, CheckCircle, ListTodo, XCircle, Link as LinkIcon } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowRight, Ticket, Settings2, CheckCircle2, Inbox as InboxIcon, Clock, CheckCircle, ListTodo, XCircle, FolderGit2, User, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-type TabType = 'NEW' | 'IN_PROGRESS' | 'DONE'
+type ColumnType = 'NEW' | 'ONGOING' | 'COMPLETED'
 
-export default function TicketTable({ initialTickets, departments, slas, users, currentUserId, userRole, userDept }: {
+export default function TicketTable({ initialTickets, departments, slas, users, currentUserId, currentUserDepartmentId, userRole, userDept }: {
   initialTickets: any[],
   departments: any[],
   slas: any[],
   users: any[],
   currentUserId: number,
+  currentUserDepartmentId?: number,
   userRole: string,
   userDept: string
 }) {
   const [selectedTicket, setSelectedTicket] = useState<any>(null)
   const [isPending, startTransition] = useTransition()
-  const [activeTab, setActiveTab] = useState<TabType>('NEW')
+  const [search, setSearch] = useState('')
   const router = useRouter()
 
   const [assignment, setAssignment] = useState({
@@ -32,29 +34,73 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
     dueAt: ''
   })
 
+  const isCS = userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE'
+  const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
+  const isManagerRole = userRole === 'MANAGER'
+  const canManage = !isCS && !isBD && (isManagerRole || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR')
+  const isInitiatorView = isCS || isBD
+
+  const selectedDepartmentId = assignment.departmentId ? Number(assignment.departmentId) : undefined
+  const managerDepartmentId = currentUserDepartmentId
+
+  const assignableUsers = useMemo(() => {
+    const effectiveDepartmentId = isManagerRole && managerDepartmentId ? managerDepartmentId : selectedDepartmentId
+    if (!effectiveDepartmentId) return []
+    return users.filter((user: any) => user.departmentId === effectiveDepartmentId)
+  }, [users, selectedDepartmentId, isManagerRole, managerDepartmentId])
+
   // Auto-fill assignment data when ticket is selected
   useEffect(() => {
     if (selectedTicket) {
+      const fallbackDepartmentId = isManagerRole && managerDepartmentId ? managerDepartmentId : undefined
+      const resolvedDepartmentId = selectedTicket.departmentId || fallbackDepartmentId
       setAssignment(prev => ({
         ...prev,
-        departmentId: selectedTicket.departmentId?.toString() || '',
+        departmentId: resolvedDepartmentId?.toString() || '',
         slaId: (selectedTicket.project?.defaultSlaId || selectedTicket.slaId || '').toString(),
+        assigneeId: selectedTicket.assignee?.id?.toString() || '',
         dueAt: selectedTicket.dueAt ? format(new Date(selectedTicket.dueAt), "yyyy-MM-dd'T'HH:mm") : ''
       }))
     }
-  }, [selectedTicket])
+  }, [selectedTicket, isManagerRole, managerDepartmentId])
 
   const filteredTickets = useMemo(() => {
-    return initialTickets.filter(t => {
-      if (activeTab === 'NEW') return t.status === 'PENDING' || t.status === 'RECEIVED'
-      if (activeTab === 'IN_PROGRESS') return ['IN_PROGRESS', 'REVIEW', 'AWAITING_INFO'].includes(t.status)
-      if (activeTab === 'DONE') return t.status === 'COMPLETED'
-      return false
+    const normalizedSearch = search.trim().toLowerCase()
+
+    return initialTickets.filter(ticket => {
+      if (!normalizedSearch) return true
+
+      return (
+        ticket.title.toLowerCase().includes(normalizedSearch) ||
+        ticket.project?.title?.toLowerCase().includes(normalizedSearch) ||
+        ticket.reporter?.name?.toLowerCase().includes(normalizedSearch) ||
+        `ref-${ticket.id.toString().padStart(4, '0')}`.toLowerCase().includes(normalizedSearch)
+      )
     })
-  }, [initialTickets, activeTab])
+  }, [initialTickets, search])
+
+  const columns = useMemo(() => {
+    const columnMap: Record<ColumnType, any[]> = {
+      NEW: [],
+      ONGOING: [],
+      COMPLETED: []
+    }
+
+    filteredTickets.forEach(ticket => {
+      if (ticket.status === 'PENDING' || ticket.status === 'RECEIVED') {
+        columnMap.NEW.push(ticket)
+      } else if (['IN_PROGRESS', 'REVIEW', 'AWAITING_INFO'].includes(ticket.status)) {
+        columnMap.ONGOING.push(ticket)
+      } else if (ticket.status === 'COMPLETED' || ticket.status === 'DISMISSED') {
+        columnMap.COMPLETED.push(ticket)
+      }
+    })
+
+    return columnMap
+  }, [filteredTickets])
 
   async function handleProcess() {
-    if (!assignment.departmentId || !assignment.slaId || !selectedTicket) return
+    if (!selectedTicket || !assignment.departmentId || !assignment.assigneeId || (!assignment.slaId && !assignment.dueAt)) return
 
     const ticketId = selectedTicket.id
 
@@ -105,216 +151,229 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
   }
 
   const tabs = [
-    { id: 'NEW' as TabType, label: 'Incoming Briefs', icon: InboxIcon, color: 'text-primary' },
-    { id: 'IN_PROGRESS' as TabType, label: 'In Progress', icon: Clock, color: 'text-warning' },
-    { id: 'DONE' as TabType, label: 'Archived Briefs', icon: CheckCircle, color: 'text-success' },
+    { id: 'NEW' as ColumnType, label: 'New', icon: InboxIcon, color: 'text-primary', hint: 'Pending intake' },
+    { id: 'ONGOING' as ColumnType, label: 'Ongoing', icon: Clock, color: 'text-warning', hint: 'Live execution' },
+    { id: 'COMPLETED' as ColumnType, label: 'Completed', icon: CheckCircle, color: 'text-success', hint: 'Closed briefs' },
   ]
 
-  const isCS = userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE'
-  const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
-  const canManage = !isCS && !isBD && (userRole === 'MANAGER' || userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'HR')
+  const getStatusTone = (status: string) => {
+    if (status === 'PENDING') return 'bg-base-200/70 text-base-content/70'
+    if (status === 'RECEIVED') return 'bg-info/10 text-info'
+    if (status === 'IN_PROGRESS') return 'bg-warning/10 text-warning'
+    if (status === 'REVIEW') return 'bg-primary/10 text-primary'
+    if (status === 'AWAITING_INFO') return 'bg-error/10 text-error'
+    if (status === 'DISMISSED') return 'bg-base-300/60 text-base-content/50'
+    return 'bg-success/10 text-success'
+  }
 
   return (
     <div className="flex flex-col h-full bg-base-100">
-      {/* Tab Navigation */}
-      <div className="flex items-center px-6 border-b border-base-200 bg-base-100/30 backdrop-blur-xl sticky top-0 z-10 gap-2">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex items-center gap-2.5 px-6 py-5 text-xs font-bold transition-all relative",
-              activeTab === tab.id
-                ? "text-primary"
-                : "text-base-content/70 hover:text-base-content/80 hover:bg-base-200/30"
-            )}
-          >
-            <tab.icon className={cn("w-4 h-4 transition-colors", activeTab === tab.id ? tab.color : "opacity-30")} />
-            {tab.label}
-            <span className={cn(
-              "ml-1 px-1.5 py-0.5 rounded text-sm font-bold",
-              activeTab === tab.id ? "bg-primary/10 text-primary" : "bg-base-200/50 text-base-content/70"
-            )}>
-              {initialTickets.filter(t => {
-                if (tab.id === 'NEW') return t.status === 'PENDING' || t.status === 'RECEIVED'
-                if (tab.id === 'IN_PROGRESS') return ['IN_PROGRESS', 'REVIEW', 'AWAITING_INFO'].includes(t.status)
-                if (tab.id === 'DONE') return t.status === 'COMPLETED'
-                return false
-              }).length}
-            </span>
-            {activeTab === tab.id && (
-              <div className="absolute bottom-0 left-6 right-6 h-0.5 bg-primary rounded-t-full shadow-[0_-2px_8px_rgba(var(--p),0.4)]" />
-            )}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 border-b border-base-200 px-4 md:px-6 py-4 bg-base-100/85 backdrop-blur-xl sticky top-0 z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base md:text-lg font-black tracking-tight text-base-content uppercase">Brief Pipeline</h2>
+            <p className="text-xs md:text-sm text-base-content/70 font-medium">
+              {isInitiatorView ? 'Track the briefs you initiated from intake to completion.' : 'Triage, route, and monitor briefs across the pipeline.'}
+            </p>
+          </div>
+
+          <div className="relative w-full lg:w-80">
+            <input
+              type="text"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search briefs..."
+              className="input input-bordered w-full rounded-2xl bg-base-100 pl-4 pr-4 text-sm"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {tabs.map(tab => (
+            <div key={tab.id} className="rounded-xl border border-base-200 bg-base-100 px-3 py-2 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center bg-base-200/60', tab.color)}>
+                    <tab.icon className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider text-base-content">{tab.label}</div>
+                    <div className="text-[10px] text-base-content/50 font-bold uppercase tracking-[0.12em]">{tab.hint}</div>
+                  </div>
+                </div>
+                <div className="text-xl font-black tracking-tight text-base-content">{columns[tab.id].length}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="overflow-x-auto premium-scrollbar">
-        <table className="table w-full min-w-[1000px]">
-          <thead>
-            <tr className="bg-base-200/20 border-b border-base-200/50">
-              <th className="py-4 pl-6 w-[30%]">Brief / Reference</th>
-              <th className="py-4 w-[20%]">Origin</th>
-              <th className="py-4 w-[15%]">Received</th>
-              <th className="py-4 w-[12%] text-center">Status</th>
-              <th className="py-4 text-right pr-6 w-[23%]">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTickets.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-32 border-none">
-                  <div className="flex flex-col items-center gap-4 opacity-10">
-                    <ListTodo className="w-20 h-20 stroke-[1]" />
-                    <span className="text-sm font-bold uppercase tracking-[0.4em]">No briefs found</span>
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              filteredTickets.map(ticket => (
-                <tr key={ticket.id} className="hover:bg-primary/[0.03] transition-colors group">
-                  <td className="py-4 pl-6 border-b border-base-100">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-inner border transition-all",
-                        activeTab === 'NEW' ? "bg-primary/5 text-primary border-primary/20" :
-                          activeTab === 'IN_PROGRESS' ? "bg-warning/5 text-warning border-warning/20" : "bg-success/5 text-success border-success/20"
-                      )}>
-                        <Ticket className="w-4 h-4 opacity-80" />
-                      </div>
-                      <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="font-bold text-sm text-base-content tracking-tight group-hover:text-primary transition-colors truncate">{ticket.title}</span>
-                        <span className="text-sm font-medium opacity-20 uppercase tracking-wider">REF-{ticket.id.toString().padStart(4, '0')}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-4 border-b border-base-100">
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className="text-xs font-bold text-base-content/80 truncate">
-                        {ticket.senderName || ticket.reporter?.name || 'External'}
-                      </span>
-                      <span className="text-sm opacity-30 font-medium truncate">
-                        {ticket.senderEmail || ticket.reporter?.email || 'System'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-4 border-b border-base-100">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-bold text-base-content/30 uppercase tracking-wider">
-                        {ticket.senderEmail ? 'External' : 'Internal'}
-                      </span>
-                      <span className="text-sm font-bold tabular-nums text-base-content/70">
-                        {format(new Date(ticket.createdAt), 'MMM dd • HH:mm')}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-4 border-b border-base-100 text-center">
-                    <div className={cn(
-                      "badge badge-sm font-bold text-sm uppercase tracking-wide px-3 py-1 h-auto whitespace-nowrap border-none shadow-sm",
-                      ticket.status === 'PENDING' ? "bg-base-200/50 text-base-content/70" :
-                        ticket.status === 'IN_PROGRESS' ? "bg-warning/10 text-warning" :
-                          ticket.status === 'REVIEW' ? "bg-info/10 text-info" :
-                            ticket.status === 'COMPLETED' ? "bg-success/10 text-success" : "bg-error/10 text-error"
-                    )}>
-                      {ticket.status.replace('_', ' ')}
-                    </div>
-                  </td>
-                  <td className="py-4 text-right pr-6 border-b border-base-100 min-w-[200px]">
-                    <div className="flex items-center justify-end gap-2 flex-nowrap">
-                      {activeTab === 'NEW' && (ticket.reporterId === currentUserId || userRole === 'ADMIN') && (
-                        <button
-                          className="btn btn-ghost btn-sm text-error/40 hover:text-error hover:bg-error/5 font-bold gap-2 text-sm h-9 px-3 rounded-xl whitespace-nowrap border border-transparent hover:border-error/10"
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            const modal = document.getElementById('process_modal') as any
-                            if (modal) modal.close()
-                            handleDismiss()
-                          }}
-                        >
-                          <XCircle className="w-3.5 h-3.5" />
-                          <span>Dismiss</span>
-                        </button>
-                      )}
-                      {activeTab === 'DONE' ? (
-                        <Link
-                          href={`/tasks/${ticket.id}`}
-                          className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-primary/10 hover:text-primary transition-all text-sm h-10 px-6 rounded-xl border border-transparent hover:border-primary/20"
-                        >
-                          View Report <ArrowRight className="w-4 h-4" />
-                        </Link>
-                      ) : activeTab === 'IN_PROGRESS' ? (
-                        <div className="flex items-center gap-2">
-                          {ticket.status === 'IN_PROGRESS' && ticket.assigneeId === currentUserId && (
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 p-4 md:p-6">
+        {tabs.map((tab, columnIndex) => (
+          <motion.section
+            key={tab.id}
+            layout
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: columnIndex * 0.05 }}
+            className="rounded-2xl border border-base-200 bg-base-100/90 shadow-md flex flex-col xl:h-[70vh]"
+          >
+            <div className="flex items-center justify-between border-b border-base-200 px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center bg-base-200/60', tab.color)}>
+                  <tab.icon className="w-3.5 h-3.5" />
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-widest text-base-content">{tab.label}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-base-content/40">{columns[tab.id].length} briefs</div>
+                </div>
+              </div>
+            </div>
+
+            <motion.div layout className="flex-1 overflow-y-auto premium-scrollbar p-3 flex flex-col gap-2.5">
+              <AnimatePresence mode="popLayout">
+                {columns[tab.id].length === 0 ? (
+                  <motion.div
+                    key={`${tab.id}-empty`}
+                    layout
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    className="flex min-h-[9rem] flex-col items-center justify-center rounded-xl border border-dashed border-base-200 bg-base-200/20 text-center"
+                  >
+                    <ListTodo className="w-6 h-6 text-base-content/20 mb-2" />
+                    <div className="text-xs font-black uppercase tracking-wider text-base-content/40">No briefs</div>
+                  </motion.div>
+                ) : (
+                  columns[tab.id].map((ticket, ticketIndex) => {
+                    const isReviewerAction = ticket.status === 'REVIEW' && ticket.reporterId === currentUserId
+                    const isAssigneeAction = ticket.status === 'IN_PROGRESS' && ticket.assignee?.id === currentUserId
+                    const canDismiss = tab.id === 'NEW' && ticket.reporterId === currentUserId
+
+                    return (
+                      <motion.article
+                        key={ticket.id}
+                        layout
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2, delay: ticketIndex * 0.03 }}
+                        className="rounded-xl border border-base-200 bg-base-100 p-3 shadow-sm hover:border-primary/20 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-2.5">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center bg-base-200/60', tab.color)}>
+                                <Ticket className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="text-[10px] font-black uppercase tracking-[0.14em] text-base-content/30">
+                                REF-{ticket.id.toString().padStart(4, '0')}
+                              </div>
+                            </div>
+                            <Link href={`/tasks/${ticket.id}`} className="mt-2 block text-xs md:text-sm font-bold tracking-tight text-base-content hover:text-primary transition-colors line-clamp-2">
+                              {ticket.title}
+                            </Link>
+                          </div>
+                          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider shrink-0', getStatusTone(ticket.status))}>
+                            {ticket.status.replace('_', ' ')}
+                          </span>
+                        </div>
+
+                        <div className="mt-2.5 flex items-center gap-2 text-[11px]">
+                          <span className="font-bold text-base-content/70 truncate">{ticket.reporter?.name || 'Unknown'}</span>
+                          <span className="text-base-content/25">/</span>
+                          <span className="font-bold text-base-content/70 truncate">{ticket.assignee?.name || 'Unassigned'}</span>
+                        </div>
+
+                        <div className="mt-1.5 flex items-center justify-between text-[10px] text-base-content/45 font-bold uppercase tracking-[0.12em]">
+                          <span>{format(new Date(ticket.createdAt), 'MMM dd')}</span>
+                          <span>{ticket.dueAt ? format(new Date(ticket.dueAt), 'MMM dd') : 'No due'}</span>
+                        </div>
+
+                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                          {canManage && tab.id === 'NEW' ? (
                             <button
-                              className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-info/10 hover:text-info transition-all text-xs h-9 px-4 rounded-xl border border-transparent hover:border-info/20"
+                              className="btn btn-primary btn-xs rounded-lg font-bold"
+                              onClick={() => {
+                                setSelectedTicket(ticket)
+                                const modal = document.getElementById('process_modal') as any
+                                if (modal) modal.showModal()
+                              }}
+                            >
+                              Manage <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          ) : null}
+
+                          {isAssigneeAction ? (
+                            <button
+                              className="btn btn-ghost btn-xs rounded-lg border border-info/20 hover:bg-info/10 hover:text-info font-bold"
                               disabled={isPending}
                               onClick={() => {
                                 startTransition(async () => {
                                   try {
                                     await advanceTaskStatus(ticket.id, 'REVIEW' as any)
                                     router.refresh()
-                                  } catch (err) {
-                                    console.error(err)
+                                  } catch (error) {
+                                    console.error(error)
                                   }
                                 })
                               }}
                             >
-                              <CheckCircle className="w-3.5 h-3.5" />
                               Submit Review
                             </button>
-                          )}
-                          {ticket.status === 'REVIEW' && ticket.reporterId === currentUserId && (
+                          ) : null}
+
+                          {isReviewerAction ? (
                             <button
-                              className="btn btn-success btn-sm font-bold gap-2 shadow-lg shadow-success/20 h-9 px-4 rounded-xl text-xs hover:scale-[1.05] active:scale-95 transition-all text-white"
+                              className="btn btn-success btn-xs rounded-lg text-white font-bold"
                               disabled={isPending}
                               onClick={() => {
                                 startTransition(async () => {
                                   try {
                                     await advanceTaskStatus(ticket.id, 'COMPLETED' as any)
                                     router.refresh()
-                                  } catch (err) {
-                                    console.error(err)
+                                  } catch (error) {
+                                    console.error(error)
                                   }
                                 })
                               }}
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Mark Complete
+                              Complete
                             </button>
-                          )}
-                          <Link
-                            href={`/tasks/${ticket.id}`}
-                            className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-warning/10 hover:text-warning transition-all text-xs h-9 px-4 rounded-xl border border-transparent hover:border-warning/20"
-                          >
-                            Track <ArrowRight className="w-3.5 h-3.5" />
+                          ) : null}
+
+                          {canDismiss ? (
+                            <button
+                              className="btn btn-ghost btn-xs rounded-lg border border-error/20 hover:bg-error/10 hover:text-error font-bold"
+                              disabled={isPending}
+                              onClick={() => {
+                                setSelectedTicket(ticket)
+                                startTransition(async () => {
+                                  try {
+                                    await dismissTicket(ticket.id)
+                                    router.refresh()
+                                  } catch (error) {
+                                    console.error(error)
+                                  }
+                                })
+                              }}
+                            >
+                              Dismiss
+                            </button>
+                          ) : null}
+
+                          <Link href={`/tasks/${ticket.id}`} className="btn btn-ghost btn-xs rounded-lg border border-base-200 hover:border-primary/20 hover:bg-primary/10 font-bold">
+                            {isInitiatorView && tab.id === 'NEW' ? 'View Details' : 'Track'}
                           </Link>
                         </div>
-                      ) : canManage && activeTab === 'NEW' ? (
-                        <button
-                          className="btn btn-primary btn-sm font-bold gap-2 shadow-lg shadow-primary/20 h-10 px-6 rounded-xl text-sm"
-                          onClick={() => {
-                            setSelectedTicket(ticket)
-                            const modal = document.getElementById('process_modal') as any
-                            if (modal) modal.showModal()
-                          }}
-                        >
-                          Manage <ArrowRight className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <Link
-                          href={`/tasks/${ticket.id}`}
-                          className="btn btn-ghost btn-sm font-bold gap-2 hover:bg-primary/10 hover:text-primary transition-all text-sm h-10 px-6 rounded-xl border border-transparent hover:border-primary/20"
-                        >
-                          View Details <ArrowRight className="w-4 h-4" />
-                        </Link>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                      </motion.article>
+                    )
+                  })
+                )}
+              </AnimatePresence>
+            </motion.div>
+          </motion.section>
+        ))}
       </div>
 
       <dialog id="process_modal" className="modal modal-bottom sm:modal-middle">
@@ -385,9 +444,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
                       onChange={(e) => setAssignment(prev => ({ ...prev, assigneeId: e.target.value }))}
                     >
                       <option value="">Select Personnel...</option>
-                      {users
-                        .filter(u => u.departmentId === Number(assignment.departmentId))
-                        .map(u => (
+                      {assignableUsers.map((u: any) => (
                           <option key={u.id} value={u.id}>
                             {u.name}
                           </option>
@@ -485,7 +542,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
             <button
               type="button"
               className="btn btn-primary w-full max-w-xs h-12 rounded-xl font-bold uppercase text-sm tracking-wider shadow-ruby-soft transition-all hover:brightness-110 active:scale-[0.98]"
-              disabled={isPending || !assignment.departmentId || (!assignment.slaId && !assignment.dueAt)}
+                      disabled={isPending || !assignment.departmentId || !assignment.assigneeId || (!assignment.slaId && !assignment.dueAt)}
               onClick={handleProcess}
             >
               {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : (

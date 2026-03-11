@@ -27,7 +27,7 @@ type Task = {
     project: { id: number, title: string } | null
     assignee: { name: string | null, avatarUrl: string | null } | null
     assigneeId: number | null
-    sla: { tier: string, name: string }
+    sla: { tier: string, name: string } | null
     reporterId: number | null
 }
 
@@ -35,15 +35,17 @@ interface GlobalTaskTableProps {
     initialTasks: any[]
     currentUserId: number
     currentUserRole?: string
+    currentUserDepartment?: string | null
 }
 
-export default function GlobalTaskTable({ initialTasks, currentUserId, currentUserRole }: GlobalTaskTableProps) {
+export default function GlobalTaskTable({ initialTasks, currentUserId, currentUserRole, currentUserDepartment }: GlobalTaskTableProps) {
     const [tasks, setTasks] = useState<Task[]>(initialTasks)
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null)
     const [filter, setFilter] = useState('')
     const [processingId, setProcessingId] = useState<number | null>(null)
 
     const isAdmin = ['CEO', 'ADMIN', 'SUPER_ADMIN'].includes(currentUserRole || '')
+    const isInitiatorDepartment = currentUserDepartment === 'CLIENT_SERVICE' || currentUserDepartment === 'BUSINESS_DEVELOPMENT'
 
     const handleSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc'
@@ -64,8 +66,8 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                     bValue = b.project?.title || ''
                 }
                 if (sortConfig.key === 'sla') {
-                    aValue = a.sla.tier
-                    bValue = b.sla.tier
+                    aValue = a.sla?.tier || ''
+                    bValue = b.sla?.tier || ''
                 }
                 if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1
                 if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1
@@ -105,10 +107,22 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
         }
 
         let nextStatus: TaskStatus | null = null
-        if (task.status === TaskStatus.PENDING) nextStatus = TaskStatus.RECEIVED
-        else if (task.status === TaskStatus.RECEIVED) nextStatus = TaskStatus.IN_PROGRESS
+        if (task.status === TaskStatus.PENDING) {
+            if (!isAssignee) {
+                alert("Only the assignee can acknowledge this task.")
+                return
+            }
+            nextStatus = TaskStatus.RECEIVED
+        }
+        else if (task.status === TaskStatus.RECEIVED) {
+            if (!isAssignee) {
+                alert("Only the assignee can start this task.")
+                return
+            }
+            nextStatus = TaskStatus.IN_PROGRESS
+        }
         else if (task.status === TaskStatus.IN_PROGRESS) {
-            if (!isAssignee && !isAdmin) {
+            if (!isAssignee) {
                 alert("Only the assignee can submit this task for review.")
                 return
             }
@@ -197,7 +211,7 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                     <tbody className="divide-y divide-base-200/60">
                         {sortedTasks.map(task => {
                             const isProcessing = processingId === task.id
-                            const isUrgent = task.sla.tier === 'URGENT'
+                            const isUrgent = task.sla?.tier === 'URGENT'
                             const statusBadge = getStatusBadge(task.status)
 
                             return (
@@ -237,7 +251,14 @@ export default function GlobalTaskTable({ initialTasks, currentUserId, currentUs
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        {task.status !== TaskStatus.COMPLETED && (
+                                        {task.status !== TaskStatus.COMPLETED && isInitiatorDepartment ? (
+                                            <Link
+                                                href={`/tasks/${task.id}`}
+                                                className="btn btn-sm btn-ghost text-primary hover:bg-primary/10 font-medium text-xs gap-1"
+                                            >
+                                                View Details
+                                            </Link>
+                                        ) : task.status !== TaskStatus.COMPLETED && (
                                             <button
                                                 onClick={() => handleQuickAction(task)}
                                                 disabled={isProcessing}

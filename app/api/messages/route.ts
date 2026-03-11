@@ -5,10 +5,12 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const taskId = searchParams.get('taskId')
     const projectId = searchParams.get('projectId')
+    const subProjectId = searchParams.get('subProjectId')
 
     try {
         const where: any = {}
         if (taskId) where.taskId = Number(taskId)
+        else if (subProjectId) where.subProjectId = Number(subProjectId)
         else if (projectId) where.projectId = Number(projectId)
         else return NextResponse.json({ messages: [] })
 

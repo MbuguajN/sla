@@ -3,15 +3,11 @@ import { auth } from '@/auth'
 import prisma from '@/lib/db'
 import { notFound } from 'next/navigation'
 import {
-  Plus,
-  ClipboardList,
   Clock,
   ArrowLeft,
-  CheckCircle2,
   Briefcase,
   FolderOpen,
   GitBranch,
-  Settings2
 } from 'lucide-react'
 import Link from 'next/link'
 import TaskChat from '@/components/TaskChat'
@@ -31,20 +27,18 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
     include: {
       defaultSla: true,
       createdBy: { select: { name: true } },
-      tasks: {
-        include: {
-          assignee: { select: { id: true, name: true } },
-          sla: true
-        },
-        where: { subProjectId: null } as any,
-        orderBy: { createdAt: 'desc' }
-      },
       subProjects: {
         where: { parentId: null },
         include: {
+          tasks: {
+            select: { status: true }
+          },
           createdBy: { select: { id: true, name: true } },
           children: {
             include: {
+              tasks: {
+                select: { status: true }
+              },
               _count: { select: { tasks: true } }
             }
           },
@@ -62,14 +56,17 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
   if (!project) notFound()
 
   // Stats
-  const directTaskCount = project.tasks.length
-  const directCompletedCount = (project.tasks as any[]).filter(t => t.status === 'COMPLETED').length
   const subProjectCount = project.subProjects.length
   const totalSubletCount = (project.subProjects as any[]).reduce((acc: number, s: any) => acc + (s._count?.children || 0), 0)
+  const nestedTasks = (project.subProjects as any[]).flatMap((sub: any) => [
+    ...(sub.tasks || []),
+    ...((sub.children || []).flatMap((child: any) => child.tasks || []))
+  ])
+  const nestedTaskCount = nestedTasks.length
+  const nestedCompletedCount = nestedTasks.filter((task: any) => task.status === 'COMPLETED').length
 
-  // Overall progress (direct tasks only for now)
-  const progress = directTaskCount > 0
-    ? Math.round((directCompletedCount / directTaskCount) * 100)
+  const progress = nestedTaskCount > 0
+    ? Math.round((nestedCompletedCount / nestedTaskCount) * 100)
     : 0
 
   const userDept = (session.user as any)?.departmentName
@@ -105,9 +102,10 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {(userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE' || userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT') && (
-              <Link href={`/tasks/new?projectId=${projectId}`} className="btn btn-primary btn-md px-6 rounded-2xl gap-2 shadow-lg shadow-primary/20 uppercase font-black tracking-widest text-sm">
-                <Plus className="w-4 h-4" /> New Task
-              </Link>
+              <div className="px-4 py-3 rounded-2xl border border-base-200 bg-base-100 text-right max-w-xs">
+                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-base-content/40">Task Rule</div>
+                <div className="mt-1 text-sm font-bold text-base-content/80">Create tasks from phases or sublets only.</div>
+              </div>
             )}
             <InviteMember projectId={projectId} />
           </div>
@@ -128,14 +126,14 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Progress</span>
+          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Nested Task Progress</span>
           <div className="flex items-center gap-3">
             <span className="font-black text-xl text-primary">{progress}%</span>
             <div className="flex-1 bg-base-200 h-1.5 rounded-full overflow-hidden">
               <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
             </div>
           </div>
-          <p className="text-xs font-bold opacity-60 uppercase">{directCompletedCount}/{directTaskCount} Direct Tasks</p>
+          <p className="text-xs font-bold opacity-60 uppercase">{nestedCompletedCount}/{nestedTaskCount} Nested Tasks</p>
         </div>
 
         <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
@@ -171,7 +169,6 @@ export default async function ProjectDetailPage({ params }: { params: { id: stri
           <ProjectDetailTabs
             projectId={projectId}
             subProjects={project.subProjects as any}
-            directTasks={project.tasks as any}
             canCreateSub={canCreateSub}
           />
         </div>

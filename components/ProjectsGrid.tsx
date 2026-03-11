@@ -13,7 +13,6 @@ type ProjectSummary = {
   createdAt: Date
   createdBy: string | null
   taskCount: number
-  directTaskCount: number
   completedCount: number
   subProjectCount: number
   members: any[]

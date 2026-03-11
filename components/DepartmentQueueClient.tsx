@@ -55,7 +55,9 @@ export default function DepartmentQueueClient({
     let result = tasks
 
     if (filterMode === 'MINE') {
-      result = result.filter(t => t.assigneeId === Number(currentUser.id))
+      result = result.filter(
+        t => t.assigneeId === Number(currentUser.id) || t.reporterId === Number(currentUser.id)
+      )
     }
 
     // Tab filter: ongoing vs completed
@@ -78,7 +80,7 @@ export default function DepartmentQueueClient({
 
       // Urgent tier priority
       const tierMap: any = { 'URGENT': 0, 'STANDARD': 1, 'LOW': 2 }
-      const tierDiff = (tierMap[a.sla.tier] || 2) - (tierMap[b.sla.tier] || 2)
+      const tierDiff = (tierMap[a.sla?.tier] || 2) - (tierMap[b.sla?.tier] || 2)
       if (tierDiff !== 0) return tierDiff
 
       return aDue.getTime() - bDue.getTime()
@@ -187,7 +189,7 @@ export default function DepartmentQueueClient({
                 filterMode === 'MINE' ? "bg-primary text-white shadow-ruby-soft" : "text-base-content/70 hover:text-base-content/80"
               )}
             >
-              My Assignments
+              My Tasks
             </button>
           </div>
         </div>
@@ -259,9 +261,9 @@ export default function DepartmentQueueClient({
                           <div className="flex items-center gap-3 pl-3.5">
                             <span className={cn(
                               "text-sm font-black tracking-[0.2em] uppercase px-1.5 py-0.5 rounded-md border border-base-content/10",
-                              task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
+                              task.sla?.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                             )}>
-                              {task.sla.name}
+                              {task.sla?.name || 'NO SLA'}
                             </span>
                             <span className="text-xs font-mono font-bold text-base-content/15">ID#{task.id}</span>
                           </div>
@@ -402,6 +404,7 @@ export default function DepartmentQueueClient({
               const isCompleted = task.status === TaskStatus.COMPLETED
               const isPendingReceipt = task.status === TaskStatus.PENDING
               const isProcessing = processingId === task.id
+              const isAssignee = task.assigneeId === Number(currentUser.id)
 
               return (
                 <div key={task.id} className="p-6 space-y-5">
@@ -413,9 +416,9 @@ export default function DepartmentQueueClient({
                       <div className="flex items-center gap-2">
                         <span className={cn(
                           "text-xs font-black tracking-widest uppercase px-1.5 py-0.5 rounded border border-base-content/10",
-                          task.sla.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
+                          task.sla?.tier === 'URGENT' ? "text-error border-error/20 bg-error/5" : "text-base-content/30"
                         )}>
-                          {task.sla.name}
+                          {task.sla?.name || 'NO SLA'}
                         </span>
                       </div>
                     </div>
@@ -439,12 +442,12 @@ export default function DepartmentQueueClient({
                   </div>
 
                   <div className="flex gap-3">
-                    {isPendingReceipt && (
+                    {isPendingReceipt && isAssignee && (
                       <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="flex-1 h-12 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-ruby-soft">
                         Acknowledge
                       </button>
                     )}
-                    {task.status === TaskStatus.RECEIVED && (
+                    {task.status === TaskStatus.RECEIVED && isAssignee && (
                       <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="flex-1 h-12 glass-panel text-primary rounded-2xl font-black text-sm uppercase tracking-widest">
                         Start
                       </button>

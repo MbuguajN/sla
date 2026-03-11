@@ -9,7 +9,7 @@ export default async function AdminDashboard() {
         prisma.user.count(),
         prisma.department.count(),
         prisma.project.count(),
-        prisma.task.count({ where: { status: { not: 'COMPLETED' } } })
+          prisma.task.count({ where: { status: { notIn: ['COMPLETED', 'DISMISSED'] } } })
     ])
 
     const stats = [

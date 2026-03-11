@@ -6,7 +6,19 @@ import { Briefcase } from 'lucide-react'
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 
-export default async function NewTaskPage() {
+function parseNumericParam(value?: string | string[]) {
+  const rawValue = Array.isArray(value) ? value[0] : value
+  if (!rawValue) return undefined
+
+  const parsedValue = Number(rawValue)
+  return Number.isNaN(parsedValue) ? undefined : parsedValue
+}
+
+export default async function NewTaskPage({
+  searchParams
+}: {
+  searchParams?: { projectId?: string | string[]; subProjectId?: string | string[] }
+}) {
   const session = await auth()
   const userDept = (session?.user as any)?.departmentName
   const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
@@ -16,12 +28,54 @@ export default async function NewTaskPage() {
     redirect('/')
   }
 
-  const departments = await prisma.department.findMany()
-  const slas = await prisma.sla.findMany()
-  const users = await prisma.user.findMany()
-  const projects = await prisma.project.findMany({
-    include: { defaultSla: true }
-  })
+  const requestedProjectId = parseNumericParam(searchParams?.projectId)
+  const requestedSubProjectId = parseNumericParam(searchParams?.subProjectId)
+
+  const [departments, slas, users, projects, subProjects] = await Promise.all([
+    prisma.department.findMany({ orderBy: { name: 'asc' } }),
+    prisma.sla.findMany({ orderBy: { durationHrs: 'asc' } }),
+    prisma.user.findMany({ orderBy: { name: 'asc' } }),
+    prisma.project.findMany({
+      include: { defaultSla: true },
+      orderBy: { title: 'asc' }
+    }),
+    prisma.subProject.findMany({
+      select: {
+        id: true,
+        title: true,
+        projectId: true,
+        parentId: true,
+        parent: {
+          select: {
+            id: true,
+            title: true
+          }
+        }
+      },
+      orderBy: [{ projectId: 'asc' }, { createdAt: 'asc' }]
+    })
+  ])
+
+  let initialProjectId = requestedProjectId
+  let initialSubProjectId = requestedSubProjectId
+
+  if (initialProjectId && !projects.some(project => project.id === initialProjectId)) {
+    redirect('/tasks/new')
+  }
+
+  if (initialSubProjectId) {
+    const initialSubProject = subProjects.find(subProject => subProject.id === initialSubProjectId)
+    if (!initialSubProject) {
+      redirect('/tasks/new')
+    }
+
+    if (initialProjectId && initialSubProject.projectId !== initialProjectId) {
+      redirect(`/tasks/new?projectId=${initialSubProject.projectId}&subProjectId=${initialSubProject.id}`)
+    }
+
+    initialProjectId = initialSubProject.projectId
+    initialSubProjectId = initialSubProject.id
+  }
 
   return (
     <div className="min-h-screen bg-base-100 flex flex-col items-center p-4 py-8 lg:py-12 relative overflow-hidden font-sans">
@@ -51,6 +105,9 @@ export default async function NewTaskPage() {
               slas={slas}
               users={users}
               projects={projects}
+              subProjects={subProjects}
+              initialProjectId={initialProjectId}
+              initialSubProjectId={initialSubProjectId}
             />
           </div>
         </div>

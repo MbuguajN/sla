@@ -68,7 +68,7 @@ export default async function DashboardPage() {
 
     const allActiveTasks = await prisma.task.findMany({
       where: {
-        status: { not: 'COMPLETED' }
+        status: { notIn: ['COMPLETED', 'DISMISSED'] }
       },
       select: {
         id: true,
@@ -85,14 +85,14 @@ export default async function DashboardPage() {
 
     const overdueCount = await prisma.task.count({
       where: {
-        status: { not: 'COMPLETED' },
+        status: { notIn: ['COMPLETED', 'DISMISSED'] },
         dueAt: { lt: new Date() }
       }
     })
 
     const activeCount = await prisma.task.count({
       where: {
-        status: { not: 'COMPLETED' }
+        status: { notIn: ['COMPLETED', 'DISMISSED'] }
       }
     })
 
@@ -131,11 +131,12 @@ export default async function DashboardPage() {
   // Fetch active tasks for the Global Table
   const activeTasks = await prisma.task.findMany({
     where: {
-      status: { not: 'COMPLETED' },
+      status: { notIn: ['COMPLETED', 'DISMISSED'] },
       ...(['CLIENT_SERVICE', 'BUSINESS_DEVELOPMENT'].includes(role) ? {} : {
         OR: [
           { assigneeId: userId },
-          { assignee: { department: { headId: userId } } } // Allow Dept Heads to see team tasks
+          { assignee: { department: { headId: userId } } }, // Allow Dept Heads to see team tasks
+          { reporterId: userId } // Include tasks initiated by the current user
         ]
       })
     },
@@ -183,7 +184,12 @@ export default async function DashboardPage() {
       {/* Middle Row: Main Task Table */}
       <div className="grid grid-cols-1 gap-6 animate-fade-in-up" style={{ animationDelay: '300ms' }}>
         <Suspense fallback={<GlobalTaskTableSkeleton />}>
-          <GlobalTaskTable initialTasks={activeTasks as any} currentUserId={userId} currentUserRole={role} />
+          <GlobalTaskTable
+            initialTasks={activeTasks as any}
+            currentUserId={userId}
+            currentUserRole={role}
+            currentUserDepartment={deptName}
+          />
         </Suspense>
       </div>
 
