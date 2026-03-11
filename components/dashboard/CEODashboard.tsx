@@ -185,9 +185,9 @@ export default function CEODashboard({
                                             </div>
                                             <div className={cn(
                                                 "text-xs font-black tracking-widest px-2.5 py-1 rounded-lg uppercase",
-                                                overdue > 0 ? "bg-error text-white" : (isAccomplished ? "bg-success text-white" : "bg-base-content/10 text-base-content/80")
+                                                total === 0 ? "bg-base-content/10 text-base-content/80" : (overdue > 0 ? "bg-error text-white" : (isAccomplished ? "bg-success text-white" : "bg-base-content/10 text-base-content/80"))
                                             )}>
-                                                {overdue > 0 ? 'Action Required' : (isAccomplished ? 'Accomplished' : 'In Progress')}
+                                                {total === 0 ? 'Nothing in pipeline' : (overdue > 0 ? 'Action Required' : (isAccomplished ? 'Achieved' : 'In Progress'))}
                                             </div>
                                         </div>
 

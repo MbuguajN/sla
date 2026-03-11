@@ -43,7 +43,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
   const [isHydrated, setIsHydrated] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
 
   useEffect(() => {
     const saved = localStorage.getItem('sidebar-collapsed')
@@ -131,7 +131,9 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                 "flex items-center justify-center transition-all duration-500 overflow-hidden",
                 isCollapsed ? "h-14 w-14" : "h-14"
               )}>
-                {isHydrated && theme === 'dark' ? (
+                {!isHydrated ? (
+                  <div className="w-10 h-10 animate-pulse bg-base-content/5 rounded-lg" />
+                ) : (resolvedTheme === 'dark' ? (
                   logoDark ? (
                     <img src={logoDark} alt="5DM" className="max-w-full max-h-full object-contain transform group-hover:scale-110 transition-transform duration-500 shadow-sm" />
                   ) : (
@@ -143,7 +145,7 @@ export default function Sidebar({ session, userRole, dbUser, logoLight, logoDark
                   ) : (
                     <div className="text-2xl font-black tracking-tighter text-primary">5DM</div>
                   )
-                )}
+                ))}
               </div>
             </Link>
 

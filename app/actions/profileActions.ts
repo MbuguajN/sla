@@ -30,6 +30,23 @@ export async function updateProfile(data: { name?: string, password?: string, av
   return { success: true, user }
 }
 
+export async function updateUserTheme(theme: string) {
+  const session = await auth()
+  const userId = Number(session?.user?.id)
+
+  if (!userId) return { success: false, error: 'Unauthorized' }
+
+  try {
+    await (prisma.user as any).update({
+      where: { id: userId },
+      data: { theme }
+    })
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+}
+
 export async function uploadAvatar(formData: FormData) {
   const session = await auth()
   const userId = Number(session?.user?.id)

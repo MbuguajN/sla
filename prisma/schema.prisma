@@ -39,6 +39,7 @@ model User {
   reviewerResponses  ReviewResponse[] @relation("ReviewerResponses")
   revieweeResponses  ReviewResponse[] @relation("RevieweeResponses")
   requisitions       Requisition[]    @relation("UserRequisitions")
+  theme              String           @default("system")
 
   @@index([departmentId])
 }
