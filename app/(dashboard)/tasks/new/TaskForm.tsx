@@ -55,7 +55,7 @@ export default function TaskForm({
   const [departmentId, setDepartmentId] = useState<number | ''>('')
   const [watcherIds, setWatcherIds] = useState<number[]>([])
   const [dueDate, setDueDate] = useState<Date | null>(null)
-  const [isCustomDueDate, setIsCustomDueDate] = useState(false)
+  const [isManualDeadline, setIsManualDeadline] = useState(false)
   const [isTemporaryOverride, setIsTemporaryOverride] = useState(false)
 
   // Auto-SLA logic: When project changes, apply its default SLA if not overriding
