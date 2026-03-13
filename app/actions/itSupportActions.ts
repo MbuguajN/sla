@@ -78,6 +78,30 @@ export async function assignITRequest(id: number, assigneeId: number) {
     const session = await auth()
     if (!session?.user) throw new Error('Unauthorized')
 
+    const userId = Number(session.user.id)
+    const role = (session.user as any).role
+
+    // Get tech department manager
+    const techDept = await prisma.department.findFirst({
+        where: { name: 'TECHNOLOGY' },
+        select: { headId: true }
+    })
+
+    // Only ADMIN or TECHNOLOGY department head can assign
+    if (role !== 'ADMIN' && userId !== techDept?.headId) {
+        throw new Error('Only tech manager can assign tickets')
+    }
+
+    // Verify assignee is in TECHNOLOGY department
+    const assignee = await prisma.user.findUnique({
+        where: { id: assigneeId },
+        select: { id: true, departmentId: true, department: { select: { name: true } } }
+    })
+
+    if (!assignee || assignee.department?.name !== 'TECHNOLOGY') {
+        throw new Error('Assignee must be in TECHNOLOGY department')
+    }
+
     const request = await prisma.iTSupportRequest.update({
         where: { id },
         data: {
@@ -104,6 +128,20 @@ export async function resolveITRequest(id: number) {
     const session = await auth()
     if (!session?.user) throw new Error('Unauthorized')
     const userId = Number(session.user.id)
+    const role = (session.user as any).role
+
+    // Get the request to check if assigned person matches
+    const existingRequest = await prisma.iTSupportRequest.findUnique({
+        where: { id },
+        select: { assignedToId: true, title: true, userId: true }
+    })
+
+    if (!existingRequest) throw new Error('Request not found')
+
+    // Only the assigned person or ADMIN can resolve
+    if (role !== 'ADMIN' && userId !== existingRequest.assignedToId) {
+        throw new Error('Only the assigned person can resolve this ticket')
+    }
 
     const request = await prisma.iTSupportRequest.update({
         where: { id },

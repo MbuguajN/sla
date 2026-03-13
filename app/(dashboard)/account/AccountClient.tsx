@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { updateProfile, uploadAvatar } from '@/app/actions/profileActions'
-import { createLeaveRequest } from '@/app/actions/hrActions'
+import { createLeaveRequest, endLeaveEarly, cancelLeaveRequest } from '@/app/actions/hrActions'
 import { getMyLeaveBalance } from '@/app/actions/leavePolicyActions'
 import { createSuggestion } from '@/app/actions/suggestionActions'
 import { createITSupportRequest } from '@/app/actions/itSupportActions'
@@ -249,6 +249,11 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
     const [submitting, setSubmitting] = useState(false)
     const [form, setForm] = useState({ type: 'ANNUAL', startDate: '', endDate: '', reason: '' })
     const [balance, setBalance] = useState<any>(null)
+    const [processingId, setProcessingId] = useState<number | null>(null)
+    const [actioningId, setActioningId] = useState<number | null>(null)
+    const [actioningType, setActioningType] = useState<'early' | 'cancel' | null>(null)
+    const [earlyEndDate, setEarlyEndDate] = useState('')
+    const [cancelReason, setCancelReason] = useState('')
     const router = useRouter()
 
     useEffect(() => {
@@ -272,38 +277,94 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
         }
     }
 
+    async function handleEndEarly(id: number) {
+        setProcessingId(id)
+        try {
+            await endLeaveEarly(id, earlyEndDate)
+            setActioningId(null)
+            setActioningType(null)
+            setEarlyEndDate('')
+            router.refresh()
+            getMyLeaveBalance().then(setBalance).catch(() => { })
+        } catch (err: any) {
+            alert(err.message)
+        } finally {
+            setProcessingId(null)
+        }
+    }
+
+    async function handleCancel(id: number) {
+        setProcessingId(id)
+        try {
+            await cancelLeaveRequest(id, cancelReason || undefined)
+            setActioningId(null)
+            setActioningType(null)
+            setCancelReason('')
+            router.refresh()
+            getMyLeaveBalance().then(setBalance).catch(() => { })
+        } catch (err: any) {
+            alert(err.message)
+        } finally {
+            setProcessingId(null)
+        }
+    }
+
     const statusStyles: Record<string, string> = {
         PENDING: 'bg-warning/10 text-warning',
         APPROVED: 'bg-success/10 text-success',
-        DENIED: 'bg-error/10 text-error'
+        DENIED: 'bg-error/10 text-error',
+        CANCELLED: 'bg-error/10 text-error',
+        ENDED_EARLY: 'bg-info/10 text-info'
     }
 
     return (
         <div className="space-y-6">
             {/* Leave Balance */}
             {balance && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="glass-panel rounded-3xl p-5">
                         <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Annual Leave</span>
                         <div className="flex items-baseline gap-2 mb-3">
                             <span className="text-2xl font-black text-primary">{balance.annualRemaining}</span>
-                            <span className="text-xs text-base-content/30 font-bold">/ {balance.annualAllocation} days remaining</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.annualAllocation} days</span>
                         </div>
                         <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
                             <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.annualRemaining / balance.annualAllocation) * 100)}%` }} />
                         </div>
-                        <p className="text-sm text-base-content/70 mt-2">{balance.annualUsed} days used this year</p>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.annualUsed} days used</p>
                     </div>
                     <div className="glass-panel rounded-3xl p-5">
                         <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Sick Leave</span>
                         <div className="flex items-baseline gap-2 mb-3">
                             <span className="text-2xl font-black text-warning">{balance.sickRemaining}</span>
-                            <span className="text-xs text-base-content/30 font-bold">/ {balance.sickAllocation} days remaining</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.sickAllocation} days</span>
                         </div>
                         <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
                             <div className="h-full bg-warning rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.sickRemaining / balance.sickAllocation) * 100)}%` }} />
                         </div>
-                        <p className="text-sm text-base-content/70 mt-2">{balance.sickUsed} days used this year</p>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.sickUsed} days used</p>
+                    </div>
+                    <div className="glass-panel rounded-3xl p-5">
+                        <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Maternity Leave</span>
+                        <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-2xl font-black text-success">{balance.maternityRemaining}</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.maternityAllocation} days</span>
+                        </div>
+                        <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-success rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.maternityRemaining / balance.maternityAllocation) * 100)}%` }} />
+                        </div>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.maternityUsed} days used</p>
+                    </div>
+                    <div className="glass-panel rounded-3xl p-5">
+                        <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70 block mb-2">Paternity Leave</span>
+                        <div className="flex items-baseline gap-2 mb-3">
+                            <span className="text-2xl font-black text-info">{balance.paternityRemaining}</span>
+                            <span className="text-xs text-base-content/30 font-bold">/ {balance.paternityAllocation} days</span>
+                        </div>
+                        <div className="h-2 bg-base-content/5 rounded-full overflow-hidden">
+                            <div className="h-full bg-info rounded-full transition-all duration-500" style={{ width: `${Math.max(0, (balance.paternityRemaining / balance.paternityAllocation) * 100)}%` }} />
+                        </div>
+                        <p className="text-sm text-base-content/70 mt-2">{balance.paternityUsed} days used</p>
                     </div>
                 </div>
             )}
@@ -324,9 +385,17 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                         <div>
                             <label className="text-sm font-bold uppercase tracking-widest text-base-content/30 block mb-1.5">Leave Type</label>
                             <select className="select select-bordered select-sm w-full" value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                                {['ANNUAL', 'SICK', 'PERSONAL', 'MATERNITY', 'PATERNITY', 'OTHER'].map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                ))}
+                                {['ANNUAL', 'SICK', 'MATERNITY', 'PATERNITY'].map(t => {
+                                    const labels: Record<string, string> = {
+                                        ANNUAL: 'Annual Leave',
+                                        SICK: 'Sick Leave',
+                                        MATERNITY: 'Maternity Leave',
+                                        PATERNITY: 'Paternity Leave'
+                                    }
+                                    return (
+                                        <option key={t} value={t}>{labels[t]}</option>
+                                    )
+                                })}
                             </select>
                         </div>
                         <div>
@@ -358,12 +427,13 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                                 <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Duration</th>
                                 <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Status</th>
                                 <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Response</th>
+                                <th className="text-[10px] font-black uppercase tracking-widest text-base-content/40">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-base-content/5">
                             {leaves.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="text-center py-20 text-sm text-base-content/30 italic font-medium">No leave cycles recorded</td>
+                                    <td colSpan={5} className="text-center py-20 text-sm text-base-content/30 italic font-medium">No leave cycles recorded</td>
                                 </tr>
                             ) : (
                                 leaves.map((l: any) => (
@@ -387,7 +457,7 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                                         <td>
                                             <span className={cn(
                                                 "badge badge-sm font-black text-[10px] uppercase tracking-widest border-none px-3 h-6",
-                                                l.status === 'PENDING' ? 'bg-warning/10 text-warning' : l.status === 'APPROVED' ? 'bg-success/10 text-success' : 'bg-error/10 text-error'
+                                                statusStyles[l.status] || 'bg-base-content/10 text-base-content/70'
                                             )}>
                                                 {l.status}
                                             </span>
@@ -400,6 +470,66 @@ function LeaveTab({ leaves }: { leaves: any[] }) {
                                                 </div>
                                             ) : (
                                                 <span className="text-[10px] font-black uppercase tracking-widest text-base-content/20 italic">Awaiting...</span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            {actioningId === l.id && actioningType ? (
+                                                <div className="space-y-2">
+                                                    {actioningType === 'early' && (
+                                                        <>
+                                                            <input
+                                                                type="date"
+                                                                className="input input-xs input-bordered w-32"
+                                                                value={earlyEndDate}
+                                                                onChange={e => setEarlyEndDate(e.target.value)}
+                                                                max={format(new Date(l.endDate), 'yyyy-MM-dd')}
+                                                            />
+                                                            <div className="flex gap-1">
+                                                                <button onClick={() => handleEndEarly(l.id)} disabled={processingId === l.id || !earlyEndDate} className="btn btn-xs btn-success text-white">
+                                                                    {processingId === l.id ? <span className="loading loading-spinner loading-xs" /> : 'End'}
+                                                                </button>
+                                                                <button onClick={() => { setActioningId(null); setActioningType(null); setEarlyEndDate(''); }} className="btn btn-xs btn-ghost">
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                    {actioningType === 'cancel' && (
+                                                        <>
+                                                            <input
+                                                                type="text"
+                                                                className="input input-xs input-bordered w-32"
+                                                                placeholder="Reason (opt)"
+                                                                value={cancelReason}
+                                                                onChange={e => setCancelReason(e.target.value)}
+                                                            />
+                                                            <div className="flex gap-1">
+                                                                <button onClick={() => handleCancel(l.id)} disabled={processingId === l.id} className="btn btn-xs btn-error text-white">
+                                                                    {processingId === l.id ? <span className="loading loading-spinner loading-xs" /> : 'Cancel'}
+                                                                </button>
+                                                                <button onClick={() => { setActioningId(null); setActioningType(null); setCancelReason(''); }} className="btn btn-xs btn-ghost">
+                                                                    Undo
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex gap-1">
+                                                    {l.status === 'APPROVED' && new Date(l.startDate) <= new Date() && new Date(l.endDate) >= new Date() && (
+                                                        <button onClick={() => { setActioningId(l.id); setActioningType('early'); }} className="btn btn-xs btn-outline btn-sm">
+                                                            End Early
+                                                        </button>
+                                                    )}
+                                                    {(l.status === 'PENDING' || l.status === 'APPROVED') && l.status !== 'CANCELLED' && l.status !== 'ENDED_EARLY' && (
+                                                        <button onClick={() => { setActioningId(l.id); setActioningType('cancel'); }} className="btn btn-xs btn-outline btn-error btn-sm">
+                                                            Cancel
+                                                        </button>
+                                                    )}
+                                                    {!((l.status === 'APPROVED' && new Date(l.startDate) <= new Date() && new Date(l.endDate) >= new Date()) || (l.status === 'PENDING' || l.status === 'APPROVED')) && (
+                                                        <span className="text-[10px] text-base-content/30">—</span>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
                                     </tr>

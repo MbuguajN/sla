@@ -3,7 +3,7 @@
 import React, { useOptimistic, useTransition } from 'react'
 import { TaskStatus } from '@/lib/enums'
 import { advanceTaskStatus } from '@/app/actions/taskActions'
-import { CheckCircle, Play, Send, CheckCircle2, Loader2, AlertCircle, XCircle } from 'lucide-react'
+import { Play, Send, CheckCircle2, Loader2, AlertCircle, XCircle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type StatusConfig = {
@@ -21,10 +21,10 @@ type StatusConfig = {
 
 const STATUS_MAP: Record<TaskStatus, StatusConfig> = {
   [TaskStatus.PENDING]: {
-    label: 'Confirm Receipt',
-    icon: CheckCircle,
-    color: 'btn-primary',
-    next: TaskStatus.RECEIVED
+    label: 'Awaiting Assignment',
+    icon: Clock,
+    color: 'btn-disabled',
+    next: null
   },
   [TaskStatus.RECEIVED]: {
     label: 'Start Work',
@@ -100,18 +100,23 @@ export default function StatusControlBar({
   // LOGIC: Check permissions
   const isAssignee = currentUserId === assigneeId
   const isReporter = currentUserId === reporterId
-  // Only assignees can CONFIRM, START, or SUBMIT REVIEW
-  const canAdvanceFromPending = optimisticStatus === TaskStatus.PENDING && isAssignee
-  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && isAssignee
+
+  // Only assignees can submit for review or resume from pause
   const canAdvanceFromInProgress = optimisticStatus === TaskStatus.IN_PROGRESS && isAssignee
+  const canResume = optimisticStatus === TaskStatus.AWAITING_INFO && isAssignee
 
   // Only initiator can COMPLETE
   const canComplete = optimisticStatus === TaskStatus.REVIEW && isReporter
 
-  const isRestricted = (optimisticStatus === TaskStatus.REVIEW && !canComplete) ||
-    (optimisticStatus === TaskStatus.PENDING && !canAdvanceFromPending) ||
-    (optimisticStatus === TaskStatus.RECEIVED && !canAdvanceFromReceived) ||
-    (optimisticStatus === TaskStatus.IN_PROGRESS && !canAdvanceFromInProgress)
+  // Legacy: allow assignee to advance from RECEIVED
+  const canAdvanceFromReceived = optimisticStatus === TaskStatus.RECEIVED && isAssignee
+
+  const isRestricted =
+    (optimisticStatus === TaskStatus.PENDING) ||
+    (optimisticStatus === TaskStatus.REVIEW && !canComplete) ||
+    (optimisticStatus === TaskStatus.IN_PROGRESS && !canAdvanceFromInProgress) ||
+    (optimisticStatus === TaskStatus.AWAITING_INFO && !canResume) ||
+    (optimisticStatus === TaskStatus.RECEIVED && !canAdvanceFromReceived)
 
   async function handleAction(nextStatus: TaskStatus) {
     if (isPending || isRestricted) return
@@ -182,6 +187,13 @@ export default function StatusControlBar({
           <div className="flex items-center gap-3 text-success font-bold text-sm px-6 py-3 bg-success/10 rounded-xl border border-success/20">
             <CheckCircle2 className="w-5 h-5" />
             Task Finalized
+          </div>
+        )}
+
+        {isRestricted && optimisticStatus === TaskStatus.PENDING && (
+          <div className="hidden md:flex items-center gap-2 text-info font-bold text-xs tracking-tight max-w-[150px] leading-tight">
+            <AlertCircle className="w-3 h-3 shrink-0" />
+            Awaiting Manager Assignment
           </div>
         )}
 

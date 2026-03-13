@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { getITSupportRequests } from '@/app/actions/itSupportActions'
 import ITSupportQueueClient from './ITSupportQueueClient'
 import prisma from '@/lib/db'
-import { Monitor, AlertCircle, Clock, CheckCircle2, Inbox } from 'lucide-react'
+import { AlertTriangle, Clock, CheckCircle2, Ticket } from 'lucide-react'
 
 export default async function ITSupportQueuePage() {
     const session = await auth()
@@ -34,40 +34,37 @@ export default async function ITSupportQueuePage() {
     const total = requests.length
 
     return (
-        <div className="space-y-8 pb-20 animate-fade-in-up">
-            {/* Premium Hero Header */}
-            <div className="relative overflow-hidden glass-panel rounded-3xl p-8 md:p-10 shadow-md">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] rounded-full -mr-32 -mt-32" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-error/5 blur-[60px] rounded-full -ml-24 -mb-24" />
-                <div className="relative flex items-center gap-6">
-                    <div className="w-16 h-16 bg-primary text-white rounded-3xl flex items-center justify-center shadow-ruby-soft shrink-0">
-                        <Monitor className="w-7 h-7" />
-                    </div>
-                    <div>
-                        <h1 className="text-3xl font-extrabold tracking-tight text-base-content mb-0">IT Support Queue</h1>
-                        <p className="text-sm font-bold text-base-content/30 uppercase tracking-[0.2em] mt-1">Technical Support Management</p>
-                    </div>
-                </div>
+        <div className="space-y-6 pb-20 animate-fade-in-up">
+            {/* Simple Header */}
+            <div className="bg-base-100/30 backdrop-blur-sm rounded-lg p-4 border border-base-content/5">
+                <div className="space-y-3">
+                    <h1 className="text-2xl font-bold text-base-content">IT Support Queue</h1>
 
-                {/* Stat Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-                    {[
-                        { label: 'Total', val: total, col: 'text-primary', ring: 'ring-primary/10', icon: Inbox },
-                        { label: 'Open', val: open, col: 'text-warning', ring: 'ring-warning/10', icon: AlertCircle },
-                        { label: 'In Progress', val: inProgress, col: 'text-info', ring: 'ring-info/10', icon: Clock },
-                        { label: 'Resolved', val: resolved, col: 'text-success', ring: 'ring-success/10', icon: CheckCircle2 },
-                    ].map((s, i) => (
-                        <div key={i} className={`bg-base-100/50 backdrop-blur-sm rounded-2xl p-5 ring-1 ring-base-content/10 transition-all hover:scale-[1.03] shadow-md ${s.ring}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                                <s.icon className={`w-3.5 h-3.5 ${s.col} opacity-60`} />
-                                <span className="text-xs uppercase font-black tracking-[0.3em] text-base-content/70">{s.label}</span>
+                    {/* Clean KPI Cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                        {[
+                            { label: 'Total', val: total, icon: Ticket },
+                            { label: 'Open', val: open, icon: AlertTriangle },
+                            { label: 'Working', val: inProgress, icon: Clock },
+                            { label: 'Resolved', val: resolved, icon: CheckCircle2 },
+                        ].map((s, i) => (
+                            <div key={i} className="bg-base-100/50 rounded-lg p-3 border border-base-content/5 transition-all hover:border-base-content/10">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <s.icon className="w-3 h-3 text-base-content/60" />
+                                    <span className="text-[11px] font-semibold text-base-content/60 uppercase tracking-wide">
+                                        {s.label}
+                                    </span>
+                                </div>
+                                <span className="text-2xl font-bold text-base-content block">
+                                    {s.val}
+                                </span>
                             </div>
-                            <span className={`text-3xl font-black tracking-tighter ${s.col}`}>{s.val}</span>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
 
+            {/* Main Queue Component */}
             <ITSupportQueueClient
                 initialRequests={JSON.parse(JSON.stringify(requests))}
                 techUsers={techUsers}

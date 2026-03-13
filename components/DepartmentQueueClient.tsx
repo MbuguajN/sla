@@ -3,17 +3,9 @@
 import React, { useState, useMemo, useOptimistic } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import {
   Users,
-  Filter,
-  MessageCircle,
-  Clock,
-  ExternalLink,
-  Play,
-  Pause,
-  CheckCircle2,
-  AlertOctagon,
-  MoreHorizontal,
   ShieldCheck,
   ChevronRight,
   UserPlus
@@ -21,8 +13,7 @@ import {
 import SLACountdown from './SLACountdown'
 import { TaskStatus } from '@/lib/enums'
 import { cn } from '@/lib/utils'
-import { advanceTaskStatus, pauseTask, assignTask } from '@/app/actions/taskActions'
-import PauseTask from './PauseTask'
+import { advanceTaskStatus, assignTask } from '@/app/actions/taskActions'
 
 type Props = {
   departmentName: string
@@ -49,6 +40,7 @@ export default function DepartmentQueueClient({
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SYSTEM'
 
   const router = useRouter()
+  useRealtimeRefresh(10000)
 
   // --- Filtering & Sorting ---
   const filteredTasks = useMemo(() => {
@@ -90,13 +82,13 @@ export default function DepartmentQueueClient({
   // --- Stats ---
   const stats = useMemo(() => {
     const active = tasks.filter(t => t.status !== TaskStatus.COMPLETED && t.status !== TaskStatus.DISMISSED)
-    const pending = active.filter(t => t.status === TaskStatus.PENDING)
+    const pendingAssignment = active.filter(t => t.status === TaskStatus.PENDING)
     const breached = active.filter(t => t.dueAt && new Date() > new Date(t.dueAt))
     const unassigned = active.filter(t => !t.assigneeId)
 
     return {
       totalActive: active.length,
-      pendingReceipt: pending.length,
+      pendingAssignment: pendingAssignment.length,
       breached: breached.length,
       unassigned: unassigned.length
     }
@@ -198,7 +190,7 @@ export default function DepartmentQueueClient({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Active', value: stats.totalActive, sub: 'Currently in queue', color: 'text-base-content' },
-            { label: 'Pending Receipt', value: stats.pendingReceipt, sub: 'Needs acknowledgment', color: 'text-secondary' },
+            { label: 'Pending Assignment', value: stats.pendingAssignment, sub: 'Awaiting manager assignment', color: 'text-secondary' },
             { label: 'Unassigned', value: stats.unassigned, sub: 'Awaiting handler', color: 'text-warning' },
             { label: 'SLA Breached', value: stats.breached, sub: 'Critical attention', color: 'text-error' },
           ].map((kpi, i) => (
@@ -442,14 +434,9 @@ export default function DepartmentQueueClient({
                   </div>
 
                   <div className="flex gap-3">
-                    {isPendingReceipt && isAssignee && (
-                      <button onClick={() => handleStatusChange(task.id, TaskStatus.RECEIVED)} disabled={isProcessing} className="flex-1 h-12 bg-primary text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-ruby-soft">
-                        Acknowledge
-                      </button>
-                    )}
-                    {task.status === TaskStatus.RECEIVED && isAssignee && (
-                      <button onClick={() => handleStatusChange(task.id, TaskStatus.IN_PROGRESS)} disabled={isProcessing} className="flex-1 h-12 glass-panel text-primary rounded-2xl font-black text-sm uppercase tracking-widest">
-                        Start
+                    {task.status === TaskStatus.IN_PROGRESS && isAssignee && (
+                      <button onClick={() => handleStatusChange(task.id, TaskStatus.REVIEW)} disabled={isProcessing} className="flex-1 h-12 bg-warning text-white rounded-2xl font-black text-sm uppercase tracking-widest shadow-ruby-soft">
+                        Submit Review
                       </button>
                     )}
                   </div>

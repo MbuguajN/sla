@@ -66,6 +66,27 @@ export async function createLeaveRequest(data: {
         })
     }
 
+    // Notify department head
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { departmentId: true, department: { select: { headId: true, name: true } } }
+    })
+
+    if (user?.department?.headId) {
+        const startDate = new Date(data.startDate)
+        const endDate = new Date(data.endDate)
+        const dateRangeStr = `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
+
+        await prisma.notification.create({
+            data: {
+                userId: user.department.headId,
+                content: `Your team member ${userName} has requested ${data.type} leave from ${dateRangeStr}`,
+                type: 'LEAVE_REQUEST_MANAGER',
+                link: '/hr/leaves'
+            }
+        })
+    }
+
     revalidatePath('/account')
     revalidatePath('/hr/leaves')
     return leave
@@ -106,6 +127,133 @@ export async function reviewLeaveRequest(id: number, status: 'APPROVED' | 'DENIE
     revalidatePath('/hr/leaves')
     revalidatePath('/hr')
     return leave
+}
+
+export async function endLeaveEarly(id: number, actualEndDate: string) {
+    const session = await auth()
+    if (!session?.user) throw new Error('Unauthorized')
+    const userId = Number(session.user.id)
+
+    const leave = await prisma.leaveRequest.findUnique({
+        where: { id },
+        include: { user: { select: { id: true, name: true, department: true } } }
+    })
+
+    if (!leave) throw new Error('Leave not found')
+    if (leave.status !== 'APPROVED') throw new Error('Only approved leaves can be ended early')
+    if (leave.userId !== userId && (session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'HR') {
+        throw new Error('Unauthorized')
+    }
+
+    const newEndDate = new Date(actualEndDate)
+
+    const updated = await prisma.leaveRequest.update({
+        where: { id },
+        data: {
+            endDate: newEndDate,
+            status: 'ENDED_EARLY',
+            endedEarlyAt: new Date()
+        } as any
+    })
+
+    // Notify HR users
+    const hrUsers = await prisma.user.findMany({
+        where: { role: { in: ['HR', 'ADMIN'] } },
+        select: { id: true }
+    })
+
+    const userName = leave.user.name || 'An employee'
+    for (const hr of hrUsers) {
+        await prisma.notification.create({
+            data: {
+                userId: hr.id,
+                content: `${userName} has ended their ${leave.type} leave early on ${newEndDate.toLocaleDateString()}`,
+                type: 'LEAVE_ENDED_EARLY',
+                link: '/hr/leaves'
+            }
+        })
+    }
+
+    // Notify department head
+    if (leave.user.department?.headId) {
+        await prisma.notification.create({
+            data: {
+                userId: leave.user.department.headId,
+                content: `${userName} from your team has ended their ${leave.type} leave early on ${newEndDate.toLocaleDateString()}`,
+                type: 'LEAVE_ENDED_EARLY',
+                link: '/hr/leaves'
+            }
+        })
+    }
+
+    revalidatePath('/account')
+    revalidatePath('/hr/leaves')
+    return updated
+}
+
+export async function cancelLeaveRequest(id: number, reason?: string) {
+    const session = await auth()
+    if (!session?.user) throw new Error('Unauthorized')
+    const userId = Number(session.user.id)
+
+    const leave = await prisma.leaveRequest.findUnique({
+        where: { id },
+        include: { user: { select: { id: true, name: true, department: true } } }
+    })
+
+    if (!leave) throw new Error('Leave not found')
+    if (leave.status !== 'PENDING' && leave.status !== 'APPROVED') {
+        throw new Error('Only pending or approved leaves can be cancelled')
+    }
+    if (leave.userId !== userId && (session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'HR') {
+        throw new Error('Unauthorized')
+    }
+
+    const updated = await prisma.leaveRequest.update({
+        where: { id },
+        data: {
+            status: 'CANCELLED',
+            cancelledAt: new Date(),
+            cancelledReason: reason || null
+        } as any
+    })
+
+    // Only notify if it was approved
+    if (leave.status === 'APPROVED') {
+        // Notify HR users
+        const hrUsers = await prisma.user.findMany({
+            where: { role: { in: ['HR', 'ADMIN'] } },
+            select: { id: true }
+        })
+
+        const userName = leave.user.name || 'An employee'
+        for (const hr of hrUsers) {
+            await prisma.notification.create({
+                data: {
+                    userId: hr.id,
+                    content: `${userName} has cancelled their ${leave.type} leave${reason ? ` - Reason: ${reason}` : ''}`,
+                    type: 'LEAVE_CANCELLED',
+                    link: '/hr/leaves'
+                }
+            })
+        }
+
+        // Notify department head
+        if (leave.user.department?.headId) {
+            await prisma.notification.create({
+                data: {
+                    userId: leave.user.department.headId,
+                    content: `${userName} from your team has cancelled their ${leave.type} leave${reason ? ` - Reason: ${reason}` : ''}`,
+                    type: 'LEAVE_CANCELLED',
+                    link: '/hr/leaves'
+                }
+            })
+        }
+    }
+
+    revalidatePath('/account')
+    revalidatePath('/hr/leaves')
+    return updated
 }
 
 export async function getMyLeaveRequests() {

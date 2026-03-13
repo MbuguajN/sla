@@ -224,19 +224,22 @@ model SystemSettings {
 // ─── HR System Models ───
 
 model LeaveRequest {
-  id         Int       @id @default(autoincrement())
-  userId     Int
-  type       String    // ANNUAL, SICK, PERSONAL, MATERNITY, PATERNITY, OTHER
-  startDate  DateTime
-  endDate    DateTime
-  reason     String
-  status     String    @default("PENDING") // PENDING, APPROVED, DENIED
-  reviewedBy Int?
-  reviewedAt DateTime?
-  reviewNote String?
-  createdAt  DateTime  @default(now())
-  user       User      @relation("UserLeaves", fields: [userId], references: [id])
-  reviewer   User?     @relation("LeaveReviewer", fields: [reviewedBy], references: [id])
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  type            String    // ANNUAL, SICK, MATERNITY, PATERNITY
+  startDate       DateTime
+  endDate         DateTime
+  reason          String
+  status          String    @default("PENDING") // PENDING, APPROVED, DENIED, CANCELLED, ENDED_EARLY
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+  reviewNote      String?
+  cancelledAt     DateTime?
+  cancelledReason String?
+  endedEarlyAt    DateTime?
+  createdAt       DateTime  @default(now())
+  user            User      @relation("UserLeaves", fields: [userId], references: [id])
+  reviewer        User?     @relation("LeaveReviewer", fields: [reviewedBy], references: [id])
 
   @@index([userId])
   @@index([status])
@@ -278,10 +281,12 @@ model ITSupportRequest {
 // ─── Leave Policy ───
 
 model LeavePolicy {
-  id            Int    @id @default(autoincrement())
-  roleCategory  String @unique  // "CEO", "MANAGER", "EMPLOYEE"
-  annualDays    Int    @default(21)
-  sickDays      Int    @default(10)
+  id             Int    @id @default(autoincrement())
+  roleCategory   String @unique  // "CEO", "MANAGER", "EMPLOYEE"
+  annualDays     Int    @default(21)
+  sickDays       Int    @default(10)
+  maternityDays  Int    @default(90)
+  paternityDays  Int    @default(14)
 }
 
 // ─── Performance Review System ───

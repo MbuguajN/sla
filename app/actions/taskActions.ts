@@ -75,11 +75,15 @@ export async function createTask(data: {
     if (data.subProjectId) {
       const subProject = await prisma.subProject.findUnique({
         where: { id: data.subProjectId },
-        select: { id: true, projectId: true }
+        select: { id: true, projectId: true, status: true }
       })
 
       if (!subProject) {
         throw new Error('STRATEGIC DENIAL: Linked sub-project context is invalid.')
+      }
+
+      if (subProject.status === 'CLOSED' || subProject.status === 'COMPLETED') {
+        throw new Error('STRATEGIC DENIAL: Cannot create tasks under a closed or completed sub-project.')
       }
 
       if (projectId && subProject.projectId !== projectId) {
@@ -92,11 +96,15 @@ export async function createTask(data: {
     if (projectId) {
       const project = await prisma.project.findUnique({
         where: { id: projectId },
-        select: { id: true }
+        select: { id: true, status: true }
       })
 
       if (!project) {
         throw new Error('STRATEGIC DENIAL: Linked project context is invalid.')
+      }
+
+      if (project.status === 'CLOSED' || project.status === 'COMPLETED') {
+        throw new Error('STRATEGIC DENIAL: Cannot create tasks under a closed or completed project.')
       }
     }
 
@@ -151,20 +159,23 @@ export async function assignTask(taskId: number, assigneeId: number) {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
     const operatorRole = (session?.user as any)?.role
-    const operatorDept = (session?.user as any)?.departmentName
     const operatorDeptId = Number((session?.user as any)?.departmentId)
-
-    const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
-    const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
 
     if (!operatorId) throw new Error('Unauthorized')
 
-    if ((isCS || isBD) || (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR')) {
-      throw new Error('STRATEGIC DENIAL: Resource allocation is restricted to management personnel outside of the initiation departments.')
-    }
-
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
     if (!oldTask) throw new Error('Task not found')
+
+    // Only department managers of the target department or admins can assign
+    const isAdmin = operatorRole === 'ADMIN' || operatorRole === 'CEO'
+    if (!isAdmin) {
+      if (operatorRole !== 'MANAGER') {
+        throw new Error('STRATEGIC DENIAL: Only department managers or administrators can assign tasks.')
+      }
+      if (!operatorDeptId || (oldTask.departmentId && oldTask.departmentId !== operatorDeptId)) {
+        throw new Error('STRATEGIC DENIAL: Managers can only assign tasks within their own department.')
+      }
+    }
 
     const assignee = await prisma.user.findUnique({
       where: { id: assigneeId },
@@ -173,12 +184,6 @@ export async function assignTask(taskId: number, assigneeId: number) {
     if (!assignee) throw new Error('STRATEGIC DENIAL: Selected assignee does not exist.')
 
     if (operatorRole === 'MANAGER') {
-      if (!operatorDeptId) {
-        throw new Error('STRATEGIC DENIAL: Manager context missing department scope.')
-      }
-      if (oldTask.departmentId && oldTask.departmentId !== operatorDeptId) {
-        throw new Error('STRATEGIC DENIAL: Managers may only allocate directives within their own department queue.')
-      }
       if (assigneeId !== operatorId && assignee.departmentId !== operatorDeptId) {
         throw new Error('STRATEGIC DENIAL: Managers may assign directives only to themselves or members of their department.')
       }
@@ -192,8 +197,8 @@ export async function assignTask(taskId: number, assigneeId: number) {
       where: { id: taskId },
       data: {
         assigneeId,
-        status: TaskStatus.PENDING,
-        startedAt: null,
+        status: TaskStatus.IN_PROGRESS,
+        startedAt: new Date(),
         pauseReason: null
       }
     })
@@ -214,7 +219,20 @@ export async function pauseTask(taskId: number, reason: string) {
   try {
     const session = await auth()
     const operatorId = Number(session?.user?.id)
+    const operatorRole = (session?.user as any)?.role
     const oldTask = await prisma.task.findUnique({ where: { id: taskId } })
+
+    if (!oldTask) throw new Error('Task not found')
+
+    // Only the assignee can pause a task (ADMIN override allowed)
+    if (oldTask.assigneeId !== operatorId && operatorRole !== 'ADMIN') {
+      throw new Error('STRATEGIC DENIAL: Only the assigned handler can pause this task.')
+    }
+
+    // Only in-progress tasks can be paused
+    if (oldTask.status !== TaskStatus.IN_PROGRESS) {
+      throw new Error('STRATEGIC DENIAL: Only in-progress tasks can be paused.')
+    }
 
     const task = await prisma.task.update({
       where: { id: taskId },
@@ -320,15 +338,14 @@ export async function checkAndNotifyBreaches() {
 }
 
 export async function sendMessage(taskId: number | null, authorId: number, content: string, projectId?: number | null, subProjectId?: number | null) {
-  const msg = await prisma.message.create({
-    data: {
-      taskId: taskId || undefined,
-      authorId,
-      content,
-      projectId: projectId || undefined,
-      subProjectId: subProjectId || undefined,
-    },
-  })
+  const msgData: any = {
+    taskId: taskId || undefined,
+    authorId,
+    content,
+    projectId: projectId || undefined,
+    subProjectId: subProjectId || undefined,
+  }
+  const msg = await prisma.message.create({ data: msgData })
 
   if (taskId) {
     await createAuditLog(taskId, authorId, 'COMMENT_ADDED', undefined, content.substring(0, 50))
@@ -352,19 +369,16 @@ export async function processTicket(
   if (!session?.user?.id) throw new Error('Unauthorized')
   const operatorId = Number(session.user.id)
   const operatorRole = (session?.user as any)?.role
-  const operatorDept = (session?.user as any)?.departmentName
   const operatorDeptId = Number((session?.user as any)?.departmentId)
 
-  const isCS = operatorDept === 'CLIENT_SERVICE' || operatorDept === 'CLIENT SERVICE'
-  const isBD = operatorDept === 'BUSINESS_DEVELOPMENT' || operatorDept === 'BUSINESS DEVELOPMENT'
-
-  if ((isCS || isBD) || (operatorRole !== 'MANAGER' && operatorRole !== 'ADMIN' && operatorRole !== 'CEO' && operatorRole !== 'HR')) {
-    throw new Error('STRATEGIC DENIAL: Resource allocation and brief processing is restricted to management personnel outside of the initiation departments.')
-  }
-
-  if (operatorRole === 'MANAGER') {
+  // Only department managers of the target department or admins can process briefs
+  const isAdmin = operatorRole === 'ADMIN' || operatorRole === 'CEO'
+  if (!isAdmin) {
+    if (operatorRole !== 'MANAGER') {
+      throw new Error('STRATEGIC DENIAL: Only department managers or administrators can process briefs.')
+    }
     if (!operatorDeptId || departmentId !== operatorDeptId) {
-      throw new Error('STRATEGIC DENIAL: Managers may only route briefs into their own department queue.')
+      throw new Error('STRATEGIC DENIAL: Managers may only process briefs routed to their own department.')
     }
   }
 
@@ -390,8 +404,8 @@ export async function processTicket(
       description: options?.description || undefined,
       dueAt: options?.dueAt || undefined,
       isTicket: true,
-      status: TaskStatus.PENDING,
-      startedAt: null,
+      status: assigneeId ? TaskStatus.IN_PROGRESS : TaskStatus.PENDING,
+      startedAt: assigneeId ? new Date() : null,
       pauseReason: null
     }
   })

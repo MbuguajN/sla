@@ -13,7 +13,7 @@ const ROLE_CATEGORIES = [
 
 export default function LeavePolicyPage() {
     const [policies, setPolicies] = useState(
-        ROLE_CATEGORIES.map(r => ({ roleCategory: r.key, annualDays: 21, sickDays: 10 }))
+        ROLE_CATEGORIES.map(r => ({ roleCategory: r.key, annualDays: 21, sickDays: 10, maternityDays: 90, paternityDays: 14 }))
     )
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
@@ -24,14 +24,14 @@ export default function LeavePolicyPage() {
                 setPolicies(prev =>
                     prev.map(p => {
                         const match = existing.find((e: any) => e.roleCategory === p.roleCategory)
-                        return match ? { ...p, annualDays: match.annualDays, sickDays: match.sickDays } : p
+                        return match ? { ...p, annualDays: (match as any).annualDays, sickDays: (match as any).sickDays, maternityDays: (match as any).maternityDays, paternityDays: (match as any).paternityDays } : p
                     })
                 )
             }
         })
     }, [])
 
-    const updatePolicy = (key: string, field: 'annualDays' | 'sickDays', value: number) => {
+    const updatePolicy = (key: string, field: 'annualDays' | 'sickDays' | 'maternityDays' | 'paternityDays', value: number) => {
         setPolicies(prev => prev.map(p => p.roleCategory === key ? { ...p, [field]: value } : p))
     }
 
@@ -72,7 +72,7 @@ export default function LeavePolicyPage() {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
                                     <label className="text-sm font-black uppercase tracking-widest text-base-content/30 block mb-2">
                                         Annual Leave Days
@@ -97,6 +97,32 @@ export default function LeavePolicyPage() {
                                         className="input input-bordered input-sm w-full max-w-xs"
                                         value={policy.sickDays}
                                         onChange={e => updatePolicy(role.key, 'sickDays', parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-black uppercase tracking-widest text-base-content/30 block mb-2">
+                                        Maternity Leave Days
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="365"
+                                        className="input input-bordered input-sm w-full max-w-xs"
+                                        value={policy.maternityDays}
+                                        onChange={e => updatePolicy(role.key, 'maternityDays', parseInt(e.target.value) || 0)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-black uppercase tracking-widest text-base-content/30 block mb-2">
+                                        Paternity Leave Days
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="365"
+                                        className="input input-bordered input-sm w-full max-w-xs"
+                                        value={policy.paternityDays}
+                                        onChange={e => updatePolicy(role.key, 'paternityDays', parseInt(e.target.value) || 0)}
                                     />
                                 </div>
                             </div>

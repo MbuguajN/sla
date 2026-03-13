@@ -12,7 +12,7 @@ export async function getLeavePolicies() {
     })
 }
 
-export async function saveLeavePolicies(policies: { roleCategory: string, annualDays: number, sickDays: number }[]) {
+export async function saveLeavePolicies(policies: { roleCategory: string, annualDays: number, sickDays: number, maternityDays: number, paternityDays: number }[]) {
     const session = await auth()
     if (!session?.user) throw new Error('Unauthorized')
     const role = (session.user as any).role
@@ -21,8 +21,8 @@ export async function saveLeavePolicies(policies: { roleCategory: string, annual
     for (const p of policies) {
         await prisma.leavePolicy.upsert({
             where: { roleCategory: p.roleCategory },
-            update: { annualDays: p.annualDays, sickDays: p.sickDays },
-            create: { roleCategory: p.roleCategory, annualDays: p.annualDays, sickDays: p.sickDays }
+            update: { annualDays: p.annualDays, sickDays: p.sickDays, maternityDays: p.maternityDays, paternityDays: p.paternityDays } as any,
+            create: { roleCategory: p.roleCategory, annualDays: p.annualDays, sickDays: p.sickDays, maternityDays: p.maternityDays, paternityDays: p.paternityDays } as any
         })
     }
 
@@ -52,8 +52,10 @@ export async function getMyLeaveBalance() {
         where: { roleCategory: category }
     })
 
-    const annualAllocation = policy?.annualDays ?? 21
-    const sickAllocation = policy?.sickDays ?? 10
+    const annualAllocation = (policy as any)?.annualDays ?? 21
+    const sickAllocation = (policy as any)?.sickDays ?? 10
+    const maternityAllocation = (policy as any)?.maternityDays ?? 90
+    const paternityAllocation = (policy as any)?.paternityDays ?? 14
 
     // Count approved leaves this calendar year
     const yearStart = new Date(new Date().getFullYear(), 0, 1)
@@ -69,6 +71,8 @@ export async function getMyLeaveBalance() {
 
     let annualUsed = 0
     let sickUsed = 0
+    let maternityUsed = 0
+    let paternityUsed = 0
 
     for (const leave of approvedLeaves) {
         const days = Math.ceil((new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
@@ -76,6 +80,10 @@ export async function getMyLeaveBalance() {
             sickUsed += days
         } else if (leave.type === 'ANNUAL') {
             annualUsed += days
+        } else if (leave.type === 'MATERNITY') {
+            maternityUsed += days
+        } else if (leave.type === 'PATERNITY') {
+            paternityUsed += days
         }
     }
 
@@ -85,6 +93,12 @@ export async function getMyLeaveBalance() {
         annualRemaining: annualAllocation - annualUsed,
         sickAllocation,
         sickUsed,
-        sickRemaining: sickAllocation - sickUsed
+        sickRemaining: sickAllocation - sickUsed,
+        maternityAllocation,
+        maternityUsed,
+        maternityRemaining: maternityAllocation - maternityUsed,
+        paternityAllocation,
+        paternityUsed,
+        paternityRemaining: paternityAllocation - paternityUsed
     }
 }

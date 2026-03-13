@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { CheckCircle2, XCircle, Clock, Search, CalendarDays, Settings2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
 type Leave = {
     id: number
@@ -16,6 +17,9 @@ type Leave = {
     reason: string
     status: string
     reviewNote: string | null
+    cancelledAt: string | null
+    cancelledReason: string | null
+    endedEarlyAt: string | null
     createdAt: string
     user: { id: number, name: string | null, email: string, department: { name: string } | null }
     reviewer: { name: string | null } | null
@@ -34,10 +38,11 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
     const [reviewNote, setReviewNote] = useState('')
     const [reviewingId, setReviewingId] = useState<number | null>(null)
     const router = useRouter()
+    useRealtimeRefresh(10000)
 
     // Policy state
     const [policies, setPolicies] = useState(
-        ROLE_CATEGORIES.map(r => ({ roleCategory: r.key, annualDays: 21, sickDays: 10 }))
+        ROLE_CATEGORIES.map(r => ({ roleCategory: r.key, annualDays: 21, sickDays: 10, maternityDays: 90, paternityDays: 14 }))
     )
     const [savingPolicy, setSavingPolicy] = useState(false)
     const [policyMessage, setPolicyMessage] = useState<string | null>(null)
@@ -49,7 +54,7 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                     setPolicies(prev =>
                         prev.map(p => {
                             const match = existing.find((e: any) => e.roleCategory === p.roleCategory)
-                            return match ? { ...p, annualDays: match.annualDays, sickDays: match.sickDays } : p
+                            return match ? { ...p, annualDays: (match as any).annualDays, sickDays: (match as any).sickDays, maternityDays: (match as any).maternityDays, paternityDays: (match as any).paternityDays } : p
                         })
                     )
                 }
@@ -103,7 +108,9 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
     const statusStyles: Record<string, { bg: string, text: string }> = {
         PENDING: { bg: 'bg-warning/10', text: 'text-warning' },
         APPROVED: { bg: 'bg-success/10', text: 'text-success' },
-        DENIED: { bg: 'bg-error/10', text: 'text-error' }
+        DENIED: { bg: 'bg-error/10', text: 'text-error' },
+        CANCELLED: { bg: 'bg-error/10', text: 'text-error' },
+        ENDED_EARLY: { bg: 'bg-info/10', text: 'text-info' }
     }
 
     const tabs = ['PENDING', 'APPROVED', 'DENIED', 'POLICY']
@@ -152,8 +159,10 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                             <thead>
                                 <tr className="bg-base-200/50 text-sm font-bold uppercase tracking-widest text-base-content/30 border-b border-base-content/20">
                                     <th className="pl-6 h-12">Role Category</th>
-                                    <th>Annual Leave Days</th>
-                                    <th>Sick Leave Days</th>
+                                    <th>Annual Leave</th>
+                                    <th>Sick Leave</th>
+                                    <th>Maternity Leave</th>
+                                    <th>Paternity Leave</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-base-content/5">
@@ -183,6 +192,26 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                                                     className="input input-bordered input-sm w-20"
                                                     value={policy.sickDays}
                                                     onChange={e => setPolicies(prev => prev.map(p => p.roleCategory === role.key ? { ...p, sickDays: parseInt(e.target.value) || 0 } : p))}
+                                                />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="365"
+                                                    className="input input-bordered input-sm w-20"
+                                                    value={policy.maternityDays}
+                                                    onChange={e => setPolicies(prev => prev.map(p => p.roleCategory === role.key ? { ...p, maternityDays: parseInt(e.target.value) || 0 } : p))}
+                                                />
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="365"
+                                                    className="input input-bordered input-sm w-20"
+                                                    value={policy.paternityDays}
+                                                    onChange={e => setPolicies(prev => prev.map(p => p.roleCategory === role.key ? { ...p, paternityDays: parseInt(e.target.value) || 0 } : p))}
                                                 />
                                             </td>
                                         </tr>
@@ -244,9 +273,26 @@ export default function LeaveTrackerClient({ initialLeaves, userRole }: { initia
                                             <p className="text-sm text-base-content/70 max-w-[180px] truncate">{leave.reason}</p>
                                         </td>
                                         <td>
-                                            <span className={cn("badge badge-sm font-bold text-xs uppercase tracking-wider border-none", statusStyles[leave.status]?.bg, statusStyles[leave.status]?.text)}>
-                                                {leave.status}
-                                            </span>
+                                            <div className="space-y-1">
+                                                <span className={cn("badge badge-sm font-bold text-xs uppercase tracking-wider border-none", statusStyles[leave.status]?.bg, statusStyles[leave.status]?.text)}>
+                                                    {leave.status}
+                                                </span>
+                                                {leave.status === 'CANCELLED' && leave.cancelledAt && (
+                                                    <div className="text-xs text-error/70">
+                                                        Cancelled: {format(new Date(leave.cancelledAt), 'MMM d, yyyy')}
+                                                    </div>
+                                                )}
+                                                {leave.cancelledReason && (
+                                                    <div className="text-xs text-error/60 italic max-w-[150px] truncate">
+                                                        {leave.cancelledReason}
+                                                    </div>
+                                                )}
+                                                {leave.status === 'ENDED_EARLY' && leave.endedEarlyAt && (
+                                                    <div className="text-xs text-info/70">
+                                                        Ended: {format(new Date(leave.endedEarlyAt), 'MMM d, yyyy')}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td>
                                             {leave.status === 'PENDING' && (userRole === 'HR' || userRole === 'ADMIN') ? (

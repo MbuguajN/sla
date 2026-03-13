@@ -36,10 +36,17 @@ export default async function NewTaskPage({
     prisma.sla.findMany({ orderBy: { durationHrs: 'asc' } }),
     prisma.user.findMany({ orderBy: { name: 'asc' } }),
     prisma.project.findMany({
+      where: {
+        status: { notIn: ['CLOSED', 'COMPLETED'] }
+      },
       include: { defaultSla: true },
       orderBy: { title: 'asc' }
     }),
     prisma.subProject.findMany({
+      where: {
+        status: { notIn: ['CLOSED', 'COMPLETED'] },
+        project: { status: { notIn: ['CLOSED', 'COMPLETED'] } }
+      },
       select: {
         id: true,
         title: true,

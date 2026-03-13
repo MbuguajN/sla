@@ -4,10 +4,11 @@ import React, { useState, useTransition, useMemo, useEffect } from 'react'
 import { format } from 'date-fns'
 import { processTicket, dismissTicket, advanceTaskStatus } from '@/app/actions/taskActions'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Ticket, Settings2, CheckCircle2, Inbox as InboxIcon, Clock, CheckCircle, ListTodo, XCircle, FolderGit2, User, Calendar } from 'lucide-react'
+import { ArrowRight, Ticket, Settings2, CheckCircle2, Inbox as InboxIcon, Clock, CheckCircle, ListTodo, XCircle, Loader2, User, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
 type ColumnType = 'NEW' | 'ONGOING' | 'COMPLETED'
 
@@ -25,6 +26,7 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
   const router = useRouter()
+  useRealtimeRefresh(10000)
 
   const [assignment, setAssignment] = useState({
     departmentId: '',
@@ -87,9 +89,9 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
     }
 
     filteredTickets.forEach(ticket => {
-      if (ticket.status === 'PENDING' || ticket.status === 'RECEIVED') {
+      if (ticket.status === 'PENDING') {
         columnMap.NEW.push(ticket)
-      } else if (['IN_PROGRESS', 'REVIEW', 'AWAITING_INFO'].includes(ticket.status)) {
+      } else if (['IN_PROGRESS', 'REVIEW', 'AWAITING_INFO', 'RECEIVED'].includes(ticket.status)) {
         columnMap.ONGOING.push(ticket)
       } else if (ticket.status === 'COMPLETED' || ticket.status === 'DISMISSED') {
         columnMap.COMPLETED.push(ticket)
@@ -186,25 +188,6 @@ export default function TicketTable({ initialTickets, departments, slas, users, 
               className="input input-bordered w-full rounded-2xl bg-base-100 pl-4 pr-4 text-sm"
             />
           </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          {tabs.map(tab => (
-            <div key={tab.id} className="rounded-xl border border-base-200 bg-base-100 px-3 py-2 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <div className={cn('w-7 h-7 rounded-lg flex items-center justify-center bg-base-200/60', tab.color)}>
-                    <tab.icon className="w-3.5 h-3.5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black uppercase tracking-wider text-base-content">{tab.label}</div>
-                    <div className="text-[10px] text-base-content/50 font-bold uppercase tracking-[0.12em]">{tab.hint}</div>
-                  </div>
-                </div>
-                <div className="text-xl font-black tracking-tight text-base-content">{columns[tab.id].length}</div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
