@@ -1,323 +1,249 @@
-'use server'
+"use server";
 
-import prisma from '@/lib/db'
-import { auth } from '@/auth'
-import { revalidatePath } from 'next/cache'
+import { db } from "@/lib/db";
+import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions } from "@/lib/permissions";
+import { revalidatePath } from "next/cache";
+import { createNotification } from "./notificationActions";
 
-export async function getLeaveRequests(statusFilter?: string) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
+// ============== LEAVE MANAGEMENT ==============
 
-    const role = (session.user as any).role
-    if (role !== 'HR' && role !== 'ADMIN' && role !== 'CEO') {
-        throw new Error('Access denied')
-    }
+export async function getMyLeaves() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-    const where: any = {}
-    if (statusFilter && statusFilter !== 'ALL') {
-        where.status = statusFilter
-    }
-
-    return prisma.leaveRequest.findMany({
-        where,
-        include: {
-            user: { select: { id: true, name: true, email: true, department: { select: { name: true } } } },
-            reviewer: { select: { name: true } }
-        },
-        orderBy: { createdAt: 'desc' }
-    })
+  return db.leave.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
-export async function createLeaveRequest(data: {
-    type: string
-    startDate: string
-    endDate: string
-    reason: string
+export async function getAllLeaves() {
+  const user = await getCurrentUser();
+  if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
+
+  return db.leave.findMany({
+    include: { user: { include: { department: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function createLeave(data: {
+  type: "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER";
+  startDate: string;
+  endDate: string;
+  reason: string;
 }) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
-    const userId = Number(session.user.id)
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-    const leave = await prisma.leaveRequest.create({
-        data: {
-            userId,
-            type: data.type,
-            startDate: new Date(data.startDate),
-            endDate: new Date(data.endDate),
-            reason: data.reason
-        }
-    })
+  const start = new Date(data.startDate);
+  const end = new Date(data.endDate);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-    // Notify HR users
-    const hrUsers = await prisma.user.findMany({
-        where: { role: { in: ['HR', 'ADMIN'] } },
-        select: { id: true }
-    })
+  const leave = await db.leave.create({
+    data: {
+      userId: user.id,
+      type: data.type,
+      startDate: start,
+      endDate: end,
+      totalDays,
+      reason: data.reason,
+      status: "PENDING",
+    },
+  });
 
-    const userName = session.user.name || 'An employee'
-    for (const hr of hrUsers) {
-        await prisma.notification.create({
-            data: {
-                userId: hr.id,
-                content: `${userName} submitted a leave request (${data.type})`,
-                type: 'LEAVE_REQUEST',
-                link: '/hr/leaves'
-            }
-        })
-    }
-
-    // Notify department head
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { departmentId: true, department: { select: { headId: true, name: true } } }
-    })
-
-    if (user?.department?.headId) {
-        const startDate = new Date(data.startDate)
-        const endDate = new Date(data.endDate)
-        const dateRangeStr = `${startDate.toLocaleDateString()} to ${endDate.toLocaleDateString()}`
-
-        await prisma.notification.create({
-            data: {
-                userId: user.department.headId,
-                content: `Your team member ${userName} has requested ${data.type} leave from ${dateRangeStr}`,
-                type: 'LEAVE_REQUEST_MANAGER',
-                link: '/hr/leaves'
-            }
-        })
-    }
-
-    revalidatePath('/account')
-    revalidatePath('/hr/leaves')
-    return leave
+  revalidatePath("/leave");
+  revalidatePath("/hr/leaves");
+  return leave;
 }
 
-export async function reviewLeaveRequest(id: number, status: 'APPROVED' | 'DENIED', note?: string) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
+export async function reviewLeave(
+  leaveId: number,
+  decision: "APPROVED" | "DENIED",
+  reviewNote?: string
+) {
+  const user = await getCurrentUser();
+  if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
 
-    const role = (session.user as any).role
-    if (role !== 'HR' && role !== 'ADMIN') {
-        throw new Error('Only HR can review leave requests')
-    }
+  const leave = await db.leave.findUnique({ where: { id: leaveId } });
+  if (!leave) throw new Error("Leave not found");
 
-    const reviewerId = Number(session.user.id)
+  const updated = await db.leave.update({
+    where: { id: leaveId },
+    data: {
+      status: decision,
+      reviewedBy: user.id,
+      reviewNote: reviewNote || null,
+    },
+  });
 
-    const leave = await prisma.leaveRequest.update({
-        where: { id },
-        data: {
-            status,
-            reviewedBy: reviewerId,
-            reviewedAt: new Date(),
-            reviewNote: note || null
-        },
-        include: { user: { select: { id: true, name: true } } }
-    })
+  // Create notification
+  const notificationType = decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED";
+  const message = decision === "APPROVED"
+    ? `Your leave request has been approved`
+    : `Your leave request has been denied`;
 
-    // Notify the employee
-    await prisma.notification.create({
-        data: {
-            userId: leave.userId,
-            content: `Your leave request has been ${status.toLowerCase()}${note ? `: ${note}` : ''}`,
-            type: 'LEAVE_REVIEW',
-            link: '/account'
-        }
-    })
+  await createNotification(
+    leave.userId,
+    notificationType,
+    `Leave ${decision}`,
+    message,
+    "/leave"
+  );
 
-    revalidatePath('/hr/leaves')
-    revalidatePath('/hr')
-    return leave
+  revalidatePath("/leave");
+  revalidatePath("/hr/leaves");
+  return updated;
 }
 
-export async function endLeaveEarly(id: number, actualEndDate: string) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
-    const userId = Number(session.user.id)
+export async function cancelLeave(leaveId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-    const leave = await prisma.leaveRequest.findUnique({
-        where: { id },
-        include: { user: { select: { id: true, name: true, department: true } } }
-    })
+  const leave = await db.leave.findUnique({ where: { id: leaveId } });
+  if (!leave) throw new Error("Leave not found");
+  if (leave.userId !== user.id) throw new Error("Unauthorized");
+  if (leave.status !== "PENDING") throw new Error("Only pending leaves can be cancelled");
 
-    if (!leave) throw new Error('Leave not found')
-    if (leave.status !== 'APPROVED') throw new Error('Only approved leaves can be ended early')
-    if (leave.userId !== userId && (session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'HR') {
-        throw new Error('Unauthorized')
-    }
+  const updated = await db.leave.update({
+    where: { id: leaveId },
+    data: { status: "CANCELLED" },
+  });
 
-    const newEndDate = new Date(actualEndDate)
-
-    const updated = await prisma.leaveRequest.update({
-        where: { id },
-        data: {
-            endDate: newEndDate,
-            status: 'ENDED_EARLY',
-            endedEarlyAt: new Date()
-        } as any
-    })
-
-    // Notify HR users
-    const hrUsers = await prisma.user.findMany({
-        where: { role: { in: ['HR', 'ADMIN'] } },
-        select: { id: true }
-    })
-
-    const userName = leave.user.name || 'An employee'
-    for (const hr of hrUsers) {
-        await prisma.notification.create({
-            data: {
-                userId: hr.id,
-                content: `${userName} has ended their ${leave.type} leave early on ${newEndDate.toLocaleDateString()}`,
-                type: 'LEAVE_ENDED_EARLY',
-                link: '/hr/leaves'
-            }
-        })
-    }
-
-    // Notify department head
-    if (leave.user.department?.headId) {
-        await prisma.notification.create({
-            data: {
-                userId: leave.user.department.headId,
-                content: `${userName} from your team has ended their ${leave.type} leave early on ${newEndDate.toLocaleDateString()}`,
-                type: 'LEAVE_ENDED_EARLY',
-                link: '/hr/leaves'
-            }
-        })
-    }
-
-    revalidatePath('/account')
-    revalidatePath('/hr/leaves')
-    return updated
+  revalidatePath("/leave");
+  revalidatePath("/hr/leaves");
+  return updated;
 }
 
-export async function cancelLeaveRequest(id: number, reason?: string) {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
-    const userId = Number(session.user.id)
+// ============== LEAVE POLICY ==============
 
-    const leave = await prisma.leaveRequest.findUnique({
-        where: { id },
-        include: { user: { select: { id: true, name: true, department: true } } }
-    })
+export async function getLeavePolicies() {
+  const user = await getCurrentUser();
+  if (!user || !canViewHRData(user)) throw new Error("Unauthorized");
 
-    if (!leave) throw new Error('Leave not found')
-    if (leave.status !== 'PENDING' && leave.status !== 'APPROVED') {
-        throw new Error('Only pending or approved leaves can be cancelled')
-    }
-    if (leave.userId !== userId && (session.user as any).role !== 'ADMIN' && (session.user as any).role !== 'HR') {
-        throw new Error('Unauthorized')
-    }
-
-    const updated = await prisma.leaveRequest.update({
-        where: { id },
-        data: {
-            status: 'CANCELLED',
-            cancelledAt: new Date(),
-            cancelledReason: reason || null
-        } as any
-    })
-
-    // Only notify if it was approved
-    if (leave.status === 'APPROVED') {
-        // Notify HR users
-        const hrUsers = await prisma.user.findMany({
-            where: { role: { in: ['HR', 'ADMIN'] } },
-            select: { id: true }
-        })
-
-        const userName = leave.user.name || 'An employee'
-        for (const hr of hrUsers) {
-            await prisma.notification.create({
-                data: {
-                    userId: hr.id,
-                    content: `${userName} has cancelled their ${leave.type} leave${reason ? ` - Reason: ${reason}` : ''}`,
-                    type: 'LEAVE_CANCELLED',
-                    link: '/hr/leaves'
-                }
-            })
-        }
-
-        // Notify department head
-        if (leave.user.department?.headId) {
-            await prisma.notification.create({
-                data: {
-                    userId: leave.user.department.headId,
-                    content: `${userName} from your team has cancelled their ${leave.type} leave${reason ? ` - Reason: ${reason}` : ''}`,
-                    type: 'LEAVE_CANCELLED',
-                    link: '/hr/leaves'
-                }
-            })
-        }
-    }
-
-    revalidatePath('/account')
-    revalidatePath('/hr/leaves')
-    return updated
+  return db.leavePolicy.findMany({
+    orderBy: [{ role: "asc" }, { leaveType: "asc" }],
+  });
 }
 
-export async function getMyLeaveRequests() {
-    const session = await auth()
-    if (!session?.user) throw new Error('Unauthorized')
-    const userId = Number(session.user.id)
+export async function upsertLeavePolicy(data: {
+  role: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
+  leaveType: "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER";
+  daysAllowed: number;
+}) {
+  const user = await getCurrentUser();
+  if (!user || !canViewHRData(user)) throw new Error("Unauthorized");
 
-    return prisma.leaveRequest.findMany({
-        where: { userId },
-        include: { reviewer: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' }
-    })
+  const policy = await db.leavePolicy.upsert({
+    where: { role_leaveType: { role: data.role, leaveType: data.leaveType } },
+    update: { daysAllowed: data.daysAllowed },
+    create: {
+      role: data.role,
+      leaveType: data.leaveType,
+      daysAllowed: data.daysAllowed,
+    },
+  });
+
+  revalidatePath("/hr/leave-policy");
+  return policy;
 }
 
-export async function getEmployeesOnLeave() {
-    const now = new Date()
-    return prisma.leaveRequest.findMany({
-        where: {
-            status: 'APPROVED',
-            startDate: { lte: now },
-            endDate: { gte: now }
-        },
-        include: {
-            user: { select: { id: true, name: true, email: true, avatarUrl: true, department: { select: { name: true } } } }
-        }
-    })
+// ============== PUBLIC HOLIDAYS ==============
+
+export async function getPublicHolidays() {
+  return db.publicHoliday.findMany({
+    orderBy: { date: "asc" },
+  });
 }
 
-export async function getEmployeesOnPremise() {
-    const now = new Date()
+export async function addPublicHoliday(name: string, date: string) {
+  const user = await getCurrentUser();
+  if (!user || !canViewHRData(user)) throw new Error("Unauthorized");
 
-    // Get IDs of users currently on approved leave
-    const onLeave = await prisma.leaveRequest.findMany({
-        where: {
-            status: 'APPROVED',
-            startDate: { lte: now },
-            endDate: { gte: now }
-        },
-        select: { userId: true }
-    })
-    const onLeaveIds = onLeave.map(l => l.userId)
+  const holiday = await db.publicHoliday.create({
+    data: {
+      name,
+      date: new Date(date),
+    },
+  });
 
-    return prisma.user.findMany({
-        where: {
-            id: { notIn: onLeaveIds.length > 0 ? onLeaveIds : [-1] }
-        },
-        select: { id: true, name: true, email: true, avatarUrl: true, role: true, department: { select: { name: true } } },
-        orderBy: { name: 'asc' }
-    })
+  revalidatePath("/hr/leave-policy");
+  return holiday;
 }
 
-export async function getHRStats() {
-    const now = new Date()
+export async function deletePublicHoliday(id: number) {
+  const user = await getCurrentUser();
+  if (!user || !canViewHRData(user)) throw new Error("Unauthorized");
 
-    const totalEmployees = await prisma.user.count()
-    const pendingLeaves = await prisma.leaveRequest.count({ where: { status: 'PENDING' } })
-    const onLeave = await prisma.leaveRequest.count({
-        where: {
-            status: 'APPROVED',
-            startDate: { lte: now },
-            endDate: { gte: now }
-        }
-    })
-    const openSuggestions = await prisma.suggestion.count({ where: { status: 'OPEN' } })
+  await db.publicHoliday.delete({ where: { id } });
+  revalidatePath("/hr/leave-policy");
+}
 
-    return { totalEmployees, pendingLeaves, onLeave, onPremise: totalEmployees - onLeave, openSuggestions }
+// ============== SUGGESTIONS ==============
+
+export async function getMySuggestions() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  return db.suggestion.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getAllSuggestions() {
+  const user = await getCurrentUser();
+  if (!user || !canViewSuggestions(user)) throw new Error("Unauthorized");
+
+  return db.suggestion.findMany({
+    include: { user: true },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function createSuggestion(data: {
+  title: string;
+  content: string;
+  category: "COMPLAINT" | "SUGGESTION" | "FEEDBACK" | "REQUEST";
+  isAnonymous: boolean;
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const suggestion = await db.suggestion.create({
+    data: {
+      userId: user.id,
+      title: data.title,
+      content: data.content,
+      category: data.category,
+      isAnonymous: data.isAnonymous,
+      status: "OPEN",
+    },
+  });
+
+  revalidatePath("/suggestions");
+  revalidatePath("/hr/suggestions");
+  return suggestion;
+}
+
+export async function reviewSuggestion(
+  suggestionId: number,
+  status: "IN_REVIEW" | "ACTIONED" | "CLOSED",
+  hrNote?: string
+) {
+  const user = await getCurrentUser();
+  if (!user || !canViewSuggestions(user)) throw new Error("Unauthorized");
+
+  const suggestion = await db.suggestion.update({
+    where: { id: suggestionId },
+    data: {
+      status,
+      hrNote: hrNote || null,
+    },
+  });
+
+  revalidatePath("/suggestions");
+  revalidatePath("/hr/suggestions");
+  return suggestion;
 }

@@ -1,96 +1,109 @@
-'use server'
+"use server";
 
-import prisma from '@/lib/db'
-import { auth } from '@/auth'
-import { revalidatePath } from 'next/cache'
-import bcrypt from 'bcryptjs'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/permissions";
+import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
-export async function updateProfile(data: { name?: string, password?: string, avatarUrl?: string }) {
-  const session = await auth()
-  const userId = Number(session?.user?.id)
+export async function getUserProfile() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (!userId) throw new Error('Unauthorized')
-
-  const updateData: any = {}
-  if (data.name) updateData.name = data.name
-  if (data.avatarUrl) updateData.avatarUrl = data.avatarUrl
-
-  if (data.password && data.password.trim() !== '') {
-    updateData.password = await bcrypt.hash(data.password, 10)
-  }
-
-  const user = await prisma.user.update({
-    where: { id: userId },
-    data: updateData
-  })
-
-  revalidatePath('/', 'layout')
-  return { success: true, user }
+  return db.user.findUnique({
+    where: { id: user.id },
+    include: { department: true },
+  });
 }
 
-export async function updateUserTheme(theme: string) {
-  const session = await auth()
-  const userId = Number(session?.user?.id)
+export async function changePassword(oldPassword: string, newPassword: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (!userId) return { success: false, error: 'Unauthorized' }
+  // Verify old password
+  const dbUser = await db.user.findUnique({ where: { id: user.id } });
+  if (!dbUser) throw new Error("User not found");
 
-  try {
-    await (prisma.user as any).update({
-      where: { id: userId },
-      data: { theme }
-    })
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
+  const oldPasswordValid = await bcrypt.compare(oldPassword, dbUser.password);
+  if (!oldPasswordValid) throw new Error("Current password is incorrect");
+
+  // Hash new password
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  // Update password
+  await db.user.update({
+    where: { id: user.id },
+    data: { password: hashedPassword },
+  });
+
+  revalidatePath("/profile");
+  return { success: true };
 }
 
-export async function uploadAvatar(formData: FormData) {
-  const session = await auth()
-  const userId = Number(session?.user?.id)
-  if (!userId) return { success: false, error: 'Unauthorized' }
+export async function updateProjectTitle(projectId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-  const file = formData.get('file') as File
-  if (!file) return { success: false, error: 'No file' }
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    include: { departments: { include: { department: true } } },
+  });
 
-  try {
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+  if (!project) throw new Error("Project not found");
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'avatars')
-    await mkdir(uploadDir, { recursive: true })
+  const project_updated = await db.project.update({
+    where: { id: projectId },
+    data: { title },
+  });
 
-    const ext = file.name.split('.').pop() || 'png'
-    const filename = `avatar-${userId}-${Date.now()}.${ext}`
-    await writeFile(join(uploadDir, filename), buffer)
-
-    const avatarUrl = `/uploads/avatars/${filename}`
-    await prisma.user.update({
-      where: { id: userId },
-      data: { avatarUrl }
-    })
-
-    revalidatePath('/', 'layout')
-    return { success: true, url: avatarUrl }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project_updated;
 }
 
-export async function getMyProfile() {
-  const session = await auth()
-  if (!session?.user) throw new Error('Unauthorized')
-  const userId = Number(session.user.id)
+export async function updateProjectDescription(
+  projectId: number,
+  description: string
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true, name: true, email: true, role: true, avatarUrl: true,
-      lastActiveAt: true, createdAt: true,
-      department: { select: { name: true } }
-    }
-  })
+  const project_updated = await db.project.update({
+    where: { id: projectId },
+    data: { description },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project_updated;
 }
 
+export async function updateClientName(clientId: number, name: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const client_updated = await db.client.update({
+    where: { id: clientId },
+    data: { name },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return client_updated;
+}
+
+export async function updateClientDescription(
+  clientId: number,
+  description: string
+) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const client_updated = await db.client.update({
+    where: { id: clientId },
+    data: { description },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return client_updated;
+}

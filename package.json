@@ -1,50 +1,43 @@
 {
-  "name": "5dm-ops",
-  "version": "0.1.0",
-  "private": true,
+  "name": "operations-control",
+  "version": "1.0.0",
+  "description": "Enterprise Project & Task Management System",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbo",
     "build": "next build",
-    "start": "next start -p 3000",
-    "lint": "next lint"
-  },
-  "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "@types/react-big-calendar": "^1.16.3",
-    "autoprefixer": "10.4",
-    "daisyui": "4.12",
-    "postcss": "8.4",
-    "tailwindcss": "^3.4.19",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "start": "next start",
+    "lint": "next lint",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "node prisma/seed.js"
   },
   "dependencies": {
-    "@prisma/client": "^4.16.2",
-    "@radix-ui/react-avatar": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-tooltip": "^1.2.8",
+    "@prisma/client": "^5.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "autoprefixer": "^10.4.0",
+    "bcrypt": "^5.1.0",
     "bcryptjs": "^3.0.3",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "lucide-react": "^0.563.0",
-    "framer-motion": "^11.11.1",
-    "next": "^14.0.0",
-    "next-auth": "^5.0.0-beta.30",
-    "next-themes": "^0.4.6",
-    "prisma": "^4.16.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "daisyui": "^5.5.19",
+    "date-fns": "^3.0.0",
+    "hugeicons-react": "^0.4.0",
+    "lucide-react": "^0.460.0",
+    "next": "^14.2.0",
+    "next-auth": "^4.24.0",
+    "postcss": "^8.4.0",
     "react": "^18.2.0",
-    "react-big-calendar": "^1.19.4",
     "react-dom": "^18.2.0",
-    "tailwind-merge": "^3.4.0"
+    "tailwindcss": "^3.4.0"
   },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^14.2.35",
+    "prisma": "^5.0.0",
+    "typescript": "^5.0.0"
   }
 }

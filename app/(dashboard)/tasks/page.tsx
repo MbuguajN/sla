@@ -1,59 +1,76 @@
-export const dynamic = 'force-dynamic'
-import prisma from '@/lib/db'
-import { auth } from '@/auth'
-import { redirect } from 'next/navigation'
-// @ts-ignore - Temporary bypass for locked types
-import GlobalTaskIndexClient from './GlobalTaskIndexClient'
+import { redirect } from "next/navigation";
+import { getCurrentUser, canCreateTask } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import TasksClient from "./TasksClient";
 
-export default async function GlobalTaskIndexPage() {
-  const session = await auth()
-  const role = (session?.user as any)?.role
-  const deptName = (session?.user as any)?.departmentName
+export default async function TasksPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const isCS = deptName === 'CLIENT_SERVICE' || deptName === 'CLIENT SERVICE'
-  const isCEO = role === 'CEO'
-  const isHR = role === 'HR'
-  const isManager = role === 'MANAGER' || isCEO || isHR
-  const isBusinessDev = deptName === 'BUSINESS_DEVELOPMENT'
-  const isAdmin = role === 'ADMIN'
-
-  // CEO, Managers, CS, BDev, HR have access
-  if (!isAdmin && !isManager && !isCS && !isBusinessDev && !isCEO && !isHR) {
-    redirect('/')
+  // Fetch tasks based on user role
+  let tasks;
+  if (user.role === "ADMIN" || user.role === "CEO") {
+    tasks = await db.task.findMany({
+      include: {
+        project: { include: { client: true } },
+        assignedTo: true,
+        assignedDepartment: true,
+        createdBy: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } else if (user.role === "MANAGER" && user.departmentId) {
+    tasks = await db.task.findMany({
+      where: {
+        OR: [
+          { deptId: user.departmentId },
+          { createdById: user.id },
+          { assignedUserId: user.id },
+        ],
+      },
+      include: {
+        project: { include: { client: true } },
+        assignedTo: true,
+        assignedDepartment: true,
+        createdBy: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } else {
+    tasks = await db.task.findMany({
+      where: {
+        OR: [{ assignedUserId: user.id }, { createdById: user.id }],
+      },
+      include: {
+        project: { include: { client: true } },
+        assignedTo: true,
+        assignedDepartment: true,
+        createdBy: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
-  const tasks = await prisma.task.findMany({
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      dueAt: true,
-      createdAt: true,
-      assigneeId: true,
-      reporterId: true,
-      sla: {
-        select: {
-          name: true,
-          tier: true,
-        }
-      },
-      assignee: {
-        select: {
-          name: true,
-          id: true,
-        }
-      },
-      messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-        select: {
-          content: true,
-          createdAt: true,
-        }
-      }
-    },
-    orderBy: { createdAt: 'desc' }
-  }) as any
-
-  return <GlobalTaskIndexClient initialTasks={tasks} />
+  return (
+    <TasksClient
+      initialTasks={tasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        projectId: t.projectId,
+        projectTitle: t.project.title,
+        clientName: t.project.client.name,
+        departmentName: t.assignedDepartment?.name || null,
+        assigneeName: t.assignedTo?.name || null,
+        creatorName: t.createdBy.name,
+        slaHours: t.slaHours,
+        slaStartedAt: t.slaStartedAt?.toISOString() || null,
+        slaPausedAt: t.slaPausedAt?.toISOString() || null,
+        slaPausedDuration: t.slaPausedDuration,
+        createdAt: t.createdAt.toISOString(),
+      }))}
+      canCreate={canCreateTask(user)}
+    />
+  );
 }

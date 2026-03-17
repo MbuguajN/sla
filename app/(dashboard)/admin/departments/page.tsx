@@ -1,17 +1,44 @@
-export const dynamic = 'force-dynamic'
-import React from 'react'
-import prisma from '@/lib/db'
-import DepartmentsPageClient from '@/components/admin/DepartmentsPageClient'
+import { redirect } from "next/navigation";
+import { getCurrentUser, canManageUsers } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import DepartmentsClient from "./DepartmentsClient";
 
 export default async function DepartmentsPage() {
-  const departments = await prisma.department.findMany({
-    include: { users: true },
-    orderBy: { name: 'asc' }
-  })
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!canManageUsers(user)) redirect("/dashboard");
 
-  const users = await prisma.user.findMany({
-    orderBy: { name: 'asc' }
-  })
+  const [departments, users] = await Promise.all([
+    db.department.findMany({
+      include: {
+        head: { select: { id: true, name: true, email: true } },
+        _count: { select: { members: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-  return <DepartmentsPageClient initialDepartments={departments} users={users} />
+  return (
+    <DepartmentsClient
+      initialDepartments={departments.map((d) => ({
+        id: d.id,
+        name: d.name,
+        slug: d.slug,
+        headId: d.headId,
+        headName: d.head?.name || null,
+        memberCount: d._count.members,
+      }))}
+      users={users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+      }))}
+    />
+  );
 }

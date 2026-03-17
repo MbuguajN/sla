@@ -1,86 +1,215 @@
-'use server'
+"use server";
 
-import prisma from '@/lib/db'
-import { revalidatePath } from 'next/cache'
-import { auth } from '@/auth'
+import { db } from "@/lib/db";
+import {
+  getCurrentUser,
+  canCreateProject,
+  canAccessProject,
+  canViewAllProjects,
+} from "@/lib/permissions";
+import { revalidatePath } from "next/cache";
 
-export async function addProjectMember(projectId: number, userId: number, role: string = 'MEMBER') {
-  try {
-    await (prisma as any).projectMember.create({
-      data: {
-        projectId,
-        userId,
-        role
-      }
-    })
-    revalidatePath('/projects')
-    return { success: true }
-  } catch (error) {
-    console.error('Error adding project member:', error)
-    return { error: 'Failed to add member' }
+export async function getProjects() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // If CEO or Admin, return all projects
+  if (canViewAllProjects(user)) {
+    return db.project.findMany({
+      include: {
+        client: true,
+        departments: { include: { department: true } },
+        _count: { select: { tasks: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
-}
 
-export async function removeProjectMember(projectId: number, userId: number) {
-  try {
-    await (prisma as any).projectMember.delete({
+  // If user has department, return projects their department is involved in
+  if (user.departmentId) {
+    return db.project.findMany({
       where: {
-        projectId_userId: {
-          projectId,
-          userId
-        }
-      }
-    })
-    revalidatePath('/projects')
-    return { success: true }
-  } catch (error) {
-    console.error('Error removing project member:', error)
-    return { error: 'Failed to remove member' }
+        OR: [
+          { departments: { some: { departmentId: user.departmentId } } },
+          { createdBy: user.id },
+        ],
+      },
+      include: {
+        client: true,
+        departments: { include: { department: true } },
+        _count: { select: { tasks: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
-}
 
-export async function updateProjectStatus(projectId: number, status: string) {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) throw new Error('Unauthorized')
-
-    const userDept = (session.user as any).departmentName
-    const userRole = (session.user as any).role
-
-    // Only Business Development can pause/close main projects
-    const isBD = userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT'
-    const isAdmin = userRole === 'ADMIN' || userRole === 'CEO' || userRole === 'SUPER_ADMIN'
-
-    if (['PAUSED', 'CLOSED', 'ON_HOLD', 'COMPLETED'].includes(status.toUpperCase())) {
-      if (!isBD && !isAdmin) {
-        throw new Error('STRATEGIC DENIAL: Lifecycle termination or suspension of main projects is restricted to Business Development.')
-      }
-    }
-
-    await prisma.project.update({
-      where: { id: projectId },
-      data: { status }
-    })
-
-    revalidatePath('/projects')
-    revalidatePath(`/projects/${projectId}`)
-    return { success: true }
-  } catch (error: any) {
-    console.error('Error updating project status:', error)
-    return { error: error.message || 'Failed to update status' }
-  }
-}
-export async function getEligibleUsers() {
-  return await prisma.user.findMany({
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      department: {
-        select: { name: true }
-      }
+  // Return only projects created by user
+  return db.project.findMany({
+    where: { createdBy: user.id },
+    include: {
+      client: true,
+      departments: { include: { department: true } },
+      _count: { select: { tasks: true } },
     },
-    orderBy: { name: 'asc' }
-  })
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getProject(projectId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const hasAccess = await canAccessProject(user, projectId);
+  if (!hasAccess) throw new Error("Unauthorized");
+
+  return db.project.findUnique({
+    where: { id: projectId },
+    include: {
+      client: true,
+      departments: { include: { department: true } },
+      tasks: {
+        include: {
+          assignedTo: true,
+          assignedDepartment: true,
+          subtasks: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+      activityLog: {
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+    },
+  });
+}
+
+export async function createProject(data: {
+  clientId: number;
+  title: string;
+  description?: string;
+  briefLink?: string;
+  departmentIds: number[];
+  slaHours?: number;
+}) {
+  const user = await getCurrentUser();
+  if (!user || !canCreateProject(user)) {
+    throw new Error("Unauthorized - Only Client Service and Business Development can create projects");
+  }
+
+  const project = await db.project.create({
+    data: {
+      clientId: data.clientId,
+      title: data.title,
+      description: data.description || null,
+      briefLink: data.briefLink || null,
+      createdBy: user.id,
+      departments: {
+        create: data.departmentIds.map((deptId) => ({
+          departmentId: deptId,
+          slaHours: data.slaHours || 48,
+        })),
+      },
+    },
+    include: {
+      client: true,
+      departments: { include: { department: true } },
+    },
+  });
+
+  // Create activity log
+  await db.activityLog.create({
+    data: {
+      type: "CREATED",
+      description: `Project "${project.title}" created`,
+      projectId: project.id,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/clients/${data.clientId}`);
+  return project;
+}
+
+export async function updateProject(
+  projectId: number,
+  data: {
+    title?: string;
+    description?: string;
+    briefLink?: string;
+    status?: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "CANCELLED";
+  }
+) {
+  const user = await getCurrentUser();
+  if (!user || !canCreateProject(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: {
+      title: data.title,
+      description: data.description,
+      briefLink: data.briefLink,
+      status: data.status,
+    },
+  });
+
+  // Create activity log
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: `Project updated`,
+      projectId: project.id,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project;
+}
+
+export async function addDepartmentToProject(projectId: number, departmentId: number, slaHours: number = 48) {
+  const user = await getCurrentUser();
+  if (!user || !canCreateProject(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  // Check if department is already assigned
+  const existing = await db.projectDepartment.findUnique({
+    where: {
+      projectId_departmentId: { projectId, departmentId },
+    },
+  });
+
+  if (existing) {
+    throw new Error("Department already assigned to project");
+  }
+
+  await db.projectDepartment.create({
+    data: {
+      projectId,
+      departmentId,
+      slaHours,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+}
+
+export async function removeDepartmentFromProject(projectId: number, departmentId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canCreateProject(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  await db.projectDepartment.delete({
+    where: {
+      projectId_departmentId: { projectId, departmentId },
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
 }

@@ -1,112 +1,78 @@
-import React from 'react'
-import { auth } from '@/auth'
-import prisma from '@/lib/db'
-import ProjectsGrid from '@/components/ProjectsGrid'
-import { Plus } from 'lucide-react'
-import Link from 'next/link'
+import { redirect } from "next/navigation";
+import { getCurrentUser, canCreateProject, canViewAllProjects } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import ProjectsClient from "./ProjectsClient";
 
 export default async function ProjectsPage() {
-  const session = await auth()
-  const role = (session?.user as any)?.role
-  const userId = Number(session?.user?.id)
-  const deptName = (session?.user as any)?.departmentName
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const isAdmin = ['ADMIN', 'CEO', 'SUPER_ADMIN'].includes(role)
-  const isManagement = isAdmin || ['BUSINESS_DEVELOPMENT', 'CLIENT_SERVICE', 'MANAGER'].includes(role)
-
-  // Fetch projects with aggregated stats including sub-projects
-  let whereClause: any = {}
-
-  // Visibility Logic:
-  // 1. ADMIN, CEO, SUPER_ADMIN see everything
-  // 2. CLIENT SERVICE and BUSINESS DEVELOPMENT see everything
-  // 3. Others (including MANAGERS from other depts) see ONLY what they are members of
-
-  const isSpecialDept = deptName === 'CLIENT SERVICE' || deptName === 'CLIENT_SERVICE' ||
-    deptName === 'BUSINESS DEVELOPMENT' || deptName === 'BUSINESS_DEVELOPMENT'
-
-  if (!isAdmin && !isSpecialDept) {
-    whereClause = { members: { some: { userId } } }
+  // Fetch projects based on user role
+  let projectsRaw;
+  if (canViewAllProjects(user)) {
+    projectsRaw = await db.project.findMany({
+      include: {
+        client: true,
+        departments: { include: { department: true } },
+        tasks: {
+          select: { status: true }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } else if (user.departmentId) {
+    projectsRaw = await db.project.findMany({
+      where: {
+        OR: [
+          { departments: { some: { departmentId: user.departmentId } } },
+          { createdBy: user.id },
+        ],
+      },
+      include: {
+        client: true,
+        departments: { include: { department: true } },
+        tasks: {
+          select: { status: true }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } else {
+    projectsRaw = await db.project.findMany({
+      where: { createdBy: user.id },
+      include: {
+        client: true,
+        departments: { include: { department: true } },
+        tasks: {
+          select: { status: true }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
-  const projects = await prisma.project.findMany({
-    where: whereClause,
-    include: {
-      members: {
-        include: {
-          user: {
-            select: { name: true }
-          }
-        }
-      },
-      subProjects: {
-        where: { parentId: null },
-        include: {
-          tasks: {
-            select: { status: true }
-          },
-          _count: { select: { tasks: true, children: true } },
-          children: {
-            include: {
-              tasks: {
-                select: { status: true }
-              },
-              _count: { select: { tasks: true } }
-            }
-          }
-        }
-      },
-      createdBy: {
-        select: { name: true }
-      }
-    },
-    orderBy: { updatedAt: 'desc' }
-  })
-
-  // Transform for display
-  const projectSummaries = projects.map(p => {
-    const subProjectTaskCount = (p.subProjects as any[]).reduce((acc: number, sub: any) => {
-      const subletTaskCount = (sub.children as any[]).reduce((a: number, c: any) => a + (c._count?.tasks || 0), 0)
-      return acc + (sub._count?.tasks || 0) + subletTaskCount
-    }, 0)
-    const subProjectCompletedCount = (p.subProjects as any[]).reduce((acc: number, sub: any) => {
-      const childCompletedCount = (sub.children as any[]).reduce(
-        (childAcc: number, child: any) => childAcc + (child.tasks as any[]).filter((task: any) => task.status === 'COMPLETED').length,
-        0
-      )
-      return acc + (sub.tasks as any[]).filter((task: any) => task.status === 'COMPLETED').length + childCompletedCount
-    }, 0)
-    const totalTaskCount = subProjectTaskCount
-
-    return {
-      id: p.id,
-      title: p.title,
-      description: p.description,
-      status: (p as any).status || 'ACTIVE',
-      createdAt: p.createdAt,
-      createdBy: p.createdBy?.name || null,
-      taskCount: totalTaskCount,
-      completedCount: subProjectCompletedCount,
-      subProjectCount: p.subProjects.length,
-      members: p.members,
-    }
-  })
-
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-base-content tracking-tight">Active Projects</h1>
-          <p className="text-sm font-medium text-base-content/80">Strategic directive groups, sub-projects, and campaigns</p>
-        </div>
-        {deptName === 'BUSINESS_DEVELOPMENT' && (
-          <Link href="/projects/new" className="btn btn-primary gap-2">
-            <Plus className="w-4 h-4" /> Initialize Project
-          </Link>
-        )}
-      </div>
+    <ProjectsClient
+      initialProjects={projectsRaw.map((p) => {
+        const totalTasks = p.tasks.length;
+        const closedTasks = p.tasks.filter(t => t.status === 'COMPLETED').length;
+        const progress = totalTasks > 0 ? Math.round((closedTasks / totalTasks) * 100) : 0;
 
-      <ProjectsGrid projects={projectSummaries} />
-    </div>
-  )
+        return {
+          id: p.id,
+          title: p.title,
+          description: p.description,
+          status: p.status,
+          clientId: p.clientId,
+          clientName: p.client.name,
+          departments: p.departments.map((pd) => pd.department.name),
+          taskCount: totalTasks,
+          closedTaskCount: closedTasks,
+          progress: progress,
+          createdAt: p.createdAt.toISOString(),
+        }
+      })}
+      canCreate={canCreateProject(user)}
+    />
+  );
 }

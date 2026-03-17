@@ -1,0 +1,176 @@
+"use client";
+
+import { Bell, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { getUnreadNotifications, getUnreadCount, markNotificationAsRead, markAllNotificationsAsRead } from "@/app/actions/notificationActions";
+
+interface Notification {
+  id: number;
+  type: string;
+  title: string;
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export default function NotificationDropdown() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadNotifications();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const [unread, count] = await Promise.all([
+        getUnreadNotifications(),
+        getUnreadCount(),
+      ]);
+      setNotifications(unread);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error("Failed to load notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.isRead) {
+      await markNotificationAsRead(notification.id);
+      setNotifications(notifications.map(n =>
+        n.id === notification.id ? { ...n, isRead: true } : n
+      ));
+      setUnreadCount(Math.max(0, unreadCount - 1));
+    }
+    if (notification.link) {
+      window.location.href = notification.link;
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await markAllNotificationsAsRead();
+    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+  };
+
+  const getNotificationColor = (type: string) => {
+    switch (type) {
+      case "TASK_ASSIGNED":
+      case "TASK_CONFIRMED":
+        return "bg-blue-100 text-blue-700";
+      case "TASK_COMPLETED":
+      case "LEAVE_APPROVED":
+      case "REQUISITION_APPROVED":
+      case "IT_TICKET_RESOLVED":
+        return "bg-green-100 text-green-700";
+      case "LEAVE_DENIED":
+      case "REQUISITION_DENIED":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
+  };
+
+  const formatTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - new Date(date).getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return new Date(date).toLocaleDateString();
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors relative"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#c91f41] rounded-full" />
+        )}
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                {unreadCount > 0 && (
+                  <p className="text-xs text-gray-400">{unreadCount} unread</p>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs text-[#c91f41] hover:text-[#a01832] font-medium"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* Notifications list */}
+            {loading ? (
+              <div className="px-4 py-8 text-center text-gray-400">Loading...</div>
+            ) : notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">No notifications yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      !notification.isRead ? "bg-[#fef2f4]" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
+                          notification.isRead ? "bg-gray-300" : "bg-[#c91f41]"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {formatTime(notification.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

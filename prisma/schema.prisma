@@ -7,367 +7,420 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============== USERS & AUTH ==============
 model User {
-  id               Int              @id @default(autoincrement())
-  name             String?
-  email            String           @unique
-  role             String           @default("EMPLOYEE")
-  departmentId     Int?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  lastActiveAt     DateTime         @default(now())
-  password         String?
-  avatarUrl        String?
-  auditLogs        AuditLog[]
-  headedDepartment Department?      @relation("DepartmentHead")
-  messages         Message[]
-  notifications    Notification[]
-  stories          Story[]
-  reportedTasks    Task[]           @relation("ReportedTasks")
-  assignedTasks    Task[]           @relation("AssignedTasks")
-  department       Department?      @relation("DepartmentUsers", fields: [departmentId], references: [id])
-  watchers         Watcher[]
-  leaveRequests    LeaveRequest[]   @relation("UserLeaves")
-  reviewedLeaves   LeaveRequest[]   @relation("LeaveReviewer")
-  suggestions      Suggestion[]
-  itRequests       ITSupportRequest[] @relation("ITRequestor")
-  itAssigned       ITSupportRequest[] @relation("ITAssigned")
-  itResolved       ITSupportRequest[] @relation("ITResolver")
-  createdProjects    Project[]      @relation("ProjectCreator")
-  createdSubProjects SubProject[]   @relation("SubProjectCreator")
-  projectMemberships ProjectMember[]
-  reviewerResponses  ReviewResponse[] @relation("ReviewerResponses")
-  revieweeResponses  ReviewResponse[] @relation("RevieweeResponses")
-  requisitions       Requisition[]    @relation("UserRequisitions")
-  theme              String           @default("system")
+  id            Int             @id @default(autoincrement())
+  email         String          @unique
+  password      String
+  name          String
+  role          Role
+  department    Department?     @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  departmentId  Int?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
-  @@index([departmentId])
+  // Relations
+  tasksCreated      Task[]          @relation("TaskCreator")
+  tasksAssigned     Task[]          @relation("TaskAssignee")
+  departmentHead    Department[]    @relation("DepartmentHead")
+  activityLogs      ActivityLog[]
+  leaves            Leave[]
+  suggestions       Suggestion[]
+  requisitions      Requisition[]
+  refunds           Refund[]
+  itTicketsCreated  ITTicket[]      @relation("TicketCreator")
+  itTicketsAssigned ITTicket[]      @relation("TicketAssignee")
+  notifications     Notification[]
 }
 
+enum Role {
+  ADMIN
+  CEO
+  MANAGER
+  EMPLOYEE
+}
+
+// ============== DEPARTMENTS ==============
 model Department {
-  id     Int    @id @default(autoincrement())
-  name   String @unique
-  headId Int?   @unique
-  head   User?  @relation("DepartmentHead", fields: [headId], references: [id])
-  users  User[] @relation("DepartmentUsers")
+  id            Int       @id @default(autoincrement())
+  name          String    @unique
+  slug          String    @unique
+  head          User?     @relation("DepartmentHead", fields: [headId], references: [id])
+  headId        Int?      @unique
+  members       User[]    @relation("DepartmentMembers")
+  projects      ProjectDepartment[]
+  tasks         Task[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
-model Sla {
-  id              Int       @id @default(autoincrement())
-  name            String
-  durationHrs     Int
-  tier            String    @default("BRONZE")
-  projectDefaults Project[] @relation("ProjectDefaultSla")
-  tasks           Task[]
+// ============== CLIENTS ==============
+model Client {
+  id            Int       @id @default(autoincrement())
+  name          String
+  contactName   String?
+  email         String?
+  phone         String?
+  description   String?
+  projects      Project[]
+  createdBy     Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
+// ============== PROJECTS ==============
 model Project {
-  id           Int          @id @default(autoincrement())
-  title        String
-  description  String?
-  status       String       @default("ACTIVE")
-  createdById  Int?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  defaultSlaId Int?
-  messages     Message[]
-  defaultSla   Sla?         @relation("ProjectDefaultSla", fields: [defaultSlaId], references: [id])
-  tasks        Task[]
-  subProjects  SubProject[]
-  createdBy    User?        @relation("ProjectCreator", fields: [createdById], references: [id])
-  members      ProjectMember[]
+  id              Int       @id @default(autoincrement())
+  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId        Int
+  title           String
+  description     String?
+  briefLink       String?
+  status          ProjectStatus @default(ACTIVE)
+  createdBy       Int?
+  departments     ProjectDepartment[]
+  tasks           Task[]
+  activityLog     ActivityLog[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
-model SubProject {
-  id           Int          @id @default(autoincrement())
-  title        String
-  description  String?
-  status       String       @default("ACTIVE")
-  projectId    Int
-  parentId     Int?
-  createdById  Int
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parent       SubProject?  @relation("SubProjectTree", fields: [parentId], references: [id])
-  children     SubProject[] @relation("SubProjectTree")
-  createdBy    User         @relation("SubProjectCreator", fields: [createdById], references: [id])
-  tasks        Task[]
-  messages     Message[]
-
-  @@index([projectId])
-  @@index([parentId])
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
 }
 
+model ProjectDepartment {
+  id            Int       @id @default(autoincrement())
+  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId     Int
+  department    Department @relation(fields: [departmentId], references: [id])
+  departmentId  Int
+  slaHours      Int       @default(48)
+  createdAt     DateTime  @default(now())
+
+  @@unique([projectId, departmentId])
+}
+
+// ============== TASKS ==============
 model Task {
-  id           Int          @id @default(autoincrement())
-  title        String
-  description  String?
-  status       String       @default("PENDING")
-  slaId        Int?
-  assigneeId   Int?
-  departmentId Int?
-  isTicket     Boolean      @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  dueAt        DateTime?
-  completedAt  DateTime?
-  startedAt    DateTime?
-  parentTaskId Int?
-  pauseReason  String?
-  projectId    Int?
-  subProjectId Int?
-  reporterId   Int?
-  senderEmail  String?
-  senderName   String?
-  attachments  Attachment[]
-  auditLogs    AuditLog[]
-  messages     Message[]
-  sla          Sla?         @relation(fields: [slaId], references: [id])
-  reporter     User?        @relation("ReportedTasks", fields: [reporterId], references: [id])
-  project      Project?     @relation(fields: [projectId], references: [id])
-  subProject   SubProject?  @relation(fields: [subProjectId], references: [id])
-  parentTask   Task?        @relation("SubTasks", fields: [parentTaskId], references: [id])
-  subTasks     Task[]       @relation("SubTasks")
-  assignee     User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
-  watchers     Watcher[]
+  id                  Int       @id @default(autoincrement())
+  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId           Int
+  title               String
+  description         String?
+  status              TaskStatus @default(UNASSIGNED)
+  priority            Priority  @default(MEDIUM)
+  assignedDepartment  Department? @relation(fields: [deptId], references: [id])
+  deptId              Int?
+  assignedTo          User?     @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  assignedUserId      Int?
+  createdBy           User      @relation("TaskCreator", fields: [createdById], references: [id])
+  createdById         Int
+  slaHours            Int?
+  slaStartedAt        DateTime?
+  slaPausedAt         DateTime?
+  slaPausedDuration   Int?      @default(0)
+  confirmedAt         DateTime?
+  submittedAt         DateTime?
+  completedAt         DateTime?
+  subtasks            Subtask[]
+  activityLog         ActivityLog[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([status])
-  @@index([assigneeId])
+  @@index([assignedUserId])
+  @@index([deptId])
   @@index([projectId])
-  @@index([subProjectId])
-  @@index([departmentId])
-  @@index([isTicket])
 }
 
-model Attachment {
-  id        Int      @id @default(autoincrement())
+enum TaskStatus {
+  UNASSIGNED
+  ASSIGNED
+  CONFIRMED
+  IN_PROGRESS
+  PAUSED
+  SUBMITTED
+  REVISION
+  DONE
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ============== SUBTASKS ==============
+model Subtask {
+  id        Int         @id @default(autoincrement())
+  task      Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId    Int
-  name      String
-  url       String
-  size      Int
-  mimeType  String
-  createdAt DateTime @default(now())
-  task      Task     @relation(fields: [taskId], references: [id])
-
-  @@index([taskId])
-}
-
-model Watcher {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  taskId    Int
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  task      Task     @relation(fields: [taskId], references: [id])
-
-  @@unique([userId, taskId])
-}
-
-model Message {
-  id           Int          @id @default(autoincrement())
-  taskId       Int?
-  projectId    Int?
-  subProjectId Int?
-  authorId     Int
-  content      String
-  createdAt    DateTime     @default(now())
-
-  task         Task?        @relation(fields: [taskId], references: [id])
-  project      Project?     @relation(fields: [projectId], references: [id])
-  subProject   SubProject?  @relation(fields: [subProjectId], references: [id])
-  author       User         @relation(fields: [authorId], references: [id])
-}
-
-model Notification {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  content   String
-  type      String
-  link      String?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@index([userId, isRead])
-}
-
-model Story {
-  id        Int      @id @default(autoincrement())
   title     String
-  content   String
-  imageUrl  String?
-  authorId  Int
-  createdAt DateTime @default(now())
-  author    User     @relation(fields: [authorId], references: [id])
+  status    SubtaskStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
-model AuditLog {
-  id        Int      @id @default(autoincrement())
-  taskId    Int
-  userId    Int
-  action    String
-  oldValue  String?
-  newValue  String?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-  task      Task     @relation(fields: [taskId], references: [id])
+enum SubtaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
 }
 
-model SystemSettings {
-  id    Int    @id @default(autoincrement())
-  key   String @unique
-  value String
-}
-
-// ─── HR System Models ───
-
-model LeaveRequest {
-  id              Int       @id @default(autoincrement())
-  userId          Int
-  type            String    // ANNUAL, SICK, MATERNITY, PATERNITY
-  startDate       DateTime
-  endDate         DateTime
-  reason          String
-  status          String    @default("PENDING") // PENDING, APPROVED, DENIED, CANCELLED, ENDED_EARLY
-  reviewedBy      Int?
-  reviewedAt      DateTime?
-  reviewNote      String?
-  cancelledAt     DateTime?
-  cancelledReason String?
-  endedEarlyAt    DateTime?
-  createdAt       DateTime  @default(now())
-  user            User      @relation("UserLeaves", fields: [userId], references: [id])
-  reviewer        User?     @relation("LeaveReviewer", fields: [reviewedBy], references: [id])
+// ============== ACTIVITY LOGS ==============
+model ActivityLog {
+  id          Int         @id @default(autoincrement())
+  type        ActivityType
+  description String
+  task        Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      Int?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId   Int?
+  user        User        @relation(fields: [userId], references: [id])
+  userId      Int
+  metadata    String?     @default("{}")
+  createdAt   DateTime    @default(now())
 
   @@index([userId])
-  @@index([status])
+  @@index([taskId])
+  @@index([projectId])
+  @@index([createdAt])
 }
 
-model Suggestion {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  category  String   // COMPLAINT, REQUEST, SUGGESTION, FEEDBACK
-  content   String
-  status    String   @default("OPEN") // OPEN, REVIEWED, RESOLVED
-  adminNote String?
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
-
-  @@index([status])
+enum ActivityType {
+  CREATED
+  ASSIGNED
+  CONFIRMED
+  STATUS_CHANGED
+  COMMENTED
+  ESCALATED
+  SUBMITTED
+  RESUMED
+  PAUSED
+  COMPLETED
 }
 
-model ITSupportRequest {
+// ============== HR - LEAVES ==============
+model Leave {
   id           Int       @id @default(autoincrement())
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId       Int
-  title        String
-  description  String
-  priority     String    @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
-  status       String    @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
-  assignedToId Int?
-  resolvedById Int?
-  resolvedAt   DateTime?
+  type         LeaveType
+  startDate    DateTime
+  endDate      DateTime
+  totalDays    Int
+  reason       String
+  status       LeaveStatus @default(PENDING)
+  reviewedBy   Int?
+  reviewNote   String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  user         User      @relation("ITRequestor", fields: [userId], references: [id])
-  assignedTo   User?     @relation("ITAssigned", fields: [assignedToId], references: [id])
-  resolvedBy   User?     @relation("ITResolver", fields: [resolvedById], references: [id])
 
-  @@index([userId])
   @@index([status])
 }
 
-// ─── Leave Policy ───
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  COMPASSIONATE
+  OTHER
+}
 
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+// ============== HR - LEAVE POLICIES ==============
 model LeavePolicy {
-  id             Int    @id @default(autoincrement())
-  roleCategory   String @unique  // "CEO", "MANAGER", "EMPLOYEE"
-  annualDays     Int    @default(21)
-  sickDays       Int    @default(10)
-  maternityDays  Int    @default(90)
-  paternityDays  Int    @default(14)
+  id          Int       @id @default(autoincrement())
+  role        Role
+  leaveType   LeaveType
+  daysAllowed Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([role, leaveType])
 }
 
-// ─── Performance Review System ───
+// ============== HR - PUBLIC HOLIDAYS ==============
+model PublicHoliday {
+  id        Int       @id @default(autoincrement())
+  name      String
+  date      DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-model ReviewCycle {
-  id          Int              @id @default(autoincrement())
-  title       String
-  status      String           @default("ACTIVE") // ACTIVE, CLOSED
-  expiresAt   DateTime
-  createdAt   DateTime         @default(now())
-  questions   ReviewQuestion[]
-  responses   ReviewResponse[]
+  @@unique([date])
 }
 
-model ReviewQuestion {
-  id          Int              @id @default(autoincrement())
-  cycleId     Int
-  text        String
-  targetType  String           // "EMPLOYEE" (manager rates employee), "MANAGER" (employee rates manager)
-  cycle       ReviewCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  responses   ReviewResponse[]
-
-  @@index([cycleId])
-}
-
-model ReviewResponse {
-  id          Int            @id @default(autoincrement())
-  cycleId     Int
-  questionId  Int
-  reviewerId  Int            // Who is rating
-  revieweeId  Int            // Who is being rated
-  rating      Int            // 1-10
-  createdAt   DateTime       @default(now())
-  reviewer    User           @relation("ReviewerResponses", fields: [reviewerId], references: [id])
-  reviewee    User           @relation("RevieweeResponses", fields: [revieweeId], references: [id])
-  cycle       ReviewCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
-  question    ReviewQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-
-  @@unique([cycleId, questionId, reviewerId, revieweeId])
-  @@index([cycleId])
-  @@index([reviewerId])
-}
-
-model ProjectMember {
-  id        Int      @id @default(autoincrement())
-  projectId Int
-  userId    Int
-  role      String   @default("MEMBER") // MEMBER, INVITED
-  createdAt DateTime @default(now())
-
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, userId])
-  @@index([projectId])
-  @@index([userId])
-}
-
-model Requisition {
-  id          Int               @id @default(autoincrement())
+// ============== HR - SUGGESTIONS ==============
+model Suggestion {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      Int
-  status      String            @default("PENDING")
-  reason      String?
-  totalAmount Float             @default(0)
-  reviewNote  String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  user        User              @relation("UserRequisitions", fields: [userId], references: [id])
-  items       RequisitionItem[]
-  @@index([userId])
+  title       String
+  content     String
+  category    SuggestionCategory
+  isAnonymous Boolean   @default(false)
+  status      SuggestionStatus @default(OPEN)
+  hrNote      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+}
+
+enum SuggestionCategory {
+  COMPLAINT
+  SUGGESTION
+  FEEDBACK
+  REQUEST
+}
+
+enum SuggestionStatus {
+  OPEN
+  IN_REVIEW
+  ACTIONED
+  CLOSED
+}
+
+// ============== FINANCE - REQUISITIONS ==============
+model Requisition {
+  id            Int         @id @default(autoincrement())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        Int
+  title         String
+  reason        String
+  totalAmount   Float
+  items         RequisitionItem[]
+  status        RequisitionStatus @default(PENDING_MANAGER)
+  managerNote   String?
+  financeNote   String?
+  ceoNote       String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
   @@index([status])
 }
 
 model RequisitionItem {
   id            Int         @id @default(autoincrement())
+  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   requisitionId Int
   itemName      String
   quantity      Int
   unitPrice     Float
   vatInclusive  Boolean     @default(false)
-  requisition   Requisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
-  @@index([requisitionId])
 }
 
+enum RequisitionStatus {
+  PENDING_MANAGER
+  PENDING_FINANCE
+  PENDING_CEO
+  APPROVED
+  DENIED
+}
+
+// ============== FINANCE - REFUNDS ==============
+model Refund {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  amount      Float
+  reason      String
+  status      RefundStatus @default(PENDING)
+  financeNote String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+// ============== IT SUPPORT ==============
+model ITTicket {
+  id             Int       @id @default(autoincrement())
+  user           User      @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int
+  title          String
+  description    String
+  priority       ITTicketPriority @default(MEDIUM)
+  status         ITTicketStatus @default(OPEN)
+  assignedTo     User?     @relation("TicketAssignee", fields: [assignedUserId], references: [id])
+  assignedUserId Int?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([status])
+}
+
+enum ITTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ITTicketStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ============== NOTIFICATIONS ==============
+model Notification {
+  id        Int       @id @default(autoincrement())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([userId, isRead])
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_CONFIRMED
+  TASK_COMPLETED
+  LEAVE_APPROVED
+  LEAVE_DENIED
+  REQUISITION_APPROVED
+  REQUISITION_DENIED
+  REQUISITION_UPDATED
+  IT_TICKET_ASSIGNED
+  IT_TICKET_RESOLVED
+}
+
+// ============== SYSTEM SETTINGS ==============
+model SystemSetting {
+  id        Int       @id @default(autoincrement())
+  key       String    @unique
+  value     String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

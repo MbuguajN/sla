@@ -1,32 +1,37 @@
-import './globals.css'
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { Providers } from '@/components/Providers'
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-  weight: ['400', '500', '600', '700', '800', '900']
-});
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "5DM Operations - SLA Management",
-  description: "Enterprise SLA Management System",
+  title: "Operations Control",
+  description: "Enterprise Project & Task Management System",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased text-base-content min-h-screen font-normal`}>
-        <Providers>
-          {children}
-        </Providers>
-      </body>
+    <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                // Force light mode by default - IGNORE system preferences
+                var theme = localStorage.getItem('theme');
+                if (theme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                  localStorage.setItem('theme', 'light');
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

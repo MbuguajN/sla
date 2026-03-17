@@ -1,192 +1,226 @@
-import React from 'react'
-import { auth } from '@/auth'
-import prisma from '@/lib/db'
-import { notFound } from 'next/navigation'
+import { redirect, notFound } from "next/navigation";
+import { getCurrentUser, canAccessProject, canCreateTask } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import Link from "next/link";
 import {
-  Clock,
   ArrowLeft,
+  FolderKanban,
   Briefcase,
-  FolderOpen,
-  GitBranch,
-} from 'lucide-react'
-import Link from 'next/link'
-import TaskChat from '@/components/TaskChat'
-import InviteMember from '@/components/InviteMember'
-import ProjectDetailTabs from '@/components/ProjectDetailTabs'
-import ProjectStatusManager from '@/components/ProjectStatusManager'
+  Plus,
+  ListChecks,
+  Building2,
+  ExternalLink,
+  Clock,
+} from "lucide-react";
 
-export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
-  const session = await auth()
-  if (!session) return null
+export default async function ProjectDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const projectId = parseInt(params.id)
-  if (isNaN(projectId)) notFound()
-
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
+  const project = await db.project.findUnique({
+    where: { id: parseInt(id) },
     include: {
-      defaultSla: true,
-      createdBy: { select: { name: true } },
-      subProjects: {
-        where: { parentId: null },
+      client: true,
+      departments: { include: { department: true } },
+      tasks: {
         include: {
-          tasks: {
-            select: { status: true }
-          },
-          createdBy: { select: { id: true, name: true } },
-          children: {
-            include: {
-              tasks: {
-                select: { status: true }
-              },
-              _count: { select: { tasks: true } }
-            }
-          },
-          _count: { select: { tasks: true, children: true } }
+          assignedTo: true,
+          assignedDepartment: true,
         },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: "desc" },
       },
-      messages: {
-        include: { author: true },
-        orderBy: { createdAt: 'asc' }
-      }
-    }
-  }) as any
+    },
+  });
 
-  if (!project) notFound()
+  if (!project) {
+    notFound();
+  }
 
-  // Stats
-  const subProjectCount = project.subProjects.length
-  const totalSubletCount = (project.subProjects as any[]).reduce((acc: number, s: any) => acc + (s._count?.children || 0), 0)
-  const nestedTasks = (project.subProjects as any[]).flatMap((sub: any) => [
-    ...(sub.tasks || []),
-    ...((sub.children || []).flatMap((child: any) => child.tasks || []))
-  ])
-  const nestedTaskCount = nestedTasks.length
-  const nestedCompletedCount = nestedTasks.filter((task: any) => task.status === 'COMPLETED').length
+  const hasAccess = await canAccessProject(user, project.id);
+  if (!hasAccess) {
+    redirect("/dashboard");
+  }
 
-  const progress = nestedTaskCount > 0
-    ? Math.round((nestedCompletedCount / nestedTaskCount) * 100)
-    : 0
+  const canAddTask = canCreateTask(user);
 
-  const userDept = (session.user as any)?.departmentName
-  const userRole = (session.user as any)?.role
-  const canCreateSub = userDept === 'CLIENT_SERVICE' || userDept === 'BUSINESS_DEVELOPMENT' || userRole === 'ADMIN'
+  const statusColors: Record<string, string> = {
+    ACTIVE: "bg-green-100 text-green-700",
+    ON_HOLD: "bg-yellow-100 text-yellow-700",
+    COMPLETED: "bg-blue-100 text-blue-700",
+    CANCELLED: "bg-gray-100 text-gray-700",
+  };
+
+  const taskStatusColors: Record<string, string> = {
+    UNASSIGNED: "bg-gray-100 text-gray-700",
+    ASSIGNED: "bg-blue-100 text-blue-700",
+    CONFIRMED: "bg-indigo-100 text-indigo-700",
+    IN_PROGRESS: "bg-yellow-100 text-yellow-700",
+    PAUSED: "bg-orange-100 text-orange-700",
+    SUBMITTED: "bg-purple-100 text-purple-700",
+    REVISION: "bg-red-100 text-red-700",
+    DONE: "bg-green-100 text-green-700",
+    CANCELLED: "bg-gray-100 text-gray-700",
+  };
 
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 pb-12">
-      {/* Breadcrumbs & Header */}
-      <div className="flex flex-col gap-5">
-        <Link href="/projects" className="flex items-center gap-2 text-sm font-black text-primary uppercase tracking-[0.2em] hover:translate-x-[-4px] transition-transform w-fit opacity-60">
-          <ArrowLeft className="w-3 h-3" /> Back to Projects
-        </Link>
+    <div className="space-y-6">
+      {/* Back link */}
+      <Link
+        href="/projects"
+        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Projects
+      </Link>
 
-        <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary border border-primary/20">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-black text-base-content tracking-tighter uppercase">{project.title}</h1>
-                {project.createdBy && (
-                  <p className="text-sm font-bold text-base-content/30 uppercase tracking-wider mt-1">
-                    Created by {project.createdBy.name}
-                  </p>
-                )}
-              </div>
+      {/* Project Header */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-xl bg-[#fef2f4] flex items-center justify-center">
+              <FolderKanban className="h-7 w-7 text-[#c91f41]" />
             </div>
-            <p className="text-base-content/80 max-w-3xl font-medium text-base leading-relaxed italic">
-              {project.description || "Project is currently active."}
-            </p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            {(userDept === 'CLIENT_SERVICE' || userDept === 'CLIENT SERVICE' || userDept === 'BUSINESS_DEVELOPMENT' || userDept === 'BUSINESS DEVELOPMENT') && (
-              <div className="px-4 py-3 rounded-2xl border border-base-200 bg-base-100 text-right max-w-xs">
-                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-base-content/40">Task Rule</div>
-                <div className="mt-1 text-sm font-bold text-base-content/80">Create tasks from phases or sublets only.</div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl font-bold text-gray-900">{project.title}</h1>
+                <span
+                  className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    statusColors[project.status] || statusColors.ACTIVE
+                  }`}
+                >
+                  {project.status}
+                </span>
               </div>
-            )}
-            <InviteMember projectId={projectId} />
+              <Link
+                href={`/clients/${project.clientId}`}
+                className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#c91f41] mt-1"
+              >
+                <Briefcase className="h-4 w-4" />
+                {project.client.name}
+              </Link>
+            </div>
           </div>
-        </div>
-      </div>
-
-      {/* Metric Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Default SLA</span>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" />
-            <span className="font-black text-base">{project.defaultSla?.name || "Unset"}</span>
-          </div>
-          {project.defaultSla && (
-            <p className="text-xs font-bold opacity-60 uppercase">{project.defaultSla.durationHrs}H / {project.defaultSla.tier}</p>
+          {canAddTask && (
+            <Link
+              href={`/tasks/new?projectId=${project.id}`}
+              className="flex items-center gap-2 px-4 py-2 bg-[#c91f41] text-white rounded-lg text-sm font-medium hover:bg-[#a61835] transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              New Task
+            </Link>
           )}
         </div>
 
-        <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Nested Task Progress</span>
-          <div className="flex items-center gap-3">
-            <span className="font-black text-xl text-primary">{progress}%</span>
-            <div className="flex-1 bg-base-200 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-primary h-full rounded-full" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-          <p className="text-xs font-bold opacity-60 uppercase">{nestedCompletedCount}/{nestedTaskCount} Nested Tasks</p>
-        </div>
+        {project.description && (
+          <p className="mt-4 text-sm text-gray-600">{project.description}</p>
+        )}
 
-        <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Sub-Projects</span>
-          <div className="flex items-center gap-2 text-warning">
-            <FolderOpen className="w-4 h-4" />
-            <span className="font-black text-xl">{subProjectCount}</span>
-          </div>
-          <p className="text-xs font-bold opacity-60 uppercase">Active Scopes</p>
-        </div>
+        {project.briefLink && (
+          <a
+            href={project.briefLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex items-center gap-2 text-sm text-[#c91f41] hover:underline"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View Brief
+          </a>
+        )}
 
-        <div className="card bg-base-100 border border-base-200 shadow-sm p-5 space-y-1.5">
-          <span className="text-xs font-black uppercase tracking-widest text-base-content/70">Sublets</span>
-          <div className="flex items-center gap-2 text-info">
-            <GitBranch className="w-4 h-4" />
-            <span className="font-black text-xl">{totalSubletCount}</span>
+        {/* Departments */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+            Departments
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {project.departments.map((pd) => (
+              <span
+                key={pd.id}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full"
+              >
+                <Building2 className="h-3 w-3" />
+                {pd.department.name}
+                <span className="text-gray-400">({pd.slaHours}h SLA)</span>
+              </span>
+            ))}
           </div>
-          <p className="text-xs font-bold opacity-60 uppercase">Nested Units</p>
         </div>
-
-        <ProjectStatusManager
-          projectId={projectId}
-          initialStatus={project.status || 'ACTIVE'}
-          userDept={userDept || ''}
-          userRole={userRole || ''}
-        />
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left Column: Tabbed Content */}
-        <div className="lg:col-span-2 space-y-6">
-          <ProjectDetailTabs
-            projectId={projectId}
-            subProjects={project.subProjects as any}
-            canCreateSub={canCreateSub}
-          />
+      {/* Tasks */}
+      <div className="bg-white rounded-xl border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-5 w-5 text-[#c91f41]" />
+            <h2 className="text-base font-semibold text-gray-900">
+              Tasks ({project.tasks.length})
+            </h2>
+          </div>
         </div>
 
-        {/* Right Column: Activity Feed */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-black uppercase tracking-[0.3em] text-base-content/70">Activity Log</h2>
-            <div className="badge badge-primary badge-outline text-xs font-black uppercase">{project.messages.length} Messages</div>
+        {project.tasks.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {project.tasks.map((task) => (
+              <Link
+                key={task.id}
+                href={`/tasks/${task.id}`}
+                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <ListChecks className="h-4 w-4 text-gray-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {task.assignedDepartment && (
+                        <span className="text-xs text-gray-400">
+                          {task.assignedDepartment.name}
+                        </span>
+                      )}
+                      {task.assignedTo && (
+                        <span className="text-xs text-gray-400">
+                          • {task.assignedTo.name}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {task.slaHours && (
+                    <span className="flex items-center gap-1 text-xs text-gray-400">
+                      <Clock className="h-3 w-3" />
+                      {task.slaHours}h
+                    </span>
+                  )}
+                  <span
+                    className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      taskStatusColors[task.status] || taskStatusColors.UNASSIGNED
+                    }`}
+                  >
+                    {task.status.replace("_", " ")}
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
-          <TaskChat
-            taskId={undefined}
-            projectId={projectId}
-            initialMessages={project.messages as any}
-            currentUserId={parseInt(session?.user?.id || "0")}
-          />
-        </div>
+        ) : (
+          <div className="text-center py-12">
+            <ListChecks className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-gray-700">No tasks yet</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {canAddTask
+                ? "Create a task to get started"
+                : "Tasks will appear here once created"}
+            </p>
+          </div>
+        )}
       </div>
     </div>
-  )
+  );
 }

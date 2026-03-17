@@ -1,147 +1,322 @@
-'use server'
+"use server";
 
-import prisma from '@/lib/db'
-import { revalidatePath } from 'next/cache'
-import { auth } from '@/auth'
+import { db } from "@/lib/db";
+import {
+  getCurrentUser,
+  canViewFinanceData,
+  canManageRefunds,
+  canApproveRequisitionAsManager,
+  canApproveRequisitionAsFinance,
+  canApproveRequisitionAsCEO,
+} from "@/lib/permissions";
+import { revalidatePath } from "next/cache";
+import { createNotification } from "./notificationActions";
 
-// ─── Create a Requisition with Line Items ───
-export async function createRequisition(data: {
-    items: { itemName: string; quantity: number; unitPrice: number; vatInclusive: boolean }[]
-    reason?: string
-}) {
-    const session = await auth()
-    if (!session?.user?.id) throw new Error('Unauthorized')
+// ============== REQUISITIONS ==============
 
-    const userId = parseInt(session.user.id)
-
-    if (!data.items || data.items.length === 0) {
-        return { success: false, error: 'At least one item is required' }
-    }
-
-    // Calculate total
-    const totalAmount = data.items.reduce((sum, item) => {
-        const lineTotal = item.quantity * item.unitPrice
-        return sum + (item.vatInclusive ? lineTotal : lineTotal * 1.16) // 16% VAT
-    }, 0)
-
-    try {
-        const requisition = await prisma.requisition.create({
-            data: {
-                userId,
-                reason: data.reason || null,
-                totalAmount: Math.round(totalAmount * 100) / 100,
-                items: {
-                    create: data.items.map(item => ({
-                        itemName: item.itemName,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        vatInclusive: item.vatInclusive,
-                    }))
-                }
-            },
-            include: { items: true }
-        })
-
-        revalidatePath('/account')
-        revalidatePath('/finance-pool')
-        return { success: true, requisition }
-    } catch (error: any) {
-        console.error('Error creating requisition:', error)
-        return { success: false, error: error.message || 'Failed to create requisition' }
-    }
-}
-
-// ─── Get Current User's Requisitions ───
 export async function getMyRequisitions() {
-    const session = await auth()
-    if (!session?.user?.id) return []
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
 
-    const userId = parseInt(session.user.id)
-
-    return prisma.requisition.findMany({
-        where: { userId },
-        include: {
-            items: true,
-            user: { select: { id: true, name: true, email: true } }
-        },
-        orderBy: { createdAt: 'desc' }
-    })
+  return db.requisition.findMany({
+    where: { userId: user.id },
+    include: { items: true },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
-// ─── Get All Requisitions (Finance/Admin) ───
 export async function getAllRequisitions() {
-    const session = await auth()
-    if (!session?.user?.id) throw new Error('Unauthorized')
+  const user = await getCurrentUser();
+  if (!user || !canViewFinanceData(user)) throw new Error("Unauthorized");
 
-    const role = (session.user as any).role
-    const departmentName = (session.user as any).department?.name
-    const isFinance = role === 'FINANCE' || departmentName === 'FINANCE'
-
-    if (!['ADMIN', 'CEO', 'SUPER_ADMIN'].includes(role) && !isFinance) {
-        throw new Error('Access denied')
-    }
-
-    return prisma.requisition.findMany({
-        include: {
-            items: true,
-            user: { select: { id: true, name: true, email: true, role: true } }
-        },
-        orderBy: { createdAt: 'desc' }
-    })
+  return db.requisition.findMany({
+    include: {
+      user: { include: { department: true } },
+      items: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
-// ─── Get Requisitions Sent for CEO Review ───
-export async function getCEORequisitions() {
-    const session = await auth()
-    if (!session?.user?.id) throw new Error('Unauthorized')
+export async function getPendingRequisitionsForManager() {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "MANAGER") throw new Error("Unauthorized");
 
-    const role = (session.user as any).role
-    if (role !== 'CEO' && role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-        throw new Error('Access denied')
-    }
-
-    return prisma.requisition.findMany({
-        where: { status: 'SENT_FOR_REVIEW' },
-        include: {
-            items: true,
-            user: { select: { id: true, name: true, email: true, role: true } }
-        },
-        orderBy: { createdAt: 'desc' }
-    })
+  // Get requisitions from team members pending manager approval
+  return db.requisition.findMany({
+    where: {
+      status: "PENDING_MANAGER",
+      user: { departmentId: user.departmentId },
+    },
+    include: {
+      user: { include: { department: true } },
+      items: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
 }
 
-// ─── Update Requisition Status (Finance/Admin actions) ───
-export async function updateRequisitionStatus(
-    id: number,
-    status: 'DENIED' | 'SENT_FOR_REVIEW' | 'APPROVED',
-    note?: string
+export async function createRequisition(data: {
+  title: string;
+  reason: string;
+  items: { itemName: string; quantity: number; unitPrice: number; vatInclusive: boolean }[];
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const totalAmount = data.items.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0
+  );
+
+  const requisition = await db.requisition.create({
+    data: {
+      userId: user.id,
+      title: data.title,
+      reason: data.reason,
+      totalAmount,
+      status: "PENDING_MANAGER",
+      items: {
+        create: data.items.map((item) => ({
+          itemName: item.itemName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          vatInclusive: item.vatInclusive,
+        })),
+      },
+    },
+    include: { items: true },
+  });
+
+  revalidatePath("/requisitions");
+  revalidatePath("/finance/requisitions");
+  return requisition;
+}
+
+// Manager approves → goes to Finance
+export async function approveRequisitionAsManager(reqId: number, note?: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const requisition = await db.requisition.findUnique({
+    where: { id: reqId },
+    include: { user: true },
+  });
+
+  if (!requisition) throw new Error("Requisition not found");
+  if (requisition.status !== "PENDING_MANAGER") throw new Error("Not pending manager approval");
+
+  if (!canApproveRequisitionAsManager(user, requisition.user.departmentId)) {
+    throw new Error("Unauthorized - not the manager for this department");
+  }
+
+  const updated = await db.requisition.update({
+    where: { id: reqId },
+    data: {
+      status: "PENDING_FINANCE",
+      managerNote: note || null,
+    },
+  });
+
+  revalidatePath("/requisitions");
+  revalidatePath("/finance/requisitions");
+  return updated;
+}
+
+// Finance approves → goes to CEO (if above threshold) or approved
+export async function approveRequisitionAsFinance(reqId: number, note?: string) {
+  const user = await getCurrentUser();
+  if (!user || !canApproveRequisitionAsFinance(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const requisition = await db.requisition.findUnique({
+    where: { id: reqId },
+    include: { user: true },
+  });
+  if (!requisition) throw new Error("Requisition not found");
+  if (requisition.status !== "PENDING_FINANCE") throw new Error("Not pending finance approval");
+
+  // Check threshold for CEO approval
+  const thresholdSetting = await db.systemSetting.findUnique({
+    where: { key: "requisition_ceo_threshold" },
+  });
+  const threshold = thresholdSetting ? parseFloat(thresholdSetting.value) : 10000;
+
+  const newStatus =
+    requisition.totalAmount >= threshold ? "PENDING_CEO" : "APPROVED";
+
+  const updated = await db.requisition.update({
+    where: { id: reqId },
+    data: {
+      status: newStatus,
+      financeNote: note || null,
+    },
+    include: { user: true },
+  });
+
+  // Create notification
+  if (newStatus === "APPROVED") {
+    await createNotification(
+      requisition.userId,
+      "REQUISITION_APPROVED",
+      "Requisition Approved",
+      `Your requisition for R${requisition.totalAmount} has been approved`,
+      "/requisitions"
+    );
+  } else {
+    await createNotification(
+      requisition.userId,
+      "REQUISITION_UPDATED",
+      "Requisition Update",
+      `Your requisition is now pending CEO approval`,
+      "/requisitions"
+    );
+  }
+
+  revalidatePath("/requisitions");
+  revalidatePath("/finance/requisitions");
+  return updated;
+}
+
+// CEO final approval
+export async function approveRequisitionAsCEO(reqId: number, note?: string) {
+  const user = await getCurrentUser();
+  if (!user || !canApproveRequisitionAsCEO(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const requisition = await db.requisition.findUnique({
+    where: { id: reqId },
+    include: { user: true },
+  });
+  if (!requisition) throw new Error("Requisition not found");
+  if (requisition.status !== "PENDING_CEO") throw new Error("Not pending CEO approval");
+
+  const updated = await db.requisition.update({
+    where: { id: reqId },
+    data: {
+      status: "APPROVED",
+      ceoNote: note || null,
+    },
+  });
+
+  // Create notification
+  await createNotification(
+    requisition.userId,
+    "REQUISITION_APPROVED",
+    "Requisition Approved",
+    `Your requisition for R${requisition.totalAmount} has been approved by CEO`,
+    "/requisitions"
+  );
+
+  revalidatePath("/requisitions");
+  revalidatePath("/finance/requisitions");
+  return updated;
+}
+
+// Deny requisition at any stage
+export async function denyRequisition(reqId: number, note: string, stage: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const requisition = await db.requisition.findUnique({
+    where: { id: reqId },
+    include: { user: true },
+  });
+
+  if (!requisition) throw new Error("Requisition not found");
+
+  // Verify authority at current stage
+  if (requisition.status === "PENDING_MANAGER") {
+    if (!canApproveRequisitionAsManager(user, requisition.user.departmentId)) {
+      throw new Error("Unauthorized");
+    }
+  } else if (requisition.status === "PENDING_FINANCE") {
+    if (!canApproveRequisitionAsFinance(user)) throw new Error("Unauthorized");
+  } else if (requisition.status === "PENDING_CEO") {
+    if (!canApproveRequisitionAsCEO(user)) throw new Error("Unauthorized");
+  } else {
+    throw new Error("Cannot deny at this stage");
+  }
+
+  const noteField =
+    requisition.status === "PENDING_MANAGER"
+      ? "managerNote"
+      : requisition.status === "PENDING_FINANCE"
+      ? "financeNote"
+      : "ceoNote";
+
+  const updated = await db.requisition.update({
+    where: { id: reqId },
+    data: {
+      status: "DENIED",
+      [noteField]: note,
+    },
+  });
+
+  revalidatePath("/requisitions");
+  revalidatePath("/finance/requisitions");
+  return updated;
+}
+
+// ============== REFUNDS ==============
+
+export async function getMyRefunds() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  return db.refund.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function getAllRefunds() {
+  const user = await getCurrentUser();
+  if (!user || !canManageRefunds(user)) throw new Error("Unauthorized");
+
+  return db.refund.findMany({
+    include: { user: { include: { department: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+export async function createRefund(data: { amount: number; reason: string }) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const refund = await db.refund.create({
+    data: {
+      userId: user.id,
+      amount: data.amount,
+      reason: data.reason,
+      status: "PENDING",
+    },
+  });
+
+  revalidatePath("/refunds");
+  revalidatePath("/finance/refunds");
+  return refund;
+}
+
+export async function reviewRefund(
+  refundId: number,
+  decision: "APPROVED" | "DENIED",
+  financeNote?: string
 ) {
-    const session = await auth()
-    if (!session?.user?.id) throw new Error('Unauthorized')
+  const user = await getCurrentUser();
+  if (!user || !canManageRefunds(user)) throw new Error("Unauthorized");
 
-    const role = (session.user as any).role
-    const departmentName = (session.user as any).department?.name
-    const isFinance = role === 'FINANCE' || departmentName === 'FINANCE'
+  const refund = await db.refund.update({
+    where: { id: refundId },
+    data: {
+      status: decision,
+      financeNote: financeNote || null,
+    },
+  });
 
-    if (!['ADMIN', 'CEO', 'SUPER_ADMIN'].includes(role) && !isFinance) {
-        throw new Error('Access denied')
-    }
-
-    try {
-        await prisma.requisition.update({
-            where: { id },
-            data: {
-                status,
-                reviewNote: note || null,
-            }
-        })
-
-        revalidatePath('/finance-pool')
-        revalidatePath('/executive-review')
-        revalidatePath('/account')
-        return { success: true }
-    } catch (error: any) {
-        console.error('Error updating requisition status:', error)
-        return { success: false, error: error.message || 'Failed to update status' }
-    }
+  revalidatePath("/refunds");
+  revalidatePath("/finance/refunds");
+  return refund;
 }

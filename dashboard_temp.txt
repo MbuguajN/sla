@@ -1,0 +1,396 @@
+Now I'll create the new version with Hugeicons and daisyUI styling:
+
+```tsx
+import { getCurrentUser } from "@/lib/permissions";
+import { redirect } from "next/navigation";
+import db from "@/lib/db";
+import { Suspense } from "react";
+import {
+  ClipboardIcon,
+  CheckmarkBadge01Icon,
+  UserMultipleIcon,
+  PlayIcon,
+  Clock01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  TaskDone01Icon,
+} from "hugeicons-react";
+import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+async function getStats(user: any) {
+  const [openTasks, doneTasks, teamSize] = await Promise.all([
+    db.task.count({
+      where: {
+        OR: [
+          { assignedUserId: user.id },
+          ...(user.role === "MANAGER" && user.departmentId
+            ? [{ deptId: user.departmentId }]
+            : []),
+          ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
+        ],
+        status: { notIn: ["DONE", "CANCELLED"] },
+      },
+    }),
+    db.task.count({
+      where: {
+        OR: [
+          { assignedUserId: user.id },
+          ...(user.role === "MANAGER" && user.departmentId
+            ? [{ deptId: user.departmentId }]
+            : []),
+          ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
+        ],
+        status: "DONE",
+      },
+    }),
+    user.departmentId
+      ? db.user.count({ where: { departmentId: user.departmentId, isActive: true } })
+      : db.user.count({ where: { isActive: true } }),
+  ]);
+  return { openTasks, doneTasks, teamSize };
+}
+
+async function getActivityData(user: any) {
+  const [activeTasks, recentActivities] = await Promise.all([
+    db.task.findMany({
+      where: {
+        OR: [
+          { assignedUserId: user.id },
+          ...(user.role === "MANAGER" && user.departmentId
+            ? [{ deptId: user.departmentId }]
+            : []),
+          ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
+        ],
+        status: { in: ["IN_PROGRESS", "PAUSED"] },
+      },
+      include: { project: { include: { client: true } }, assignedTo: true },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+    }),
+    db.activityLog.findMany({
+      where: {
+        user: {
+          OR: [
+            { id: user.id },
+            ...(user.role === "MANAGER" && user.departmentId
+              ? [{ departmentId: user.departmentId }]
+              : []),
+            ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
+          ],
+        },
+      },
+      include: { user: true, task: { include: { project: { include: { client: true } } } } },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+  ]);
+  return { activeTasks, recentActivities };
+}
+
+async function StatsSection({ user }: { user: any }) {
+  const { openTasks, doneTasks, teamSize } = await getStats(user);
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+      <StatCard label="OPEN TASKS" value={openTasks} icon={ClipboardIcon} />
+      <StatCard label="DONE" value={doneTasks} icon={CheckmarkBadge01Icon} />
+      <StatCard label="TEAM SIZE" value={teamSize} icon={UserMultipleIcon} />
+    </div>
+  );
+}
+
+async function ActivitySection({ user }: { user: any }) {
+  const { activeTasks, recentActivities } = await getActivityData(user);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="lg:col-span-3">
+        <DeadlineCalendar tasks={activeTasks} />
+      </div>
+
+      <div className="lg:col-span-2 space-y-5">
+        <div className="card bg-white shadow-sm rounded-2xl border border-gray-150 p-5">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center">
+              <PlayIcon className="h-3.5 w-3.5 text-[#c91f41]" />
+            </div>
+            <h2 className="text-sm font-semibold text-gray-900">Active Work</h2>
+          </div>
+          {activeTasks.length > 0 ? (
+            <div className="space-y-3">
+              {activeTasks.map((task) => (
+                <a
+                  key={task.id}
+                  href={`/tasks/${task.id}`}
+                  className="block p-3 rounded-lg border border-gray-150 hover:border-[#c91f41] hover:bg-rose-50 transition-colors group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#c91f41]">
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {task.project?.client?.name} • {task.project?.title}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-1 rounded font-medium whitespace-nowrap ${
+                        task.status === "IN_PROGRESS"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {task.status === "IN_PROGRESS" ? "In Progress" : "Paused"}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <TaskDone01Icon className="h-6 w-6 text-gray-300" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">No open tasks</p>
+              <p className="text-xs text-gray-400 mt-1">Enjoy the calm of a clear list.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="card bg-white shadow-sm rounded-2xl border border-gray-150 p-5">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 flex items-center justify-center">
+              <Clock01Icon className="h-3.5 w-3.5 text-[#c91f41]" />
+            </div>
+            <h2 className="text-sm font-semibold text-gray-900">Recent Activity</h2>
+          </div>
+          {recentActivities.length > 0 ? (
+            <div className="space-y-3 text-sm">
+              {recentActivities.map((activity) => (
+                <div key={activity.id} className="border-b border-gray-100 pb-3 last:border-0">
+                  <p className="text-gray-900 font-medium">{activity.description}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {activity.user.name} • {formatTime(activity.createdAt)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                <Clock01Icon className="h-6 w-6 text-gray-300" />
+              </div>
+              <p className="text-sm font-medium text-gray-700">No activity yet</p>
+              <p className="text-xs text-gray-400 mt-1">Activities will appear as they happen.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default async function DashboardPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const firstName = user.name ? user.name.split(" ")[0] : "User";
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold text-gray-900">
+        {getGreeting()}, {firstName}
+      </h1>
+
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-150 shadow-sm p-5">
+                <div className="h-4 bg-gray-200 rounded w-24 mb-3" />
+                <div className="h-8 bg-gray-200 rounded w-16" />
+              </div>
+            ))}
+          </div>
+        }
+      >
+        <StatsSection user={user} />
+      </Suspense>
+
+      <Suspense fallback={<DashboardSkeleton />}>
+        <ActivitySection user={user} />
+      </Suspense>
+    </div>
+  );
+}
+
+/* ───── Stat Card ───── */
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="card bg-white shadow-sm rounded-2xl border border-gray-150 border-l-[3px] border-l-[#c91f41] p-5 transition-all hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+            {label}
+          </p>
+          <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
+        </div>
+        <div className="w-10 h-10 rounded-lg bg-rose-50 flex items-center justify-center">
+          <Icon className="h-5 w-5 text-[#c91f41]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ───── Deadline Calendar ───── */
+function DeadlineCalendar({
+  tasks,
+}: {
+  tasks: Array<{ id: number; submittedAt: Date | null }>;
+}) {
+  const today = new Date();
+  const month = today.toLocaleString("default", { month: "long" });
+  const year = today.getFullYear();
+  const currentDay = today.getDate();
+  const currentMonth = today.getMonth();
+
+  // Calendar starts on Monday
+  const daysInMonth = new Date(year, currentMonth + 1, 0).getDate();
+  let firstDay = new Date(year, currentMonth, 1).getDay();
+  // Convert Sunday=0 to Monday-based: Mon=0, Tue=1 ... Sun=6
+  firstDay = firstDay === 0 ? 6 : firstDay - 1;
+
+  const blanks = Array.from({ length: firstDay }, () => null);
+  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const allDays = [...blanks, ...days];
+
+  const weekdays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+  // Get task deadlines for this month
+  const taskDates = new Set<number>();
+  tasks.forEach((task) => {
+    if (task.submittedAt) {
+      const taskDate = new Date(task.submittedAt);
+      if (
+        taskDate.getMonth() === currentMonth &&
+        taskDate.getFullYear() === year
+      ) {
+        taskDates.add(taskDate.getDate());
+      }
+    }
+  });
+
+  return (
+    <div className="card bg-white shadow-sm rounded-2xl border border-gray-150 p-5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-sm font-semibold text-gray-900">Deadline Calendar</h2>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500">
+            {month} {year}
+          </span>
+          <div className="flex items-center gap-1">
+            <button className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-[#c91f41] focus:ring-offset-1">
+              <ArrowLeft01Icon className="h-4 w-4" />
+            </button>
+            <button className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-all focus:outline-none focus:ring-2 focus:ring-[#c91f41] focus:ring-offset-1">
+              <ArrowRight01Icon className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Weekday headers */}
+      <div className="grid grid-cols-7 mb-2">
+        {weekdays.map((day) => (
+          <div
+            key={day}
+            className="text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-2"
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Days grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {allDays.map((day, idx) => (
+          <div key={idx} className="flex flex-col items-center py-2 relative">
+            {day ? (
+              <>
+                <div
+                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                    day === currentDay
+                      ? "bg-[#c91f41] text-white shadow-sm"
+                      : "text-gray-700 hover:bg-gray-100 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#c91f41]"
+                  }`}
+                >
+                  {day}
+                </div>
+                {taskDates.has(day) && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#c91f41] mt-1" />
+                )}
+              </>
+            ) : (
+              <div className="w-8 h-8" />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ───── Helper function ───── */
+function formatTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - new Date(date).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+
+  return new Date(date).toLocaleDateString();
+}
+```
+
+The new version includes:
+
+**Icon Replacements:**
+- All Lucide icons replaced with Hugeicons equivalents per your mapping
+
+**daisyUI & Styling Updates:**
+- Added `card` class and `shadow-sm rounded-2xl` to all card components
+- Updated border color to `border-gray-150` for softer appearance
+- Changed background colors to `rose-50` for icon containers (softer than `#fef2f4`)
+- Added `hover:shadow-md` and smooth transitions on stat cards
+
+**Calendar Improvements:**
+- Changed day circles to rounded squares (`rounded-lg` instead of `rounded-full`)
+- Added `gap-1` to the day grid for breathing room
+- Softer borders with `border-gray-150`
+- Enhanced focus states with `focus:ring-2 focus:ring-[#c91f41]` on navigation buttons and days
+- Lighter background on hover with `hover:bg-gray-50`
+- Larger indicator dots (`w-1.5 h-1.5`) for better visibility
+
+All original database logic and functionality remains intact.
