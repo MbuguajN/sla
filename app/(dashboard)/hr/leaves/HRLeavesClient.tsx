@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reviewLeave } from "@/app/actions/hrActions";
+import { cn } from "@/lib/utils";
 import {
   CalendarDays,
   Search,
-  Filter,
-  CheckCircle2,
-  XCircle,
-  Clock,
 } from "lucide-react";
 import {
   Card,
@@ -84,156 +81,144 @@ export default function HRLeavesClient({ initialLeaves }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
-          <CalendarDays className="h-5 w-5 text-[#c91f41]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Leave Requests</h1>
-          <p className="text-sm text-gray-500">
-            {leaves.filter((l) => l.status === "PENDING").length} pending
-          </p>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search by name..."
-            value={search}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setSearch(e.target.value)
-            }
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-2">
-          {statuses.map((s) => (
-            <Button
-              key={s}
-              variant={statusFilter === s ? "primary" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter(s)}
-            >
-              {s === "ALL" ? "All" : s}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <Card>
-        <CardBody className="p-0">
-          {filtered.length > 0 ? (
-            <Table>
-              <TableHead>
-                <TableHeader>Employee</TableHeader>
-                <TableHeader>Type</TableHeader>
-                <TableHeader>Dates</TableHeader>
-                <TableHeader>Days</TableHeader>
-                <TableHeader>Status</TableHeader>
-                <TableHeader>Actions</TableHeader>
-              </TableHead>
-              <TableBody>
-                {filtered.map((leave) => (
-                  <TableRow key={leave.id}>
-                    <TableCell>
-                      <p className="text-sm font-medium text-gray-900">
-                        {leave.userName}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {leave.userDepartment || "—"}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600">{leave.type}</span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm text-gray-600">
-                        {new Date(leave.startDate).toLocaleDateString()} —{" "}
-                        {new Date(leave.endDate).toLocaleDateString()}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-sm font-medium text-gray-900">
-                        {leave.totalDays}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          statusToBadgeVariant[leave.status] || "secondary"
-                        }
-                      >
-                        {leave.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {leave.status === "PENDING" &&
-                        (reviewingId === leave.id ? (
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="text"
-                              placeholder="Note (optional)"
-                              value={reviewNote}
-                              onChange={(e:React.ChangeEvent<HTMLInputElement>) =>
-                                setReviewNote(e.target.value)
-                              }
-                              className="w-32 text-xs"
-                            />
-                            <Button
-                              variant="success"
-                              size="sm"
-                              onClick={() =>
-                                handleReview(leave.id, "APPROVED")
-                              }
-                              disabled={loading}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="error"
-                              size="sm"
-                              onClick={() =>
-                                handleReview(leave.id, "DENIED")
-                              }
-                              disabled={loading}
-                            >
-                              Deny
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setReviewingId(null);
-                                setReviewNote("");
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setReviewingId(leave.id)}
-                          >
-                            Review
-                          </Button>
-                        ))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-sm text-gray-500">No leave requests found</p>
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="xl:col-span-5 rounded-3xl bg-white border border-gray-100 p-7">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-[#fef2f4] rounded-xl">
+              <CalendarDays className="h-4 w-4 text-[#c91f41]" />
             </div>
-          )}
-        </CardBody>
-      </Card>
+            <span className="text-[11px] font-black text-[#c91f41] uppercase tracking-[0.2em]">Attendance Desk</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Leave Requests</h1>
+          <p className="text-sm text-gray-500 mt-2 leading-relaxed">Review submitted leave requests and process approvals quickly.</p>
+        </div>
+        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Pending</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{leaves.filter((l) => l.status === "PENDING").length}</p>
+          </div>
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Approved</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{leaves.filter((l) => l.status === "APPROVED").length}</p>
+          </div>
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Cancelled / Denied</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{leaves.filter((l) => l.status === "CANCELLED" || l.status === "DENIED").length}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-gray-100 bg-white overflow-hidden">
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search by employee name"
+              value={search}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              className="pl-10 h-10 rounded-xl border-gray-200 bg-white"
+            />
+          </div>
+          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 p-1.5 border border-gray-100">
+            {statuses.map((s) => (
+              <Button
+                key={s}
+                variant="ghost"
+                size="sm"
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  "rounded-xl h-8 px-3 text-[11px] font-black uppercase tracking-[0.12em] border transition-colors",
+                  statusFilter === s
+                    ? "bg-[#c91f41] border-[#c91f41] text-white hover:bg-[#b31c3a]"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-[#f0c8d2] hover:text-[#c91f41]"
+                )}
+              >
+                {s === "ALL" ? "All" : s}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <Card className="rounded-none border-0 shadow-none">
+          <CardBody className="p-0">
+            {filtered.length > 0 ? (
+              <Table>
+                <TableHead>
+                  <TableHeader>Employee</TableHeader>
+                  <TableHeader>Type</TableHeader>
+                  <TableHeader>Dates</TableHeader>
+                  <TableHeader>Days</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Actions</TableHeader>
+                </TableHead>
+                <TableBody>
+                  {filtered.map((leave) => (
+                    <TableRow key={leave.id}>
+                      <TableCell>
+                        <p className="text-sm font-bold text-gray-900">{leave.userName}</p>
+                        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{leave.userDepartment || "Unassigned"}</p>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] px-2.5 py-1 rounded-lg">{leave.type}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-600">
+                          {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-black text-gray-900">{leave.totalDays}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusToBadgeVariant[leave.status] || "secondary"}>{leave.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {leave.status === "PENDING" &&
+                          (reviewingId === leave.id ? (
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Input
+                                type="text"
+                                placeholder="Note (optional)"
+                                value={reviewNote}
+                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReviewNote(e.target.value)}
+                                className="w-36 text-xs"
+                              />
+                              <Button variant="success" size="sm" onClick={() => handleReview(leave.id, "APPROVED")} disabled={loading}>
+                                Approve
+                              </Button>
+                              <Button variant="error" size="sm" onClick={() => handleReview(leave.id, "DENIED")} disabled={loading}>
+                                Deny
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setReviewingId(null);
+                                  setReviewNote("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={() => setReviewingId(leave.id)}>
+                              Review
+                            </Button>
+                          ))}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-14">
+                <p className="text-sm font-semibold text-gray-500">No leave requests found</p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </section>
     </div>
   );
 }

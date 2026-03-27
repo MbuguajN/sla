@@ -2,6 +2,7 @@
 
 import { Bell, X } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { getUnreadNotifications, getUnreadCount, markNotificationAsRead, markAllNotificationsAsRead } from "@/app/actions/notificationActions";
 
 interface Notification {
@@ -15,6 +16,7 @@ interface Notification {
 }
 
 export default function NotificationDropdown() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -26,6 +28,12 @@ export default function NotificationDropdown() {
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadNotifications();
+    }
+  }, [isOpen]);
 
   const loadNotifications = async () => {
     try {
@@ -43,22 +51,31 @@ export default function NotificationDropdown() {
   };
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.isRead) {
-      await markNotificationAsRead(notification.id);
-      setNotifications(notifications.map(n =>
-        n.id === notification.id ? { ...n, isRead: true } : n
-      ));
-      setUnreadCount(Math.max(0, unreadCount - 1));
-    }
-    if (notification.link) {
-      window.location.href = notification.link;
+    try {
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+      if (notification.link) {
+        setIsOpen(false);
+        router.push(notification.link);
+      }
+    } catch (error) {
+      console.error("Failed to open notification:", error);
     }
   };
 
   const handleMarkAllAsRead = async () => {
-    await markAllNotificationsAsRead();
-    setNotifications(notifications.map(n => ({ ...n, isRead: true })));
-    setUnreadCount(0);
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error);
+    }
   };
 
   const getNotificationColor = (type: string) => {

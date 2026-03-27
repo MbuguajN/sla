@@ -5,18 +5,32 @@ export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
+    const isHR = token?.departmentSlug === "human-resources";
+    const isFinance = token?.departmentSlug === "finance";
+    const isElevated = token?.role === "ADMIN" || token?.role === "CEO";
 
     // Admin-only routes
     if (path.startsWith("/admin") && token?.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
+    if (!isElevated && (isHR || isFinance)) {
+      const blocksOperationalRoutes =
+        path.startsWith("/clients") ||
+        path.startsWith("/projects") ||
+        path.startsWith("/tasks");
+
+      if (blocksOperationalRoutes) {
+        return NextResponse.redirect(
+          new URL(isFinance ? "/dashboard" : "/hr/leaves", req.url)
+        );
+      }
+    }
+
     // HR routes - only HR department, Admin, or CEO
     if (path.startsWith("/hr")) {
       const canAccess =
-        token?.role === "ADMIN" ||
-        token?.role === "CEO" ||
-        token?.departmentSlug === "human-resources";
+        isElevated || isHR;
       if (!canAccess) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
@@ -25,9 +39,7 @@ export default withAuth(
     // Finance routes - only Finance department, Admin, or CEO
     if (path.startsWith("/finance")) {
       const canAccess =
-        token?.role === "ADMIN" ||
-        token?.role === "CEO" ||
-        token?.departmentSlug === "finance";
+        isElevated || isFinance;
       if (!canAccess) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }

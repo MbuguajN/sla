@@ -1,9 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { reviewSuggestion } from "@/app/actions/hrActions";
+import { cn } from "@/lib/utils";
 import { MessageSquare, Search } from "lucide-react";
+import {
+  Card,
+  CardBody,
+  Badge,
+  Button,
+  Input,
+  Table,
+  TableHead,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@/components/daisy-components";
 
 type SuggestionItem = {
   id: number;
@@ -22,13 +35,9 @@ interface Props {
 }
 
 export default function HRSuggestionsClient({ initialSuggestions }: Props) {
-  const router = useRouter();
   const [suggestions] = useState(initialSuggestions);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [reviewingId, setReviewingId] = useState<number | null>(null);
-  const [hrNote, setHrNote] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const filtered = suggestions.filter((s) => {
     const matchSearch = s.title.toLowerCase().includes(search.toLowerCase()) || s.content.toLowerCase().includes(search.toLowerCase());
@@ -37,10 +46,10 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
   });
 
   const statusColors: Record<string, string> = {
-    OPEN: "bg-blue-100 text-blue-700",
-    IN_REVIEW: "bg-yellow-100 text-yellow-700",
-    ACTIONED: "bg-green-100 text-green-700",
-    CLOSED: "bg-gray-100 text-gray-700",
+    OPEN: "info",
+    IN_REVIEW: "primary",
+    ACTIONED: "success",
+    CLOSED: "secondary",
   };
 
   const categoryColors: Record<string, string> = {
@@ -50,101 +59,124 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
     REQUEST: "bg-orange-100 text-orange-700",
   };
 
-  const handleReview = async (id: number, status: "IN_REVIEW" | "ACTIONED" | "CLOSED") => {
-    setLoading(true);
-    try {
-      await reviewSuggestion(id, status, hrNote || undefined);
-      setReviewingId(null);
-      setHrNote("");
-      router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const statuses = ["ALL", "OPEN", "IN_REVIEW", "ACTIONED", "CLOSED"];
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
-          <MessageSquare className="h-5 w-5 text-[#c91f41]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Suggestions Box</h1>
-          <p className="text-sm text-gray-500">{suggestions.filter((s) => s.status === "OPEN").length} open</p>
-        </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]" />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {statuses.map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${statusFilter === s ? "bg-[#c91f41] text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-              {s === "ALL" ? "All" : s.replace("_", " ")}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {filtered.map((s) => (
-          <div key={s.id} className="bg-white rounded-xl border border-gray-200 p-5">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-gray-900">{s.title}</h3>
-                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${categoryColors[s.category]}`}>{s.category}</span>
-                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span>
-                </div>
-                <p className="text-xs text-gray-400 mt-0.5">by {s.userName} &middot; {new Date(s.createdAt).toLocaleDateString()}</p>
-              </div>
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="xl:col-span-5 rounded-3xl bg-white border border-gray-100 p-7">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-[#fef2f4] rounded-xl">
+              <MessageSquare className="h-4 w-4 text-[#c91f41]" />
             </div>
-            <p className="text-sm text-gray-600 mt-2">{s.content}</p>
-            {s.hrNote && <p className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">HR Note: {s.hrNote}</p>}
+            <span className="text-[11px] font-black text-[#c91f41] uppercase tracking-[0.2em]">Culture Lab</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Suggestions Box</h1>
+          <p className="text-sm text-gray-500 mt-2 leading-relaxed">Track suggestions, route actions, and close feedback loops.</p>
+        </div>
+        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Open</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{suggestions.filter((s) => s.status === "OPEN").length}</p>
+          </div>
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">In Review</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{suggestions.filter((s) => s.status === "IN_REVIEW").length}</p>
+          </div>
+          <div className="rounded-3xl bg-white border border-gray-100 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Actioned</p>
+            <p className="text-4xl font-black text-slate-800 mt-2">{suggestions.filter((s) => s.status === "ACTIONED").length}</p>
+          </div>
+        </div>
+      </section>
 
-            {s.status !== "CLOSED" && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                {reviewingId === s.id ? (
-                  <div className="space-y-2">
-                    <input type="text" placeholder="Add a note..." value={hrNote} onChange={(e) => setHrNote(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]" />
-                    <div className="flex items-center gap-2">
-                      {s.status === "OPEN" && (
-                        <button onClick={() => handleReview(s.id, "IN_REVIEW")} disabled={loading}
-                          className="px-2 py-1 text-xs font-medium text-white bg-yellow-500 rounded-lg hover:bg-yellow-600 disabled:opacity-50">Mark In Review</button>
-                      )}
-                      <button onClick={() => handleReview(s.id, "ACTIONED")} disabled={loading}
-                        className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50">Mark Actioned</button>
-                      <button onClick={() => handleReview(s.id, "CLOSED")} disabled={loading}
-                        className="px-2 py-1 text-xs font-medium text-white bg-gray-500 rounded-lg hover:bg-gray-600 disabled:opacity-50">Close</button>
-                      <button onClick={() => { setReviewingId(null); setHrNote(""); }}
-                        className="px-2 py-1 text-xs text-gray-500 hover:text-gray-700">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={() => setReviewingId(s.id)}
-                    className="px-3 py-1 text-xs font-medium text-[#c91f41] bg-[#fef2f4] rounded-lg hover:bg-red-100">Review</button>
+      <section className="rounded-3xl border border-gray-100 bg-white overflow-hidden">
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search title or content"
+              value={search}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              className="pl-10 h-10 rounded-xl border-gray-200 bg-white"
+            />
+          </div>
+          <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 p-1.5 border border-gray-100">
+            {statuses.map((s) => (
+              <Button
+                key={s}
+                size="sm"
+                variant="ghost"
+                onClick={() => setStatusFilter(s)}
+                className={cn(
+                  "rounded-xl h-8 px-3 text-[11px] font-black uppercase tracking-[0.12em] border transition-colors",
+                  statusFilter === s
+                    ? "bg-[#c91f41] border-[#c91f41] text-white hover:bg-[#b31c3a]"
+                    : "bg-white border-gray-200 text-gray-600 hover:border-[#f0c8d2] hover:text-[#c91f41]"
                 )}
+              >
+                {s === "ALL" ? "All" : s.replace("_", " ")}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <Card className="rounded-none border-0 shadow-none">
+          <CardBody className="p-0">
+            {filtered.length > 0 ? (
+              <Table>
+                <TableHead>
+                  <TableHeader>Title</TableHeader>
+                  <TableHeader>Category</TableHeader>
+                  <TableHeader>Author</TableHeader>
+                  <TableHeader>Date</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Actions</TableHeader>
+                </TableHead>
+                <TableBody>
+                  {filtered.map((s) => (
+                    <TableRow key={s.id}>
+                      <TableCell>
+                        <p className="text-sm font-bold text-gray-900 leading-tight">{s.title}</p>
+                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{s.content}</p>
+                        {s.hrNote && <p className="text-[11px] text-gray-400 mt-2">HR Note: {s.hrNote}</p>}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${categoryColors[s.category]}`}>{s.category}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-700">{s.isAnonymous ? "Anonymous" : s.userName}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-600">{new Date(s.createdAt).toLocaleDateString()}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusColors[s.status] || "secondary"}>{s.status.replace("_", " ")}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {s.status !== "CLOSED" && (
+                          <Link
+                            href={`/hr/suggestions/${s.id}`}
+                            className="inline-flex items-center justify-center rounded-xl border border-[#f0c8d2] text-[#c91f41] font-bold text-sm hover:bg-[#fef2f4] px-3 py-1.5 transition-colors"
+                          >
+                            Review
+                          </Link>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-14">
+                <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No suggestions found</p>
               </div>
             )}
-          </div>
-        ))}
-
-        {filtered.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-            <MessageSquare className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">No suggestions found</p>
-          </div>
-        )}
-      </div>
+          </CardBody>
+        </Card>
+      </section>
     </div>
   );
 }

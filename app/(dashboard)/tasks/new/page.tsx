@@ -35,6 +35,7 @@ export default async function NewTaskPage({
       projects={projects.map((p) => ({
         id: p.id,
         title: p.title,
+        clientId: p.client.id,
         clientName: p.client.name,
         departments: p.departments.map((pd) => ({
           id: pd.department.id,

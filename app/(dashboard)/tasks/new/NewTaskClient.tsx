@@ -4,7 +4,23 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createTask } from "@/app/actions/taskActions";
-import { ArrowLeft, ListChecks, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Building2,
+  FileText,
+  Users,
+  AlertCircle,
+  Link as LinkIcon,
+  Search,
+  Plus,
+  Trash2,
+  Clock,
+  Flag
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type ProjectDept = {
   id: number;
@@ -15,6 +31,7 @@ type ProjectDept = {
 type Project = {
   id: number;
   title: string;
+  clientId: number;
   clientName: string;
   departments: ProjectDept[];
 };
@@ -30,8 +47,15 @@ interface Props {
   preselectedProjectId?: number;
 }
 
+const STEPS = [
+  { id: 1, title: "Foundation", icon: Building2 },
+  { id: 2, title: "Context", icon: FileText },
+  { id: 3, title: "Assignment", icon: Users },
+];
+
 export default function NewTaskClient({ projects, allDepartments, preselectedProjectId }: Props) {
   const router = useRouter();
+  const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -39,233 +63,364 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
     projectId: preselectedProjectId?.toString() || "",
     title: "",
     description: "",
-    priority: "MEDIUM" as string,
+    priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
     deptId: "",
-    slaHours: "",
+    slaHours: "48",
+    links: [] as { name: string; url: string }[],
   });
+
+  const [projectSearch, setProjectSearch] = useState("");
 
   const selectedProject = useMemo(() => {
     return projects.find((p) => p.id.toString() === formData.projectId);
   }, [projects, formData.projectId]);
 
-  // Departments available for this project
-  const availableDepartments = useMemo(() => {
-    if (!selectedProject) return allDepartments;
-    // Prefer project departments, but allow all
-    return allDepartments;
-  }, [selectedProject, allDepartments]);
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => 
+      p.title.toLowerCase().includes(projectSearch.toLowerCase()) ||
+      p.clientName.toLowerCase().includes(projectSearch.toLowerCase())
+    );
+  }, [projects, projectSearch]);
 
-  // Get default SLA when department changes
-  const handleDeptChange = (deptId: string) => {
-    setFormData((prev) => {
-      const projectDept = selectedProject?.departments.find(
-        (d) => d.id.toString() === deptId
-      );
-      return {
-        ...prev,
-        deptId,
-        slaHours: projectDept?.slaHours?.toString() || "48",
-      };
-    });
+  const addLink = () => {
+    setFormData(prev => ({
+      ...prev,
+      links: [...prev.links, { name: "", url: "" }]
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const updateLink = (index: number, field: "name" | "url", value: string) => {
+    const newLinks = [...formData.links];
+    newLinks[index][field] = value;
+    setFormData(prev => ({ ...prev, links: newLinks }));
+  };
+
+  const removeLink = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      links: prev.links.filter((_, i) => i !== index)
+    }));
+  };
+
+  const nextStep = () => {
+    if (currentStep === 1) {
+      if (!formData.projectId || !formData.title.trim()) {
+        setError("Please select a project and provide a task title.");
+        return;
+      }
+    }
+    if (currentStep === 2) {
+      if (!formData.description.trim()) {
+        setError("Please provide task context.");
+        return;
+      }
+    }
+    setError("");
+    setCurrentStep((prev) => Math.min(prev + 1, 3));
+  };
+
+  const prevStep = () => {
+    setError("");
+    setCurrentStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.deptId) {
+      setError("Please assign a department to this task.");
+      return;
+    }
+
     setLoading(true);
     setError("");
-
-    if (!formData.projectId) {
-      setError("Please select a project");
-      setLoading(false);
-      return;
-    }
-
-    if (!formData.deptId) {
-      setError("Please select a department");
-      setLoading(false);
-      return;
-    }
 
     try {
       const task = await createTask({
         projectId: parseInt(formData.projectId),
         title: formData.title,
-        description: formData.description || undefined,
-        priority: formData.priority as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+        description: formData.description,
+        priority: formData.priority,
         deptId: parseInt(formData.deptId),
-        slaHours: formData.slaHours ? parseInt(formData.slaHours) : undefined,
+        slaHours: parseInt(formData.slaHours),
+        links: formData.links.filter(l => l.name.trim() && l.url.trim()),
       });
 
-      router.push(`/tasks/${task.id}`);
+      router.push("/tasks/" + task.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      setError(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
 
-  const priorities = [
-    { value: "LOW", label: "Low", color: "text-gray-500" },
-    { value: "MEDIUM", label: "Medium", color: "text-blue-500" },
-    { value: "HIGH", label: "High", color: "text-orange-500" },
-    { value: "URGENT", label: "Urgent", color: "text-red-500" },
-  ];
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Back link */}
-      <Link
-        href="/tasks"
-        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Tasks
-      </Link>
-
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
-          <ListChecks className="h-5 w-5 text-[#c91f41]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">New Task</h1>
-          <p className="text-sm text-gray-500">Create and assign a new task</p>
-        </div>
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-12">
+        <Link
+          href="/tasks"
+          className="group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c91f41] transition-colors mb-6"
+        >
+          <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" />
+          Back to Tasks
+        </Link>
       </div>
 
-      {/* Form */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        {error && (
-          <div className="mb-6 flex items-center gap-2 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            {error}
-          </div>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div className="lg:col-span-4">
+          <div className="sticky top-8">
+            <h1 className="text-3xl font-black text-gray-900 mb-2 leading-tight">New Assignment</h1>
+            <p className="text-sm text-gray-500 mb-8">Define the requirements and allocate resources.</p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Project */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Project *
-            </label>
-            <select
-              value={formData.projectId}
-              onChange={(e) => setFormData({ ...formData, projectId: e.target.value, deptId: "", slaHours: "48" })}
-              required
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-            >
-              <option value="">Select a project</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title} ({project.clientName})
-                </option>
-              ))}
-            </select>
-          </div>
+            <ul className="steps steps-vertical w-full">
+              {STEPS.map((step) => {
+                const Icon = step.icon;
+                const isActive = currentStep === step.id;
+                const isCompleted = currentStep > step.id;
 
-          {/* Title */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Task Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="Enter task title"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-            />
-          </div>
+                return (
+                  <li 
+                    key={step.id} 
+                    className={cn(
+                      "step text-left before:!w-[2px]",
+                      isCompleted ? "step-error" : isActive ? "step-neutral" : ""
+                    )}
+                    data-content={isCompleted ? "v" : step.id}
+                  >
+                    <div className="flex items-center gap-3 ml-4 py-4">
+                      <div className={cn(
+                        "w-8 h-8 rounded-xl flex items-center justify-center transition-all", 
+                        isActive ? "bg-[#c91f41] text-white shadow-lg" : "bg-gray-50 text-gray-400"
+                      )}>
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className={cn(
+                        "text-[11px] font-extrabold uppercase tracking-widest transition-colors",
+                        isActive ? "text-[#c91f41]" : "text-gray-400"
+                      )}>
+                        {step.title}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
-              placeholder="Task description and requirements..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] resize-none"
-            />
+            {error && (
+              <div className="mt-8 p-4 bg-red-50 rounded-2xl border border-red-100 flex gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="h-5 w-5 shrink-0" />
+                <p className="text-xs font-semibold leading-relaxed">{error}</p>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Priority & Department */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Priority
-              </label>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+        <div className="lg:col-span-8">
+          <div className="bg-white rounded-[32px] border-2 border-gray-900 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] p-6 md:p-8 relative overflow-hidden transition-all">
+            {currentStep === 1 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Parent Project</label>
+                    <div className="relative group">
+                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <select
+                        value={formData.projectId}
+                        onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-5 text-sm font-bold text-gray-900 appearance-none focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                      >
+                        <option value="">Search Projects...</option>
+                        {filteredProjects.map((p) => (
+                          <option key={p.id} value={p.id}>{p.clientName} &gt; {p.title}</option>
+                        ))}
+                      </select>
+                      <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none rotate-90" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Task Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Logo Design V1"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl px-5 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none placeholder:text-gray-300"
+                    />
+                  </div>
+
+                  <div className="pt-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Priority Level</label>
+                    <div className="grid grid-cols-4 gap-2">
+                       {(["LOW", "MEDIUM", "HIGH", "URGENT"] as const).map((p) => (
+                         <button
+                           key={p}
+                           type="button"
+                           onClick={() => setFormData({ ...formData, priority: p })}
+                           className={cn(
+                             "h-12 rounded-xl text-[10px] font-black tracking-widest transition-all border-2",
+                             formData.priority === p 
+                               ? "bg-gray-900 border-gray-900 text-white" 
+                               : "bg-gray-50 border-transparent text-gray-400 hover:border-gray-200"
+                           )}
+                         >
+                           {p}
+                         </button>
+                       ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Technical Instruction</label>
+                    <textarea
+                      placeholder="What needs to be done? Include specific dimensions, formats, or requirements..."
+                      rows={6}
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-5 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none placeholder:text-gray-300 resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">External Links & Assets</label>
+                      <button 
+                        onClick={addLink}
+                        type="button"
+                        className="text-[10px] font-black text-[#c91f41] uppercase tracking-widest hover:underline"
+                      >
+                        + Add Resource
+                      </button>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {formData.links.map((link, idx) => (
+                        <div key={idx} className="flex gap-2 animate-in slide-in-from-left-2">
+                          <input
+                            placeholder="Link Name (e.g. Design Doc)"
+                            value={link.name}
+                            onChange={(e) => updateLink(idx, "name", e.target.value)}
+                            className="flex-1 h-12 bg-gray-50 border-2 border-transparent rounded-xl px-4 text-[11px] font-bold focus:bg-white focus:border-[#c91f41] outline-none"
+                          />
+                          <input
+                            placeholder="URL (https://...)"
+                            value={link.url}
+                            onChange={(e) => updateLink(idx, "url", e.target.value)}
+                            className="flex-[2] h-12 bg-gray-50 border-2 border-transparent rounded-xl px-4 text-[11px] font-bold focus:bg-white focus:border-[#c91f41] outline-none"
+                          />
+                          <button 
+                            onClick={() => removeLink(idx)}
+                            type="button"
+                            className="w-12 h-12 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-8">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 block">Assigned Department</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {allDepartments.map((dept) => {
+                        const isSelected = formData.deptId === dept.id.toString();
+                        return (
+                          <button
+                            key={dept.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, deptId: dept.id.toString() })}
+                            className={cn(
+                              "flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
+                              isSelected 
+                                ? "bg-gray-900 border-gray-900 text-white" 
+                                : "bg-gray-50 border-transparent hover:border-gray-200 text-gray-900"
+                            )}
+                          >
+                            <span className="text-[11px] font-black uppercase italic tracking-wide">{dept.name}</span>
+                            <div className={cn(
+                              "w-5 h-5 rounded-lg flex items-center justify-center transition-colors",
+                              isSelected ? "bg-[#c91f41] text-white" : "bg-white border-2 border-gray-100"
+                            )}>
+                              {isSelected && <Check className="h-3 w-3" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">SLA Commitment (Hours)</label>
+                    <div className="relative w-32">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="number"
+                        value={formData.slaHours}
+                        onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
+                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+              {currentStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Recall
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={currentStep === 3 ? handleSubmit : nextStep}
+                className={cn(
+                  "relative h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all group active:scale-95 disabled:opacity-50",
+                  currentStep === 3 
+                    ? "bg-[#c91f41] text-white shadow-xl shadow-[#c91f41]/20 hover:bg-[#b01b39]" 
+                    : "bg-gray-900 text-white hover:bg-black shadow-xl shadow-black/10"
+                )}
               >
-                {priorities.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assign to Department *
-              </label>
-              <select
-                value={formData.deptId}
-                onChange={(e) => handleDeptChange(e.target.value)}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-              >
-                <option value="">Select department</option>
-                {availableDepartments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </select>
+                <span className="relative z-10 flex items-center gap-3">
+                  {loading ? (
+                    "Processing..."
+                  ) : currentStep === 3 ? (
+                    <>
+                      Distribute Task
+                      <Check className="h-4 w-4" />
+                    </>
+                  ) : (
+                    <>
+                      Next Protocol
+                      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </>
+                  )}
+                </span>
+                <div className="absolute inset-0 rounded-2xl bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
             </div>
           </div>
-
-          {/* SLA Hours */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              SLA Hours
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={formData.slaHours}
-              onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
-              placeholder="48"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-            />
-            <p className="text-xs text-gray-400 mt-1">
-              Hours until deadline (SLA timer starts when task is confirmed)
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <Link
-              href="/tasks"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-[#c91f41] hover:bg-[#a61835] rounded-lg transition-colors disabled:opacity-50"
-            >
-              {loading ? "Creating..." : "Create Task"}
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
     </div>
   );

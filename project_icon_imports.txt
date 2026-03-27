@@ -1,0 +1,138 @@
+﻿Settings02Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+PlusSignIcon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Image01Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Sun01Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Moon02Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Upload01Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Tick02Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+InformationCircleIcon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Shield02Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+SecurityCheckIcon|app\(dashboard)\admin\settings\SettingsClient.tsx
+Cancel01Icon|app\(dashboard)\admin\settings\SettingsClient.tsx
+ClipboardIcon|app\(dashboard)\dashboard\DashboardClient.tsx
+CheckmarkBadge01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+UserMultipleIcon|app\(dashboard)\dashboard\DashboardClient.tsx
+PlayIcon|app\(dashboard)\dashboard\DashboardClient.tsx
+Clock01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+ArrowLeft01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+ArrowRight01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+TaskDone01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+Add01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\dashboard\DashboardClient.tsx
+ClipboardIcon|app\(dashboard)\dashboard\page.tsx
+Tick02Icon|app\(dashboard)\dashboard\page.tsx
+UserMultipleIcon|app\(dashboard)\dashboard\page.tsx
+PlayIcon|app\(dashboard)\dashboard\page.tsx
+Clock01Icon|app\(dashboard)\dashboard\page.tsx
+ArrowLeft01Icon|app\(dashboard)\dashboard\page.tsx
+ArrowRight01Icon|app\(dashboard)\dashboard\page.tsx
+TaskDone01Icon|app\(dashboard)\dashboard\page.tsx
+Add01Icon|app\(dashboard)\dashboard\page.tsx
+CheckmarkCircle01Icon|app\(dashboard)\dashboard\page.tsx
+Receipt01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+Search01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+ArrowDown01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+Cancel01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+Clock01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+ShoppingBasket01Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+BitcoinIcon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+SquareLock02Icon|app\(dashboard)\finance\requisitions\FinanceRequisitionsClient.tsx
+Calendar01Icon|app\(dashboard)\leave\LeaveClient.tsx
+Add01Icon|app\(dashboard)\leave\LeaveClient.tsx
+ArrowRight01Icon|app\(dashboard)\leave\LeaveClient.tsx
+Record01Icon|app\(dashboard)\leave\LeaveClient.tsx
+Cancel01Icon|app\(dashboard)\leave\LeaveClient.tsx
+InformationCircleIcon|app\(dashboard)\leave\LeaveClient.tsx
+Clock01Icon|app\(dashboard)\leave\LeaveClient.tsx
+SentIcon|app\(dashboard)\leave\LeaveClient.tsx
+NoteIcon|app\(dashboard)\leave\LeaveClient.tsx
+UserIcon|app\(dashboard)\leave\LeaveClient.tsx
+Folder01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+Add01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+Search01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+Tick02Icon|app\(dashboard)\projects\ProjectsClient.tsx
+More01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+Record01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+Calendar01Icon|app\(dashboard)\projects\ProjectsClient.tsx
+UserGroupIcon|app\(dashboard)\projects\ProjectsClient.tsx
+ChartBreakoutSquareIcon|app\(dashboard)\projects\ProjectsClient.tsx
+Money01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+Add01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+ArrowRight01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+Record01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+Cancel01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+InformationCircleIcon|app\(dashboard)\refunds\RefundsClient.tsx
+Coins01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+CreditCard01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+Invoice01Icon|app\(dashboard)\refunds\RefundsClient.tsx
+ShoppingBag01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+Add01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+ArrowRight01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+Record01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+Cancel01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+Package01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+ShoppingBasket01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+InformationCircleIcon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\requisitions\RequisitionsClient.tsx
+Message01Icon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+Add01Icon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+RecordIcon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+UserIcon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+Idea01Icon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+PencilIcon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+Cancel01Icon|app\(dashboard)\suggestions\SuggestionsClient.tsx
+ArrowLeft01Icon as ArrowLeft|app\(dashboard)\tasks\new\NewTaskClient.tsx
+ArrowRight01Icon as ChevronRight|app\(dashboard)\tasks\new\NewTaskClient.tsx
+ArrowLeft01Icon as ChevronLeft|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Tick01Icon as Check|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Building01Icon as Building2|app\(dashboard)\tasks\new\NewTaskClient.tsx
+File01Icon as FileText|app\(dashboard)\tasks\new\NewTaskClient.tsx
+UserGroupIcon as Users|app\(dashboard)\tasks\new\NewTaskClient.tsx
+AlertCircleIcon as AlertCircle|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Link01Icon as LinkIcon|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Search01Icon as Search|app\(dashboard)\tasks\new\NewTaskClient.tsx
+PlusSignIcon as Plus|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Delete01Icon as Trash2|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Clock01Icon as Clock|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Flag01Icon as Flag|app\(dashboard)\tasks\new\NewTaskClient.tsx
+Task01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Add01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Search01Icon|app\(dashboard)\tasks\TasksClient.tsx
+CheckmarkCircle01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Record01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Calendar01Icon|app\(dashboard)\tasks\TasksClient.tsx
+ArrowRight01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Clock01Icon|app\(dashboard)\tasks\TasksClient.tsx
+View01Icon|app\(dashboard)\tasks\TasksClient.tsx
+Delete02Icon|app\(dashboard)\tasks\TasksClient.tsx
+Folder01Icon|app\(dashboard)\page.tsx
+Task01Icon|app\(dashboard)\page.tsx
+UserGroupIcon|app\(dashboard)\page.tsx
+Building01Icon|app\(dashboard)\page.tsx
+Tick02Icon|app\(dashboard)\page.tsx
+Clock01Icon|app\(dashboard)\page.tsx
+AlertCircleIcon|app\(dashboard)\page.tsx
+Moon02Icon|components\layout\header.tsx
+Sun01Icon|components\layout\header.tsx
+Search01Icon|components\layout\header.tsx
+Logout01Icon|components\layout\header.tsx
+Notification01Icon|components\layout\NotificationDropdown.tsx
+Cancel01Icon|components\layout\NotificationDropdown.tsx
+Clock01Icon|components\layout\NotificationDropdown.tsx
+DashboardSquare01Icon|components\layout\sidebar.tsx
+Briefcase01Icon|components\layout\sidebar.tsx
+TaskDone01Icon|components\layout\sidebar.tsx
+Building01Icon|components\layout\sidebar.tsx
+UserGroupIcon|components\layout\sidebar.tsx
+Settings02Icon|components\layout\sidebar.tsx
+Calendar01Icon|components\layout\sidebar.tsx
+Message01Icon|components\layout\sidebar.tsx
+InvoiceIcon|components\layout\sidebar.tsx
+CreditCardIcon|components\layout\sidebar.tsx
+ArrowDown01Icon|components\layout\sidebar.tsx
+InformationCircleIcon|components\layout\sidebar.tsx
+UserEdit01Icon|components\layout\sidebar.tsx
+Settings01Icon|components\layout\sidebar.tsx

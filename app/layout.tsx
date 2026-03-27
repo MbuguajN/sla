@@ -31,7 +31,9 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
+        {children}
+      </body>
     </html>
   );
 }

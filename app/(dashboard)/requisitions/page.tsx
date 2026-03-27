@@ -7,6 +7,12 @@ export default async function RequisitionsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  // Fetch projects for the requisition form
+  const projects = await db.project.findMany({
+    select: { id: true, title: true }
+  });
+
+  // Fetch existing requisitions
   const requisitions = await db.requisition.findMany({
     where: { userId: user.id },
     include: { items: true },
@@ -14,7 +20,8 @@ export default async function RequisitionsPage() {
   });
 
   return (
-    <RequisitionsClient
+    <RequisitionsClient 
+      projectOptions={projects}
       initialRequisitions={requisitions.map((r) => ({
         id: r.id,
         title: r.title,
@@ -25,11 +32,9 @@ export default async function RequisitionsPage() {
         financeNote: r.financeNote,
         ceoNote: r.ceoNote,
         items: r.items.map((i) => ({
-          id: i.id,
           itemName: i.itemName,
           quantity: i.quantity,
           unitPrice: i.unitPrice,
-          vatInclusive: i.vatInclusive,
         })),
         createdAt: r.createdAt.toISOString(),
       }))}

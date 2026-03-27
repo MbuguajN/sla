@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { Moon02Icon, Sun01Icon, Search01Icon, Logout01Icon } from "hugeicons-react";
+import { Moon02Icon, Sun01Icon, Logout01Icon } from "hugeicons-react";
 import { useState, useEffect } from "react";
 import NotificationDropdown from "./NotificationDropdown";
 
@@ -13,6 +13,90 @@ interface HeaderProps {
     role: string;
     departmentSlug: string | null;
   };
+}
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getWeatherInfo(code: number): { label: string; emoji: string } {
+  if (code === 0) return { label: "Clear", emoji: "☀️" };
+  if (code <= 2) return { label: "Mainly Clear", emoji: "🌤️" };
+  if (code === 3) return { label: "Overcast", emoji: "☁️" };
+  if (code <= 48) return { label: "Foggy", emoji: "🌫️" };
+  if (code <= 57) return { label: "Drizzle", emoji: "🌦️" };
+  if (code <= 67) return { label: "Rain", emoji: "🌧️" };
+  if (code <= 77) return { label: "Snow", emoji: "❄️" };
+  if (code <= 82) return { label: "Showers", emoji: "🌦️" };
+  if (code <= 86) return { label: "Snow Showers", emoji: "🌨️" };
+  return { label: "Storm", emoji: "⛈️" };
+}
+
+function WeatherWidget() {
+  const [weather, setWeather] = useState<{
+    temp: number;
+    weathercode: number;
+    city: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const [weatherRes, geoRes] = await Promise.all([
+            fetch(
+              `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+            ),
+            fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+              { headers: { "Accept-Language": "en" } }
+            ),
+          ]);
+          const [weatherData, geoData] = await Promise.all([
+            weatherRes.json(),
+            geoRes.json(),
+          ]);
+          setWeather({
+            temp: Math.round(weatherData.current_weather.temperature),
+            weathercode: weatherData.current_weather.weathercode,
+            city:
+              geoData.address?.city ||
+              geoData.address?.town ||
+              geoData.address?.village ||
+              "",
+          });
+        } catch {
+          // silently fail — weather is non-critical
+        }
+      },
+      () => {}
+    );
+  }, []);
+
+  if (!weather) return null;
+
+  const { label, emoji } = getWeatherInfo(weather.weathercode);
+
+  return (
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+      <span className="text-base leading-none">{emoji}</span>
+      <span className="text-sm font-bold text-gray-700">{weather.temp}°C</span>
+      <span className="text-[10px] font-bold text-gray-400">{label}</span>
+      {weather.city && (
+        <>
+          <span className="text-gray-300">·</span>
+          <span className="text-xs font-bold text-gray-400 max-w-[90px] truncate">
+            {weather.city}
+          </span>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function Header({ user }: HeaderProps) {
@@ -44,16 +128,17 @@ export default function Header({ user }: HeaderProps) {
 
   return (
     <header className="h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-100 px-10">
-      {/* Search */}
-      <div className="flex items-center gap-3 flex-1 max-w-xl group">
-        <div className="relative w-full">
-          <Search01Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 group-focus-within:text-[#c91f41] transition-colors" />
-          <input
-            type="text"
-            placeholder="Search projects, tasks, or files..."
-            className="w-full h-11 pl-12 pr-4 bg-gray-50 border-transparent rounded-2xl text-sm font-bold text-gray-900 placeholder:text-gray-400 focus:bg-white focus:ring-4 focus:ring-[#fff1f2] transition-all outline-none"
-          />
+      {/* Greeting + Weather */}
+      <div className="flex items-center gap-4 flex-1">
+        <div>
+          <p className="text-sm font-black text-gray-900">
+            {getGreeting()}, {user.name?.split(" ")[0] ?? "User"}
+          </p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            Welcome back
+          </p>
         </div>
+        <WeatherWidget />
       </div>
 
       {/* Right actions */}

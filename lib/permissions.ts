@@ -51,7 +51,7 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
 // ============== CLIENT PERMISSIONS ==============
 // Only Business Development can onboard (create) clients
 export function canOnboardClient(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.role === "ADMIN") return true;
   return user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
 }
 
@@ -66,7 +66,7 @@ export function canViewClients(user: { role: string; departmentSlug: string | nu
 // ============== PROJECT PERMISSIONS ==============
 // Only Client Service and Business Development can create projects
 export function canCreateProject(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.role === "ADMIN") return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
@@ -99,14 +99,18 @@ export async function canAccessProject(
   return !!projectDept;
 }
 
-export function canViewAllProjects(user: { role: string }): boolean {
-  return user.role === "ADMIN" || user.role === "CEO";
+export function canViewAllProjects(user: { role: string; departmentSlug?: string | null }): boolean {
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  return (
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
+  );
 }
 
 // ============== TASK PERMISSIONS ==============
 // Only Client Service and Business Development can create/initiate tasks
 export function canCreateTask(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.role === "ADMIN") return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV

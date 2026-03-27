@@ -38,8 +38,29 @@ export async function createLeave(data: {
 
   const start = new Date(data.startDate);
   const end = new Date(data.endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    throw new Error("Invalid leave dates");
+  }
+
+  if (end < start) {
+    throw new Error("End date cannot be before start date");
+  }
+
+  // Count working days only (Mon-Fri). Weekends are excluded from leave duration.
+  const cursor = new Date(start);
+  let totalDays = 0;
+  while (cursor <= end) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      totalDays += 1;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  if (totalDays === 0) {
+    throw new Error("Selected range includes only weekends");
+  }
 
   const leave = await db.leave.create({
     data: {

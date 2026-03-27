@@ -3,7 +3,7 @@
 import prisma from "@/lib/db"
 import { getCurrentUser } from "@/lib/permissions"
 import { revalidatePath } from "next/cache"
-import { z } from "zod/v4"
+import { z } from "zod"
 
 // ─── Validation ───
 
@@ -32,7 +32,7 @@ export async function createSuggestion(data: {
   try {
     const suggestion = await prisma.suggestion.create({
       data: {
-        userId: parseInt(user.id),
+        userId: user.id,
         category: parsed.data.category as "COMPLAINT" | "SUGGESTION" | "FEEDBACK" | "REQUEST",
         title: parsed.data.title,
         content: parsed.data.content,
@@ -56,7 +56,7 @@ export async function getMySuggestions() {
   if (!user) return []
 
   return prisma.suggestion.findMany({
-    where: { userId: parseInt(user.id) },
+    where: { userId: user.id },
     orderBy: { createdAt: "desc" },
   })
 }

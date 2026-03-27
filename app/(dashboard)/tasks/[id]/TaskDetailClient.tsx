@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,32 +16,40 @@ import {
   addSubtask,
   updateSubtaskStatus,
   deleteSubtask,
+  addTaskComment,
+  addTaskLink,
+  deleteTaskLink,
 } from "@/app/actions/taskActions";
 import {
   ArrowLeft,
-  ListChecks,
-  FolderKanban,
-  Briefcase,
-  Clock,
-  AlertTriangle,
   CheckCircle2,
-  Circle,
   Play,
   Pause,
-  Send,
   RotateCcw,
   Check,
   X,
   Plus,
   Trash2,
-  User,
-  Building2,
+  Link2,
+  ExternalLink,
+  AtSign,
+  Quote,
+  FileText,
+  Image as ImageIcon,
+  MoreHorizontal,
 } from "lucide-react";
 
 type Subtask = {
   id: number;
   title: string;
   status: string;
+  description?: string | null;
+};
+
+type TaskLink = {
+  id: number;
+  name: string;
+  url: string;
 };
 
 type Activity = {
@@ -51,6 +59,17 @@ type Activity = {
   userName: string;
   createdAt: string;
   metadata: string | null;
+};
+
+type ActivityMetadata = {
+  kind?: "COMMENT" | "LINK";
+  comment?: string;
+  linkName?: string;
+  linkUrl?: string;
+};
+
+type TimelineItem = Activity & {
+  parsedMeta: ActivityMetadata;
 };
 
 type Task = {
@@ -77,6 +96,7 @@ type Task = {
   completedAt: string | null;
   createdAt: string;
   subtasks: Subtask[];
+  links: TaskLink[];
   activityLog: Activity[];
 };
 
@@ -93,49 +113,34 @@ interface Props {
   departmentMembers: { id: number; name: string }[];
 }
 
-function calculateSLA(task: Task) {
-  if (!task.slaHours || !task.slaStartedAt) {
-    return { status: "not_started", remaining: null, percentage: 0 };
+function calculateTaskProgress(task: Task) {
+  if (task.status === "DONE") return { status: "completed", percentage: 100 };
+  if (task.status === "CANCELLED") return { status: "cancelled", percentage: 0 };
+  
+  // Pre-start: zero until work begins
+  if (["UNASSIGNED", "ASSIGNED", "CONFIRMED"].includes(task.status)) {
+    return { status: "active", percentage: 0 };
   }
 
-  if (task.status === "DONE" || task.status === "CANCELLED") {
-    return { status: "completed", remaining: null, percentage: 100 };
+  // Submitted: jump to 80%
+  if (task.status === "SUBMITTED") {
+    return { status: "active", percentage: 80 };
   }
 
-  const now = new Date().getTime();
-  const started = new Date(task.slaStartedAt).getTime();
-  const totalMs = task.slaHours * 60 * 60 * 1000;
-  const pausedMs = (task.slaPausedDuration || 0) * 1000;
-
-  let elapsed = now - started - pausedMs;
-
-  if (task.slaPausedAt) {
-    elapsed = new Date(task.slaPausedAt).getTime() - started - pausedMs;
+  // IN_PROGRESS / PAUSED / REVISION: 10% base + up to 70% from subtasks
+  const base = 10;
+  if (task.subtasks?.length > 0) {
+    const done = task.subtasks.filter(s => s.status === "DONE").length;
+    const subtaskContrib = Math.ceil((done / task.subtasks.length) * 70);
+    return { status: "active", percentage: base + subtaskContrib };
   }
 
-  const remaining = totalMs - elapsed;
-  const percentage = Math.min(100, Math.max(0, (elapsed / totalMs) * 100));
-
-  if (remaining <= 0) {
-    return { status: "breached", remaining: 0, percentage: 100 };
-  }
-
-  if (percentage >= 75) {
-    return { status: "warning", remaining, percentage };
-  }
-
-  return { status: "on_track", remaining, percentage };
+  return { status: "active", percentage: base };
 }
 
-function formatRemaining(ms: number | null) {
-  if (ms === null) return "";
-  const hours = Math.floor(ms / (1000 * 60 * 60));
-  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-  if (hours > 24) {
-    const days = Math.floor(hours / 24);
-    return `${days}d ${hours % 24}h`;
-  }
-  return `${hours}h ${minutes}m`;
+function parseMetadata(raw: string | null): ActivityMetadata {
+  if (!raw) return {};
+  try { return JSON.parse(raw) as ActivityMetadata; } catch { return {}; }
 }
 
 export default function TaskDetailClient({ task: initialTask, currentUser, departmentMembers }: Props) {
@@ -146,522 +151,479 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
+  const [newSubtaskDesc, setNewSubtaskDesc] = useState("");
+  const [commentText, setCommentText] = useState("");
+  const [linkName, setLinkName] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
 
-  const sla = calculateSLA(task);
+  useEffect(() => { setTask(initialTask); }, [initialTask]);
+  useEffect(() => {
+    const interval = setInterval(() => { router.refresh(); }, 15000);
+    return () => clearInterval(interval);
+  }, [router]);
 
-  // Permission checks
+  const progress = calculateTaskProgress(task);
+
   const isCreator = task.createdById === currentUser.id;
   const isAssignee = task.assignedUserId === currentUser.id;
-  const isManager =
-    currentUser.role === "MANAGER" && currentUser.departmentId === task.deptId;
+  const isManager = currentUser.role === "MANAGER" && currentUser.departmentId === task.deptId;
   const isAdmin = currentUser.role === "ADMIN" || currentUser.role === "CEO";
+  const isInitiatorInAllowedDept = isCreator && (currentUser.departmentSlug === "client-service" || currentUser.departmentSlug === "business-development");
+  
+  const isTaskClosed = task.status === "DONE" || task.status === "CANCELLED";
 
-  const canAssign = isManager && ["UNASSIGNED", "ASSIGNED"].includes(task.status);
+  const canAddLink = isCreator && !isTaskClosed; 
+  const canAddSubtask = isInitiatorInAllowedDept && !isTaskClosed;
+  const canToggleSubtaskDone = isAssignee && !isTaskClosed;
+  const canDeleteSubtask = (isInitiatorInAllowedDept || isAdmin || isManager) && !isTaskClosed;
+  const canPostUpdate = !isTaskClosed;
+
+  const canAssign = isManager && task.status === "UNASSIGNED";
+  const canReassign = isManager && task.status === "ASSIGNED";
   const canConfirm = isAssignee && task.status === "ASSIGNED";
   const canStart = isAssignee && (task.status === "CONFIRMED" || task.status === "REVISION");
   const canPause = isAssignee && task.status === "IN_PROGRESS";
   const canResume = isAssignee && task.status === "PAUSED";
-  const canSubmit = isAssignee && task.status === "IN_PROGRESS";
+  const hasAllSubtasksDone = !task.subtasks || task.subtasks.length === 0 || task.subtasks.every(s => s.status === "DONE");
+  const canSubmit = isAssignee && task.status === "IN_PROGRESS" && hasAllSubtasksDone;
   const canRequestRevision = (isCreator || isAdmin) && task.status === "SUBMITTED";
   const canComplete = (isCreator || isAdmin) && task.status === "SUBMITTED";
   const canCancel = (isCreator || isAdmin) && !["DONE", "CANCELLED"].includes(task.status);
 
-  const handleAction = async (
-    action: () => Promise<unknown>,
-    actionName: string
+  const timeline = useMemo<TimelineItem[]>(
+    () => task.activityLog.map((item) => ({ ...item, parsedMeta: parseMetadata(item.metadata) })),
+    [task.activityLog]
+  );
+
+  const handleAction = async <T extends { status?: string },>(
+    action: () => Promise<T>,
+    actionName: string,
+    optimisticUpdate?: (prev: Task) => Task
   ) => {
     setLoading(actionName);
     try {
-      await action();
-      router.refresh();
+      if (optimisticUpdate) setTask((prev) => optimisticUpdate(prev));
+      const result = await action();
+      if (result && typeof result.status === "string") {
+        setTask((prev) => ({
+          ...prev,
+          status: result.status || prev.status,
+          confirmedAt: result.status === "CONFIRMED" && !prev.confirmedAt ? new Date().toISOString() : prev.confirmedAt,
+          submittedAt: result.status === "SUBMITTED" && !prev.submittedAt ? new Date().toISOString() : prev.submittedAt,
+          completedAt: result.status === "DONE" && !prev.completedAt ? new Date().toISOString() : prev.completedAt,
+          slaPausedAt: result.status === "PAUSED" ? new Date().toISOString() : prev.slaPausedAt,
+        }));
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : "Action failed");
-    } finally {
-      setLoading(null);
-    }
+      router.refresh();
+    } finally { setLoading(null); }
   };
 
   const handleAddSubtask = async () => {
     if (!newSubtask.trim()) return;
+    const draftDescription = newSubtaskDesc.trim() || null;
     setLoading("addSubtask");
     try {
-      await addSubtask(task.id, newSubtask);
+      const created = await addSubtask(task.id, newSubtask.trim(), draftDescription || undefined);
+      setTask((prev) => ({
+        ...prev,
+        // If task was SUBMITTED, server reverted it to IN_PROGRESS
+        status: prev.status === "SUBMITTED" ? "IN_PROGRESS" : prev.status,
+        subtasks: [...prev.subtasks, { id: created.id, title: created.title, status: created.status, description: draftDescription }],
+      }));
       setNewSubtask("");
-      router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to add subtask");
-    } finally {
-      setLoading(null);
-    }
+      setNewSubtaskDesc("");
+    } catch (err) { alert(err instanceof Error ? err.message : "Failed to add subtask"); }
+    finally { setLoading(null); }
   };
 
-  const statusColors: Record<string, string> = {
-    UNASSIGNED: "bg-gray-100 text-gray-700",
-    ASSIGNED: "bg-blue-100 text-blue-700",
-    CONFIRMED: "bg-indigo-100 text-indigo-700",
-    IN_PROGRESS: "bg-yellow-100 text-yellow-700",
-    PAUSED: "bg-orange-100 text-orange-700",
-    SUBMITTED: "bg-purple-100 text-purple-700",
-    REVISION: "bg-red-100 text-red-700",
-    DONE: "bg-green-100 text-green-700",
-    CANCELLED: "bg-gray-100 text-gray-700",
+  const handlePostComment = async () => {
+    if (!commentText.trim()) return;
+    setLoading("comment");
+    try {
+      const created = await addTaskComment(task.id, commentText.trim());
+      setTask((prev) => ({ ...prev, activityLog: [created, ...prev.activityLog] }));
+      setCommentText("");
+    } catch (err) { alert(err instanceof Error ? err.message : "Failed to post comment"); }
+    finally { setLoading(null); }
   };
 
-  const priorityColors: Record<string, string> = {
-    LOW: "bg-gray-100 text-gray-600",
-    MEDIUM: "bg-blue-100 text-blue-600",
-    HIGH: "bg-orange-100 text-orange-600",
-    URGENT: "bg-red-100 text-red-600",
+  const handleAddLink = async () => {
+    if (!linkName.trim() || !linkUrl.trim()) return;
+    setLoading("addLink");
+    try {
+      const created = await addTaskLink(task.id, linkName.trim(), linkUrl.trim());
+      setTask((prev) => ({ ...prev, links: [...prev.links, created] }));
+      setLinkName("");
+      setLinkUrl("");
+      setShowLinkModal(false);
+    } catch (err) { alert(err instanceof Error ? err.message : "Failed to add link"); }
+    finally { setLoading(null); }
   };
+
+  const handleDeleteLink = async (linkId: number) => {
+    if (!confirm("Are you sure you want to remove this link?")) return;
+    setLoading(`deleteLink-${linkId}`);
+    try {
+      await deleteTaskLink(linkId);
+      setTask(prev => ({ ...prev, links: prev.links.filter(l => l.id !== linkId) }));
+    } catch (err) { alert(err instanceof Error ? err.message : "Failed to delete link"); }
+    finally { setLoading(null); }
+  };
+
+  const isHighPriority = task.priority === "HIGH";
 
   return (
-    <div className="space-y-6">
-      {/* Back link */}
-      <Link
-        href="/tasks"
-        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Tasks
-      </Link>
+    <div className="max-w-[1280px] mx-auto space-y-8 p-6 md:p-8 bg-white min-h-screen text-[#0f172a] antialiased">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 border-b border-gray-100 pb-8">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-3">
+             <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isHighPriority ? "bg-red-50 text-red-600 border border-red-100" : "bg-blue-50 text-blue-600 border border-blue-100"}`}>
+               {task.priority} PRIORITY
+             </span>
+             <span className="text-gray-300 text-[10px] font-bold uppercase tracking-wider">•</span>
+             <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">TASK #{task.id}</span>
+          </div>
+          <h1 className="text-[32px] md:text-[42px] font-extrabold text-slate-900 tracking-tight leading-tight">
+            {task.title}
+          </h1>
+        </div>
 
-      {/* Task Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-[#fef2f4] flex items-center justify-center">
-              <ListChecks className="h-6 w-6 text-[#c91f41]" />
+        <div className="flex flex-col items-end gap-3 min-w-[300px]">
+          <div className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TASK PROGRESS</span>
+              <span className="text-[20px] font-black text-slate-900 leading-none">{Math.round(progress.percentage)}%</span>
             </div>
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-xl font-bold text-gray-900">{task.title}</h1>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    statusColors[task.status]
-                  }`}
-                >
-                  {task.status.replace("_", " ")}
-                </span>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    priorityColors[task.priority]
-                  }`}
-                >
-                  {task.priority}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-gray-500">
-                <Link
-                  href={`/projects/${task.projectId}`}
-                  className="flex items-center gap-1 hover:text-[#c91f41]"
-                >
-                  <FolderKanban className="h-4 w-4" />
-                  {task.projectTitle}
-                </Link>
-                <span className="flex items-center gap-1">
-                  <Briefcase className="h-4 w-4" />
-                  {task.clientName}
-                </span>
-              </div>
+            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full transition-all duration-1000 ease-in-out ${progress.status === "completed" ? "bg-emerald-500" : "bg-[#c91f41]"}`}
+                style={{ width: `${progress.percentage}%` }}
+              />
             </div>
           </div>
-
-          {/* SLA Badge */}
-          <div className="text-right">
-            {sla.status === "not_started" ? (
-              <span className="text-sm text-gray-400">SLA not started</span>
-            ) : sla.status === "completed" ? (
-              <span className="flex items-center gap-1 text-sm text-green-600">
-                <CheckCircle2 className="h-4 w-4" />
-                Completed
-              </span>
-            ) : sla.status === "breached" ? (
-              <span className="flex items-center gap-1 text-sm font-semibold text-red-600">
-                <AlertTriangle className="h-4 w-4" />
-                SLA Breached
-              </span>
-            ) : (
-              <div>
-                <span
-                  className={`flex items-center gap-1 text-sm font-medium ${
-                    sla.status === "warning" ? "text-orange-600" : "text-gray-600"
-                  }`}
-                >
-                  <Clock className="h-4 w-4" />
-                  {formatRemaining(sla.remaining)} remaining
-                </span>
-                <div className="w-32 h-1.5 bg-gray-200 rounded-full mt-1">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      sla.status === "warning" ? "bg-orange-500" : "bg-[#c91f41]"
-                    }`}
-                    style={{ width: `${sla.percentage}%` }}
-                  />
-                </div>
+          
+          <div className="flex gap-2 w-full">
+            {canPause && (
+              <button 
+                onClick={() => setShowPauseModal(true)}
+                className="flex-1 h-[44px] bg-slate-100 text-slate-600 rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200"
+              >
+                PAUSE TASK
+              </button>
+            )}
+            {(canStart || canResume || canConfirm || canSubmit || canComplete) && (
+              <button 
+                onClick={() => {
+                  if (canConfirm) handleAction(() => confirmTask(task.id), "confirm");
+                  else if (canStart) handleAction(() => startTask(task.id), "start");
+                  else if (canResume) handleAction(() => resumeTask(task.id), "resume");
+                  else if (canSubmit) handleAction(() => submitTask(task.id), "submit");
+                  else if (canComplete) handleAction(() => completeTask(task.id), "complete");
+                }}
+                className="flex-1 h-[44px] bg-[#c91f41] text-white rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#a61835] transition-all shadow-md active:scale-95"
+              >
+                {canComplete ? "COMPLETE" : canSubmit ? "SUBMIT" : canStart ? "START" : canConfirm ? "CONFIRM" : "RESUME"}
+                {canComplete && <Check className="h-3.5 w-3.5" strokeWidth={4} />}
+              </button>
+            )}
+            {(canAssign || canReassign) && (
+              <button onClick={() => setShowAssignModal(true)} className="flex-1 h-[44px] bg-indigo-600 text-white rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-indigo-700 transition-all shadow-md active:scale-95">
+                {canReassign ? "REASSIGN" : "ASSIGN"}
+              </button>
+            )}
+            {isAssignee && task.status === "IN_PROGRESS" && !hasAllSubtasksDone && (
+              <div className="flex-1 h-[44px] bg-slate-100 text-slate-400 rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-200 cursor-not-allowed" title="Complete all subtasks before submitting">
+                SUBMIT
               </div>
             )}
           </div>
-        </div>
-
-        {task.description && (
-          <p className="text-sm text-gray-600 mt-4 pt-4 border-t border-gray-100">
-            {task.description}
-          </p>
-        )}
-
-        {/* Task Info */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-100">
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Department</p>
-            <p className="text-sm font-medium text-gray-700 mt-1 flex items-center gap-1">
-              <Building2 className="h-4 w-4 text-gray-400" />
-              {task.departmentName || "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Assignee</p>
-            <p className="text-sm font-medium text-gray-700 mt-1 flex items-center gap-1">
-              <User className="h-4 w-4 text-gray-400" />
-              {task.assigneeName || "Unassigned"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider">Created by</p>
-            <p className="text-sm font-medium text-gray-700 mt-1">{task.creatorName}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400 uppercase tracking-wider">SLA</p>
-            <p className="text-sm font-medium text-gray-700 mt-1">{task.slaHours}h</p>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-gray-100">
-          {canAssign && (
-            <button
-              onClick={() => setShowAssignModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#c91f41] text-white rounded-lg text-sm font-medium hover:bg-[#a61835] transition-colors"
-            >
-              <User className="h-4 w-4" />
-              Assign
-            </button>
-          )}
-
-          {canConfirm && (
-            <button
-              onClick={() => handleAction(() => confirmTask(task.id), "confirm")}
-              disabled={loading === "confirm"}
-              className="flex items-center gap-2 px-4 py-2 bg-[#c91f41] text-white rounded-lg text-sm font-medium hover:bg-[#a61835] transition-colors disabled:opacity-50"
-            >
-              <Check className="h-4 w-4" />
-              {loading === "confirm" ? "Confirming..." : "Confirm Task"}
-            </button>
-          )}
-
-          {canStart && (
-            <button
-              onClick={() => handleAction(() => startTask(task.id), "start")}
-              disabled={loading === "start"}
-              className="flex items-center gap-2 px-4 py-2 bg-[#c91f41] text-white rounded-lg text-sm font-medium hover:bg-[#a61835] transition-colors disabled:opacity-50"
-            >
-              <Play className="h-4 w-4" />
-              {loading === "start" ? "Starting..." : "Start Work"}
-            </button>
-          )}
-
-          {canPause && (
-            <button
-              onClick={() => setShowPauseModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
-            >
-              <Pause className="h-4 w-4" />
-              Pause
-            </button>
-          )}
-
-          {canResume && (
-            <button
-              onClick={() => handleAction(() => resumeTask(task.id), "resume")}
-              disabled={loading === "resume"}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              <Play className="h-4 w-4" />
-              {loading === "resume" ? "Resuming..." : "Resume"}
-            </button>
-          )}
-
-          {canSubmit && (
-            <button
-              onClick={() => handleAction(() => submitTask(task.id), "submit")}
-              disabled={loading === "submit"}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-              {loading === "submit" ? "Submitting..." : "Submit for Review"}
-            </button>
-          )}
-
-          {canRequestRevision && (
-            <button
-              onClick={() => setShowRevisionModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Request Revision
-            </button>
-          )}
-
-          {canComplete && (
-            <button
-              onClick={() => handleAction(() => completeTask(task.id), "complete")}
-              disabled={loading === "complete"}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              {loading === "complete" ? "Completing..." : "Mark as Done"}
-            </button>
-          )}
-
-          {canCancel && (
-            <button
-              onClick={() => setShowCancelModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg text-sm font-medium hover:bg-gray-600 transition-colors"
-            >
-              <X className="h-4 w-4" />
-              Cancel Task
-            </button>
-          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Subtasks */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Subtasks</h2>
-
-          {(isAssignee || isCreator) && (
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={newSubtask}
-                onChange={(e) => setNewSubtask(e.target.value)}
-                placeholder="Add a subtask..."
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-                onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
-              />
-              <button
-                onClick={handleAddSubtask}
-                disabled={loading === "addSubtask"}
-                className="p-2 bg-[#c91f41] text-white rounded-lg hover:bg-[#a61835] transition-colors disabled:opacity-50"
-              >
-                <Plus className="h-5 w-5" />
-              </button>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="lg:col-span-2 space-y-10">
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
+              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Description</h2>
             </div>
-          )}
-
-          <div className="space-y-2">
-            {task.subtasks.map((subtask) => (
-              <div
-                key={subtask.id}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50"
-              >
-                <button
-                  onClick={() =>
-                    updateSubtaskStatus(
-                      subtask.id,
-                      subtask.status === "DONE" ? "PENDING" : "DONE"
-                    ).then(() => router.refresh())
-                  }
-                  className={`w-5 h-5 rounded border flex items-center justify-center ${
-                    subtask.status === "DONE"
-                      ? "bg-green-500 border-green-500 text-white"
-                      : "border-gray-300"
-                  }`}
-                >
-                  {subtask.status === "DONE" && <Check className="h-3 w-3" />}
-                </button>
-                <span
-                  className={`flex-1 text-sm ${
-                    subtask.status === "DONE" ? "text-gray-400 line-through" : "text-gray-700"
-                  }`}
-                >
-                  {subtask.title}
-                </span>
-                {(isAssignee || isCreator) && (
-                  <button
-                    onClick={() =>
-                      deleteSubtask(subtask.id).then(() => router.refresh())
-                    }
-                    className="p-1 text-gray-400 hover:text-red-500"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-            {task.subtasks.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No subtasks</p>
-            )}
-          </div>
-        </div>
-
-        {/* Activity Log */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Activity</h2>
-          <div className="space-y-3 max-h-80 overflow-y-auto">
-            {task.activityLog.map((activity) => (
-              <div key={activity.id} className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-                  <Circle className="h-3 w-3 text-gray-400" />
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6">
+              <p className="text-[16px] text-slate-700 leading-relaxed font-medium">
+                {task.description || "The task initiator has not provided a detailed description."}
+              </p>
+              <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-slate-200">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">DEADLINE</p>
+                  <p className="text-[14px] font-bold text-slate-900 text-center">
+                    {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-700">
-                    <span className="font-medium">{activity.userName}</span>{" "}
-                    {activity.description}
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {new Date(activity.createdAt).toLocaleString()}
-                  </p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">ASSIGNED TO</p>
+                  <p className="text-[14px] font-bold text-slate-900 text-center truncate">{task.assigneeName || "Unassigned"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">DEPARTMENT</p>
+                  <p className="text-[14px] font-bold text-slate-900 text-center truncate">{task.departmentName || "General"}</p>
                 </div>
               </div>
-            ))}
-            {task.activityLog.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No activity yet</p>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          </section>
 
-      {/* Assign Modal */}
-      {showAssignModal && (
-        <Modal title="Assign Task" onClose={() => setShowAssignModal(false)}>
-          <div className="space-y-3">
-            {departmentMembers.map((member) => (
-              <button
-                key={member.id}
-                onClick={() => {
-                  handleAction(() => assignTask(task.id, member.id), "assign");
-                  setShowAssignModal(false);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-[#c91f41] hover:bg-[#fef2f4] transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-[#fef2f4] flex items-center justify-center">
-                  <span className="text-[#c91f41] text-sm font-semibold">
-                    {member.name[0]?.toUpperCase()}
-                  </span>
+          <section>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
+              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Resources & Links</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {task.links?.map((link) => (
+                <div key={link.id} className="group bg-white border border-slate-200 hover:border-slate-400 hover:shadow-sm h-[72px] rounded-xl p-3 flex items-center gap-3 transition-all">
+                  <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
+                    <Link2 className="h-5 w-5 text-slate-500 group-hover:text-red-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{link.name}</p>
+                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">EXTERNAL RESOURCE</p>
+                  </div>
+                  <div className="flex items-center">
+                    <a href={link.url} target="_blank" className="p-2 text-slate-300 hover:text-[#c91f41] transition-colors">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                    {canAddLink && (
+                      <button onClick={() => handleDeleteLink(link.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span className="text-sm text-gray-700">{member.name}</span>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )}
+              ))}
+              {canAddLink && (
+                <button 
+                  onClick={() => setShowLinkModal(true)}
+                  className="h-[72px] rounded-xl border-2 border-dashed border-slate-200 flex items-center gap-3 group hover:border-slate-400 hover:bg-slate-50 transition-all px-4"
+                >
+                  <div className="w-10 h-10 rounded-lg border border-slate-200 flex items-center justify-center group-hover:bg-white transition-colors">
+                    <Plus className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">
+                    ADD LINK
+                  </span>
+                </button>
+              )}
+            </div>
+          </section>
 
-      {/* Pause Modal */}
-      {showPauseModal && (
-        <ReasonModal
-          title="Pause Task"
-          placeholder="Reason for pausing..."
-          buttonText="Pause Task"
-          onClose={() => setShowPauseModal(false)}
-          onSubmit={(reason) => {
-            handleAction(() => pauseTask(task.id, reason), "pause");
-            setShowPauseModal(false);
-          }}
-        />
-      )}
-
-      {/* Revision Modal */}
-      {showRevisionModal && (
-        <ReasonModal
-          title="Request Revision"
-          placeholder="What needs to be revised..."
-          buttonText="Request Revision"
-          onClose={() => setShowRevisionModal(false)}
-          onSubmit={(reason) => {
-            handleAction(() => requestRevision(task.id, reason), "revision");
-            setShowRevisionModal(false);
-          }}
-        />
-      )}
-
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <ReasonModal
-          title="Cancel Task"
-          placeholder="Reason for cancellation..."
-          buttonText="Cancel Task"
-          buttonColor="bg-red-500 hover:bg-red-600"
-          onClose={() => setShowCancelModal(false)}
-          onSubmit={(reason) => {
-            handleAction(() => cancelTask(task.id, reason), "cancel");
-            setShowCancelModal(false);
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
-          </button>
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
+                <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Subtasks</h2>
+              </div>
+              <span className="text-xs font-extrabold text-slate-900 uppercase tracking-tight">
+                {task.subtasks?.filter(s => s.status === "DONE").length || 0} / {task.subtasks?.length || 0} SUBTASKS DONE
+              </span>
+            </div>
+            <div className="space-y-3">
+              {task.subtasks?.map((sub) => {
+                const isDone = sub.status === "DONE";
+                return (
+                  <div key={sub.id} className={`bg-white rounded-xl border p-5 transition-all ${isDone ? "border-slate-100 bg-slate-50/50" : "border-slate-200 shadow-sm"}`}>
+                    <div className="flex items-center gap-4">
+                      <button 
+                         onClick={() => updateSubtaskStatus(sub.id, isDone ? "PENDING" : "DONE").then(res => setTask(p => ({ ...p, subtasks: p.subtasks.map(s => s.id === res.id ? { ...s, status: res.status } : s) })))}
+                         disabled={!canToggleSubtaskDone}
+                         className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all flex-shrink-0 ${isDone ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-slate-200 hover:border-[#c91f41]"}`}
+                      >
+                        {isDone && <Check className="h-3.5 w-3.5" strokeWidth={4} />}
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[15px] font-bold tracking-tight ${isDone ? "text-slate-300 line-through" : "text-slate-900"}`}>
+                          {sub.title}
+                        </p>
+                        {sub.description && (
+                          <p className={`mt-1 text-[12px] leading-relaxed ${isDone ? "text-slate-300" : "text-slate-500"}`}>
+                            {sub.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {canDeleteSubtask && <button onClick={() => deleteSubtask(sub.id).then(() => setTask(p => ({...p, subtasks: p.subtasks.filter(s => s.id !== sub.id)})))} className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-4 w-4" /></button>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {canAddSubtask && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex gap-3">
+                    <div className="flex-1 h-12 bg-white border border-slate-200 rounded-xl flex items-center gap-3 px-4 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-50 transition-all">
+                      <Plus className="h-4 w-4 text-[#c91f41] flex-shrink-0" strokeWidth={3} />
+                      <input 
+                        type="text" value={newSubtask} onChange={e => setNewSubtask(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddSubtask()}
+                        placeholder="Add a milestone step..."
+                        className="flex-1 bg-transparent border-none p-0 text-[14px] font-bold text-slate-900 placeholder:text-slate-400 focus:ring-0"
+                      />
+                    </div>
+                    <button onClick={handleAddSubtask} disabled={loading === "addSubtask"} className="h-12 px-6 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-60">ADD</button>
+                  </div>
+                  <textarea
+                    value={newSubtaskDesc}
+                    onChange={e => setNewSubtaskDesc(e.target.value)}
+                    placeholder="Add a description (optional)"
+                    rows={2}
+                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13px] text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-50 focus:border-slate-400 transition-all resize-none"
+                  />
+                </div>
+              )}
+            </div>
+          </section>
         </div>
-        {children}
+
+        <div className="space-y-8">
+          <section>
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
+              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Progress activity</h2>
+            </div>
+            <div className="relative pl-7 space-y-6">
+              <div className="absolute left-[3px] top-2 bottom-2 w-[1.5px] bg-slate-100" />
+              {timeline?.slice(0, 4).map((act, idx) => {
+                const iL = idx === 0;
+                return (
+                  <div key={act.id} className="relative group">
+                    <div className={`absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-white border-2 flex items-center justify-center z-10 ${iL ? "border-[#c91f41]" : "border-slate-200"}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${iL ? "bg-[#c91f41]" : "bg-slate-300"}`} />
+                    </div>
+                    <div className="flex flex-col gap-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[13px] font-bold text-slate-900">{act.userName}</span>
+                        <span className="text-[11px] font-medium text-slate-500">{act.description}</span>
+                      </div>
+                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">
+                        {new Date(act.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {new Date(act.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      {act.parsedMeta.kind === "COMMENT" && (
+                        <div className="mt-1.5 bg-slate-50 border border-slate-100 rounded-xl p-2.5">
+                          <p className="text-[12px] text-slate-600 leading-normal font-medium italic">"{act.parsedMeta.comment}"</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="sticky top-6 bg-white rounded-2xl border border-slate-200 shadow-xl p-6 flex flex-col gap-4 ring-1 ring-black/5">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Internal Status Update</h3>
+            {canPostUpdate ? (
+              <textarea 
+                 value={commentText} onChange={e => setCommentText(e.target.value)}
+                 placeholder="Write your update here... "
+                 className="w-full resize-none border-none p-0 text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:ring-0 min-h-[100px]"
+              />
+            ) : (
+              <div className="min-h-[100px] flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Post updates disabled for closed tasks</p>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+              <div className="flex items-center gap-4">
+                 {canAddLink && <button onClick={() => setShowLinkModal(true)} title="Add Link" className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"><Link2 className="h-4 w-4"/></button>}
+                 <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"><AtSign className="h-4 w-4"/></button>
+              </div>
+              {canPostUpdate && (
+                <button 
+                  onClick={handlePostComment}
+                  disabled={loading === "comment" || !commentText.trim()}
+                  className="h-[38px] px-6 bg-[#c91f41] text-white rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-[#a61835] transition-all disabled:opacity-50 shadow-sm"
+                >
+                  POST UPDATE
+                </button>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
+
+      {showLinkModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowLinkModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10">
+            <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">Add Resource Link</h2>
+            <div className="space-y-4">
+               <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">LINK NAME</label>
+                  <input 
+                    type="text" value={linkName} onChange={e => setLinkName(e.target.value)}
+                    placeholder="e.g. Project Brief, Figma File..."
+                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[14px] font-bold text-slate-900 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
+                  />
+               </div>
+               <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">URL</label>
+                  <input 
+                    type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[14px] font-bold text-slate-900 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
+                  />
+               </div>
+               <div className="flex gap-3 pt-4">
+                  <button onClick={() => setShowLinkModal(false)} className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-colors">CANCEL</button>
+                  <button onClick={handleAddLink} disabled={!linkName || !linkUrl} className="flex-1 h-12 bg-[#c91f41] text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-[#a61835] transition-colors disabled:opacity-50">ADD LINK</button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssignModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowAssignModal(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10">
+            <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">{canReassign ? "RE-ASSIGN TASK" : "ASSIGN TASK"}</h2>
+            <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
+              {departmentMembers?.map(m => (
+                <button 
+                  key={m.id} onClick={() => { handleAction(() => assignTask(task.id, m.id), "assign"); setShowAssignModal(false); }}
+                  className="w-full h-16 px-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-all text-left flex items-center gap-4 group"
+                >
+                  <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-500 text-[11px] group-hover:bg-indigo-600 group-hover:text-white transition-all ring-1 ring-black/5">{m.name[0]}</div>
+                  <span className="text-[15px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{m.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPauseModal && (
+        <ReasonModal title="PAUSE REASON" placeholder="Please explain why work is pausing..." buttonText="PAUSE TASK" onClose={() => setShowPauseModal(false)} onSubmit={r => { handleAction(() => pauseTask(task.id, r), "pause"); setShowPauseModal(false); }} />
+      )}
     </div>
   );
 }
 
-function ReasonModal({
-  title,
-  placeholder,
-  buttonText,
-  buttonColor = "bg-[#c91f41] hover:bg-[#a61835]",
-  onClose,
-  onSubmit,
-}: {
-  title: string;
-  placeholder: string;
-  buttonText: string;
-  buttonColor?: string;
-  onClose: () => void;
-  onSubmit: (reason: string) => void;
-}) {
+function ReasonModal({ title, placeholder, buttonText, onClose, onSubmit }: { title: string, placeholder: string, buttonText: string, onClose: () => void, onSubmit: (r: string) => void }) {
   const [reason, setReason] = useState("");
-
   return (
-    <Modal title={title} onClose={onClose}>
-      <textarea
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        placeholder={placeholder}
-        rows={3}
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] resize-none"
-      />
-      <div className="flex justify-end gap-3 mt-4">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => onSubmit(reason)}
-          disabled={!reason.trim()}
-          className={`px-4 py-2 text-sm font-medium text-white ${buttonColor} rounded-lg transition-colors disabled:opacity-50`}
-        >
-          {buttonText}
-        </button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10">
+        <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">{title}</h2>
+        <textarea 
+          value={reason} onChange={e => setReason(e.target.value)} rows={5} placeholder={placeholder} 
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-6 text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-slate-100 mb-8 resize-none" 
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <button onClick={onClose} className="h-14 font-bold text-[11px] text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">CANCEL</button>
+          <button onClick={() => onSubmit(reason)} disabled={!reason.trim()} className="h-14 bg-[#c91f41] text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-red-100 disabled:opacity-50 hover:bg-[#a61835] transition-all">{buttonText}</button>
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }

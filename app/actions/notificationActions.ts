@@ -55,10 +55,12 @@ export async function markNotificationAsRead(notificationId: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  return db.notification.update({
+  await db.notification.updateMany({
     where: { id: notificationId, userId: user.id },
     data: { isRead: true },
   });
+
+  return { success: true };
 }
 
 export async function markAllNotificationsAsRead() {

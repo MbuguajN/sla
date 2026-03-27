@@ -20,6 +20,7 @@ export default async function TaskDetailPage({
       assignedDepartment: true,
       createdBy: true,
       subtasks: { orderBy: { createdAt: "asc" } },
+      links: { orderBy: { createdAt: "asc" } },
       activityLog: {
         include: { user: true },
         orderBy: { createdAt: "desc" },
@@ -87,6 +88,11 @@ export default async function TaskDetailPage({
           id: s.id,
           title: s.title,
           status: s.status,
+        })),
+        links: task.links.map((l) => ({
+          id: l.id,
+          name: l.name,
+          url: l.url,
         })),
         activityLog: task.activityLog.map((a) => ({
           id: a.id,

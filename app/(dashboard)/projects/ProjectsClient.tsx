@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -23,7 +23,14 @@ type ProjectItem = {
   closedTaskCount?: number; // Optional based on the screenshot data
   createdAt: string;
   progress?: number; // Momentum percentage
+  hasOverdue?: boolean;
 };
+
+function getProgressColor(progress: number, hasOverdue?: boolean): { bar: string; text: string } {
+  if (progress === 100) return { bar: "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.35)]", text: "text-green-500" };
+  if (hasOverdue) return { bar: "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.35)]", text: "text-red-500" };
+  return { bar: "bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.35)]", text: "text-yellow-500" };
+}
 
 interface Props {
   initialProjects: ProjectItem[];
@@ -139,13 +146,13 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-[#111827]">Momentum</span>
-                  <span className="text-xl font-black text-rose-500 tabular-nums tracking-tighter">
+                  <span className={`text-xl font-black tabular-nums tracking-tighter ${getProgressColor(project.progress || 0, project.hasOverdue).text}`}>
                     {project.progress || 0}%
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-rose-50 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-rose-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_8px_rgba(244,63,94,0.3)]"
+                    className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressColor(project.progress || 0, project.hasOverdue).bar}`}
                     style={{ width: `${project.progress || 0}%` }}
                   />
                 </div>

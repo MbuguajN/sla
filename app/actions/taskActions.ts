@@ -12,6 +12,43 @@ import {
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
+import { mkdir, writeFile } from "fs/promises";
+import { join } from "path";
+
+// ============== CLEAR LATEST ACTIVITY ==============
+
+export async function clearLatestActivity() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Fetch all visible activity IDs for this user, then bulk-hide them
+  const activities = await db.activityLog.findMany({
+    where: {
+      OR: [
+        { userId: user.id },
+        ...(user.role === "MANAGER" && user.departmentId
+          ? [{ task: { deptId: user.departmentId } }]
+          : []),
+        ...(user.departmentSlug === "business-development"
+          ? [{ task: { createdById: user.id } }]
+          : []),
+        { task: { createdById: user.id } },
+        { task: { assignedUserId: user.id } },
+        ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
+      ],
+      isHiddenFromDashboard: false,
+    },
+    select: { id: true },
+  });
+
+  if (activities.length > 0) {
+    await db.activityLog.updateMany({
+      where: { id: { in: activities.map((a) => a.id) } },
+      data: { isHiddenFromDashboard: true },
+    });
+    revalidatePath("/dashboard");
+  }
+}
 
 // ============== TASK QUERIES ==============
 
@@ -104,6 +141,55 @@ export async function getTask(taskId: number) {
   return task;
 }
 
+// ============== TASK LINKS (Initiator Only) ==============
+
+export async function addTaskLink(taskId: number, name: string, url: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await db.task.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  if (task.createdById !== user.id) {
+    throw new Error("Unauthorized - Only the initiator can add links");
+  }
+
+  const link = await db.taskLink.create({
+    data: { taskId, name, url },
+  });
+
+  await db.activityLog.create({
+    data: {
+      type: "COMMENTED", // Reusing type for link addition
+      description: `Added resource link: ${name}`,
+      taskId,
+      projectId: task.projectId,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath(`/tasks/${taskId}`);
+  return link;
+}
+
+export async function deleteTaskLink(linkId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const link = await db.taskLink.findUnique({
+    where: { id: linkId },
+    include: { task: true },
+  });
+  if (!link) throw new Error("Link not found");
+
+  if (link.task.createdById !== user.id) {
+    throw new Error("Unauthorized - Only the initiator can delete links");
+  }
+
+  await db.taskLink.delete({ where: { id: linkId } });
+  revalidatePath(`/tasks/${link.taskId}`);
+}
+
 // ============== TASK CREATION ==============
 
 export async function createTask(data: {
@@ -113,25 +199,18 @@ export async function createTask(data: {
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   deptId: number;
   slaHours?: number;
+  links?: { name: string; url: string }[];
 }) {
   const user = await getCurrentUser();
   if (!user || !canCreateTask(user)) {
     throw new Error("Unauthorized - Only Client Service and Business Development can create tasks");
   }
 
-  // Get default SLA from project department if not specified
-  let slaHours = data.slaHours;
-  if (!slaHours) {
-    const projectDept = await db.projectDepartment.findUnique({
-      where: {
-        projectId_departmentId: {
-          projectId: data.projectId,
-          departmentId: data.deptId,
-        },
-      },
-    });
-    slaHours = projectDept?.slaHours || 48;
-  }
+  // SLA is managed at task level.
+  const slaHours = data.slaHours || 48;
+
+  // Filter out empty links
+  const validLinks = (data.links || []).filter(l => l.name.trim() && l.url.trim());
 
   const task = await db.task.create({
     data: {
@@ -143,6 +222,11 @@ export async function createTask(data: {
       createdById: user.id,
       slaHours,
       status: "UNASSIGNED",
+      ...(validLinks.length > 0 && {
+        links: {
+          create: validLinks.map(l => ({ name: l.name, url: l.url })),
+        },
+      }),
     },
     include: {
       project: true,
@@ -160,6 +244,26 @@ export async function createTask(data: {
       userId: user.id,
     },
   });
+
+  // Notify department manager(s)
+  if (task.deptId) {
+    const managers = await db.user.findMany({
+      where: {
+        departmentId: task.deptId,
+        role: "MANAGER",
+      },
+    });
+
+    for (const manager of managers) {
+      await createNotification(
+        manager.id,
+        "TASK_ASSIGNED", // Reusing type for department assignment
+        "New Department Task",
+        `A new task has been created for your department: ${task.title}`,
+        `/tasks/${task.id}`
+      );
+    }
+  }
 
   revalidatePath("/tasks");
   revalidatePath(`/projects/${data.projectId}`);
@@ -565,25 +669,35 @@ export async function cancelTask(taskId: number, reason: string) {
 
 // ============== SUBTASK MANAGEMENT ==============
 
-export async function addSubtask(taskId: number, title: string) {
+export async function addSubtask(taskId: number, title: string, description?: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
   const task = await db.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error("Task not found");
 
-  // Only assignee or creator can add subtasks
-  if (task.assignedUserId !== user.id && task.createdById !== user.id) {
-    throw new Error("Unauthorized");
+  // Only initiator (creator) in Client Service or Business Development can add subtasks.
+  if (
+    task.createdById !== user.id ||
+    user.departmentSlug !== "client-service" &&
+    user.departmentSlug !== "business-development"
+  ) {
+    throw new Error("Unauthorized - Only the initiator in Client Service or Business Development can add subtasks");
   }
 
-  const subtask = await db.subtask.create({
-    data: {
-      taskId,
-      title,
-      status: "PENDING",
-    },
-  });
+  let subtask;
+  if (task.status === "SUBMITTED") {
+    // Re-open: atomically revert status to IN_PROGRESS, then create subtask
+    const [, created] = await db.$transaction([
+      db.task.update({ where: { id: taskId }, data: { status: "IN_PROGRESS" } }),
+      db.subtask.create({ data: { taskId, title, description, status: "PENDING" } }),
+    ]);
+    subtask = created;
+  } else {
+    subtask = await db.subtask.create({
+      data: { taskId, title, description, status: "PENDING" },
+    });
+  }
 
   revalidatePath(`/tasks/${taskId}`);
   return subtask;
@@ -603,14 +717,16 @@ export async function updateSubtaskStatus(
 
   if (!subtask) throw new Error("Subtask not found");
 
-  // Only assignee can update subtask status
+  // Only assignee can mark subtasks complete/incomplete.
   if (subtask.task.assignedUserId !== user.id) {
-    throw new Error("Unauthorized");
+    throw new Error("Unauthorized - Only the assignee can mark subtasks complete");
   }
+
+  const normalizedStatus = status === "DONE" ? "DONE" : "PENDING";
 
   const updated = await db.subtask.update({
     where: { id: subtaskId },
-    data: { status },
+    data: { status: normalizedStatus },
   });
 
   revalidatePath(`/tasks/${subtask.taskId}`);
@@ -628,16 +744,124 @@ export async function deleteSubtask(subtaskId: number) {
 
   if (!subtask) throw new Error("Subtask not found");
 
-  // Only assignee or creator can delete subtasks
+  // Allow only initiator (creator) in Client Service or Business Development to delete subtasks.
   if (
-    subtask.task.assignedUserId !== user.id &&
-    subtask.task.createdById !== user.id
+    subtask.task.createdById !== user.id ||
+    user.departmentSlug !== "client-service" &&
+    user.departmentSlug !== "business-development"
   ) {
-    throw new Error("Unauthorized");
+    throw new Error("Unauthorized - Only the initiator in Client Service or Business Development can delete subtasks");
   }
 
   await db.subtask.delete({ where: { id: subtaskId } });
 
   revalidatePath(`/tasks/${subtask.taskId}`);
+}
+
+// ============== TASK COMMENTS & RESOURCES ==============
+
+export async function addTaskComment(taskId: number, comment: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const trimmed = comment.trim();
+  if (!trimmed) throw new Error("Comment cannot be empty");
+
+  const task = await db.task.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  const canAccess =
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    task.createdById === user.id ||
+    task.assignedUserId === user.id ||
+    task.deptId === user.departmentId;
+
+  if (!canAccess) throw new Error("Unauthorized");
+
+  const activity = await db.activityLog.create({
+    data: {
+      type: "COMMENTED",
+      description: "added a comment",
+      taskId,
+      projectId: task.projectId,
+      userId: user.id,
+      metadata: JSON.stringify({ kind: "COMMENT", comment: trimmed }),
+    },
+    include: { user: true },
+  });
+
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath("/dashboard");
+
+  return {
+    id: activity.id,
+    type: activity.type,
+    description: activity.description,
+    userName: activity.user.name,
+    createdAt: activity.createdAt.toISOString(),
+    metadata: activity.metadata,
+  };
+}
+
+export async function addTaskResource(taskId: number, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const task = await db.task.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  // Only the task initiator can add resources.
+  if (task.createdById !== user.id) {
+    throw new Error("Unauthorized - Only the initiator can add resources");
+  }
+
+  const file = formData.get("file") as File;
+  if (!file) throw new Error("No file provided");
+
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const uploadsDir = join(process.cwd(), "public", "uploads", "task-resources");
+  await mkdir(uploadsDir, { recursive: true });
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "resource.bin";
+  const filename = `${Date.now()}-${taskId}-${safeName}`;
+  const filepath = join(uploadsDir, filename);
+
+  await writeFile(filepath, buffer);
+
+  const publicUrl = `/uploads/task-resources/${filename}`;
+  const metadata = {
+    kind: "RESOURCE",
+    fileName: file.name,
+    fileUrl: publicUrl,
+    mimeType: file.type || "application/octet-stream",
+    sizeBytes: file.size,
+  };
+
+  const activity = await db.activityLog.create({
+    data: {
+      type: "COMMENTED",
+      description: `uploaded resource \"${file.name}\"`,
+      taskId,
+      projectId: task.projectId,
+      userId: user.id,
+      metadata: JSON.stringify(metadata),
+    },
+    include: { user: true },
+  });
+
+  revalidatePath(`/tasks/${taskId}`);
+  revalidatePath("/dashboard");
+
+  return {
+    id: activity.id,
+    type: activity.type,
+    description: activity.description,
+    userName: activity.user.name,
+    createdAt: activity.createdAt.toISOString(),
+    metadata: activity.metadata,
+  };
 }
 

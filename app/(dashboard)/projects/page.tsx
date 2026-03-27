@@ -15,7 +15,7 @@ export default async function ProjectsPage() {
         client: true,
         departments: { include: { department: true } },
         tasks: {
-          select: { status: true }
+          select: { status: true, slaStartedAt: true, slaHours: true }
         }
       },
       orderBy: { createdAt: "desc" },
@@ -32,7 +32,7 @@ export default async function ProjectsPage() {
         client: true,
         departments: { include: { department: true } },
         tasks: {
-          select: { status: true }
+          select: { status: true, slaStartedAt: true, slaHours: true }
         }
       },
       orderBy: { createdAt: "desc" },
@@ -44,7 +44,7 @@ export default async function ProjectsPage() {
         client: true,
         departments: { include: { department: true } },
         tasks: {
-          select: { status: true }
+          select: { status: true, slaStartedAt: true, slaHours: true }
         }
       },
       orderBy: { createdAt: "desc" },
@@ -54,9 +54,15 @@ export default async function ProjectsPage() {
   return (
     <ProjectsClient
       initialProjects={projectsRaw.map((p) => {
+        const now = new Date();
         const totalTasks = p.tasks.length;
-        const closedTasks = p.tasks.filter(t => t.status === 'COMPLETED').length;
+        const closedTasks = p.tasks.filter(t => t.status === 'DONE').length;
         const progress = totalTasks > 0 ? Math.round((closedTasks / totalTasks) * 100) : 0;
+        const hasOverdue = p.tasks.some(t =>
+          !['DONE', 'CANCELLED'].includes(t.status) &&
+          t.slaStartedAt != null && t.slaHours != null &&
+          (new Date(t.slaStartedAt).getTime() + t.slaHours * 3600000 < now.getTime())
+        );
 
         return {
           id: p.id,
@@ -69,6 +75,7 @@ export default async function ProjectsPage() {
           taskCount: totalTasks,
           closedTaskCount: closedTasks,
           progress: progress,
+          hasOverdue: hasOverdue,
           createdAt: p.createdAt.toISOString(),
         }
       })}

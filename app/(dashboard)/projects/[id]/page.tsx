@@ -2,16 +2,64 @@ import { redirect, notFound } from "next/navigation";
 import { getCurrentUser, canAccessProject, canCreateTask } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  FolderKanban,
-  Briefcase,
-  Plus,
-  ListChecks,
-  Building2,
-  ExternalLink,
-  Clock,
-} from "lucide-react";
+import { Plus, Filter, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function formatRemaining(task: {
+  status: string;
+  slaHours: number | null;
+  slaStartedAt: Date | null;
+  slaPausedAt: Date | null;
+  slaPausedDuration: number | null;
+}) {
+  if (!task.slaHours || !task.slaStartedAt) return "-";
+  if (task.status === "DONE" || task.status === "CANCELLED") return "-";
+
+  const now = new Date().getTime();
+  const started = new Date(task.slaStartedAt).getTime();
+  const totalMs = task.slaHours * 60 * 60 * 1000;
+  const pausedMs = (task.slaPausedDuration || 0) * 1000;
+
+  let elapsed = now - started - pausedMs;
+  if (task.slaPausedAt) {
+    elapsed = new Date(task.slaPausedAt).getTime() - started - pausedMs;
+  }
+
+  const remaining = totalMs - elapsed;
+  if (remaining <= 0) return "0h";
+
+  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h`;
+  }
+  if (hours > 0) return `${hours}h`;
+  return `${Math.max(1, minutes)}m`;
+}
+
+function statusLabel(status: string) {
+  return status.replaceAll("_", " ");
+}
+
+function statusDotClass(status: string) {
+  switch (status) {
+    case "DONE":
+      return "bg-emerald-500";
+    case "IN_PROGRESS":
+      return "bg-indigo-500";
+    case "SUBMITTED":
+      return "bg-rose-500";
+    case "PAUSED":
+      return "bg-amber-500";
+    case "CONFIRMED":
+      return "bg-sky-500";
+    case "ASSIGNED":
+      return "bg-violet-500";
+    default:
+      return "bg-gray-400";
+  }
+}
 
 export default async function ProjectDetailPage({
   params,
@@ -37,190 +85,190 @@ export default async function ProjectDetailPage({
     },
   });
 
-  if (!project) {
-    notFound();
-  }
+  if (!project) notFound();
 
   const hasAccess = await canAccessProject(user, project.id);
-  if (!hasAccess) {
-    redirect("/dashboard");
-  }
+  if (!hasAccess) redirect("/dashboard");
 
   const canAddTask = canCreateTask(user);
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-700",
-    ON_HOLD: "bg-yellow-100 text-yellow-700",
-    COMPLETED: "bg-blue-100 text-blue-700",
-    CANCELLED: "bg-gray-100 text-gray-700",
-  };
+  const totalTasks = project.tasks.length;
+  const doneTasks = project.tasks.filter((t) => t.status === "DONE").length;
+  const completion = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-  const taskStatusColors: Record<string, string> = {
-    UNASSIGNED: "bg-gray-100 text-gray-700",
-    ASSIGNED: "bg-blue-100 text-blue-700",
-    CONFIRMED: "bg-indigo-100 text-indigo-700",
-    IN_PROGRESS: "bg-yellow-100 text-yellow-700",
-    PAUSED: "bg-orange-100 text-orange-700",
-    SUBMITTED: "bg-purple-100 text-purple-700",
-    REVISION: "bg-red-100 text-red-700",
-    DONE: "bg-green-100 text-green-700",
-    CANCELLED: "bg-gray-100 text-gray-700",
-  };
+  const now = new Date();
+  const hasOverdue = project.tasks.some(
+    (t) =>
+      !["DONE", "CANCELLED"].includes(t.status) &&
+      t.slaStartedAt != null &&
+      t.slaHours != null &&
+      new Date(t.slaStartedAt).getTime() + t.slaHours * 3600000 < now.getTime()
+  );
+
+  const completionBarColor =
+    completion === 100
+      ? "bg-green-500"
+      : hasOverdue
+      ? "bg-red-500"
+      : "bg-yellow-400";
+  const completionTextColor =
+    completion === 100 ? "text-green-600" : hasOverdue ? "text-red-600" : "text-yellow-600";
+
+  const dueDate = project.tasks
+    .filter((t) => t.submittedAt)
+    .map((t) => new Date(t.submittedAt as Date))
+    .sort((a, b) => a.getTime() - b.getTime())[0];
+
+  const priorityOrder: Record<string, number> = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+  const topPriority = project.tasks
+    .map((t) => t.priority)
+    .sort((a, b) => (priorityOrder[b] || 0) - (priorityOrder[a] || 0))[0] || "MEDIUM";
 
   return (
-    <div className="space-y-6">
-      {/* Back link */}
-      <Link
-        href="/projects"
-        className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Projects
-      </Link>
-
-      {/* Project Header */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-xl bg-[#fef2f4] flex items-center justify-center">
-              <FolderKanban className="h-7 w-7 text-[#c91f41]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-gray-900">{project.title}</h1>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    statusColors[project.status] || statusColors.ACTIVE
-                  }`}
-                >
-                  {project.status}
-                </span>
-              </div>
-              <Link
-                href={`/clients/${project.clientId}`}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#c91f41] mt-1"
-              >
-                <Briefcase className="h-4 w-4" />
-                {project.client.name}
-              </Link>
-            </div>
+    <div className="space-y-0 -mx-8 -mt-8">
+      <section className="bg-white px-8 py-7 lg:px-10 lg:py-8 border-b border-[#e7eaf2]">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.16em]">
+            <span className="inline-flex items-center rounded-full bg-rose-100 px-2 py-1 text-[8px] text-rose-600">Active</span>
+            <span className="text-[#7f8798]">Project ID: CP-{project.id}</span>
           </div>
-          {canAddTask && (
-            <Link
-              href={`/tasks/new?projectId=${project.id}`}
-              className="flex items-center gap-2 px-4 py-2 bg-[#c91f41] text-white rounded-lg text-sm font-medium hover:bg-[#a61835] transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              New Task
-            </Link>
-          )}
+          <h1 className="text-[64px] leading-[0.93] font-black tracking-tight text-[#122038] max-w-[760px]">
+            {project.title}
+          </h1>
         </div>
 
-        {project.description && (
-          <p className="mt-4 text-sm text-gray-600">{project.description}</p>
-        )}
-
-        {project.briefLink && (
-          <a
-            href={project.briefLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-2 text-sm text-[#c91f41] hover:underline"
+        {canAddTask && (
+          <Link
+            href={`/tasks/new?projectId=${project.id}`}
+            className="inline-flex h-12 items-center gap-2 rounded-xl bg-[#c91f41] px-6 text-sm font-black text-white shadow-lg shadow-[#c91f41]/25 hover:bg-[#aa1a37]"
           >
-            <ExternalLink className="h-4 w-4" />
-            View Brief
-          </a>
+            <Plus className="h-4 w-4" />
+            New Task
+          </Link>
         )}
-
-        {/* Departments */}
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
-            Departments
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {project.departments.map((pd) => (
-              <span
-                key={pd.id}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-full"
-              >
-                <Building2 className="h-3 w-3" />
-                {pd.department.name}
-                <span className="text-gray-400">({pd.slaHours}h SLA)</span>
-              </span>
-            ))}
-          </div>
         </div>
-      </div>
+      </section>
 
-      {/* Tasks */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <ListChecks className="h-5 w-5 text-[#c91f41]" />
-            <h2 className="text-base font-semibold text-gray-900">
-              Tasks ({project.tasks.length})
-            </h2>
-          </div>
-        </div>
-
-        {project.tasks.length > 0 ? (
-          <div className="divide-y divide-gray-100">
-            {project.tasks.map((task) => (
-              <Link
-                key={task.id}
-                href={`/tasks/${task.id}`}
-                className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <ListChecks className="h-4 w-4 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {task.assignedDepartment && (
-                        <span className="text-xs text-gray-400">
-                          {task.assignedDepartment.name}
-                        </span>
-                      )}
-                      {task.assignedTo && (
-                        <span className="text-xs text-gray-400">
-                          • {task.assignedTo.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  {task.slaHours && (
-                    <span className="flex items-center gap-1 text-xs text-gray-400">
-                      <Clock className="h-3 w-3" />
-                      {task.slaHours}h
-                    </span>
+      <section className="bg-[#eef0f5] px-8 py-7 lg:px-10 lg:py-8">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-7">
+        <div className="xl:col-span-4 space-y-7">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7f8798] mb-3">Departments Involved</p>
+            <div className="flex flex-wrap gap-2">
+              {project.departments.map((pd, index) => (
+                <span
+                  key={pd.id}
+                  className={cn(
+                    "inline-flex rounded-full px-3 py-1 text-[10px] font-black",
+                    index === 0 ? "bg-rose-100 text-rose-600" : "bg-[#dfe5f2] text-[#44506a]"
                   )}
-                  <span
-                    className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      taskStatusColors[task.status] || taskStatusColors.UNASSIGNED
-                    }`}
-                  >
-                    {task.status.replace("_", " ")}
-                  </span>
-                </div>
-              </Link>
-            ))}
+                >
+                  {pd.department.name}
+                </span>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="text-center py-12">
-            <ListChecks className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm font-medium text-gray-700">No tasks yet</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {canAddTask
-                ? "Create a task to get started"
-                : "Tasks will appear here once created"}
-            </p>
+
+          <div className="rounded-2xl bg-[#e5eaf5] border border-[#d8deeb] p-5 space-y-5 max-w-[260px]">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#6e778a]">Project Snapshot</p>
+
+            <div>
+              <div className="flex items-center justify-between text-[12px] font-bold text-[#25324a]">
+                <span>Completion</span>
+                <span className={completionTextColor}>{completion}%</span>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-[#d5dced]">
+                <div className={`h-full rounded-full ${completionBarColor}`} style={{ width: `${completion}%` }} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-1">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#7f8798]">Due Date</p>
+                <p className="mt-1 text-sm font-black text-[#1a2740]">
+                  {dueDate
+                    ? dueDate.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+                    : "TBD"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#7f8798]">Priority</p>
+                <p className="mt-1 text-sm font-black text-rose-600">{topPriority}</p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+
+        <div className="xl:col-span-8 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[42px] leading-none font-black tracking-tight text-[#1b2942]">Tasks ({project.tasks.length})</h2>
+            <div className="flex items-center gap-2">
+              <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] text-[#6f7a8e] hover:text-[#c91f41]">
+                <Filter className="h-3.5 w-3.5" />
+              </button>
+              <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] text-[#6f7a8e] hover:text-[#c91f41]">
+                <Search className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl bg-transparent">
+            <table className="w-full min-w-[760px]">
+              <thead>
+                <tr className="text-left text-[9px] font-black uppercase tracking-[0.2em] text-[#7f8798] border-b border-[#dde1ea]">
+                  <th className="px-4 py-3">Task Name</th>
+                  <th className="px-4 py-3">Department</th>
+                  <th className="px-4 py-3">Time Rem.</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {project.tasks.map((task) => (
+                  <tr key={task.id} className="border-b border-[#dde1ea] last:border-b-0 hover:bg-white/30">
+                    <td className="px-4 py-4">
+                      <Link href={`/tasks/${task.id}`} className="block">
+                        <p className="text-[20px] leading-tight font-black tracking-tight text-[#122038] hover:text-[#c91f41]">
+                          {task.title}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium text-[#7f8798]">
+                          Assigned to {task.assignedTo?.name || "Unassigned"}
+                        </p>
+                      </Link>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex rounded-full bg-[#dfe5f2] px-2.5 py-1 text-[10px] font-black text-[#44506a]">
+                        {task.assignedDepartment?.name || "General"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-sm font-black text-[#223149]">{formatRemaining(task)}</td>
+                    <td className="px-4 py-4">
+                      <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-[#4a556d]">
+                        <span className={cn("h-1.5 w-1.5 rounded-full", statusDotClass(task.status))} />
+                        {statusLabel(task.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {project.tasks.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-10 text-center text-sm font-semibold text-[#7f8798]">
+                      No tasks on this project yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pt-3 text-center">
+            <Link href="/tasks" className="text-[10px] font-black uppercase tracking-[0.24em] text-[#2a354d] hover:text-[#c91f41]">
+              View all tasks archive
+            </Link>
+          </div>
+        </div>
+        </div>
+      </section>
     </div>
   );
 }

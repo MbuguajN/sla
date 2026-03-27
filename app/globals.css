@@ -53,6 +53,11 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Slightly increase contrast for default muted text across the app */
+.text-gray-400 {
+  color: #6b7280;
+}
+
 ::selection {
   background: #c91f41;
   color: white;

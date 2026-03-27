@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { upsertLeavePolicy, addPublicHoliday, deletePublicHoliday } from "@/app/actions/hrActions";
-import { Settings, Plus, Trash2, CalendarDays, X, AlertCircle, Check } from "lucide-react";
+import { Plus, Trash2, X, AlertCircle, Check, CalendarDays, ShieldCheck } from "lucide-react";
 
 type Policy = { id: number; role: string; leaveType: string; daysAllowed: number };
 type Holiday = { id: number; name: string; date: string };
@@ -84,48 +84,75 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
-          <Settings className="h-5 w-5 text-[#c91f41]" />
+      {/* Page header */}
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="xl:col-span-5 rounded-3xl bg-white border border-gray-100 p-7">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="p-2 bg-[#fef2f4] rounded-xl">
+              <ShieldCheck className="h-4 w-4 text-[#c91f41]" />
+            </div>
+            <span className="text-[11px] font-black text-[#c91f41] uppercase tracking-[0.2em]">Policy Engine</span>
+          </div>
+          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Leave Policy</h1>
+          <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+            Configure leave allocations per role and manage public holidays.
+          </p>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Leave Policy</h1>
-          <p className="text-sm text-gray-500">Manage leave allocations and public holidays</p>
+        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="rounded-3xl bg-white border border-gray-100 p-6 flex flex-col justify-between">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Policy Entries</span>
+            <p className="text-4xl font-black text-slate-800 mt-2">{policies.length}</p>
+            <span className="text-xs text-gray-400 font-semibold mt-1">across all roles & types</span>
+          </div>
+          <div className="rounded-3xl bg-white border border-gray-100 p-6 flex flex-col justify-between">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Public Holidays</span>
+            <p className="text-4xl font-black text-slate-800 mt-2">{holidays.length}</p>
+            <span className="text-xs text-gray-400 font-semibold mt-1">registered this year</span>
+          </div>
         </div>
-      </div>
+      </section>
 
       {saved && (
-        <div className="flex items-center gap-2 p-3 bg-green-50 text-green-700 rounded-lg text-sm">
-          <Check className="h-4 w-4" />Policy saved
+        <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-semibold border border-emerald-100">
+          <Check className="h-4 w-4" /> Policy saved successfully
         </div>
       )}
 
       {/* Leave Allocations Table */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Leave Allocations (days/year)</h2>
-          <button onClick={() => { setShowPolicyModal(true); setError(""); }}
-            className="px-3 py-1.5 text-xs font-medium text-[#c91f41] bg-[#fef2f4] rounded-lg hover:bg-red-100">
-            Edit Policy
+      <div className="rounded-3xl bg-white border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-black text-gray-900">Leave Allocations</h2>
+            <p className="text-[11px] text-gray-400 font-semibold mt-0.5 uppercase tracking-wider">days allowed per year</p>
+          </div>
+          <button
+            onClick={() => { setShowPolicyModal(true); setError(""); }}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] rounded-xl hover:bg-red-100 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> Edit Policy
           </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[700px]">
             <thead>
-              <tr className="bg-gray-50/50">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Role</th>
+              <tr className="text-left text-[10px] text-gray-400 font-black tracking-[0.16em] uppercase border-b border-gray-100">
+                <th className="px-6 py-3">Role</th>
                 {leaveTypes.map((t) => (
-                  <th key={t} className="text-center px-3 py-3 text-xs font-semibold text-gray-500 uppercase">{t}</th>
+                  <th key={t} className="px-4 py-3 text-center">{t}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody>
               {roles.map((role) => (
-                <tr key={role} className="hover:bg-gray-50/50">
-                  <td className="px-5 py-3 text-sm font-medium text-gray-900">{role}</td>
+                <tr key={role} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-3">
+                    <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] px-2.5 py-1 rounded-lg">{role}</span>
+                  </td>
                   {leaveTypes.map((type) => (
-                    <td key={type} className="px-3 py-3 text-center text-sm text-gray-600">
-                      {policyMap[`${role}-${type}`] ?? "—"}
+                    <td key={type} className="px-4 py-3 text-center text-sm font-bold text-gray-700">
+                      {policyMap[`${role}-${type}`] != null
+                        ? <span className="inline-block min-w-[2rem] text-sm font-black text-gray-900">{policyMap[`${role}-${type}`]}</span>
+                        : <span className="text-gray-300">—</span>}
                     </td>
                   ))}
                 </tr>
@@ -136,31 +163,60 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
       </div>
 
       {/* Public Holidays */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Public Holidays ({holidays.length})</h2>
-          <button onClick={() => { setShowHolidayModal(true); setError(""); }}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-[#c91f41] bg-[#fef2f4] rounded-lg hover:bg-red-100">
-            <Plus className="h-3 w-3" />Add Holiday
+      <div className="rounded-3xl bg-white border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-black text-gray-900">Public Holidays</h2>
+            <p className="text-[11px] text-gray-400 font-semibold mt-0.5 uppercase tracking-wider">{holidays.length} registered</p>
+          </div>
+          <button
+            onClick={() => { setShowHolidayModal(true); setError(""); }}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] rounded-xl hover:bg-red-100 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Holiday
           </button>
         </div>
-        <div className="divide-y divide-gray-100">
-          {holidays.map((h) => (
-            <div key={h.id} className="flex items-center justify-between px-5 py-3">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-900">{h.name}</span>
-                <span className="text-xs text-gray-400">{new Date(h.date).toLocaleDateString()}</span>
-              </div>
-              <button onClick={() => handleDeleteHoliday(h.id)} className="p-1 text-gray-400 hover:text-red-500">
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
-          {holidays.length === 0 && (
-            <div className="text-center py-8"><p className="text-sm text-gray-400">No public holidays added</p></div>
-          )}
-        </div>
+        {holidays.length > 0 ? (
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-[10px] text-gray-400 font-black tracking-[0.16em] uppercase border-b border-gray-100">
+                <th className="px-6 py-3">Holiday</th>
+                <th className="px-6 py-3">Date</th>
+                <th className="px-6 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {holidays.map((h) => (
+                <tr key={h.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-xl bg-[#fef2f4] flex items-center justify-center">
+                        <CalendarDays className="h-4 w-4 text-[#c91f41]" />
+                      </div>
+                      <span className="text-sm font-bold text-gray-900">{h.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 text-sm font-semibold text-gray-500">
+                    {new Date(h.date).toLocaleDateString("en-US", { weekday: "short", year: "numeric", month: "long", day: "numeric" })}
+                  </td>
+                  <td className="px-6 py-3 text-right">
+                    <button
+                      onClick={() => handleDeleteHoliday(h.id)}
+                      className="p-2 rounded-xl text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="py-14 text-center">
+            <CalendarDays className="h-10 w-10 text-gray-200 mx-auto mb-3" />
+            <p className="text-sm font-bold text-gray-400">No public holidays registered</p>
+          </div>
+        )}
       </div>
 
       {/* Edit Policy Modal */}

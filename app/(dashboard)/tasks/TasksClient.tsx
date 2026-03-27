@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CheckListIcon,
@@ -81,11 +82,25 @@ function formatRemaining(ms: number | null) {
 }
 
 export default function TasksClient({ initialTasks, canCreate }: Props) {
-  const [tasks] = useState<TaskItem[]>(initialTasks);
+  const router = useRouter();
+  const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "ARCHIVE">("ACTIVE");
+  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH">("ALL");
+
+  useEffect(() => {
+    setTasks(initialTasks);
+  }, [initialTasks]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [router]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
@@ -97,9 +112,29 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
       const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter;
       const isArchived = t.status === "DONE" || t.status === "CANCELLED";
       const matchesTab = activeTab === "ACTIVE" ? !isArchived : isArchived;
-      return matchesSearch && matchesStatus && matchesPriority && matchesTab;
+      const matchesDate = (() => {
+        if (dateFilter === "ALL") return true;
+        const created = new Date(t.createdAt);
+        const now = new Date();
+        if (dateFilter === "TODAY") {
+          return created.toDateString() === now.toDateString();
+        }
+        if (dateFilter === "THIS_WEEK") {
+          const day = now.getDay();
+          const diff = day === 0 ? -6 : 1 - day; // Monday = start
+          const startOfWeek = new Date(now);
+          startOfWeek.setDate(now.getDate() + diff);
+          startOfWeek.setHours(0, 0, 0, 0);
+          return created >= startOfWeek;
+        }
+        if (dateFilter === "THIS_MONTH") {
+          return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+        }
+        return true;
+      })();
+      return matchesSearch && matchesStatus && matchesPriority && matchesTab && matchesDate;
     });
-  }, [tasks, search, statusFilter, priorityFilter, activeTab]);
+  }, [tasks, search, statusFilter, priorityFilter, activeTab, dateFilter]);
 
   const statusPill: Record<string, string> = {
     UNASSIGNED: "bg-gray-100 text-gray-600",
@@ -124,7 +159,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
   const priorities = ["ALL", "LOW", "MEDIUM", "HIGH", "URGENT"];
 
   const pendingCount = tasks.filter((t) => !["DONE", "CANCELLED"].includes(t.status)).length;
-  const inProgressCount = tasks.filter((t) => ["IN_PROGRESS", "PAUSED"].includes(t.status)).length;
+  const inProgressCount = tasks.filter((t) => ["CONFIRMED", "IN_PROGRESS", "PAUSED"].includes(t.status)).length;
   const completedCount = tasks.filter((t) => t.status === "DONE").length;
 
   return (
@@ -218,6 +253,23 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
               <FilterIcon className="h-4 w-4" />
             </button>
           </div>
+        </div>
+
+        <div className="px-6 pb-4 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 mr-1">Created</span>
+          {(["ALL", "TODAY", "THIS_WEEK", "THIS_MONTH"] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDateFilter(d)}
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                dateFilter === d
+                  ? "bg-[#ffe8ec] text-[#c91f41] border border-[#ffd8e0]"
+                  : "bg-gray-50 text-gray-500 border border-gray-100 hover:text-[#c91f41] hover:border-[#ffd8e0]"
+              }`}
+            >
+              {d === "ALL" ? "All time" : d === "THIS_WEEK" ? "This week" : d === "THIS_MONTH" ? "This month" : "Today"}
+            </button>
+          ))}
         </div>
 
         <div className="overflow-x-auto">

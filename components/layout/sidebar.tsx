@@ -38,7 +38,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, logos }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "finance", "it", "admin"]);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "finance", "it", "admin"]);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -50,28 +50,41 @@ export default function Sidebar({ user, logos }: SidebarProps) {
 
   const canAccessHR =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
+  const isHROnly = user.departmentSlug === "human-resources" && user.role === "EMPLOYEE" || user.departmentSlug === "human-resources" && user.role === "MANAGER";
   const canAccessFinance =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "finance";
   const canAccessAdmin = user.role === "ADMIN";
+  const canSeeClients =
+    user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "business-development" || user.departmentSlug === "client-service";
 
   // Main nav items
   const mainNav: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon },
-    { label: "Clients", href: "/clients", icon: UserGroupIcon },
-    { label: "Projects", href: "/projects", icon: Briefcase02Icon },
-    { label: "Tasks", href: "/tasks", icon: TaskDone01Icon },
+    ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
+    ...(!isHROnly ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
+    ...(!isHROnly ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
   ];
 
   // Sections (collapsible)
   const Sections = [
     {
       id: "personal",
-      title: "HR",
+      title: "Personal",
       visible: true,
       items: [
-        { label: "Leaves", href: "/hr/leaves", icon: Calendar01Icon },
+        { label: "My Leaves", href: "/leave", icon: Calendar01Icon },
+        { label: "Suggestions", href: "/suggestions", icon: Message01Icon },
+        { label: "Settings", href: "/profile", icon: Settings01Icon },
+      ]
+    },
+    {
+      id: "hr",
+      title: "HR Management",
+      visible: canAccessHR,
+      items: [
+        { label: "All Leaves", href: "/hr/leaves", icon: Calendar01Icon },
         { label: "Suggestions", href: "/hr/suggestions", icon: Message01Icon },
-        { label: "Policies", href: "/hr/leave-policy", icon: Settings02Icon },
+        { label: "Leave Policies", href: "/hr/leave-policy", icon: Settings02Icon },
       ]
     },
     {
@@ -113,29 +126,29 @@ export default function Sidebar({ user, logos }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 h-full w-64 bg-white z-30 flex flex-col transition-all duration-300 border-r border-gray-100">
       {/* Sidebar Logo wrapper */}
-      <div className="h-20 flex items-center px-6">
-        <Link href="/dashboard" className="flex items-center gap-2 group">
+      <div className="h-24 flex items-center justify-center px-4">
+        <Link href="/dashboard" className="flex items-center justify-center gap-3 group w-full">
           {logos?.light ? (
             <div className="relative">
               <img 
                 src={logos.light} 
                 alt="Logo" 
-                className="h-10 w-auto object-contain dark:hidden transition-transform duration-300 group-hover:scale-105" 
+                className="h-14 w-auto object-contain dark:hidden transition-transform duration-300 group-hover:scale-105" 
               />
               {logos.dark && (
                 <img 
                   src={logos.dark} 
                   alt="Logo" 
-                  className="h-10 w-auto object-contain hidden dark:block transition-transform duration-300 group-hover:scale-105" 
+                  className="h-14 w-auto object-contain hidden dark:block transition-transform duration-300 group-hover:scale-105" 
                 />
               )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-xl bg-[#c91f41] flex items-center justify-center shadow-lg shadow-[#c91f41]/20 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
-                <Building01Icon className="text-white h-6 w-6" />
+              <div className="w-12 h-12 rounded-xl bg-[#c91f41] flex items-center justify-center shadow-lg shadow-[#c91f41]/20 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
+                <Building01Icon className="text-white h-7 w-7" />
               </div>
-              <span className="font-black text-xl tracking-tighter text-gray-900">SLA<span className="text-[#c91f41]">.</span></span>
+              <span className="font-black text-2xl tracking-tighter text-gray-900">SLA<span className="text-[#c91f41]">.</span></span>
             </div>
           )}
         </Link>
