@@ -46,8 +46,6 @@ services:
       start_period: 40s
     networks:
       - sla-network
-    environment:
-      # Add any other environment variables needed
 
 volumes:
   postgres_data:
