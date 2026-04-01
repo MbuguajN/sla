@@ -23,21 +23,25 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+# Install dumb-init for proper signal handling and openssl for Prisma
+RUN apk add --no-cache dumb-init openssl
 
 # Copy package files
 COPY package.json package-lock.json ./
 
+# Copy Prisma schema first (needed for generate)
+COPY prisma ./prisma
+
 # Install production dependencies only
 RUN npm ci --only=production
 
-# Copy Prisma schema and prisma directory
-COPY prisma ./prisma
+# Generate Prisma client in runtime stage
+RUN npx prisma generate
 
 # Copy built application from builder
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.js ./next.config.js
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
