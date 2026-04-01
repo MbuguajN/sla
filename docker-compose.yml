@@ -44,9 +44,13 @@ services:
       start_period: 40s
     networks:
       - sla-network
+    volumes:
+      - sla_uploads:/app/public/uploads
 
 volumes:
   postgres_data:
+    driver: local
+  sla_uploads:
     driver: local
 
 networks:
