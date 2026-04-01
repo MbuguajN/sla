@@ -46,6 +46,10 @@ COPY --from=builder /app/next.config.js ./next.config.js
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
+
+# Change ownership of application directories to nextjs user
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
 
 # Expose port
