@@ -31,7 +31,7 @@ export default async function ClientDetailPage({
   }
 
   const canEdit = canOnboardClient(user);
-  const canAddProject = canCreateProject(user);
+  const canAddProject = canCreateProject(user) && client.status === "ACTIVE";
 
   const statusColors: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-700",
@@ -60,6 +60,12 @@ export default async function ClientDetailPage({
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">{client.name}</h1>
+              {client.status === "CLOSED" && (
+                <span className="inline-flex items-center gap-1.5 mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-gray-100 text-gray-500 border border-gray-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                  Client Closed
+                </span>
+              )}
               {client.contactName && (
                 <p className="text-sm text-gray-500 mt-1">{client.contactName}</p>
               )}

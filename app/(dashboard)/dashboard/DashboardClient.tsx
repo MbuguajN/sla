@@ -177,9 +177,6 @@ export default function DashboardClient({ user, stats, activity }: { user: any, 
                     <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400">{member.name?.[0] ?? "U"}</span>
                   </div>
                 ))}
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-500/10 text-[10px] font-bold text-blue-600 dark:text-blue-400 ring-2 ring-white dark:ring-black">
-                  +
-                </div>
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center flex-shrink-0">

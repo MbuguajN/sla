@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/permissions";
+import { canViewEquipment, getCurrentUser } from "@/lib/permissions";
 import Sidebar from "@/components/layout/sidebar";
 import Header from "@/components/layout/header";
 import { getCompanyLogos } from "@/app/actions/adminActions";
+import InactivityLogout from "@/components/InactivityLogout";
 
 export default async function DashboardLayout({
   children,
@@ -18,14 +19,18 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const canAccessEquipment = await canViewEquipment({ id: user.id, role: user.role });
+
   return (
-    <div className="min-h-screen bg-[#f8f9fb]">
+    <div className="min-h-screen bg-[#f8f9fb] dark:bg-black">
+      <InactivityLogout timeoutMs={30 * 60 * 1000} />
       <Sidebar
         user={{
           name: user.name,
           role: user.role,
           departmentSlug: user.departmentSlug,
         }}
+        canAccessEquipment={canAccessEquipment}
         logos={logos}
       />
       <div className="pl-64">

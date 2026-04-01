@@ -6,6 +6,7 @@ import {
   canCreateProject,
   canAccessProject,
   canViewAllProjects,
+  canManageProjectStatus,
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
@@ -95,6 +96,19 @@ export async function createProject(data: {
   const user = await getCurrentUser();
   if (!user || !canCreateProject(user)) {
     throw new Error("Unauthorized - Only Client Service and Business Development can create projects");
+  }
+
+  // Check if client is closed
+  const client = await db.client.findUnique({
+    where: { id: data.clientId },
+  });
+
+  if (!client) {
+    throw new Error("Client not found");
+  }
+
+  if (client.status === "CLOSED") {
+    throw new Error("Cannot create projects for closed clients");
   }
 
   const project = await db.project.create({
@@ -212,4 +226,88 @@ export async function removeDepartmentFromProject(projectId: number, departmentI
   });
 
   revalidatePath(`/projects/${projectId}`);
+}
+
+export async function closeProject(projectId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canManageProjectStatus(user)) {
+    throw new Error("Unauthorized - Only Business Development and Client Service can close projects");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: {
+      status: "COMPLETED",
+    },
+  });
+
+  // Create activity log
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: `Project closed/completed`,
+      projectId: project.id,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project;
+}
+
+export async function pauseProject(projectId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canManageProjectStatus(user)) {
+    throw new Error("Unauthorized - Only Business Development and Client Service can pause projects");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: {
+      status: "ON_HOLD",
+    },
+  });
+
+  // Create activity log
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: `Project paused/on hold`,
+      projectId: project.id,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project;
+}
+
+export async function resumeProject(projectId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canManageProjectStatus(user)) {
+    throw new Error("Unauthorized - Only Business Development and Client Service can resume projects");
+  }
+
+  const project = await db.project.update({
+    where: { id: projectId },
+    data: {
+      status: "ACTIVE",
+    },
+  });
+
+  // Create activity log
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: `Project resumed`,
+      projectId: project.id,
+      userId: user.id,
+    },
+  });
+
+  revalidatePath("/projects");
+  revalidatePath(`/projects/${projectId}`);
+  return project;
 }

@@ -6,7 +6,7 @@ import { useState } from "react";
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`card bg-white shadow-sm rounded-2xl ${className}`}>
+    <div className={`card bg-white dark:bg-[#111111] shadow-sm rounded-2xl border border-transparent dark:border-white/10 ${className}`}>
       {children}
     </div>
   );
@@ -17,13 +17,13 @@ export function CardBody({ children, className = "" }: { children: React.ReactNo
 }
 
 export function CardTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <h2 className={`card-title text-lg font-bold text-gray-900 ${className}`}>{children}</h2>;
+  return <h2 className={`card-title text-lg font-bold text-gray-900 dark:text-white ${className}`}>{children}</h2>;
 }
 
 export function Table({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
     <div className={`overflow-x-auto rounded-2xl shadow-sm ${className}`}>
-      <table className="table table-zebra w-full bg-white">
+      <table className="table table-zebra w-full bg-white dark:bg-[#111111]">
         {children}
       </table>
     </div>
@@ -32,7 +32,7 @@ export function Table({ children, className = "" }: { children: React.ReactNode;
 
 export function TableHead({ children }: { children: React.ReactNode }) {
   return (
-    <thead className="bg-gray-50 border-b border-gray-200">
+    <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10">
       <tr>{children}</tr>
     </thead>
   );
@@ -40,7 +40,7 @@ export function TableHead({ children }: { children: React.ReactNode }) {
 
 export function TableHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <th className={`font-semibold text-gray-900 px-4 py-3 text-sm text-left ${className}`}>{children}</th>
+    <th className={`font-semibold text-gray-900 dark:text-white px-4 py-3 text-sm text-left ${className}`}>{children}</th>
   );
 }
 
@@ -49,11 +49,11 @@ export function TableBody({ children }: { children: React.ReactNode }) {
 }
 
 export function TableRow({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <tr className={`hover:bg-blue-50 transition-colors ${className}`}>{children}</tr>;
+  return <tr className={`hover:bg-blue-50 dark:hover:bg-white/5 transition-colors ${className}`}>{children}</tr>;
 }
 
 export function TableCell({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <td className={`px-4 py-3 text-sm text-gray-700 ${className}`}>{children}</td>;
+  return <td className={`px-4 py-3 text-sm text-gray-700 dark:text-zinc-300 ${className}`}>{children}</td>;
 }
 
 export function Button({
@@ -125,7 +125,7 @@ export function Modal({ open, onClose, title, children, actions }: { open: boole
   return (
     <div className={`modal ${open ? "modal-open" : ""}`} onClick={onClose}>
       <div className="modal-box w-full max-w-md rounded-2xl shadow-lg" onClick={(e) => e.stopPropagation()}>
-        <h3 className="font-bold text-lg text-gray-900">{title}</h3>
+        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{title}</h3>
         <div className="py-4">{children}</div>
         <div className="modal-action">
           <button className="btn btn-ghost rounded-lg" onClick={onClose}>
@@ -171,7 +171,7 @@ export function Stat({ label, value, icon = null }: { label: string; value: stri
 
 export function Stats({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`stats shadow-sm rounded-2xl bg-white ${className}`}>
+    <div className={`stats shadow-sm rounded-2xl bg-white dark:bg-[#111111] border border-transparent dark:border-white/10 ${className}`}>
       {children}
     </div>
   );
@@ -181,7 +181,7 @@ export function FormGroup({ label, error, children }: { label: string; error?: s
   return (
     <div className="form-control w-full">
       <label className="label">
-        <span className="label-text font-semibold text-gray-900">{label}</span>
+        <span className="label-text font-semibold text-gray-900 dark:text-white">{label}</span>
       </label>
       {children}
       {error && <label className="label"><span className="label-text-alt text-error">{error}</span></label>}
@@ -274,10 +274,10 @@ export function Textarea({
 
 export function Collapse({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="collapse collapse-arrow border border-gray-200 bg-white rounded-xl shadow-sm mb-2">
+    <div className="collapse collapse-arrow border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111111] rounded-xl shadow-sm mb-2">
       <input type="checkbox" />
-      <div className="collapse-title font-semibold text-gray-900">{title}</div>
-      <div className="collapse-content text-gray-600">{children}</div>
+      <div className="collapse-title font-semibold text-gray-900 dark:text-white">{title}</div>
+      <div className="collapse-content text-gray-600 dark:text-zinc-400">{children}</div>
     </div>
   );
 }

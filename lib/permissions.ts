@@ -55,6 +55,12 @@ export function canOnboardClient(user: { role: string; departmentSlug: string | 
   return user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
 }
 
+// Only Business Development can close clients
+export function canCloseClient(user: { role: string; departmentSlug: string | null }): boolean {
+  if (user.role === "ADMIN") return true;
+  return user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
+}
+
 export function canViewClients(user: { role: string; departmentSlug: string | null }): boolean {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
   return (
@@ -104,6 +110,15 @@ export function canViewAllProjects(user: { role: string; departmentSlug?: string
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
+  );
+}
+
+// Only Business Development and Client Service can close/pause projects
+export function canManageProjectStatus(user: { role: string; departmentSlug: string | null }): boolean {
+  if (user.role === "ADMIN") return true;
+  return (
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE
   );
 }
 
@@ -211,6 +226,22 @@ export function canApproveRequisitionAsCEO(user: { role: string }): boolean {
 export function canManageITTickets(user: { role: string; departmentSlug: string | null }): boolean {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
   return user.departmentSlug === DEPARTMENTS.TECHNOLOGY;
+}
+
+// ============== EQUIPMENT PERMISSIONS ==============
+export async function canViewEquipment(user: { id: number; role: string }): Promise<boolean> {
+  if (user.role === "ADMIN") return true;
+
+  const viewer = await db.equipmentViewer.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
+  return !!viewer;
+}
+
+export function canManageEquipment(user: { role: string }): boolean {
+  return user.role === "ADMIN";
 }
 
 export function canAssignITTicket(user: { role: string; departmentSlug: string | null }): boolean {

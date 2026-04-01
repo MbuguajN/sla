@@ -1,9 +1,95 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions } from "@/lib/permissions";
+import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions, DEPARTMENTS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
+import { hasApprovedLeaveOverlap, processLeaveTaskHandovers } from "./leaveHandoverActions";
+
+type LeavePolicyType =
+  | "ANNUAL"
+  | "SICK"
+  | "MATERNITY"
+  | "PATERNITY"
+  | "UNPAID"
+  | "COMPASSIONATE"
+  | "OTHER";
+
+type LeaveHandoverInput = {
+  taskId: number;
+  delegateUserId: number;
+};
+
+async function validateLeaveHandoversForUser(
+  user: { id: number; departmentId: number | null },
+  handovers: LeaveHandoverInput[] | undefined,
+  startDate: Date,
+  endDate: Date,
+  excludeLeaveId?: number
+) {
+  if (!handovers || handovers.length === 0) return [] as LeaveHandoverInput[];
+
+  if (!user.departmentId) {
+    throw new Error("You must belong to a department to configure task handovers");
+  }
+
+  const uniqueTaskIds = Array.from(new Set(handovers.map((h) => h.taskId)));
+  if (uniqueTaskIds.length !== handovers.length) {
+    throw new Error("Duplicate task handover entries are not allowed");
+  }
+
+  const taskIdSet = new Set(uniqueTaskIds);
+  const tasks = await db.task.findMany({
+    where: {
+      id: { in: uniqueTaskIds },
+      assignedUserId: user.id,
+      status: { notIn: ["DONE", "CANCELLED"] },
+    },
+    select: { id: true },
+  });
+
+  if (tasks.length !== uniqueTaskIds.length) {
+    throw new Error("Some selected tasks are not active tasks assigned to you");
+  }
+
+  const delegateIds = Array.from(new Set(handovers.map((h) => h.delegateUserId)));
+  if (delegateIds.some((id) => id === user.id)) {
+    throw new Error("You cannot hand over a task to yourself");
+  }
+
+  const delegates = await db.user.findMany({
+    where: {
+      id: { in: delegateIds },
+      departmentId: user.departmentId,
+      isActive: true,
+    },
+    select: { id: true, name: true },
+  });
+
+  if (delegates.length !== delegateIds.length) {
+    throw new Error("Each task delegate must be an active teammate in your department");
+  }
+
+  for (const handover of handovers) {
+    if (!taskIdSet.has(handover.taskId)) {
+      throw new Error("Invalid task selected for handover");
+    }
+
+    const overlap = await hasApprovedLeaveOverlap(
+      handover.delegateUserId,
+      startDate,
+      endDate,
+      excludeLeaveId
+    );
+
+    if (overlap) {
+      const delegate = delegates.find((item) => item.id === handover.delegateUserId);
+      throw new Error(`${delegate?.name ?? "Selected delegate"} has overlapping approved leave in this period`);
+    }
+  }
+
+  return handovers;
+}
 
 // ============== LEAVE MANAGEMENT ==============
 
@@ -11,8 +97,19 @@ export async function getMyLeaves() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
+  await processLeaveTaskHandovers();
+
   return db.leave.findMany({
     where: { userId: user.id },
+    include: {
+      handovers: {
+        include: {
+          task: { select: { id: true, title: true } },
+          delegateUser: { select: { id: true, name: true } },
+        },
+        orderBy: { id: "asc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }
@@ -21,17 +118,29 @@ export async function getAllLeaves() {
   const user = await getCurrentUser();
   if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
 
+  await processLeaveTaskHandovers();
+
   return db.leave.findMany({
-    include: { user: { include: { department: true } } },
+    include: {
+      user: { include: { department: true } },
+      handovers: {
+        include: {
+          task: { select: { id: true, title: true } },
+          delegateUser: { select: { id: true, name: true } },
+        },
+        orderBy: { id: "asc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 }
 
 export async function createLeave(data: {
-  type: "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER";
+  type: LeavePolicyType;
   startDate: string;
   endDate: string;
   reason: string;
+  handovers?: LeaveHandoverInput[];
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -47,20 +156,80 @@ export async function createLeave(data: {
     throw new Error("End date cannot be before start date");
   }
 
-  // Count working days only (Mon-Fri). Weekends are excluded from leave duration.
+  // Fetch public holidays for exclusion
+  const publicHolidays = await db.publicHoliday.findMany();
+  const holidaySet = new Set(
+    publicHolidays.map((h) => {
+      const d = new Date(h.date);
+      return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    })
+  );
+
+  // Count working days only (Mon–Fri, excluding public holidays)
   const cursor = new Date(start);
   let totalDays = 0;
   while (cursor <= end) {
     const day = cursor.getDay();
-    if (day !== 0 && day !== 6) {
+    const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
+    if (day !== 0 && day !== 6 && !holidaySet.has(key)) {
       totalDays += 1;
     }
     cursor.setDate(cursor.getDate() + 1);
   }
 
   if (totalDays === 0) {
-    throw new Error("Selected range includes only weekends");
+    throw new Error("Selected range falls entirely on weekends or public holidays");
   }
+
+  const userRole = user.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
+
+  const leavePolicy = await db.leavePolicy.findUnique({
+    where: {
+      role_leaveType: {
+        role: userRole,
+        leaveType: data.type,
+      },
+    },
+  });
+
+  if (!leavePolicy) {
+    throw new Error("This leave type is not configured for your role");
+  }
+
+  const currentYear = new Date().getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
+  const consumed = await db.leave.aggregate({
+    where: {
+      userId: user.id,
+      type: data.type,
+      status: { in: ["PENDING", "APPROVED"] },
+      startDate: {
+        gte: yearStart,
+        lte: yearEnd,
+      },
+    },
+    _sum: {
+      totalDays: true,
+    },
+  });
+
+  const usedDays = consumed._sum.totalDays ?? 0;
+  const remainingDays = Math.max(leavePolicy.daysAllowed - usedDays, 0);
+
+  if (totalDays > remainingDays) {
+    throw new Error(
+      `Requested ${totalDays} day(s), but only ${remainingDays} day(s) remain for ${data.type}`
+    );
+  }
+
+  const validatedHandovers = await validateLeaveHandoversForUser(
+    user,
+    data.handovers,
+    start,
+    end
+  );
 
   const leave = await db.leave.create({
     data: {
@@ -73,6 +242,44 @@ export async function createLeave(data: {
       status: "PENDING",
     },
   });
+
+  const hrReviewers = await db.user.findMany({
+    where: {
+      OR: [
+        { role: "ADMIN" },
+        { role: "CEO" },
+        { department: { slug: DEPARTMENTS.HR } },
+      ],
+      isActive: true,
+    },
+    select: { id: true },
+  });
+
+  await Promise.allSettled(
+    hrReviewers
+      .filter((reviewer) => reviewer.id !== user.id)
+      .map((reviewer) =>
+        createNotification(
+          reviewer.id,
+          "REQUISITION_UPDATED",
+          "New Leave Request",
+          `${user.name} submitted a ${data.type.toLowerCase()} leave request for review`,
+          "/hr/leaves"
+        )
+      )
+  );
+
+  if (validatedHandovers.length > 0) {
+    await db.leaveTaskHandover.createMany({
+      data: validatedHandovers.map((handover) => ({
+        leaveId: leave.id,
+        taskId: handover.taskId,
+        originalAssigneeId: user.id,
+        delegateUserId: handover.delegateUserId,
+        status: "PENDING_TRANSFER",
+      })),
+    });
+  }
 
   revalidatePath("/leave");
   revalidatePath("/hr/leaves");
@@ -113,9 +320,73 @@ export async function reviewLeave(
     "/leave"
   );
 
+  if (decision === "APPROVED") {
+    await processLeaveTaskHandovers();
+  }
+
   revalidatePath("/leave");
   revalidatePath("/hr/leaves");
   return updated;
+}
+
+export async function updateLeaveHandovers(leaveId: number, handovers: LeaveHandoverInput[]) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const leave = await db.leave.findUnique({
+    where: { id: leaveId },
+    select: {
+      id: true,
+      userId: true,
+      status: true,
+      startDate: true,
+      endDate: true,
+    },
+  });
+
+  if (!leave) throw new Error("Leave not found");
+  if (leave.userId !== user.id) throw new Error("Unauthorized");
+  if (![
+    "PENDING",
+    "APPROVED",
+  ].includes(leave.status)) {
+    throw new Error("Handover can only be edited for pending or approved leave");
+  }
+
+  if (new Date() >= leave.startDate) {
+    throw new Error("Handover can only be edited before leave start date");
+  }
+
+  const validatedHandovers = await validateLeaveHandoversForUser(
+    user,
+    handovers,
+    leave.startDate,
+    leave.endDate,
+    leave.id
+  );
+
+  await db.$transaction(async (tx) => {
+    await tx.leaveTaskHandover.deleteMany({
+      where: { leaveId },
+    });
+
+    if (validatedHandovers.length > 0) {
+      await tx.leaveTaskHandover.createMany({
+        data: validatedHandovers.map((handover) => ({
+          leaveId,
+          taskId: handover.taskId,
+          originalAssigneeId: user.id,
+          delegateUserId: handover.delegateUserId,
+          status: "PENDING_TRANSFER",
+        })),
+      });
+    }
+  });
+
+  revalidatePath("/leave");
+  revalidatePath("/tasks");
+
+  return { success: true };
 }
 
 export async function cancelLeave(leaveId: number) {
@@ -150,7 +421,7 @@ export async function getLeavePolicies() {
 
 export async function upsertLeavePolicy(data: {
   role: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
-  leaveType: "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER";
+  leaveType: LeavePolicyType;
   daysAllowed: number;
 }) {
   const user = await getCurrentUser();
@@ -168,6 +439,25 @@ export async function upsertLeavePolicy(data: {
 
   revalidatePath("/hr/leave-policy");
   return policy;
+}
+
+export async function deleteLeavePolicy(data: {
+  role: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
+  leaveType: LeavePolicyType;
+}) {
+  const user = await getCurrentUser();
+  if (!user || !canViewHRData(user)) throw new Error("Unauthorized");
+
+  await db.leavePolicy.delete({
+    where: {
+      role_leaveType: {
+        role: data.role,
+        leaveType: data.leaveType,
+      },
+    },
+  });
+
+  revalidatePath("/hr/leave-policy");
 }
 
 // ============== PUBLIC HOLIDAYS ==============
@@ -243,6 +533,32 @@ export async function createSuggestion(data: {
     },
   });
 
+  const suggestionReviewers = await db.user.findMany({
+    where: {
+      OR: [
+        { role: "ADMIN" },
+        { role: "CEO" },
+        { department: { slug: DEPARTMENTS.HR } },
+      ],
+      isActive: true,
+    },
+    select: { id: true },
+  });
+
+  await Promise.allSettled(
+    suggestionReviewers
+      .filter((reviewer) => reviewer.id !== user.id)
+      .map((reviewer) =>
+        createNotification(
+          reviewer.id,
+          "REQUISITION_UPDATED",
+          "New Suggestion Submitted",
+          `A new ${data.category.toLowerCase()} suggestion is awaiting review`,
+          "/hr/suggestions"
+        )
+      )
+  );
+
   revalidatePath("/suggestions");
   revalidatePath("/hr/suggestions");
   return suggestion;
@@ -263,6 +579,14 @@ export async function reviewSuggestion(
       hrNote: hrNote || null,
     },
   });
+
+  await createNotification(
+    suggestion.userId,
+    "REQUISITION_UPDATED",
+    "Suggestion Status Updated",
+    `Your suggestion is now marked as ${status.replaceAll("_", " ").toLowerCase()}`,
+    "/suggestions"
+  );
 
   revalidatePath("/suggestions");
   revalidatePath("/hr/suggestions");

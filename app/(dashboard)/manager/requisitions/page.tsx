@@ -7,17 +7,8 @@ export default async function ManagerRequisitionsPage() {
   const user = await getCurrentUser();
   if (!user || user.role !== "MANAGER") redirect("/dashboard");
 
-  const requisitions = await db.requisition.findMany({
-    where: {
-      status: "PENDING_MANAGER",
-      user: { departmentId: user.departmentId },
-    },
-    include: {
-      user: true,
-      items: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  // Manager approval flow has been removed - all requisitions now go directly to Finance
+  const requisitions: any[] = [];
 
   return (
     <ManagerRequisitionsClient

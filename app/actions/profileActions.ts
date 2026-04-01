@@ -11,7 +11,18 @@ export async function getUserProfile() {
 
   return db.user.findUnique({
     where: { id: user.id },
-    include: { department: true },
+    include: {
+      department: true,
+      equipmentOwned: {
+        select: {
+          id: true,
+          make: true,
+          model: true,
+          serialNumber: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   });
 }
 

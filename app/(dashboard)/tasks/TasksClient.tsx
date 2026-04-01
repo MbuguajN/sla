@@ -137,22 +137,22 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
   }, [tasks, search, statusFilter, priorityFilter, activeTab, dateFilter]);
 
   const statusPill: Record<string, string> = {
-    UNASSIGNED: "bg-gray-100 text-gray-600",
-    ASSIGNED: "bg-blue-100 text-blue-700",
-    CONFIRMED: "bg-indigo-100 text-indigo-700",
-    IN_PROGRESS: "bg-emerald-100 text-emerald-700",
-    PAUSED: "bg-orange-100 text-orange-700",
-    SUBMITTED: "bg-violet-100 text-violet-700",
-    REVISION: "bg-rose-100 text-rose-700",
-    DONE: "bg-emerald-100 text-emerald-700",
-    CANCELLED: "bg-gray-100 text-gray-600",
+    UNASSIGNED: "bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-zinc-400",
+    ASSIGNED: "bg-blue-100 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300",
+    CONFIRMED: "bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300",
+    IN_PROGRESS: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    PAUSED: "bg-orange-100 dark:bg-orange-500/15 text-orange-700 dark:text-orange-300",
+    SUBMITTED: "bg-violet-100 dark:bg-violet-500/15 text-violet-700 dark:text-violet-300",
+    REVISION: "bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300",
+    DONE: "bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+    CANCELLED: "bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-zinc-400",
   };
 
   const priorityText: Record<string, string> = {
-    LOW: "text-gray-500",
-    MEDIUM: "text-slate-500",
-    HIGH: "text-orange-600",
-    URGENT: "text-red-600",
+    LOW: "text-gray-500 dark:text-zinc-500",
+    MEDIUM: "text-slate-500 dark:text-zinc-400",
+    HIGH: "text-orange-600 dark:text-orange-300",
+    URGENT: "text-red-600 dark:text-red-300",
   };
 
   const statuses = ["ALL", "UNASSIGNED", "ASSIGNED", "CONFIRMED", "IN_PROGRESS", "PAUSED", "SUBMITTED", "REVISION", "DONE", "CANCELLED"];
@@ -165,9 +165,9 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-5 rounded-3xl bg-white border border-gray-100 p-7">
-          <h1 className="text-4xl font-black text-slate-800 tracking-tight">Pipeline Velocity</h1>
-          <p className="text-sm text-gray-500 mt-2 leading-relaxed max-w-md">
+        <div className="xl:col-span-5 rounded-3xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7">
+          <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">Pipeline Velocity</h1>
+          <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2 leading-relaxed max-w-md">
             A curated view of active operational tasks. Priorities are weighted by SLA proximity.
           </p>
           {canCreate && (
@@ -188,15 +188,15 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-gray-100 bg-white overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="inline-flex rounded-2xl bg-gray-100 p-1 w-fit">
+      <section className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-[#111111] overflow-hidden">
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-white/10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="inline-flex rounded-2xl bg-gray-100 dark:bg-white/10 p-1 w-fit">
             <button
               onClick={() => setActiveTab("ACTIVE")}
               className={`px-4 py-1.5 text-xs font-bold rounded-xl transition ${
                 activeTab === "ACTIVE"
                   ? "bg-[#ffe8ec] text-[#c91f41]"
-                  : "text-gray-500 hover:text-gray-700"
+                      : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-white"
               }`}
             >
               Active Tasks
@@ -206,7 +206,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
               className={`px-4 py-1.5 text-xs font-bold rounded-xl transition ${
                 activeTab === "ARCHIVE"
                   ? "bg-[#ffe8ec] text-[#c91f41]"
-                  : "text-gray-500 hover:text-gray-700"
+                      : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-white"
               }`}
             >
               Archive
@@ -221,14 +221,14 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                 placeholder="Search task or client"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-56 rounded-xl border border-gray-200 pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-[#ffd8e0]"
+                className="h-9 w-56 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-9 pr-3 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#ffd8e0]"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-gray-600"
+              className="h-9 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {statuses.map((s) => (
                 <option key={s} value={s}>
@@ -240,7 +240,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-9 rounded-xl border border-gray-200 px-3 text-xs font-semibold text-gray-600"
+              className="h-9 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {priorities.map((p) => (
                 <option key={p} value={p}>
@@ -249,14 +249,14 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
               ))}
             </select>
 
-            <button className="h-9 w-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#c91f41] hover:border-[#ffd8e0]">
+            <button className="h-9 w-9 rounded-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-zinc-500 hover:text-[#c91f41] hover:border-[#ffd8e0]">
               <FilterIcon className="h-4 w-4" />
             </button>
           </div>
         </div>
 
         <div className="px-6 pb-4 flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 mr-1">Created</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-600 mr-1">Created</span>
           {(["ALL", "TODAY", "THIS_WEEK", "THIS_MONTH"] as const).map((d) => (
             <button
               key={d}
@@ -264,7 +264,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
               className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
                 dateFilter === d
                   ? "bg-[#ffe8ec] text-[#c91f41] border border-[#ffd8e0]"
-                  : "bg-gray-50 text-gray-500 border border-gray-100 hover:text-[#c91f41] hover:border-[#ffd8e0]"
+                  : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-zinc-500 border border-gray-100 dark:border-white/10 hover:text-[#c91f41] hover:border-[#ffd8e0]"
               }`}
             >
               {d === "ALL" ? "All time" : d === "THIS_WEEK" ? "This week" : d === "THIS_MONTH" ? "This month" : "Today"}
@@ -276,7 +276,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
           {filteredTasks.length > 0 ? (
             <table className="w-full min-w-[860px]">
               <thead>
-                <tr className="text-left text-[10px] text-gray-400 font-black tracking-[0.16em] uppercase border-b border-gray-100">
+                <tr className="text-left text-[10px] text-gray-400 dark:text-zinc-600 font-black tracking-[0.16em] uppercase border-b border-gray-100 dark:border-white/10">
                   <th className="px-6 py-3">Task Name</th>
                   <th className="px-6 py-3">Project</th>
                   <th className="px-6 py-3">Assignee</th>
@@ -288,15 +288,15 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                 {filteredTasks.map((task) => {
                   const sla = calculateSLA(task);
                   return (
-                    <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
+                    <tr key={task.id} className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 align-top">
                         <Link href={`/tasks/${task.id}`} className="group">
                           <div>
                             <div>
-                              <p className="text-sm font-bold text-gray-900 group-hover:text-[#c91f41] transition-colors leading-tight">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#c91f41] transition-colors leading-tight">
                                 {task.title}
                               </p>
-                              <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider mt-1">
+                              <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold uppercase tracking-wider mt-1">
                                 ID: OPS-{task.id}
                               </p>
                             </div>
@@ -306,11 +306,11 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                       <td className="px-6 py-4 align-top">
                         <Link
                           href={`/projects/${task.projectId}`}
-                          className="inline-block text-xs font-bold text-slate-600 bg-slate-100 rounded-lg px-2 py-1 hover:text-[#c91f41] transition-colors"
+                          className="inline-block text-xs font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-white/10 rounded-lg px-2 py-1 hover:text-[#c91f41] transition-colors"
                         >
                           {task.projectTitle}
                         </Link>
-                        <p className="text-[10px] text-gray-400 font-semibold mt-1">{task.clientName}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold mt-1">{task.clientName}</p>
                       </td>
                       <td className="px-6 py-4 align-top">
                         {task.assigneeName ? (
@@ -318,10 +318,10 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                             <div className="h-7 w-7 rounded-full bg-[#ffe8ec] text-[#c91f41] text-xs font-bold flex items-center justify-center">
                               {task.assigneeName[0]?.toUpperCase()}
                             </div>
-                            <span className="text-sm text-gray-700 font-medium">{task.assigneeName}</span>
+                            <span className="text-sm text-gray-700 dark:text-zinc-300 font-medium">{task.assigneeName}</span>
                           </div>
                         ) : (
-                          <span className="text-sm text-gray-400">Unassigned</span>
+                          <span className="text-sm text-gray-400 dark:text-zinc-600">Unassigned</span>
                         )}
                       </td>
                       <td className="px-6 py-4 align-top">
@@ -331,7 +331,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                       </td>
                       <td className="px-6 py-4 align-top">
                         {sla.status === "not_started" ? (
-                          <p className="text-xs font-bold text-gray-400">Not started</p>
+                          <p className="text-xs font-bold text-gray-400 dark:text-zinc-600">Not started</p>
                         ) : sla.status === "completed" ? (
                           <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
                             <Tick01Icon className="h-4 w-4 flex-shrink-0" />
@@ -348,7 +348,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                             {formatRemaining(sla.remaining)}
                           </span>
                         ) : (
-                          <span className="flex items-center gap-2 text-xs text-slate-600 font-bold">
+                          <span className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 font-bold">
                             <Clock01Icon className="h-4 w-4 flex-shrink-0" />
                             {formatRemaining(sla.remaining)}
                           </span>
@@ -365,11 +365,11 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
             </table>
           ) : (
             <div className="text-center py-16 px-6">
-              <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <CheckListIcon className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <CheckListIcon className="h-8 w-8 text-gray-400 dark:text-zinc-600" />
               </div>
-              <p className="text-base font-semibold text-gray-900">No tasks found</p>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-base font-semibold text-gray-900 dark:text-white">No tasks found</p>
+              <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2">
                 {activeTab === "ACTIVE"
                   ? "No active tasks match this filter"
                   : "No archived tasks match this filter"}
@@ -400,10 +400,10 @@ function MetricCard({
   };
 
   return (
-    <div className={`rounded-2xl bg-white border border-gray-100 border-l-2 p-5 ${accentStyles[accent]}`}>
-      <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">{label}</p>
-      <p className="text-4xl font-black text-slate-800 tracking-tight mt-2">{value}</p>
-      <p className="text-[10px] font-bold text-gray-400 mt-1">{note}</p>
+    <div className={`rounded-2xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 border-l-2 p-5 ${accentStyles[accent]}`}>
+      <p className="text-[10px] font-black text-gray-400 dark:text-zinc-600 uppercase tracking-[0.2em]">{label}</p>
+      <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tight mt-2">{value}</p>
+      <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 mt-1">{note}</p>
     </div>
   );
 }

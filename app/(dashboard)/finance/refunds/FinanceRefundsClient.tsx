@@ -1,9 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { reviewRefund } from "@/app/actions/financeActions";
-import { CreditCard, Search } from "lucide-react";
+import {
+  submitRefundForApproval,
+  approveRefundAsCEO,
+  rejectRefundAsFinance,
+  rejectRefundAsCEO,
+} from "@/app/actions/financeActions";
+import { CreditCardIcon, Search01Icon, Cancel01Icon, CheckmarkCircle01Icon, ArrowDown01Icon } from "hugeicons-react";
+import { cn } from "@/lib/utils";
 
 type Refund = {
   id: number;
@@ -13,21 +19,64 @@ type Refund = {
   userName: string;
   userDepartment: string | null;
   financeNote: string | null;
+  ceoNote: string | null;
   createdAt: string;
 };
 
 interface Props {
   initialRefunds: Refund[];
+  currentUserRole: string;
 }
 
-export default function FinanceRefundsClient({ initialRefunds }: Props) {
+export default function FinanceRefundsClient({ initialRefunds, currentUserRole }: Props) {
   const router = useRouter();
-  const [refunds] = useState(initialRefunds);
+  const [refunds, setRefunds] = useState(initialRefunds);
+  useEffect(() => { setRefunds(initialRefunds); }, [initialRefunds]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [reviewingId, setReviewingId] = useState<number | null>(null);
-  const [note, setNote] = useState("");
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [actionNote, setActionNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const isViewOnly = currentUserRole === "ADMIN";
+
+  const handleApprove = async (refundId: number) => {
+    setLoading(true);
+    try {
+      if (currentUserRole === "CEO") {
+        await approveRefundAsCEO(refundId, actionNote || undefined);
+        setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "APPROVED" } : r));
+      } else {
+        await submitRefundForApproval(refundId, actionNote || undefined);
+        setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "PENDING_CEO" } : r));
+      }
+      setActionNote("");
+      setExpandedId(null);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to submit refund for approval");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeny = async (refundId: number) => {
+    setLoading(true);
+    try {
+      if (currentUserRole === "CEO") {
+        await rejectRefundAsCEO(refundId, actionNote || "Denied");
+      } else {
+        await rejectRefundAsFinance(refundId, actionNote || "Denied");
+      }
+      setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "DENIED" } : r));
+      setActionNote("");
+      setExpandedId(null);
+      router.refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to reject refund");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filtered = refunds.filter((r) => {
     const matchSearch = r.userName.toLowerCase().includes(search.toLowerCase()) || r.reason.toLowerCase().includes(search.toLowerCase());
@@ -35,112 +84,192 @@ export default function FinanceRefundsClient({ initialRefunds }: Props) {
     return matchSearch && matchStatus;
   });
 
-  const statusColors: Record<string, string> = {
-    PENDING: "bg-yellow-100 text-yellow-700",
-    APPROVED: "bg-green-100 text-green-700",
-    DENIED: "bg-red-100 text-red-700",
-  };
-
-  const handleReview = async (refundId: number, decision: "APPROVED" | "DENIED") => {
-    if (decision === "DENIED" && !note.trim()) { alert("Please provide a reason for denial"); return; }
-    setLoading(true);
-    try {
-      await reviewRefund(refundId, decision, note || undefined);
-      setReviewingId(null);
-      setNote("");
-      router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const statuses = ["ALL", "PENDING", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
-          <CreditCard className="h-5 w-5 text-[#c91f41]" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Refund Requests</h1>
-          <p className="text-sm text-gray-500">{refunds.filter((r) => r.status === "PENDING").length} pending</p>
+    <div className="max-w-[1600px] mx-auto pb-20 space-y-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-rose-50 dark:bg-rose-500/10 rounded-xl">
+              <CreditCardIcon className="w-5 h-5 text-rose-600" />
+            </div>
+            <span className="text-[11px] font-black text-rose-600 uppercase tracking-[0.2em] leading-none">Financial Requests</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
+            Refund <span className="text-rose-600 italic">Returns</span>
+          </h1>
+          <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">
+            Processing <span className="text-[#111827] dark:text-white">{refunds.length} refund requests</span>.
+          </p>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]" />
+      {/* Global Controls */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-white dark:bg-black p-4 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="lg:col-span-2 relative group">
+          <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+            <Search01Icon className="w-4.5 h-4.5 text-gray-400 group-focus-within:text-rose-600 transition-colors" />
+          </div>
+          <input
+            type="text"
+            placeholder="Filter by name or reason..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full h-14 pl-12 pr-6 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-2xl outline-none focus:ring-4 focus:ring-rose-500/5 transition-all font-bold text-sm text-gray-900 dark:text-white placeholder:text-zinc-700"
+          />
         </div>
-        <div className="flex gap-2">
-          {statuses.map((s) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors ${statusFilter === s ? "bg-[#c91f41] text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
-              {s === "ALL" ? "All" : s}
+        
+        <div className="lg:col-span-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+          {statuses.map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={cn(
+                "px-5 h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0 border-2",
+                statusFilter === status 
+                  ? "bg-white dark:bg-black border-rose-600 text-rose-600 shadow-lg shadow-rose-500/10" 
+                  : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+              )}
+            >
+              {status.split('_').join(' ')}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Employee</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Amount</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Reason</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-              <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50/50">
-                <td className="px-5 py-4">
-                  <p className="text-sm font-medium text-gray-900">{r.userName}</p>
-                  <p className="text-xs text-gray-400">{r.userDepartment || "—"}</p>
-                </td>
-                <td className="px-5 py-4"><span className="text-sm font-bold text-gray-900">R{r.amount.toLocaleString()}</span></td>
-                <td className="px-5 py-4">
-                  <p className="text-sm text-gray-600 line-clamp-2 max-w-xs">{r.reason}</p>
-                  {r.financeNote && <p className="text-xs text-gray-400 mt-1">Note: {r.financeNote}</p>}
-                </td>
-                <td className="px-5 py-4">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusColors[r.status]}`}>{r.status}</span>
-                </td>
-                <td className="px-5 py-4 text-right">
-                  {r.status === "PENDING" && (
-                    reviewingId === r.id ? (
-                      <div className="flex items-center gap-2 justify-end">
-                        <input type="text" placeholder="Note..." value={note} onChange={(e) => setNote(e.target.value)}
-                          className="w-28 px-2 py-1 text-xs border border-gray-200 rounded-lg" />
-                        <button onClick={() => handleReview(r.id, "APPROVED")} disabled={loading}
-                          className="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50">Approve</button>
-                        <button onClick={() => handleReview(r.id, "DENIED")} disabled={loading}
-                          className="px-2 py-1 text-xs font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 disabled:opacity-50">Deny</button>
-                        <button onClick={() => { setReviewingId(null); setNote(""); }}
-                          className="px-2 py-1 text-xs text-gray-500">Cancel</button>
+      {/* Refund Cards */}
+      <div className="grid grid-cols-1 gap-4">
+        {filtered.map((refund) => (
+          <div key={refund.id} className="group relative bg-white dark:bg-[#0f0f0f] border border-gray-100 dark:border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-rose-500/5">
+            <div className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-black text-rose-600 uppercase">REF</span>
+                  <span className="text-lg font-black text-[#111827] dark:text-white tabular-nums">#{refund.id}</span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-zinc-100 dark:bg-white/5 rounded text-[8px] font-black text-zinc-500 uppercase tracking-widest">{refund.userDepartment || 'Ops'}</span>
+                    <span className="text-[10px] font-bold text-zinc-500">{new Date(refund.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <h3 className="text-xl font-black text-[#111827] dark:text-white tracking-tight">{refund.reason}</h3>
+                  <p className="text-sm font-bold text-zinc-500 italic lowercase tracking-tight">Requested by {refund.userName}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-8">
+                <div className="flex flex-col items-end">
+                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Refund Amount</span>
+                  <span className="text-2xl font-black text-rose-600 tabular-nums">KES {refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                
+                <div className={cn(
+                  "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border",
+                  refund.status === 'APPROVED' ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-500" :
+                  refund.status === 'DENIED' ? "bg-rose-500/10 border-rose-500/20 text-rose-500" :
+                  "bg-zinc-500/10 border-zinc-500/20 text-zinc-500"
+                )}>
+                  {refund.status.split('_').join(' ')}
+                </div>
+
+                <button 
+                  onClick={() => setExpandedId(expandedId === refund.id ? null : refund.id)}
+                  className="w-12 h-12 bg-[#f8faff] dark:bg-black border border-gray-100 dark:border-white/10 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white hover:bg-rose-600 transition-all"
+                >
+                  <ArrowDown01Icon className={cn("w-5 h-5 transition-transform", expandedId === refund.id && "rotate-180")} />
+                </button>
+              </div>
+            </div>
+
+            {expandedId === refund.id && (
+              <div className="px-8 pb-8 space-y-8 animate-in slide-in-from-top-4 duration-500 border-t border-gray-100 dark:border-white/5 pt-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Reason */}
+                  <div className="space-y-4">
+                    <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Refund Reason</h4>
+                    <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 italic text-sm text-zinc-500 leading-relaxed font-medium">
+                      {refund.reason}
+                    </div>
+                  </div>
+
+                  {/* Approval Console — Finance acting on PENDING_FINANCE */}
+                  {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_FINANCE' && (
+                    <div className="space-y-4">
+                      <textarea
+                        placeholder="Audit notes or rejection reason..."
+                        className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500/20 font-bold text-sm text-white resize-none"
+                        value={actionNote}
+                        onChange={(e) => setActionNote(e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => handleApprove(refund.id)}
+                          disabled={loading}
+                          className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                          <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for CEO
+                        </button>
+                        <button 
+                          onClick={() => handleDeny(refund.id)}
+                          disabled={loading}
+                          className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                          <Cancel01Icon className="w-4 h-4" /> Reject
+                        </button>
                       </div>
-                    ) : (
-                      <button onClick={() => setReviewingId(r.id)}
-                        className="px-3 py-1 text-xs font-medium text-[#c91f41] bg-[#fef2f4] rounded-lg hover:bg-red-100">Review</button>
-                    )
+                    </div>
                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && (
-          <div className="text-center py-12">
-            <CreditCard className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">No refund requests found</p>
+
+                  {/* Finance: waiting badge when already forwarded to CEO */}
+                  {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_CEO' && (
+                    <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
+                      <ArrowDown01Icon className="w-4 h-4 text-amber-500 flex-shrink-0 -rotate-90" />
+                      <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting CEO Review</span>
+                    </div>
+                  )}
+
+                  {/* CEO acting on PENDING_CEO */}
+                  {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_CEO' && (
+                    <div className="space-y-4">
+                      <textarea
+                        placeholder="Approval notes or rejection reason..."
+                        className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500/20 font-bold text-sm text-white resize-none"
+                        value={actionNote}
+                        onChange={(e) => setActionNote(e.target.value)}
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <button 
+                          onClick={() => handleApprove(refund.id)}
+                          disabled={loading}
+                          className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                          <CheckmarkCircle01Icon className="w-4 h-4" /> Approve
+                        </button>
+                        <button 
+                          onClick={() => handleDeny(refund.id)}
+                          disabled={loading}
+                          className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                          <Cancel01Icon className="w-4 h-4" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CEO: pending-finance info badge */}
+                  {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_FINANCE' && (
+                    <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
+                      <ArrowDown01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                      <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Pending Finance Review</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

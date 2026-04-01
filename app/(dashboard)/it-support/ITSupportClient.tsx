@@ -46,14 +46,18 @@ type CurrentUser = {
 interface Props {
   initialTickets: Ticket[];
   currentUser: CurrentUser;
+  currentUserName: string;
   isITStaff: boolean;
+  canAssignTickets: boolean;
   itMembers: { id: number; name: string }[];
 }
 
 export default function ITSupportClient({
   initialTickets,
   currentUser,
+  currentUserName,
   isITStaff,
+  canAssignTickets,
   itMembers,
 }: Props) {
   const router = useRouter();
@@ -85,11 +89,27 @@ export default function ITSupportClient({
     setError("");
 
     try {
-      await createITTicket({
+      const created = await createITTicket({
         title: formData.title,
         description: formData.description,
         priority: formData.priority as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
       });
+      setTickets((prev) => [
+        {
+          id: created.id,
+          title: created.title,
+          description: created.description,
+          priority: created.priority,
+          status: created.status,
+          creatorName: currentUserName,
+          creatorId: currentUser.id,
+          assigneeName: null,
+          assigneeId: null,
+          resolvedAt: created.resolvedAt ? created.resolvedAt.toISOString() : null,
+          createdAt: created.createdAt.toISOString(),
+        },
+        ...prev,
+      ]);
       setShowCreateModal(false);
       setFormData({ title: "", description: "", priority: "MEDIUM" });
       router.refresh();
@@ -102,11 +122,13 @@ export default function ITSupportClient({
 
   const handleAction = async (
     action: () => Promise<unknown>,
-    actionName: string
+    actionName: string,
+    onSuccess?: () => void
   ) => {
     setLoading(actionName);
     try {
       await action();
+      onSuccess?.();
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Action failed");
@@ -193,7 +215,7 @@ export default function ITSupportClient({
                 <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                   Ticket Brief
                 </th>
-                {isITStaff && (
+                  {isITStaff && (
                   <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
                     Source
                   </th>
@@ -256,7 +278,7 @@ export default function ITSupportClient({
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-end gap-2">
                        {/* IT Staff: Assign */}
-                       {isITStaff && ticket.status === "OPEN" && (
+                      {canAssignTickets && ticket.status === "OPEN" && (
                         <button
                           onClick={() => setShowAssignModal(ticket.id)}
                           className="h-9 px-4 text-[9px] font-black uppercase text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 border-2 border-[#c91f41]/20 rounded-lg hover:bg-[#c91f41] hover:text-white transition-all"
@@ -266,9 +288,21 @@ export default function ITSupportClient({
                       )}
 
                       {/* Status progression buttons with consistent styling */}
-                      {(ticket.assigneeId === currentUser.id || isITStaff) && ticket.status === "ASSIGNED" && (
+                      {ticket.assigneeId === currentUser.id && ticket.status === "ASSIGNED" && (
                         <button
-                          onClick={() => handleAction(() => startITTicket(ticket.id), `start-${ticket.id}`)}
+                          onClick={() =>
+                            handleAction(
+                              () => startITTicket(ticket.id),
+                              `start-${ticket.id}`,
+                              () => {
+                                setTickets((prev) =>
+                                  prev.map((t) =>
+                                    t.id === ticket.id ? { ...t, status: "IN_PROGRESS" } : t
+                                  )
+                                );
+                              }
+                            )
+                          }
                           disabled={loading === `start-${ticket.id}`}
                           className="h-9 px-4 text-[9px] font-black uppercase text-white bg-blue-600 rounded-lg hover:shadow-[3px_3px_0px_0px_rgba(30,58,138,1)] transition-all disabled:opacity-50"
                         >
@@ -276,9 +310,27 @@ export default function ITSupportClient({
                         </button>
                       )}
 
-                      {(ticket.assigneeId === currentUser.id || isITStaff) && ticket.status === "IN_PROGRESS" && (
+                      {ticket.assigneeId === currentUser.id && ticket.status === "IN_PROGRESS" && (
                         <button
-                          onClick={() => handleAction(() => resolveITTicket(ticket.id), `resolve-${ticket.id}`)}
+                          onClick={() =>
+                            handleAction(
+                              () => resolveITTicket(ticket.id),
+                              `resolve-${ticket.id}`,
+                              () => {
+                                setTickets((prev) =>
+                                  prev.map((t) =>
+                                    t.id === ticket.id
+                                      ? {
+                                          ...t,
+                                          status: "RESOLVED",
+                                          resolvedAt: new Date().toISOString(),
+                                        }
+                                      : t
+                                  )
+                                );
+                              }
+                            )
+                          }
                           disabled={loading === `resolve-${ticket.id}`}
                           className="h-9 px-4 text-[9px] font-black uppercase text-white bg-green-600 rounded-lg hover:shadow-[3px_3px_0px_0px_rgba(20,83,45,1)] transition-all disabled:opacity-50"
                         >
@@ -286,17 +338,47 @@ export default function ITSupportClient({
                         </button>
                       )}
 
-                      {(ticket.creatorId === currentUser.id || isITStaff) && ticket.status === "RESOLVED" && (
+                      {ticket.assigneeId === currentUser.id && ticket.status === "RESOLVED" && (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleAction(() => closeITTicket(ticket.id), `close-${ticket.id}`)}
+                            onClick={() =>
+                              handleAction(
+                                () => closeITTicket(ticket.id),
+                                `close-${ticket.id}`,
+                                () => {
+                                  setTickets((prev) =>
+                                    prev.map((t) =>
+                                      t.id === ticket.id ? { ...t, status: "CLOSED" } : t
+                                    )
+                                  );
+                                }
+                              )
+                            }
                             disabled={loading === `close-${ticket.id}`}
                             className="h-9 px-4 text-[9px] font-black uppercase text-white bg-gray-900 dark:bg-zinc-800 rounded-lg transition-all"
                           >
                             Close
                           </button>
                           <button
-                            onClick={() => handleAction(() => reopenITTicket(ticket.id), `reopen-${ticket.id}`)}
+                            onClick={() =>
+                              handleAction(
+                                () => reopenITTicket(ticket.id),
+                                `reopen-${ticket.id}`,
+                                () => {
+                                  setTickets((prev) =>
+                                    prev.map((t) =>
+                                      t.id === ticket.id
+                                        ? {
+                                            ...t,
+                                            status: t.assigneeId ? "IN_PROGRESS" : "OPEN",
+                                            resolvedAt: null,
+                                          }
+                                        : t
+                                    )
+                                  );
+                                }
+                              )
+                            }
                             disabled={loading === `reopen-${ticket.id}`}
                             className="h-9 px-4 text-[9px] font-black uppercase text-orange-700 bg-orange-100 rounded-lg transition-all"
                           >
@@ -353,25 +435,25 @@ export default function ITSupportClient({
 
               <form onSubmit={handleCreate} className="space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Intel Headline</label>
+                  <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Problem Title</label>
                   <input
                     type="text"
                     required
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder="Brief objective..."
+                    placeholder="Summarize the problem title..."
                     className="w-full h-14 px-6 text-[13px] font-bold bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Detailed Log</label>
+                  <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Explain In Detail</label>
                   <textarea
                     required
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows={4}
-                    placeholder="Full incident report..."
+                    placeholder="Explain the issue in detail, including steps to reproduce and impact..."
                     className="w-full p-6 text-[13px] font-bold bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none resize-none dark:text-white"
                   />
                 </div>
@@ -436,7 +518,21 @@ export default function ITSupportClient({
                   onClick={() => {
                     handleAction(
                       () => assignITTicket(showAssignModal, member.id),
-                      `assign-${showAssignModal}`
+                      `assign-${showAssignModal}`,
+                      () => {
+                        setTickets((prev) =>
+                          prev.map((t) =>
+                            t.id === showAssignModal
+                              ? {
+                                  ...t,
+                                  status: "ASSIGNED",
+                                  assigneeId: member.id,
+                                  assigneeName: member.name,
+                                }
+                              : t
+                          )
+                        );
+                      }
                     );
                     setShowAssignModal(null);
                   }}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import RefundsClient from "./RefundsClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function RefundsPage() {
   const user = await getCurrentUser();
@@ -13,7 +14,9 @@ export default async function RefundsPage() {
   });
 
   return (
-    <RefundsClient
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <RefundsClient
       initialRefunds={refunds.map((r) => ({
         id: r.id,
         amount: r.amount,
@@ -23,5 +26,6 @@ export default async function RefundsPage() {
         createdAt: r.createdAt.toISOString(),
       }))}
     />
+    </>
   );
 }

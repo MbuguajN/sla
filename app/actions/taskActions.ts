@@ -14,6 +14,7 @@ import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
+import { isUserCurrentlyOnApprovedLeave, processLeaveTaskHandovers } from "./leaveHandoverActions";
 
 // ============== CLEAR LATEST ACTIVITY ==============
 
@@ -55,6 +56,8 @@ export async function clearLatestActivity() {
 export async function getTasks() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
+
+  await processLeaveTaskHandovers();
 
   // Admin/CEO see all tasks
   if (user.role === "ADMIN" || user.role === "CEO") {
@@ -110,6 +113,8 @@ export async function getTasks() {
 export async function getTask(taskId: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
+
+  await processLeaveTaskHandovers();
 
   const task = await db.task.findUnique({
     where: { id: taskId },
@@ -206,6 +211,24 @@ export async function createTask(data: {
     throw new Error("Unauthorized - Only Client Service and Business Development can create tasks");
   }
 
+  // Check if project and client exist and are valid
+  const project = await db.project.findUnique({
+    where: { id: data.projectId },
+    include: { client: true },
+  });
+
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  if (project.client.status === "CLOSED") {
+    throw new Error("Cannot create tasks for projects with closed clients");
+  }
+
+  if (project.status !== "ACTIVE") {
+    throw new Error(`Cannot create tasks for projects that are ${project.status.replace("_", " ").toLowerCase()}`);
+  }
+
   // SLA is managed at task level.
   const slaHours = data.slaHours || 48;
 
@@ -276,6 +299,8 @@ export async function assignTask(taskId: number, assignedUserId: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
+  await processLeaveTaskHandovers();
+
   const task = await db.task.findUnique({
     where: { id: taskId },
     include: { assignedDepartment: true },
@@ -298,6 +323,15 @@ export async function assignTask(taskId: number, assignedUserId: number) {
 
   if (!assignee || assignee.departmentId !== task.deptId) {
     throw new Error("Assignee must be in the task's department");
+  }
+
+  const assigneeLeave = await isUserCurrentlyOnApprovedLeave(assignedUserId);
+  if (assigneeLeave) {
+    const returnDate = new Date(assigneeLeave.endDate);
+    returnDate.setDate(returnDate.getDate() + 1);
+    throw new Error(
+      `Cannot assign task. ${assignee.name} is currently on approved leave until ${returnDate.toLocaleDateString()}`
+    );
   }
 
   const updatedTask = await db.task.update({
@@ -395,7 +429,10 @@ export async function startTask(taskId: number) {
 
   const updatedTask = await db.task.update({
     where: { id: taskId },
-    data: { status: "IN_PROGRESS" },
+    data: {
+      status: "IN_PROGRESS",
+      ...(task.startedAt ? {} : { startedAt: new Date() }),
+    },
   });
 
   await db.activityLog.create({

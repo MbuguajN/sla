@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, canViewHRData } from "@/lib/permissions";
 import { db } from "@/lib/db";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import LeavePolicyClient from "./LeavePolicyClient";
 
 export default async function LeavePolicyPage() {
@@ -14,18 +15,21 @@ export default async function LeavePolicyPage() {
   ]);
 
   return (
-    <LeavePolicyClient
-      initialPolicies={policies.map((p) => ({
-        id: p.id,
-        role: p.role,
-        leaveType: p.leaveType,
-        daysAllowed: p.daysAllowed,
-      }))}
-      initialHolidays={holidays.map((h) => ({
-        id: h.id,
-        name: h.name,
-        date: h.date.toISOString(),
-      }))}
-    />
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <LeavePolicyClient
+        initialPolicies={policies.map((p) => ({
+          id: p.id,
+          role: p.role,
+          leaveType: p.leaveType,
+          daysAllowed: p.daysAllowed,
+        }))}
+        initialHolidays={holidays.map((h) => ({
+          id: h.id,
+          name: h.name,
+          date: h.date.toISOString(),
+        }))}
+      />
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { getCurrentUser, canOnboardClient, canViewClients } from "@/lib/permissions";
+import { getCurrentUser, canOnboardClient, canViewClients, canCloseClient } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
 export async function getClients() {
@@ -103,4 +103,22 @@ export async function deleteClient(clientId: number) {
 
   await db.client.delete({ where: { id: clientId } });
   revalidatePath("/clients");
+}
+
+export async function closeClient(clientId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canCloseClient(user)) {
+    throw new Error("Unauthorized - Only Business Development can close clients");
+  }
+
+  const client = await db.client.update({
+    where: { id: clientId },
+    data: {
+      status: "CLOSED",
+    },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return client;
 }

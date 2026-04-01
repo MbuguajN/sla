@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, canViewClients, canOnboardClient } from "@/lib/permissions";
+import { getCurrentUser, canViewClients, canOnboardClient, canCloseClient } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import ClientsClient from "./ClientsClient";
 
@@ -46,6 +46,7 @@ export default async function ClientsPage() {
           email: c.email,
           phone: c.phone,
           description: c.description,
+          status: c.status as "ACTIVE" | "CLOSED",
           projectCount,
           taskCount,
           activeTasks,
@@ -54,6 +55,7 @@ export default async function ClientsPage() {
         };
       })}
       canCreate={canOnboardClient(user)}
+      canClose={canCloseClient(user)}
     />
   );
 }

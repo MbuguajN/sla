@@ -5,16 +5,22 @@ export default withAuth(
   function middleware(req) {
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
+    const isAdmin = token?.role === "ADMIN";
+    const isCEO = token?.role === "CEO";
     const isHR = token?.departmentSlug === "human-resources";
     const isFinance = token?.departmentSlug === "finance";
-    const isElevated = token?.role === "ADMIN" || token?.role === "CEO";
 
     // Admin-only routes
-    if (path.startsWith("/admin") && token?.role !== "ADMIN") {
+    if (path.startsWith("/admin") && !isAdmin) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    if (!isElevated && (isHR || isFinance)) {
+    // Keep admin users in admin panel, not department dashboards.
+    if (path.startsWith("/dashboard") && isAdmin) {
+      return NextResponse.redirect(new URL("/admin", req.url));
+    }
+
+    if (!isCEO && (isHR || isFinance)) {
       const blocksOperationalRoutes =
         path.startsWith("/clients") ||
         path.startsWith("/projects") ||
@@ -27,20 +33,16 @@ export default withAuth(
       }
     }
 
-    // HR routes - only HR department, Admin, or CEO
+    // HR routes - HR department or admin (admin can view, not act)
     if (path.startsWith("/hr")) {
-      const canAccess =
-        isElevated || isHR;
-      if (!canAccess) {
+      if (!isHR && !isAdmin) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
 
-    // Finance routes - only Finance department, Admin, or CEO
+    // Finance routes - Finance department or admin (admin can view, not act)
     if (path.startsWith("/finance")) {
-      const canAccess =
-        isElevated || isFinance;
-      if (!canAccess) {
+      if (!isFinance && !isAdmin) {
         return NextResponse.redirect(new URL("/dashboard", req.url));
       }
     }
@@ -64,6 +66,7 @@ export const config = {
     "/hr/:path*",
     "/finance/:path*",
     "/it-support/:path*",
+    "/equipment/:path*",
     "/leave/:path*",
     "/requisitions/:path*",
     "/refunds/:path*",

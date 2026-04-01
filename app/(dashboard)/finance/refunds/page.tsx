@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, canManageRefunds } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import FinanceRefundsClient from "./FinanceRefundsClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function FinanceRefundsPage() {
   const user = await getCurrentUser();
@@ -14,17 +15,22 @@ export default async function FinanceRefundsPage() {
   });
 
   return (
-    <FinanceRefundsClient
-      initialRefunds={refunds.map((r) => ({
-        id: r.id,
-        amount: r.amount,
-        reason: r.reason,
-        status: r.status,
-        userName: r.user.name,
-        userDepartment: r.user.department?.name || null,
-        financeNote: r.financeNote,
-        createdAt: r.createdAt.toISOString(),
-      }))}
-    />
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <FinanceRefundsClient
+        initialRefunds={refunds.map((r) => ({
+          id: r.id,
+          amount: r.amount,
+          reason: r.reason,
+          status: r.status,
+          userName: r.user.name,
+          userDepartment: r.user.department?.name || null,
+          financeNote: r.financeNote,
+          ceoNote: r.ceoNote,
+          createdAt: r.createdAt.toISOString(),
+        }))}
+        currentUserRole={user.role}
+      />
+    </>
   );
 }

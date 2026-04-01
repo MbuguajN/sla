@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser, canViewSuggestions } from "@/lib/permissions";
 import { db } from "@/lib/db";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 import HRSuggestionsClient from "./HRSuggestionsClient";
 
 export default async function HRSuggestionsPage() {
@@ -14,18 +15,21 @@ export default async function HRSuggestionsPage() {
   });
 
   return (
-    <HRSuggestionsClient
-      initialSuggestions={suggestions.map((s) => ({
-        id: s.id,
-        title: s.title,
-        content: s.content,
-        category: s.category,
-        isAnonymous: s.isAnonymous,
-        userName: s.isAnonymous ? "Anonymous" : s.user.name,
-        status: s.status,
-        hrNote: s.hrNote,
-        createdAt: s.createdAt.toISOString(),
-      }))}
-    />
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <HRSuggestionsClient
+        initialSuggestions={suggestions.map((s) => ({
+          id: s.id,
+          title: s.title,
+          content: s.content,
+          category: s.category,
+          isAnonymous: s.isAnonymous,
+          userName: s.isAnonymous ? "Anonymous" : s.user.name,
+          status: s.status,
+          hrNote: s.hrNote,
+          createdAt: s.createdAt.toISOString(),
+        }))}
+      />
+    </>
   );
 }

@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, canManageITTickets } from "@/lib/permissions";
+import { getCurrentUser, canManageITTickets, canAssignITTicket } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import ITSupportClient from "./ITSupportClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function ITSupportPage() {
   const user = await getCurrentUser();
@@ -38,23 +39,28 @@ export default async function ITSupportPage() {
   }
 
   return (
-    <ITSupportClient
-      initialTickets={tickets.map((t) => ({
-        id: t.id,
-        title: t.title,
-        description: t.description,
-        priority: t.priority,
-        status: t.status,
-        creatorName: t.user.name,
-        creatorId: t.userId,
-        assigneeName: t.assignedTo?.name || null,
-        assigneeId: t.assignedUserId,
-        resolvedAt: t.resolvedAt?.toISOString() || null,
-        createdAt: t.createdAt.toISOString(),
-      }))}
-      currentUser={{ id: user.id, role: user.role, departmentSlug: user.departmentSlug }}
-      isITStaff={canManageITTickets(user)}
-      itMembers={itMembers}
-    />
+    <>
+      <RealtimeRefresh intervalMs={5000} />
+      <ITSupportClient
+        initialTickets={tickets.map((t) => ({
+          id: t.id,
+          title: t.title,
+          description: t.description,
+          priority: t.priority,
+          status: t.status,
+          creatorName: t.user.name,
+          creatorId: t.userId,
+          assigneeName: t.assignedTo?.name || null,
+          assigneeId: t.assignedUserId,
+          resolvedAt: t.resolvedAt?.toISOString() || null,
+          createdAt: t.createdAt.toISOString(),
+        }))}
+        currentUser={{ id: user.id, role: user.role, departmentSlug: user.departmentSlug }}
+        currentUserName={user.name}
+        isITStaff={canManageITTickets(user)}
+        canAssignTickets={canAssignITTicket(user)}
+        itMembers={itMembers}
+      />
+    </>
   );
 }

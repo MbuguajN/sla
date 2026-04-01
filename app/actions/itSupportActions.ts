@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser, canManageITTickets, canAssignITTicket, DEPARTMENTS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "./notificationActions";
 
 // ============== IT TICKET QUERIES ==============
 
@@ -77,6 +78,30 @@ export async function createITTicket(data: {
     },
   });
 
+  // New tickets should go directly to IT managers for assignment.
+  const techManagers = await db.user.findMany({
+    where: {
+      role: "MANAGER",
+      department: { slug: DEPARTMENTS.TECHNOLOGY },
+      isActive: true,
+    },
+    select: { id: true },
+  });
+
+  await Promise.allSettled(
+    techManagers
+      .filter((manager) => manager.id !== user.id)
+      .map((manager) =>
+        createNotification(
+          manager.id,
+          "IT_TICKET_ASSIGNED",
+          "New IT Ticket Awaiting Assignment",
+          `${user.name} submitted a new ticket: ${data.title}`,
+          "/it-support"
+        )
+      )
+  );
+
   revalidatePath("/it-support");
   return ticket;
 }
@@ -99,6 +124,9 @@ export async function assignITTicket(ticketId: number, assignedUserId: number) {
     throw new Error("Assignee must be in IT department");
   }
 
+  const existingTicket = await db.iTTicket.findUnique({ where: { id: ticketId } });
+  if (!existingTicket) throw new Error("Ticket not found");
+
   const ticket = await db.iTTicket.update({
     where: { id: ticketId },
     data: {
@@ -106,6 +134,26 @@ export async function assignITTicket(ticketId: number, assignedUserId: number) {
       status: "ASSIGNED",
     },
   });
+
+  // Notify assignee.
+  await createNotification(
+    assignedUserId,
+    "IT_TICKET_ASSIGNED",
+    "IT Ticket Assigned",
+    `You have been assigned ticket #${ticket.id}: ${ticket.title}`,
+    "/it-support"
+  );
+
+  // Notify ticket creator that assignment happened.
+  if (existingTicket.userId !== assignedUserId) {
+    await createNotification(
+      existingTicket.userId,
+      "IT_TICKET_ASSIGNED",
+      "Ticket Assignment Update",
+      `Your ticket #${ticket.id} has been assigned to ${assignee.name}`,
+      "/it-support"
+    );
+  }
 
   revalidatePath("/it-support");
   revalidatePath(`/it-support/${ticketId}`);
@@ -121,8 +169,8 @@ export async function startITTicket(ticketId: number) {
   const ticket = await db.iTTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw new Error("Ticket not found");
 
-  if (ticket.assignedUserId !== user.id && !canManageITTickets(user)) {
-    throw new Error("Unauthorized");
+  if (ticket.assignedUserId !== user.id) {
+    throw new Error("Only the assigned IT member can start this ticket");
   }
 
   if (ticket.status !== "ASSIGNED") {
@@ -146,8 +194,8 @@ export async function resolveITTicket(ticketId: number) {
   const ticket = await db.iTTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw new Error("Ticket not found");
 
-  if (ticket.assignedUserId !== user.id && !canManageITTickets(user)) {
-    throw new Error("Unauthorized");
+  if (ticket.assignedUserId !== user.id) {
+    throw new Error("Only the assigned IT member can resolve this ticket");
   }
 
   if (ticket.status !== "IN_PROGRESS") {
@@ -162,6 +210,15 @@ export async function resolveITTicket(ticketId: number) {
     },
   });
 
+  // Notify creator that ticket has been resolved.
+  await createNotification(
+    ticket.userId,
+    "IT_TICKET_RESOLVED",
+    "IT Ticket Resolved",
+    `Your ticket #${ticket.id} has been marked as resolved`,
+    "/it-support"
+  );
+
   revalidatePath("/it-support");
   revalidatePath(`/it-support/${ticketId}`);
   return updated;
@@ -174,9 +231,9 @@ export async function closeITTicket(ticketId: number) {
   const ticket = await db.iTTicket.findUnique({ where: { id: ticketId } });
   if (!ticket) throw new Error("Ticket not found");
 
-  // Only ticket creator or IT staff can close
-  if (ticket.userId !== user.id && !canManageITTickets(user)) {
-    throw new Error("Unauthorized");
+  // Only assigned IT member can close
+  if (ticket.assignedUserId !== user.id) {
+    throw new Error("Only the assigned IT member can close this ticket");
   }
 
   if (ticket.status !== "RESOLVED") {

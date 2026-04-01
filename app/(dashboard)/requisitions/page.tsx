@@ -2,15 +2,11 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import RequisitionsClient from "./RequisitionsClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function RequisitionsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-
-  // Fetch projects for the requisition form
-  const projects = await db.project.findMany({
-    select: { id: true, title: true }
-  });
 
   // Fetch existing requisitions
   const requisitions = await db.requisition.findMany({
@@ -20,8 +16,9 @@ export default async function RequisitionsPage() {
   });
 
   return (
-    <RequisitionsClient 
-      projectOptions={projects}
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <RequisitionsClient 
       initialRequisitions={requisitions.map((r) => ({
         id: r.id,
         title: r.title,
@@ -39,5 +36,6 @@ export default async function RequisitionsPage() {
         createdAt: r.createdAt.toISOString(),
       }))}
     />
+    </>
   );
 }

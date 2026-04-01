@@ -2,6 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import TaskDetailClient from "./TaskDetailClient";
+import { processLeaveTaskHandovers } from "@/app/actions/leaveHandoverActions";
 
 export default async function TaskDetailPage({
   params,
@@ -11,6 +12,8 @@ export default async function TaskDetailPage({
   const { id } = await params;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  await processLeaveTaskHandovers();
 
   const task = await db.task.findUnique({
     where: { id: parseInt(id) },

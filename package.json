@@ -9,7 +9,13 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "docker:build": "docker build -t sla-app:latest .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f app",
+    "docker:deploy": "bash scripts/deploy.sh",
+    "docker:update": "bash scripts/update.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",

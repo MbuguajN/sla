@@ -35,12 +35,12 @@ export default function DepartmentsClient({ initialDepartments, users }: Props) 
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-[#fef2f4] dark:bg-[#c91f41]/10 flex items-center justify-center">
           <Building2 className="h-5 w-5 text-[#c91f41]" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Departments</h1>
-          <p className="text-sm text-gray-500">{departments.length} departments</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Departments</h1>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">{departments.length} departments</p>
         </div>
       </div>
 
@@ -49,30 +49,30 @@ export default function DepartmentsClient({ initialDepartments, users }: Props) 
         {departments.map((dept) => (
           <div
             key={dept.id}
-            className="bg-white rounded-xl border border-gray-200 p-5 hover:border-[#c91f41]/30 transition-colors"
+            className="bg-white dark:bg-[#111111] rounded-xl border border-gray-200 dark:border-white/10 p-5 hover:border-[#c91f41]/30 transition-colors"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className="w-10 h-10 rounded-lg bg-[#fef2f4] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-[#fef2f4] dark:bg-[#c91f41]/10 flex items-center justify-center">
                 <Building2 className="h-5 w-5 text-[#c91f41]" />
               </div>
               <button
                 onClick={() => setEditingDept(dept)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-1.5 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
               >
                 <Edit2 className="h-4 w-4" />
               </button>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-900 mb-1">{dept.name}</h3>
-            <p className="text-xs text-gray-400 mb-4">{dept.slug}</p>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">{dept.name}</h3>
+            <p className="text-xs text-gray-400 dark:text-zinc-500 mb-4">{dept.slug}</p>
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-600">{dept.memberCount} members</span>
+                <Users className="h-4 w-4 text-gray-400 dark:text-zinc-500" />
+                <span className="text-sm text-gray-600 dark:text-zinc-300">{dept.memberCount} members</span>
               </div>
               {dept.headName && (
-                <span className="text-xs text-gray-500">Head: {dept.headName}</span>
+                <span className="text-xs text-gray-500 dark:text-zinc-400">Head: {dept.headName}</span>
               )}
             </div>
           </div>
@@ -138,44 +138,44 @@ function EditDepartmentModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+      <div className="relative bg-white dark:bg-[#111111] rounded-xl shadow-xl w-full max-w-md mx-4 p-6 border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-gray-900">Edit Department</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Department</h2>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="p-1.5 text-gray-400 dark:text-zinc-500 hover:text-gray-600 dark:hover:text-zinc-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-300 rounded-lg text-sm border border-red-100 dark:border-red-500/20">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
               Department Name
             </label>
             <input
               type="text"
               value={department.name}
               disabled
-              className="w-full px-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg text-gray-500"
+              className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg text-gray-500 dark:text-zinc-400"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
               Department Head
             </label>
             <select
               value={headId}
               onChange={(e) => setHeadId(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] dark:text-zinc-100"
             >
               <option value="">No Head Assigned</option>
               {managers.map((m) => (
@@ -190,7 +190,7 @@ function EditDepartmentModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-zinc-200 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
             >
               Cancel
             </button>

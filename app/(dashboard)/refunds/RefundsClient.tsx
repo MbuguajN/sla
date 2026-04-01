@@ -77,10 +77,10 @@ export default function RefundsClient({ initialRefunds }: Props) {
              <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
                <Money01Icon className="w-5 h-5 text-emerald-600" />
              </div>
-             <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none">Fiscal Return</span>
+             <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none">Returns</span>
            </div>
            <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
-             Expense <span className="text-emerald-600 italic">Refunds</span>
+             <span className="text-emerald-600 italic">Refunds</span>
            </h1>
            <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">
              Submit and track your expense reimbursement claims.
@@ -109,7 +109,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
                         <span className="text-[10px] font-black text-gray-400 dark:text-zinc-600 uppercase tracking-widest">REF-#{item.id}</span>
                      </div>
                      <h3 className="text-xl font-black text-[#111827] dark:text-white tracking-tight leading-7 line-clamp-2">
-                        GH₵ {item.amount.toLocaleString()}
+                        KES {item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                      </h3>
                   </div>
                 </div>
@@ -147,13 +147,13 @@ export default function RefundsClient({ initialRefunds }: Props) {
             <div className="min-h-[300px] flex flex-col justify-center">
                {currentStep === 1 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Fiscal Value</h2>
+                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Refund Amount</h2>
                      <div className="relative group/input">
                         <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                           <span className="font-black text-gray-400 text-lg uppercase tracking-widest">GH₵</span>
+                      <span className="font-black text-gray-400 text-lg uppercase tracking-widest">KES</span>
                         </div>
                         <input 
-                           type="number" placeholder="0.00" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})}
+                      type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value.replace(/[^0-9]/g, "")})}
                            className="w-full h-20 bg-gray-50 dark:bg-white/5 rounded-3xl pl-24 pr-8 font-black text-4xl outline-none border-4 border-transparent focus:border-emerald-600 transition-all dark:text-white"
                         />
                      </div>
@@ -175,8 +175,8 @@ export default function RefundsClient({ initialRefunds }: Props) {
                      <div className="mx-auto w-24 h-24 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
                         <Money01Icon className="w-12 h-12 text-emerald-600" />
                      </div>
-                     <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Transmission Flow</h2>
-                     <p className="text-sm font-bold text-gray-400">Total Capital: <span className="text-emerald-600">GH₵ {parseFloat(formData.amount || "0").toLocaleString()}</span>. Ready for submission.</p>
+                  <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Confirm Refund</h2>
+                  <p className="text-sm font-bold text-gray-400">Total Refund: <span className="text-emerald-600">KES {parseFloat(formData.amount || "0").toLocaleString()}</span>. Ready for submission.</p>
                   </div>
                )}
             </div>
@@ -187,7 +187,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
                   onClick={currentStep === 3 ? handleSubmit : nextStep} disabled={loading}
                   className="bg-[#111827] dark:bg-white text-white dark:text-black px-12 h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
                >
-                  {loading ? "..." : currentStep === 3 ? "Process Capital" : "Next Segment"}
+                {loading ? "..." : currentStep === 3 ? "Confirm Refund" : "Next"}
                </button>
             </div>
           </div>

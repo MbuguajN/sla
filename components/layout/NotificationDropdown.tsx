@@ -115,7 +115,7 @@ export default function NotificationDropdown() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors relative"
+        className="p-2 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-600 dark:hover:text-white transition-colors relative"
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
@@ -126,13 +126,13 @@ export default function NotificationDropdown() {
       {isOpen && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-20 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-[#111111] rounded-xl shadow-lg dark:shadow-black/60 border border-gray-200 dark:border-white/10 z-20 max-h-96 overflow-y-auto">
             {/* Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+            <div className="sticky top-0 bg-white dark:bg-[#111111] border-b border-gray-100 dark:border-white/10 px-4 py-3 flex items-center justify-between">
               <div>
-                <h3 className="font-semibold text-gray-900">Notifications</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                 {unreadCount > 0 && (
-                  <p className="text-xs text-gray-400">{unreadCount} unread</p>
+                  <p className="text-xs text-gray-400 dark:text-zinc-600">{unreadCount} unread</p>
                 )}
               </div>
               {unreadCount > 0 && (
@@ -147,36 +147,36 @@ export default function NotificationDropdown() {
 
             {/* Notifications list */}
             {loading ? (
-              <div className="px-4 py-8 text-center text-gray-400">Loading...</div>
+              <div className="px-4 py-8 text-center text-gray-400 dark:text-zinc-600">Loading...</div>
             ) : notifications.length === 0 ? (
               <div className="px-4 py-8 text-center">
-                <Bell className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No notifications yet</p>
+                <Bell className="h-8 w-8 text-gray-300 dark:text-zinc-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-400 dark:text-zinc-600">No notifications yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 dark:divide-white/10">
                 {notifications.map((notification) => (
                   <div
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      !notification.isRead ? "bg-[#fef2f4]" : ""
+                    className={`px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${
+                      !notification.isRead ? "bg-[#fef2f4] dark:bg-[#c91f41]/5" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
                       <div
                         className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
-                          notification.isRead ? "bg-gray-300" : "bg-[#c91f41]"
+                          notification.isRead ? "bg-gray-300 dark:bg-zinc-700" : "bg-[#c91f41]"
                         }`}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
                           {notification.title}
                         </p>
-                        <p className="text-xs text-gray-600 mt-0.5 line-clamp-2">
+                        <p className="text-xs text-gray-600 dark:text-zinc-400 mt-0.5 line-clamp-2">
                           {notification.message}
                         </p>
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">
                           {formatTime(notification.createdAt)}
                         </p>
                       </div>

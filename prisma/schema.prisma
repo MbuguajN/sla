@@ -32,6 +32,11 @@ model User {
   itTicketsCreated  ITTicket[]      @relation("TicketCreator")
   itTicketsAssigned ITTicket[]      @relation("TicketAssignee")
   notifications     Notification[]
+  leaveHandoversAsOriginal LeaveTaskHandover[] @relation("LeaveHandoverOriginalAssignee")
+  leaveHandoversAsDelegate LeaveTaskHandover[] @relation("LeaveHandoverDelegate")
+  equipmentOwned    EquipmentItem[] @relation("EquipmentOwner")
+  equipmentViewAccess EquipmentViewer[] @relation("EquipmentViewerUser")
+  equipmentViewerGrants EquipmentViewer[] @relation("EquipmentViewerGrantedBy")
 }
 
 enum Role {
@@ -63,10 +68,16 @@ model Client {
   email         String?
   phone         String?
   description   String?
+  status        ClientStatus @default(ACTIVE)
   projects      Project[]
   createdBy     Int?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+}
+
+enum ClientStatus {
+  ACTIVE
+  CLOSED
 }
 
 // ============== PROJECTS ==============
@@ -122,6 +133,7 @@ model Task {
   createdById         Int
   slaHours            Int?
   slaStartedAt        DateTime?
+  startedAt           DateTime?
   slaPausedAt         DateTime?
   slaPausedDuration   Int?      @default(0)
   confirmedAt         DateTime?
@@ -130,6 +142,7 @@ model Task {
   subtasks            Subtask[]
   links               TaskLink[]
   activityLog         ActivityLog[]
+  leaveHandovers      LeaveTaskHandover[]
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -235,6 +248,7 @@ model Leave {
   status       LeaveStatus @default(PENDING)
   reviewedBy   Int?
   reviewNote   String?
+  handovers    LeaveTaskHandover[]
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -256,6 +270,36 @@ enum LeaveStatus {
   APPROVED
   DENIED
   CANCELLED
+}
+
+model LeaveTaskHandover {
+  id                 Int             @id @default(autoincrement())
+  leave              Leave           @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  leaveId            Int
+  task               Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId             Int
+  originalAssignee   User            @relation("LeaveHandoverOriginalAssignee", fields: [originalAssigneeId], references: [id], onDelete: Cascade)
+  originalAssigneeId Int
+  delegateUser       User            @relation("LeaveHandoverDelegate", fields: [delegateUserId], references: [id], onDelete: Cascade)
+  delegateUserId     Int
+  status             HandoverStatus  @default(PENDING_TRANSFER)
+  transferredAt      DateTime?
+  returnedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@unique([leaveId, taskId])
+  @@index([status])
+  @@index([leaveId, status])
+  @@index([delegateUserId])
+  @@index([originalAssigneeId])
+}
+
+enum HandoverStatus {
+  PENDING_TRANSFER
+  TRANSFERRED
+  RETURNED
+  NOT_NEEDED
 }
 
 // ============== HR - LEAVE POLICIES ==============
@@ -321,7 +365,7 @@ model Requisition {
   reason        String
   totalAmount   Float
   items         RequisitionItem[]
-  status        RequisitionStatus @default(PENDING_MANAGER)
+  status        RequisitionStatus @default(PENDING_FINANCE)
   managerNote   String?
   financeNote   String?
   ceoNote       String?
@@ -342,7 +386,6 @@ model RequisitionItem {
 }
 
 enum RequisitionStatus {
-  PENDING_MANAGER
   PENDING_FINANCE
   PENDING_CEO
   APPROVED
@@ -356,8 +399,9 @@ model Refund {
   userId      Int
   amount      Float
   reason      String
-  status      RefundStatus @default(PENDING)
+  status      RefundStatus @default(PENDING_FINANCE)
   financeNote String?
+  ceoNote     String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -365,7 +409,8 @@ model Refund {
 }
 
 enum RefundStatus {
-  PENDING
+  PENDING_FINANCE
+  PENDING_CEO
   APPROVED
   DENIED
 }
@@ -403,6 +448,52 @@ enum ITTicketStatus {
   CLOSED
 }
 
+// ============== EQUIPMENT ==============
+model EquipmentCategory {
+  id        Int             @id @default(autoincrement())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  items     EquipmentItem[]
+}
+
+model EquipmentItem {
+  id            Int               @id @default(autoincrement())
+  category      EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId    Int
+  make          String
+  model         String
+  ownerUser     User?             @relation("EquipmentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerUserId   Int?
+  ownerLabel    String            @default("5DM")
+  status        EquipmentStatus   @default(IN_USE)
+  serialNumber  String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([categoryId])
+  @@index([ownerUserId])
+  @@index([status])
+}
+
+model EquipmentViewer {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation("EquipmentViewerUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int      @unique
+  grantedBy   User?    @relation("EquipmentViewerGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  grantedById Int?
+  createdAt   DateTime @default(now())
+
+  @@index([grantedById])
+}
+
+enum EquipmentStatus {
+  IN_USE
+  NOT_IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
 // ============== NOTIFICATIONS ==============
 model Notification {
   id        Int       @id @default(autoincrement())
@@ -424,9 +515,13 @@ enum NotificationType {
   TASK_COMPLETED
   LEAVE_APPROVED
   LEAVE_DENIED
+  REQUISITION_SUBMITTED
   REQUISITION_APPROVED
   REQUISITION_DENIED
   REQUISITION_UPDATED
+  REFUND_SUBMITTED
+  REFUND_APPROVED
+  REFUND_DENIED
   IT_TICKET_ASSIGNED
   IT_TICKET_RESOLVED
 }

@@ -2,10 +2,13 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, canCreateTask } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import TasksClient from "./TasksClient";
+import { processLeaveTaskHandovers } from "@/app/actions/leaveHandoverActions";
 
 export default async function TasksPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  await processLeaveTaskHandovers();
 
   // Fetch tasks based on user role
   let tasks;

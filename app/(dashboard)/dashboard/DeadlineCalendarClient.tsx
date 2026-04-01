@@ -11,11 +11,18 @@ type DeadlineTask = {
   slaHours: number | null;
 };
 
+type HolidayItem = {
+  id: number;
+  name: string;
+  date: string;
+};
+
 interface Props {
   tasks: DeadlineTask[];
+  holidays: HolidayItem[];
 }
 
-export default function DeadlineCalendarClient({ tasks }: Props) {
+export default function DeadlineCalendarClient({ tasks, holidays }: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -46,6 +53,16 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
     }
   });
 
+  const holidayMap = new Map<number, HolidayItem[]>();
+  holidays.forEach((holiday) => {
+    const holidayDate = new Date(holiday.date);
+    if (holidayDate.getMonth() === viewMonth && holidayDate.getFullYear() === viewYear) {
+      const d = holidayDate.getDate();
+      if (!holidayMap.has(d)) holidayMap.set(d, []);
+      holidayMap.get(d)!.push(holiday);
+    }
+  });
+
   const isToday = (day: number) =>
     day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
 
@@ -62,7 +79,7 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
   };
 
   const handleMouseEnter = (day: number, e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!deadlineMap.has(day)) return;
+    if (!deadlineMap.has(day) && !holidayMap.has(day)) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (!containerRect) return;
@@ -74,28 +91,29 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
   };
 
   const tooltipTasks = tooltip ? (deadlineMap.get(tooltip.day) ?? []) : [];
+  const tooltipHolidays = tooltip ? (holidayMap.get(tooltip.day) ?? []) : [];
   const MAX_SHOWN = 4;
 
   return (
-    <div ref={containerRef} className="relative bg-white rounded-3xl border border-gray-100 p-5 shadow-sm h-full">
+    <div ref={containerRef} className="relative bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-5 shadow-sm dark:shadow-none h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-sm font-black text-gray-900 tracking-tight">Deadlines</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+          <h2 className="text-sm font-black text-gray-900 dark:text-white tracking-tight">Deadlines</h2>
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mt-0.5">
             {monthName} {viewYear}
           </p>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={prevMonth}
-            className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-[#c91f41] hover:bg-[#fff1f2] transition-all"
+            className="w-7 h-7 rounded-lg border border-gray-100 dark:border-white/10 flex items-center justify-center text-gray-400 dark:text-zinc-500 hover:text-[#c91f41] hover:bg-[#fff1f2] dark:hover:bg-[#c91f41]/10 transition-all"
           >
             <ArrowLeft01Icon className="h-4 w-4" />
           </button>
           <button
             onClick={nextMonth}
-            className="w-7 h-7 rounded-lg border border-gray-100 flex items-center justify-center text-gray-400 hover:text-[#c91f41] hover:bg-[#fff1f2] transition-all"
+            className="w-7 h-7 rounded-lg border border-gray-100 dark:border-white/10 flex items-center justify-center text-gray-400 dark:text-zinc-500 hover:text-[#c91f41] hover:bg-[#fff1f2] dark:hover:bg-[#c91f41]/10 transition-all"
           >
             <ArrowRight01Icon className="h-4 w-4" />
           </button>
@@ -105,7 +123,7 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
       {/* Weekday headers */}
       <div className="grid grid-cols-7 mb-2">
         {weekdays.map((day, i) => (
-          <div key={i} className="text-center text-[10px] font-black text-gray-300 uppercase">
+          <div key={i} className="text-center text-[10px] font-black text-gray-300 dark:text-zinc-700 uppercase">
             {day}
           </div>
         ))}
@@ -123,19 +141,26 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
                   "w-7 h-7 flex items-center justify-center rounded-lg text-[11px] font-bold transition-all relative z-10",
                   isToday(day)
                     ? "bg-[#c91f41] text-white shadow-md shadow-[#c91f41]/20"
-                    : deadlineMap.has(day)
-                    ? "text-gray-700 hover:bg-rose-50 hover:text-[#c91f41]"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                    : deadlineMap.has(day) || holidayMap.has(day)
+                    ? "text-gray-700 dark:text-zinc-300 hover:bg-rose-50 dark:hover:bg-[#c91f41]/10 hover:text-[#c91f41]"
+                    : "text-gray-500 dark:text-zinc-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
                 )}
               >
                 {day}
-                {deadlineMap.has(day) && (
-                  <span
-                    className={cn(
-                      "absolute bottom-0.5 w-1 h-1 rounded-full",
-                      isToday(day) ? "bg-white" : "bg-[#c91f41]"
+                {(deadlineMap.has(day) || holidayMap.has(day)) && (
+                  <div className="absolute bottom-0.5 flex items-center gap-0.5">
+                    {deadlineMap.has(day) && (
+                      <span
+                        className={cn(
+                          "w-1 h-1 rounded-full",
+                          isToday(day) ? "bg-white" : "bg-[#c91f41]"
+                        )}
+                      />
                     )}
-                  />
+                    {holidayMap.has(day) && (
+                      <span className={cn("w-1 h-1 rounded-full", isToday(day) ? "bg-white/80" : "bg-amber-500")} />
+                    )}
+                  </div>
                 )}
               </button>
             ) : (
@@ -146,29 +171,33 @@ export default function DeadlineCalendarClient({ tasks }: Props) {
       </div>
 
       {/* Tooltip */}
-      {tooltip && tooltipTasks.length > 0 && (
+      {tooltip && (tooltipTasks.length > 0 || tooltipHolidays.length > 0) && (
         <div
           className="absolute z-50 pointer-events-none"
           style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
         >
-          <div className="bg-[#1a2740] text-white rounded-xl shadow-2xl p-3 min-w-[180px] max-w-[240px]">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-gray-400 mb-2">
-              SLA Deadlines
-            </p>
+          <div className="bg-[#1a2740] dark:bg-black text-white rounded-xl shadow-2xl p-3 min-w-[180px] max-w-[240px] border border-transparent dark:border-white/10">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-500 mb-2">Day Summary</p>
             <ul className="space-y-1.5">
+              {tooltipHolidays.map((holiday) => (
+                <li key={`holiday-${holiday.id}`} className="flex items-start gap-2">
+                  <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                  <span className="text-[12px] font-bold leading-tight">Holiday: {holiday.name}</span>
+                </li>
+              ))}
               {tooltipTasks.slice(0, MAX_SHOWN).map((t) => (
                 <li key={t.id} className="flex items-start gap-2">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#c91f41] flex-shrink-0" />
-                  <span className="text-[12px] font-bold leading-tight">{t.title}</span>
+                  <span className="text-[12px] font-bold leading-tight">Deadline: {t.title}</span>
                 </li>
               ))}
               {tooltipTasks.length > MAX_SHOWN && (
-                <li className="text-[11px] text-gray-400 font-semibold pl-3.5">
+                <li className="text-[11px] text-gray-400 dark:text-zinc-500 font-semibold pl-3.5">
                   …and {tooltipTasks.length - MAX_SHOWN} more
                 </li>
               )}
             </ul>
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-[-6px] w-3 h-3 bg-[#1a2740] rotate-45 rounded-sm" />
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-[-6px] w-3 h-3 bg-[#1a2740] dark:bg-black rotate-45 rounded-sm" />
           </div>
         </div>
       )}

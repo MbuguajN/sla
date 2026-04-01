@@ -49,7 +49,7 @@ export function CardSkeleton() {
 
 export function ListItemSkeleton() {
   return (
-    <div className="p-4 bg-white border border-gray-100 rounded-2xl flex items-center gap-4">
+    <div className="p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl flex items-center gap-4">
       <Skeleton className="h-10 w-10 rounded-xl flex-shrink-0" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-4 w-3/4" />

@@ -19,6 +19,12 @@ export default async function ProfilePage() {
         role: profile.role,
         department: profile.department,
       }}
+      equipmentItems={profile.equipmentOwned.map((item) => ({
+        id: item.id,
+        make: item.make,
+        model: item.model,
+        serialNumber: item.serialNumber || "",
+      }))}
     />
   );
 }

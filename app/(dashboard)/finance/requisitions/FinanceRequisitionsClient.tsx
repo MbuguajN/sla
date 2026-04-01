@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  approveRequisitionAsFinance,
+  submitRequisitionForApproval,
   approveRequisitionAsCEO,
-  denyRequisition,
+  rejectRequisitionAsFinance,
+  rejectRequisitionAsCEO,
 } from "@/app/actions/financeActions";
 import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Cancel01Icon, Clock01Icon, ShoppingBasket01Icon, BitcoinIcon, SquareLock02Icon } from "hugeicons-react";
 import { cn } from "@/lib/utils";
@@ -33,26 +34,30 @@ interface Props {
 
 export default function FinanceRequisitionsClient({ initialRequisitions, currentUserRole }: Props) {
   const router = useRouter();
-  const [requisitions] = useState(initialRequisitions);
+  const [requisitions, setRequisitions] = useState(initialRequisitions);
+  useEffect(() => { setRequisitions(initialRequisitions); }, [initialRequisitions]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [actionNote, setActionNote] = useState("");
   const [loading, setLoading] = useState(false);
+  const isViewOnly = currentUserRole === "ADMIN";
 
   const handleApprove = async (reqId: number) => {
     setLoading(true);
     try {
       if (currentUserRole === "CEO") {
         await approveRequisitionAsCEO(reqId, actionNote || undefined);
+        setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "APPROVED" } : r));
       } else {
-        await approveRequisitionAsFinance(reqId, actionNote || undefined);
+        await submitRequisitionForApproval(reqId, actionNote || undefined);
+        setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "PENDING_CEO" } : r));
       }
       setActionNote("");
       setExpandedId(null);
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to approve requisition");
+      alert(err instanceof Error ? err.message : "Failed to submit requisition for approval");
     } finally {
       setLoading(false);
     }
@@ -61,12 +66,17 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
   const handleDeny = async (reqId: number) => {
     setLoading(true);
     try {
-      await denyRequisition(reqId, actionNote || "Denied", "FINANCE");
+      if (currentUserRole === "CEO") {
+        await rejectRequisitionAsCEO(reqId, actionNote || "Denied");
+      } else {
+        await rejectRequisitionAsFinance(reqId, actionNote || "Denied");
+      }
+      setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "DENIED" } : r));
       setActionNote("");
       setExpandedId(null);
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to deny requisition");
+      alert(err instanceof Error ? err.message : "Failed to reject requisition");
     } finally {
       setLoading(false);
     }
@@ -78,7 +88,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
     return matchSearch && matchStatus;
   });
 
-  const statuses = ["ALL", "PENDING_MANAGER", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20 space-y-10">
@@ -124,7 +134,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                 "px-5 h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0 border-2",
                 statusFilter === status 
                   ? "bg-white dark:bg-black border-emerald-600 text-emerald-600 shadow-lg shadow-emerald-500/10" 
-                  : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-white hover:bg-white/5"
+                  : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
               )}
             >
               {status.split('_').join(' ')}
@@ -156,7 +166,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                <div className="flex flex-wrap items-center gap-8">
                   <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Total Value</span>
-                    <span className="text-2xl font-black text-emerald-600 tabular-nums"></span>
+                    <span className="text-2xl font-black text-emerald-600 tabular-nums">KES {req.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                   
                   <div className={cn(
@@ -183,18 +193,38 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                    {/* Items List */}
                    <div className="space-y-4">
                       <h4 className="flex items-center gap-2 text-[11px] font-black text-zinc-400 uppercase tracking-widest">
-                        <ShoppingBasket01Icon className="w-3.5 h-3.5" /> Items Inventory
+                        <ShoppingBasket01Icon className="w-3.5 h-3.5" /> Items Breakdown
                       </h4>
-                      <div className="space-y-2">
-                        {req.items.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between p-4 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5">
-                            <span className="text-sm font-black text-zinc-200 uppercase tracking-tighter">{item.itemName}</span>
-                            <div className="flex items-center gap-4">
-                              <span className="text-[10px] font-bold text-zinc-500 uppercase">x{item.quantity}</span>
-                              <span className="text-sm font-black text-[#111827] dark:text-white tabular-nums"></span>
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        {req.items.map((item, idx) => {
+                          const rowTotal = item.quantity * item.unitPrice * (item.vatInclusive ? 1.16 : 1);
+                          return (
+                            <div key={idx} className="p-4 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="text-sm font-black text-[#111827] dark:text-white">{item.itemName}</p>
+                                  <p className="text-[10px] text-zinc-500 font-bold">Qty: {item.quantity} @ KES {item.unitPrice.toLocaleString()}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <label className="flex items-center gap-2 cursor-pointer text-[10px]">
+                                  <input type="checkbox" checked={item.vatInclusive} readOnly className="w-3 h-3 accent-emerald-600" />
+                                  <span className="font-bold text-zinc-500">VAT (16%)</span>
+                                </label>
+                                <span className="text-[11px] font-black text-emerald-600 tabular-nums">
+                                  KES {rowTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
+                      </div>
+                      {/* Grand Total */}
+                      <div className="p-4 bg-emerald-50/30 dark:bg-emerald-500/5 rounded-2xl border border-emerald-100 dark:border-emerald-500/20 flex items-center justify-between">
+                        <span className="text-[11px] font-black text-zinc-600 dark:text-zinc-400 uppercase tracking-widest">Grand Total</span>
+                        <span className="text-lg font-black text-emerald-600 tabular-nums">
+                          KES {req.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
                       </div>
                    </div>
 
@@ -209,11 +239,11 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                         </div>
                       </div>
 
-                      {/* Approval Console */}
-                      {(req.status === 'PENDING_FINANCE' || req.status === 'PENDING_CEO') && (
+                      {/* Approval Console — Finance acting on PENDING_FINANCE */}
+                      {!isViewOnly && currentUserRole !== 'CEO' && req.status === 'PENDING_FINANCE' && (
                         <div className="space-y-4 pt-4">
                            <textarea
-                            placeholder="Audit notes or denial reason..."
+                            placeholder="Audit notes or rejection reason..."
                             className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
                             value={actionNote}
                             onChange={(e) => setActionNote(e.target.value)}
@@ -222,18 +252,66 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                               <button 
                                 onClick={() => handleApprove(req.id)}
                                 disabled={loading}
-                                className="h-14 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                                className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                               >
-                                <CheckmarkCircle01Icon className="w-4 h-4" /> Authorize Request
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for CEO
                               </button>
                               <button 
                                 onClick={() => handleDeny(req.id)}
                                 disabled={loading}
-                                className="h-14 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                                className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                               >
-                                <Cancel01Icon className="w-4 h-4" /> Deny Allocation
+                                <Cancel01Icon className="w-4 h-4" /> Reject
                               </button>
                            </div>
+                        </div>
+                      )}
+
+                      {/* Finance: waiting badge when already forwarded to CEO */}
+                      {!isViewOnly && currentUserRole !== 'CEO' && req.status === 'PENDING_CEO' && (
+                        <div className="pt-4">
+                          <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
+                            <Clock01Icon className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                            <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting CEO Review</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* CEO acting on PENDING_CEO */}
+                      {!isViewOnly && currentUserRole === 'CEO' && req.status === 'PENDING_CEO' && (
+                        <div className="space-y-4 pt-4">
+                           <textarea
+                            placeholder="Approval notes or rejection reason..."
+                            className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
+                            value={actionNote}
+                            onChange={(e) => setActionNote(e.target.value)}
+                           />
+                           <div className="grid grid-cols-2 gap-3">
+                              <button 
+                                onClick={() => handleApprove(req.id)}
+                                disabled={loading}
+                                className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                              >
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Approve
+                              </button>
+                              <button 
+                                onClick={() => handleDeny(req.id)}
+                                disabled={loading}
+                                className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                              >
+                                <Cancel01Icon className="w-4 h-4" /> Reject
+                              </button>
+                           </div>
+                        </div>
+                      )}
+
+                      {/* CEO: pending-finance info badge */}
+                      {!isViewOnly && currentUserRole === 'CEO' && req.status === 'PENDING_FINANCE' && (
+                        <div className="pt-4">
+                          <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
+                            <Clock01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Pending Finance Review</span>
+                          </div>
                         </div>
                       )}
                    </div>

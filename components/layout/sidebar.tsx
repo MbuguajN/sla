@@ -16,6 +16,7 @@ import {
   CreditCardIcon,
   ArrowDown01Icon,
   HelpCircleIcon,
+  PackageIcon,
   UserEdit01Icon,
   Settings01Icon,
 } from "hugeicons-react";
@@ -33,10 +34,11 @@ interface SidebarProps {
     role: string;
     departmentSlug: string | null;
   };
+  canAccessEquipment?: boolean;
   logos?: { light: string | null; dark: string | null } | null;
 }
 
-export default function Sidebar({ user, logos }: SidebarProps) {
+export default function Sidebar({ user, canAccessEquipment = false, logos }: SidebarProps) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "finance", "it", "admin"]);
 
@@ -53,6 +55,7 @@ export default function Sidebar({ user, logos }: SidebarProps) {
   const isHROnly = user.departmentSlug === "human-resources" && user.role === "EMPLOYEE" || user.departmentSlug === "human-resources" && user.role === "MANAGER";
   const canAccessFinance =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "finance";
+  const isFinanceOnly = user.departmentSlug === "finance" && (user.role === "EMPLOYEE" || user.role === "MANAGER");
   const canAccessAdmin = user.role === "ADMIN";
   const canSeeClients =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "business-development" || user.departmentSlug === "client-service";
@@ -61,8 +64,8 @@ export default function Sidebar({ user, logos }: SidebarProps) {
   const mainNav: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon },
     ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
-    ...(!isHROnly ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
-    ...(!isHROnly ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
+    ...(!isHROnly && !isFinanceOnly ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
+    ...(!isHROnly && !isFinanceOnly ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
   ];
 
   // Sections (collapsible)
@@ -74,6 +77,8 @@ export default function Sidebar({ user, logos }: SidebarProps) {
       items: [
         { label: "My Leaves", href: "/leave", icon: Calendar01Icon },
         { label: "Suggestions", href: "/suggestions", icon: Message01Icon },
+        { label: "Requisitions", href: "/requisitions", icon: Invoice01Icon },
+        { label: "Refunds", href: "/refunds", icon: CreditCardIcon },
         { label: "Settings", href: "/profile", icon: Settings01Icon },
       ]
     },
@@ -102,6 +107,7 @@ export default function Sidebar({ user, logos }: SidebarProps) {
       visible: true,
       items: [
         { label: "Tickets", href: "/it-support", icon: HelpCircleIcon },
+        ...(canAccessEquipment ? [{ label: "Equipment", href: "/equipment", icon: PackageIcon }] : []),
       ]
     },
     {
@@ -124,7 +130,7 @@ export default function Sidebar({ user, logos }: SidebarProps) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-white z-30 flex flex-col transition-all duration-300 border-r border-gray-100">
+    <aside className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-black z-30 flex flex-col transition-all duration-300 border-r border-gray-100 dark:border-white/10">
       {/* Sidebar Logo wrapper */}
       <div className="h-24 flex items-center justify-center px-4">
         <Link href="/dashboard" className="flex items-center justify-center gap-3 group w-full">
@@ -148,7 +154,7 @@ export default function Sidebar({ user, logos }: SidebarProps) {
               <div className="w-12 h-12 rounded-xl bg-[#c91f41] flex items-center justify-center shadow-lg shadow-[#c91f41]/20 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
                 <Building01Icon className="text-white h-7 w-7" />
               </div>
-              <span className="font-black text-2xl tracking-tighter text-gray-900">SLA<span className="text-[#c91f41]">.</span></span>
+              <span className="font-black text-2xl tracking-tighter text-gray-900 dark:text-white">SLA<span className="text-[#c91f41]">.</span></span>
             </div>
           )}
         </Link>
@@ -173,16 +179,16 @@ export default function Sidebar({ user, logos }: SidebarProps) {
       </nav>
 
       {/* Bottom user section */}
-      <div className="p-4 border-t border-gray-50">
-        <div className="flex items-center gap-3 p-2 rounded-2xl bg-gray-50/50 border border-gray-100">
+      <div className="p-4 border-t border-gray-50 dark:border-white/10">
+          <div className="flex items-center gap-3 p-2 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
           <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center shrink-0 border border-white shadow-sm overflow-hidden">
              <span className="text-[#c91f41] text-sm font-bold">
                {user?.name?.[0]?.toUpperCase() || "U"}
              </span>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-gray-900 truncate tracking-tight">{user?.name || "User"}</p>
-            <p className="text-[11px] text-gray-500 truncate font-medium uppercase tracking-wider">{roleLabel[user.role] || user.role}</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">{user?.name || "User"}</p>
+            <p className="text-[11px] text-gray-500 dark:text-zinc-500 truncate font-medium uppercase tracking-wider">{roleLabel[user.role] || user.role}</p>
           </div>
         </div>
       </div>
@@ -198,11 +204,11 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300",
         active
-          ? "bg-[#fff1f2] text-[#c91f41]"
-          : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+          ? "bg-[#fff1f2] dark:bg-[#c91f41]/15 text-[#c91f41]"
+          : "text-gray-500 dark:text-zinc-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
       )}
     >
-      <Icon className={cn("h-[20px] w-[20px] transition-all duration-300", active ? "text-[#c91f41]" : "text-gray-400")} />
+      <Icon className={cn("h-[20px] w-[20px] transition-all duration-300", active ? "text-[#c91f41]" : "text-gray-400 dark:text-zinc-600")} />
       {item.label}
     </Link>
   );
@@ -225,7 +231,7 @@ function SidebarSection({
     <div className="pt-4">
       <button
         onClick={onToggle}
-        className="flex items-center justify-between w-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.15em] text-gray-400 hover:text-gray-600 transition-colors"
+        className="flex items-center justify-between w-full px-4 py-2 text-[11px] font-black uppercase tracking-[0.15em] text-gray-400 dark:text-zinc-700 hover:text-gray-600 dark:hover:text-zinc-500 transition-colors"
       >
         {title}
         <ArrowDown01Icon

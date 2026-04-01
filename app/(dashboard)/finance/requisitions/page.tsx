@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, canViewFinanceData } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import FinanceRequisitionsClient from "./FinanceRequisitionsClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export default async function FinanceRequisitionsPage() {
   const user = await getCurrentUser();
@@ -17,7 +18,9 @@ export default async function FinanceRequisitionsPage() {
   });
 
   return (
-    <FinanceRequisitionsClient
+    <>
+      <RealtimeRefresh intervalMs={10000} />
+      <FinanceRequisitionsClient
       initialRequisitions={requisitions.map((r) => ({
         id: r.id,
         title: r.title,
@@ -40,5 +43,6 @@ export default async function FinanceRequisitionsPage() {
       }))}
       currentUserRole={user.role}
     />
+    </>
   );
 }

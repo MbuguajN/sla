@@ -98,15 +98,15 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
         </button>
       </div>
 
-      <div className="rounded-3xl border border-gray-100 bg-white overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">{initialSuggestions.length} submission{initialSuggestions.length !== 1 ? "s" : ""} on record</p>
+      <div className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-[#111111] overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-600">{initialSuggestions.length} submission{initialSuggestions.length !== 1 ? "s" : ""} on record</p>
         </div>
         <div className="overflow-x-auto">
           {initialSuggestions.length > 0 ? (
             <table className="w-full min-w-[600px]">
               <thead>
-                <tr className="text-left text-[10px] text-gray-400 font-black tracking-[0.16em] uppercase border-b border-gray-100">
+                <tr className="text-left text-[10px] text-gray-400 dark:text-zinc-600 font-black tracking-[0.16em] uppercase border-b border-gray-100 dark:border-white/10">
                   <th className="px-6 py-3">Title</th>
                   <th className="px-6 py-3">Category</th>
                   <th className="px-6 py-3">Submitted</th>
@@ -117,25 +117,25 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
               <tbody>
                 {initialSuggestions.map((item) => {
                   const statusColors: Record<string, string> = {
-                    PENDING: "bg-indigo-50 text-indigo-700 border border-indigo-100",
-                    REVIEWED: "bg-emerald-50 text-emerald-700 border border-emerald-100",
-                    CLOSED: "bg-gray-100 text-gray-500 border border-gray-200",
+                    PENDING: "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30",
+                    REVIEWED: "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/30",
+                    CLOSED: "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-zinc-400 border border-gray-200 dark:border-white/10",
                   };
                   return (
-                    <tr key={item.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                    <tr key={item.id} className="border-b border-gray-100 dark:border-white/10 last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4">
-                        <p className="text-sm font-bold text-gray-900 leading-tight">{item.title}</p>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{item.title}</p>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                        <span className="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-500/15 px-2.5 py-1 rounded-lg">
                           {item.category}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-600">
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-600 dark:text-zinc-400">
                         {new Date(item.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${item.isAnonymous ? "bg-gray-100 text-gray-500" : "bg-sky-50 text-sky-600"}`}>
+                        <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${item.isAnonymous ? "bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-zinc-400" : "bg-sky-50 dark:bg-sky-500/15 text-sky-600 dark:text-sky-300"}`}>
                           {item.isAnonymous ? "Anonymous" : "Named"}
                         </span>
                       </td>
@@ -151,8 +151,8 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
             </table>
           ) : (
             <div className="py-16 text-center">
-              <Message01Icon className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-bold text-gray-400">No suggestions submitted yet</p>
+              <Message01Icon className="w-10 h-10 text-gray-200 dark:text-zinc-700 mx-auto mb-3" />
+              <p className="text-sm font-bold text-gray-400 dark:text-zinc-500">No suggestions submitted yet</p>
             </div>
           )}
         </div>

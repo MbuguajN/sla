@@ -24,18 +24,20 @@ import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
 import DeadlineCalendarClient from "./DeadlineCalendarClient";
 
+export const dynamic = "force-dynamic";
+
 async function getFinanceDashboardData() {
   const [requisitions, refunds] = await Promise.all([
     db.requisition.findMany({
       include: { user: { include: { department: true } } },
-      where: { status: { in: ["PENDING_MANAGER", "PENDING_FINANCE", "PENDING_CEO"] } },
+      where: { status: { in: ["PENDING_FINANCE", "PENDING_CEO"] } },
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 3,
     }),
     db.refund.findMany({
       include: { user: { include: { department: true } } },
       orderBy: { createdAt: "desc" },
-      take: 4,
+      take: 3,
     }),
   ]);
 
@@ -198,34 +200,34 @@ async function CEODashboardSection() {
   return (
     <div className="space-y-7">
       <section>
-        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#111f34]">Executive Dashboard</h1>
+          <h1 className="text-[44px] leading-none font-black tracking-tight text-[#111f34] dark:text-white">Executive Dashboard</h1>
       </section>
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-2xl bg-white p-4 border border-[#e6eaf2]">
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896]">Employees On Premise</p>
+          <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Employees On Premise</p>
           <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
           <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038]">{employeesOnPremise.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896]">{employeesOutOfOffice} employees out of office</p>
+            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{employeesOnPremise.toLocaleString()}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">{employeesOutOfOffice} employees out of office</p>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-4 border border-[#e6eaf2]">
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896]">Active Clients</p>
+        <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
+          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Active Clients</p>
           <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
           <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038]">{activeClients.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896]">Live client accounts</p>
+            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{activeClients.toLocaleString()}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">Live client accounts</p>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-4 border border-[#e6eaf2]">
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896]">Active Projects</p>
+        <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
+          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Active Projects</p>
           <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
           <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038]">{activeProjects.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896]">Current open initiatives</p>
+            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{activeProjects.toLocaleString()}</p>
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">Current open initiatives</p>
           </div>
         </div>
       </section>
@@ -233,36 +235,36 @@ async function CEODashboardSection() {
       <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
         <div className="xl:col-span-7 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-[30px] leading-none font-black tracking-tight text-[#1f2d43]">Operational Tasks</h2>
+            <h2 className="text-[30px] leading-none font-black tracking-tight text-[#1f2d43] dark:text-white">Operational Tasks</h2>
             <Link href="/tasks" className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c91f41] hover:text-[#a61a35]">
               View Log
             </Link>
           </div>
 
-          <div className="rounded-2xl bg-[#eef3fb] border border-[#e2e8f2] p-4 space-y-4">
+          <div className="rounded-2xl bg-[#eef3fb] dark:bg-white/5 border border-[#e2e8f2] dark:border-white/10 p-4 space-y-4">
             {activeTasks.length > 0 ? (
               activeTasks.map((task) => {
                 const progress = getActiveTaskProgress(task);
                 return (
-                  <div key={task.id} className="rounded-xl bg-white px-4 py-3">
-                    <div className="flex items-center justify-between gap-3 text-[12px] font-black text-[#223149]">
+                  <div key={task.id} className="rounded-xl bg-white dark:bg-[#111111] px-4 py-3">
+                    <div className="flex items-center justify-between gap-3 text-[12px] font-black text-[#223149] dark:text-white">
                       <div className="min-w-0">
                         <p className="truncate">{task.title}</p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8c95a3] truncate">
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8c95a3] dark:text-zinc-500 truncate">
                           {task.project.title}
                         </p>
                       </div>
-                      <span className="shrink-0 text-[11px] font-black text-[#7d8796]">{progress}%</span>
+                      <span className="shrink-0 text-[11px] font-black text-[#7d8796] dark:text-zinc-400">{progress}%</span>
                     </div>
-                    <div className="mt-2 h-2 rounded-full bg-[#e7edf8]">
+                    <div className="mt-2 h-2 rounded-full bg-[#e7edf8] dark:bg-white/10">
                       <div className="h-full rounded-full bg-[#c91f41]" style={{ width: `${progress}%` }} />
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="rounded-xl bg-white px-4 py-6 text-center">
-                <p className="text-sm font-bold text-[#223149]">No active tasks at the moment</p>
+              <div className="rounded-xl bg-white dark:bg-[#111111] px-4 py-6 text-center">
+                <p className="text-sm font-bold text-[#223149] dark:text-white">No active tasks at the moment</p>
               </div>
             )}
           </div>
@@ -270,20 +272,20 @@ async function CEODashboardSection() {
 
         <div className="xl:col-span-5 space-y-4">
           <h2 className="text-[30px] leading-none font-black tracking-tight text-[#c91f41]">Critical SLAs</h2>
-          <div className="rounded-2xl bg-[#fff6f8] border border-[#f4dde4] p-5 space-y-5">
+          <div className="rounded-2xl bg-[#fff6f8] dark:bg-[#c91f41]/5 border border-[#f4dde4] dark:border-[#c91f41]/20 p-5 space-y-5">
             {criticalSlas.length > 0 ? (
               criticalSlas.map((item) => (
                 <div key={item.id} className="border-l-2 border-[#c91f41] pl-3">
                   <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9aa1ae]">{item.region}</p>
-                  <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43]">{item.title}</p>
+                  <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43] dark:text-white">{item.title}</p>
                   <p className="mt-1 text-[11px] font-bold text-[#d45b72]">{item.note}</p>
                 </div>
               ))
             ) : (
               <div className="border-l-2 border-[#c91f41] pl-3">
                 <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9aa1ae]">System Wide</p>
-                <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43]">No Critical SLA Breaches</p>
-                <p className="mt-1 text-[11px] font-bold text-[#7d8697]">All tracked work is within acceptable SLA thresholds.</p>
+                <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43] dark:text-white">No Critical SLA Breaches</p>
+                <p className="mt-1 text-[11px] font-bold text-[#7d8697] dark:text-zinc-500">All tracked work is within acceptable SLA thresholds.</p>
               </div>
             )}
           </div>
@@ -307,8 +309,6 @@ function getRequisitionFlow(status: string) {
       return { label: "Escalated", dot: "bg-emerald-500", text: "text-emerald-600" };
     case "PENDING_FINANCE":
       return { label: "Pending Review", dot: "bg-amber-500", text: "text-amber-600" };
-    case "PENDING_MANAGER":
-      return { label: "Manager Review", dot: "bg-slate-400", text: "text-slate-500" };
     default:
       return { label: status.replaceAll("_", " "), dot: "bg-slate-400", text: "text-slate-500" };
   }
@@ -340,6 +340,31 @@ function getLeavePill(status: string) {
   }
 }
 
+function getSuggestionCategoryPill(category: string) {
+  switch (category) {
+    case "SUGGESTION":
+      return "bg-rose-50 text-rose-600";
+    case "FEEDBACK":
+      return "bg-blue-50 text-blue-600";
+    case "COMPLAINT":
+      return "bg-orange-50 text-orange-600";
+    case "REQUEST":
+      return "bg-purple-50 text-purple-600";
+    default:
+      return "bg-slate-100 text-slate-500";
+  }
+}
+
+function formatTimeAgo(date: Date): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
 function formatCompactDate(date: Date) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -359,47 +384,47 @@ async function HRDashboardSection() {
   return (
     <div className="space-y-8">
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)]">
+        <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-rose-50 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
               <Calendar01Icon className="h-5 w-5 text-rose-500" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800">{String(activeLeaveRequests).padStart(2, "0")}</p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Active Leave Requests</p>
+            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(activeLeaveRequests).padStart(2, "0")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">Active Leave Requests</p>
           </div>
-          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
             <span>Pending approvals now</span>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)]">
+        <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
               <Message01Icon className="h-5 w-5 text-emerald-500" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800">{String(newSuggestions).padStart(2, "0")}</p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">New Suggestions</p>
+            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(newSuggestions).padStart(2, "0")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">New Suggestions</p>
           </div>
-          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
             <span>Open and in-review items</span>
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)]">
+        <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-amber-50 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
               <Settings02Icon className="h-5 w-5 text-amber-600" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800">{String(employeesOnLeave).padStart(2, "0")}</p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600">Employees On Leave</p>
+            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(employeesOnLeave).padStart(2, "0")}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">Employees On Leave</p>
           </div>
-          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+          <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
             <span>Approved and currently active</span>
           </div>
         </div>
@@ -409,49 +434,57 @@ async function HRDashboardSection() {
         <div className="xl:col-span-7 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-black tracking-tight text-slate-800">Leave Requests</h2>
-              <p className="text-sm text-slate-500">Real-time status of employee attendance planning</p>
+              <h2 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Leave Requests</h2>
+              <p className="text-sm text-slate-500 dark:text-zinc-500">Real-time status of employee attendance planning</p>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.35)]">
+          <div className="overflow-hidden rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#111111] shadow-[0_24px_60px_-42px_rgba(15,23,42,0.35)] dark:shadow-none">
             <div className="h-[320px] overflow-y-auto overflow-x-auto">
             <table className="w-full min-w-0">
-              <thead className="bg-slate-50/70">
+              <thead>
                 <tr className="text-left text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Employee</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Type</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Dates</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Status</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3 text-right">Action</th>
+                  <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-5 py-4 border-b border-slate-100 dark:border-white/10">Employee</th>
+                  <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-4 py-4 border-b border-slate-100 dark:border-white/10">Type</th>
+                  <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-4 py-4 border-b border-slate-100 dark:border-white/10">Duration</th>
+                  <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-4 py-4 border-b border-slate-100 dark:border-white/10">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {leaves.slice(0, 3).map((leave) => (
-                  <tr key={leave.id} className="border-t border-slate-100 text-sm text-slate-700 align-middle">
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-500">
+              <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                {leaves.map((leave) => (
+                  <tr
+                    key={leave.id}
+                    className="text-sm text-slate-700 dark:text-zinc-400 align-middle hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                  >
+                    <td className="px-5 py-4">
+                      <Link href={`/hr/leaves/${leave.id}`} className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-50 text-[10px] font-black text-rose-500">
                           {leave.user.name.split(" ").map((part) => part[0]).join("").slice(0, 2)}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-black text-slate-800 leading-tight truncate">{leave.user.name}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{leave.user.department?.name || "Unassigned"}</p>
+                          <p className="font-black text-slate-800 dark:text-white leading-tight truncate">{leave.user.name}</p>
+                          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider truncate">{leave.user.department?.name || "Unassigned"}</p>
                         </div>
-                      </div>
+                      </Link>
                     </td>
-                    <td className="px-3 py-3 text-xs font-medium text-slate-700 capitalize whitespace-nowrap">{leave.type.toLowerCase()}</td>
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <p className="text-xs font-medium text-slate-700">{formatCompactDate(leave.startDate)} – {formatCompactDate(leave.endDate)}</p>
-                      <p className="text-[10px] text-slate-400">{leave.totalDays}d</p>
+                    <td className="px-4 py-4">
+                      <Link href={`/hr/leaves/${leave.id}`} className="text-xs font-semibold text-slate-700 capitalize whitespace-nowrap block">
+                        {leave.type.charAt(0) + leave.type.slice(1).toLowerCase()}
+                      </Link>
                     </td>
-                    <td className="px-3 py-3">
-                      <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.15em]", getLeavePill(leave.status))}>
-                        {leave.status}
-                      </span>
+                    <td className="px-4 py-4">
+                      <Link href={`/hr/leaves/${leave.id}`} className="block whitespace-nowrap">
+                        <p className="text-xs font-semibold text-slate-700">
+                          {formatCompactDate(leave.startDate)} - {formatCompactDate(leave.endDate)}
+                        </p>
+                      </Link>
                     </td>
-                    <td className="px-3 py-3 text-right">
-                      <Link href="/hr/leaves" className="text-xs font-bold text-slate-400 hover:text-[#c91f41]">View</Link>
+                    <td className="px-4 py-4">
+                      <Link href={`/hr/leaves/${leave.id}`} className="block">
+                        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em]", getLeavePill(leave.status))}>
+                          {leave.status}
+                        </span>
+                      </Link>
                     </td>
                   </tr>
                 ))}
@@ -463,55 +496,47 @@ async function HRDashboardSection() {
 
         <div className="xl:col-span-5 space-y-4">
           <div>
-            <h2 className="text-3xl font-black tracking-tight text-slate-800">Culture Lab</h2>
-            <p className="text-sm text-slate-500">All employee suggestions in one review table</p>
+              <h2 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Culture Lab</h2>
+              <p className="text-sm text-slate-500 dark:text-zinc-500">All employee suggestions in one review table</p>
           </div>
 
-          <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-[0_24px_60px_-42px_rgba(15,23,42,0.35)]">
+          <div className="overflow-hidden rounded-3xl border border-slate-100 dark:border-white/10 bg-white dark:bg-[#111111] shadow-[0_24px_60px_-42px_rgba(15,23,42,0.35)] dark:shadow-none">
             <div className="h-[320px] overflow-y-auto overflow-x-auto">
-            <table className="w-full min-w-[760px]">
-              <thead className="bg-slate-50/70">
-                <tr className="text-left text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3 w-[52%]">Title</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Cat.</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Author</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3">Status</th>
-                  <th className="sticky top-0 z-10 bg-slate-50/90 px-3 py-3 text-right">Open</th>
-                </tr>
-              </thead>
-              <tbody>
-                {suggestions.map((suggestion) => (
-                  <tr key={suggestion.id} className="border-t border-slate-100 text-sm text-slate-700 hover:bg-slate-50/60 transition-colors">
-                    <td className="px-3 py-3">
-                      <Link href={`/hr/suggestions/${suggestion.id}`} className="text-xs font-black text-slate-800 hover:text-[#c91f41] line-clamp-3 leading-snug break-words">
-                        {suggestion.title}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <span className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
-                        {suggestion.category.replaceAll("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-xs font-medium text-slate-700 whitespace-nowrap">{suggestion.isAnonymous ? "Anon." : suggestion.user.name.split(" ")[0]}</td>
-                    <td className="px-3 py-3">
-                      <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.12em]", getLeavePill(suggestion.status))}>
-                        {suggestion.status.replaceAll("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <Link href={`/hr/suggestions/${suggestion.id}`} className="text-xs font-bold text-slate-400 hover:text-[#c91f41]">
-                        View
-                      </Link>
-                    </td>
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                      <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-5 py-4 border-b border-slate-100 dark:border-white/10">Latest Suggestions</th>
+                      <th className="sticky top-0 z-10 bg-white dark:bg-[#111111] px-4 py-4 border-b border-slate-100 dark:border-white/10 text-right">Tag</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-50 dark:divide-white/5">
+                  {suggestions.map((suggestion) => (
+                    <tr key={suggestion.id} className="hover:bg-slate-50/60 dark:hover:bg-white/5 transition-colors">
+                      <td className="px-5 py-4">
+                        <Link href={`/hr/suggestions/${suggestion.id}`} className="block group">
+                          <p className="text-sm font-black text-slate-800 dark:text-white group-hover:text-[#c91f41] leading-snug line-clamp-2 transition-colors">
+                            {suggestion.title}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Submitted {formatTimeAgo(suggestion.createdAt)}
+                          </p>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-4 text-right whitespace-nowrap">
+                        <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em]", getSuggestionCategoryPill(suggestion.category))}>
+                          {suggestion.category}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div className="flex items-center justify-end border-t border-slate-100 p-4">
-              <Link href="/hr/suggestions" className="inline-flex h-9 items-center rounded-xl bg-[#c91f41] px-4 text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-sm hover:bg-[#aa1a37]">
-                View all suggestions
+            <div className="flex items-center justify-center border-t border-slate-100 dark:border-white/10 p-4">
+              <Link href="/hr/suggestions" className="inline-flex items-center gap-2 text-sm font-black text-slate-600 dark:text-zinc-400 hover:text-[#c91f41] transition-colors">
+                View All Suggestions
+                <span>→</span>
               </Link>
             </div>
           </div>
@@ -527,27 +552,25 @@ async function FinanceDashboardSection() {
   return (
     <div className="space-y-12">
       <section className="space-y-3">
-        <h1 className="text-[3rem] leading-none font-black tracking-tight text-slate-700">Ledger Oversight</h1>
-        <p className="max-w-3xl text-lg text-slate-500 leading-relaxed">
-          A high-fidelity view of current financial reconciliations, focusing on operational transparency and processing velocity.
-        </p>
+        <h1 className="text-[2.1rem] leading-none font-black tracking-tight text-slate-700 dark:text-white">Ledger Oversight</h1>
       </section>
 
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-5 w-full">
-            <h2 className="text-3xl font-black tracking-tight text-slate-800">New Requisitions</h2>
-            <div className="h-px flex-1 bg-slate-200" />
+            <h2 className="text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">New Requisitions</h2>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <Link href="/finance/requisitions" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#c91f41] whitespace-nowrap">
             Review Queue
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111111] shadow-sm dark:shadow-none">
+          <div className="overflow-x-auto overflow-y-auto max-h-[260px]">
           <table className="w-full min-w-[760px]">
-            <thead className="bg-slate-50/80">
-              <tr className="text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+            <thead className="bg-slate-50/80 dark:bg-white/5">
+              <tr className="text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">
                 <th className="px-6 py-4">Date Applied</th>
                 <th className="px-6 py-4">Requisition ID</th>
                 <th className="px-6 py-4">Department</th>
@@ -560,11 +583,11 @@ async function FinanceDashboardSection() {
               {requisitions.map((item) => {
                 const flow = getRequisitionFlow(item.status);
                 return (
-                  <tr key={item.id} className="border-t border-slate-200 text-sm text-slate-700">
-                    <td className="px-6 py-5 font-medium">{formatFinanceDate(item.createdAt)}</td>
-                    <td className="px-6 py-5 font-black text-[#c91f41]">#RQ-{item.id}</td>
-                    <td className="px-6 py-5">{item.user.department?.name || "Operations"}</td>
-                    <td className="px-6 py-5 font-black text-slate-800">${item.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <tr key={item.id} className="border-t border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-zinc-400">
+                      <td className="px-6 py-5 font-medium">{formatFinanceDate(item.createdAt)}</td>
+                      <td className="px-6 py-5 font-black text-[#c91f41]">#RQ-{item.id}</td>
+                      <td className="px-6 py-5">{item.user.department?.name || "Operations"}</td>
+                      <td className="px-6 py-5 font-black text-slate-800 dark:text-white">${item.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-6 py-5">
                       <span className={cn("inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em]", flow.text)}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", flow.dot)} />
@@ -581,24 +604,26 @@ async function FinanceDashboardSection() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
 
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-5 w-full">
-            <h2 className="text-3xl font-black tracking-tight text-slate-800">Recent Refunds</h2>
-            <div className="h-px flex-1 bg-slate-200" />
+            <h2 className="text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">Recent Refunds</h2>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <Link href="/finance/refunds" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 whitespace-nowrap">
             View Historical Data
           </Link>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-white/10 bg-white dark:bg-[#111111] shadow-sm dark:shadow-none">
+          <div className="overflow-x-auto overflow-y-auto max-h-[260px]">
           <table className="w-full min-w-[760px]">
-            <thead className="bg-slate-50/80">
-              <tr className="text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">
+            <thead className="bg-slate-50/80 dark:bg-white/5">
+              <tr className="text-left text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 dark:text-zinc-500">
                 <th className="px-6 py-4">Settlement Date</th>
                 <th className="px-6 py-4">Reference #</th>
                 <th className="px-6 py-4">Payee</th>
@@ -611,11 +636,11 @@ async function FinanceDashboardSection() {
               {refunds.map((item) => {
                 const velocity = getRefundVelocity(item.status);
                 return (
-                  <tr key={item.id} className="border-t border-slate-200 text-sm text-slate-700">
-                    <td className="px-6 py-5 font-medium">{formatFinanceDate(item.createdAt)}</td>
-                    <td className="px-6 py-5 font-medium text-slate-600">#RF-{item.id}</td>
-                    <td className="px-6 py-5">{item.user.name}</td>
-                    <td className="px-6 py-5 font-black text-rose-600">-${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <tr key={item.id} className="border-t border-slate-200 dark:border-white/10 text-sm text-slate-700 dark:text-zinc-400">
+                      <td className="px-6 py-5 font-medium">{formatFinanceDate(item.createdAt)}</td>
+                      <td className="px-6 py-5 font-medium text-slate-600 dark:text-zinc-400">#RF-{item.id}</td>
+                      <td className="px-6 py-5">{item.user.name}</td>
+                      <td className="px-6 py-5 font-black text-rose-600">-${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-6 py-5">
                       <span className={cn("inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em]", velocity.text)}>
                         <span className={cn("h-1.5 w-1.5 rounded-full", velocity.dot)} />
@@ -632,6 +657,7 @@ async function FinanceDashboardSection() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </section>
     </div>
@@ -696,7 +722,7 @@ async function getStats(user: any) {
 }
 
 async function getActivityData(user: any) {
-  const [activeTasks, recentActivities] = await Promise.all([
+  const [activeTasks, recentActivities, publicHolidays] = await Promise.all([
     db.task.findMany({
       where: {
         OR: [
@@ -747,8 +773,16 @@ async function getActivityData(user: any) {
       orderBy: { createdAt: "desc" },
       take: 8,
     }),
+    db.publicHoliday.findMany({
+      orderBy: { date: "asc" },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+      },
+    }),
   ]);
-  return { activeTasks, recentActivities };
+  return { activeTasks, recentActivities, publicHolidays };
 }
 
 function formatActivityDescription(activity: any) {
@@ -777,13 +811,13 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-      <div className="group relative overflow-hidden bg-white rounded-3xl border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-[#c91f41]" />
         <div className="flex items-start justify-between">
           <div className="space-y-4 w-full">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">Tasks Pending</p>
-              <p className="text-4xl font-black text-gray-900 tracking-tighter mt-1">{openTasks}</p>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Tasks Pending</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks}</p>
             </div>
             {canSeeAddTaskInCard && (
               <Link href="/tasks/new" className="flex items-center gap-2 text-[#c91f41] hover:text-[#a81a36] transition-colors group/btn">
@@ -800,50 +834,47 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
         </div>
       </div>
 
-      <div className="group relative overflow-hidden bg-white rounded-3xl border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
         <div className="flex items-start justify-between">
           <div className="space-y-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">Completed Total</p>
-              <p className="text-4xl font-black text-gray-900 tracking-tighter mt-1">{doneTasks}</p>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Completed Total</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks}</p>
             </div>
             <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+               <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/15 flex items-center justify-center">
                   <CheckmarkCircle01Icon className="h-4 w-4 text-green-500" />
                </div>
                <div>
-                  <p className="text-xs font-bold text-gray-900">{doneToday}</p>
-                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Completed Today</p>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">{doneToday}</p>
+                  <p className="text-[8px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Completed Today</p>
                </div>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-green-50 dark:bg-green-500/15 flex items-center justify-center flex-shrink-0">
             <Tick02Icon className="h-5 w-5 text-green-500" />
           </div>
         </div>
       </div>
 
-      <div className="group relative overflow-hidden bg-white rounded-3xl border border-gray-100 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
         <div className="flex items-start justify-between">
           <div className="space-y-4">
             <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">Active Team</p>
-              <p className="text-4xl font-black text-gray-900 tracking-tighter mt-1">{teamMembers.length}</p>
+              <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Active Team</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{teamMembers.length}</p>
             </div>
             <div className="flex -space-x-2 overflow-hidden">
               {teamMembers.map((member: any) => (
-                <div key={member.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-gray-100 overflow-hidden flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-gray-500">{member.name?.[0] ?? "U"}</span>
+                <div key={member.id} className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-black bg-gray-100 dark:bg-white/10 overflow-hidden flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400">{member.name?.[0] ?? "U"}</span>
                 </div>
               ))}
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[10px] font-bold text-blue-600 ring-2 ring-white">
-                +
-              </div>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center flex-shrink-0">
             <UserMultipleIcon className="h-5 w-5 text-blue-500" />
           </div>
         </div>
@@ -853,7 +884,7 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 }
 
 async function ActivitySection({ user }: { user: any }) {
-  const { activeTasks, recentActivities } = await getActivityData(user);
+  const { activeTasks, recentActivities, publicHolidays } = await getActivityData(user);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -865,19 +896,24 @@ async function ActivitySection({ user }: { user: any }) {
             slaStartedAt: t.slaStartedAt ? t.slaStartedAt.toISOString() : null,
             slaHours: t.slaHours,
           }))}
+          holidays={publicHolidays.map((h) => ({
+            id: h.id,
+            name: h.name,
+            date: h.date.toISOString(),
+          }))}
         />
       </div>
 
       <div className="lg:col-span-4 space-y-6">
-        <div className="bg-white shadow-sm rounded-3xl border border-gray-100 p-6 overflow-hidden relative flex flex-col" style={{ height: "480px" }}>
+        <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-6 overflow-hidden relative flex flex-col" style={{ height: "480px" }}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center">
                 <PlayIcon className="h-5 w-5 text-[#c91f41]" />
               </div>
               <div>
-                <h2 className="text-base font-black text-gray-900 tracking-tight">Active Work</h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Confirmed & In Progress</p>
+                <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Active Work</h2>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Confirmed & In Progress</p>
               </div>
             </div>
             {activeTasks.length > 0 && (
@@ -892,11 +928,11 @@ async function ActivitySection({ user }: { user: any }) {
                 <a
                   key={task.id}
                   href={`/tasks/${task.id}`}
-                  className="group block p-4 rounded-2xl bg-gray-50/50 border border-transparent hover:border-[#c91f41]/10 hover:bg-white hover:shadow-lg hover:shadow-gray-200/50 transition-all duration-300"
+                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 truncate group-hover:text-[#c91f41]">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#c91f41]">
                         {task.title}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
@@ -911,26 +947,26 @@ async function ActivitySection({ user }: { user: any }) {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <TaskDone01Icon className="h-6 w-6 text-gray-300" />
+              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
+                <TaskDone01Icon className="h-6 w-6 text-gray-300 dark:text-zinc-700" />
               </div>
-              <p className="text-sm font-medium text-gray-700">No open tasks</p>
-              <p className="text-xs text-gray-400 mt-1">Enjoy the calm of a clear list.</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-zinc-400">No open tasks</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">Enjoy the calm of a clear list.</p>
             </div>
           )}
         </div>
       </div>
 
       <div className="lg:col-span-4 space-y-6">
-        <div className="bg-white shadow-sm rounded-3xl border border-gray-100 p-6" style={{ height: "480px", display: "flex", flexDirection: "column" }}>
+        <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-6" style={{ height: "480px", display: "flex", flexDirection: "column" }}>
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center">
                 <Clock01Icon className="h-5 w-5 text-[#c91f41]" />
               </div>
               <div>
-                <h2 className="text-base font-black text-gray-900 tracking-tight">Recent Activity</h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Live Updates</p>
+                <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Recent Activity</h2>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Live Updates</p>
               </div>
             </div>
             <form action={clearLatestActivity}>
@@ -946,22 +982,22 @@ async function ActivitySection({ user }: { user: any }) {
             <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
               {recentActivities.map((activity) => (
                 <div key={activity.id} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#c91f41] before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
-                  <p className="text-sm text-gray-900 font-bold leading-snug">{formatActivityDescription(activity)}</p>
+                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{formatActivityDescription(activity)}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{activity.user.name}</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-200" />
-                    <span className="text-[10px] font-bold text-gray-400">{formatTime(activity.createdAt)}</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{activity.user.name}</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(activity.createdAt)}</span>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center flex-1">
-              <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                <Clock01Icon className="h-6 w-6 text-gray-300" />
+              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
+                <Clock01Icon className="h-6 w-6 text-gray-300 dark:text-zinc-700" />
               </div>
-              <p className="text-sm font-medium text-gray-700">No activity yet</p>
-              <p className="text-xs text-gray-400 mt-1">Activities will appear as they happen.</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-zinc-400">No activity yet</p>
+              <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">Activities will appear as they happen.</p>
             </div>
           )}
         </div>
@@ -1011,7 +1047,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <RealtimeRefresh intervalMs={10000} />
+      <RealtimeRefresh intervalMs={5000} />
 
       <Suspense
         fallback={

@@ -83,14 +83,14 @@ function WeatherWidget() {
   const { label, emoji } = getWeatherInfo(weather.weathercode);
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-white/5 rounded-xl border border-gray-100 dark:border-white/10">
       <span className="text-base leading-none">{emoji}</span>
-      <span className="text-sm font-bold text-gray-700">{weather.temp}°C</span>
-      <span className="text-[10px] font-bold text-gray-400">{label}</span>
+      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{weather.temp}°C</span>
+      <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{label}</span>
       {weather.city && (
         <>
-          <span className="text-gray-300">·</span>
-          <span className="text-xs font-bold text-gray-400 max-w-[90px] truncate">
+          <span className="text-gray-300 dark:text-zinc-700">·</span>
+          <span className="text-xs font-bold text-gray-400 dark:text-zinc-600 max-w-[90px] truncate">
             {weather.city}
           </span>
         </>
@@ -127,14 +127,14 @@ export default function Header({ user }: HeaderProps) {
   };
 
   return (
-    <header className="h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-gray-100 px-10">
+    <header className="h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-white/10 px-10">
       {/* Greeting + Weather */}
       <div className="flex items-center gap-4 flex-1">
         <div>
-          <p className="text-sm font-black text-gray-900">
+          <p className="text-sm font-black text-gray-900 dark:text-white">
             {getGreeting()}, {user.name?.split(" ")[0] ?? "User"}
           </p>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
             Welcome back
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function Header({ user }: HeaderProps) {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200"
+          className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-transparent dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20"
         >
           {isDark ? <Sun01Icon className="h-5 w-5" /> : <Moon02Icon className="h-5 w-5" />}
         </button>
@@ -155,7 +155,7 @@ export default function Header({ user }: HeaderProps) {
         <NotificationDropdown />
 
         {/* User avatar */}
-        <div className="relative border-l border-gray-100 pl-4 ml-2">
+        <div className="relative border-l border-gray-100 dark:border-white/10 pl-4 ml-2">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="w-10 h-10 rounded-2xl bg-[#fff1f2] flex items-center justify-center hover:bg-[#ffe4e6] transition-all duration-300 border border-white shadow-sm ring-1 ring-[#c91f41]/5 overflow-hidden"
@@ -168,12 +168,12 @@ export default function Header({ user }: HeaderProps) {
           {showDropdown && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-              <div className="absolute right-0 mt-3 w-64 rounded-3xl bg-white shadow-2xl shadow-gray-200/50 border border-gray-100 p-2 z-20 overflow-hidden animate-in fade-in zoom-in slide-in-from-top-2 duration-200">
+              <div className="absolute right-0 mt-3 w-64 rounded-3xl bg-white dark:bg-[#111111] shadow-2xl shadow-gray-200/50 dark:shadow-black/60 border border-gray-100 dark:border-white/10 p-2 z-20 overflow-hidden animate-in fade-in zoom-in slide-in-from-top-2 duration-200">
                 <div className="px-4 py-4 mb-1">
-                  <p className="text-sm font-black text-gray-900 leading-tight">{user.name}</p>
-                  <p className="text-[11px] font-bold text-gray-400 truncate uppercase mt-0.5 tracking-wider">{user.role}</p>
+                  <p className="text-sm font-black text-gray-900 dark:text-white leading-tight">{user.name}</p>
+                  <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 truncate uppercase mt-0.5 tracking-wider">{user.role}</p>
                 </div>
-                <div className="h-px bg-gray-50 mx-2 mb-1" />
+                <div className="h-px bg-gray-50 dark:bg-white/10 mx-2 mb-1" />
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all duration-200"
