@@ -207,7 +207,13 @@ export async function uploadLogo(formData: FormData, mode: "light" | "dark" = "l
 
     // Generate unique filename
     const timestamp = Date.now();
-    const ext = file.type.split("/")[1]?.split("+")[0] || "png";
+    // Improved extension extraction
+    let ext = "png";
+    if (file.type === "image/jpeg") ext = "jpg";
+    else if (file.type === "image/gif") ext = "gif";
+    else if (file.type === "image/webp") ext = "webp";
+    else if (file.type === "image/svg+xml") ext = "svg";
+    
     const filename = `logo-${mode}-${timestamp}.${ext}`;
     const filepath = join(uploadsDir, filename);
 
@@ -215,9 +221,9 @@ export async function uploadLogo(formData: FormData, mode: "light" | "dark" = "l
     await writeFile(filepath, buffer);
 
     // Save logo path to system settings
+    // Use the API route to serve dynamic content in production
     const logoKey = mode === "light" ? "company_logo_light" : "company_logo_dark";
-    // Important: Path must be relative to public/ for the frontend
-    const logoPath = `/uploads/${filename}`;
+    const logoPath = `/api/uploads/${filename}`;
     
     await db.systemSetting.upsert({
       where: { key: logoKey },
