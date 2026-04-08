@@ -13,9 +13,10 @@ FROM base AS deps
 COPY package.json package-lock.json ./
 # 1. Optimize for low-RAM servers by limiting parallel connections
 # 2. Use BuildKit cache mount to persist the .npm registry across builds
-RUN npm config set maxsockets 3 && \
-    --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,target=/root/.npm \
+    npm config set maxsockets 3 && \
     npm ci --no-audit --no-fund --loglevel error
+
 
 # Phase 2: Prisma Client Generation - Isolated layer for better caching
 FROM base AS prisma
