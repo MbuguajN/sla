@@ -49,9 +49,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy prisma files for runtime migrations
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-# Copy prisma CLI from deps to allow running migrations in production
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+
 
 
 
