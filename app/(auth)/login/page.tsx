@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import { getCompanyLogos } from "@/app/actions/adminActions";
 import LoginClient from "./LoginClient";

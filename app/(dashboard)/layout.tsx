@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { redirect } from "next/navigation";
 import { canViewEquipment, getCurrentUser } from "@/lib/permissions";
 import Sidebar from "@/components/layout/sidebar";
