@@ -1,6 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcrypt";
+import crypto from "crypto";
 import db from "./db";
 
 export const authOptions: NextAuthOptions = {
@@ -43,6 +44,15 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
+        // Single Session Enforcement: Generate new session ID
+        const sessionId = crypto.randomUUID();
+        
+        // Update database with new session ID
+        await db.user.update({
+          where: { id: user.id },
+          data: { currentSessionId: sessionId },
+        });
+
         return {
           id: String(user.id),
           email: user.email,
@@ -50,22 +60,52 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           departmentId: user.departmentId,
           departmentSlug: user.department?.slug || null,
+          sessionId: sessionId,
+          authVersion: user.authVersion,
         };
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.departmentId = user.departmentId;
         token.departmentSlug = user.departmentSlug;
+        token.sessionId = user.sessionId;
+        token.authVersion = user.authVersion;
       }
+
+      // Periodically check if session is still valid (every time JWT is refreshed)
+      // trigger is undefined on normal requests, but we want to check it mostly on updates or refresh
+      // NextAuth calls this frequently. To avoid infinite DB hits, we could potentially throttle,
+      // but for strict enforcement we check.
+      if (token.id) {
+        const dbUser = await db.user.findUnique({
+          where: { id: Number(token.id) },
+          select: { currentSessionId: true, authVersion: true, isActive: true },
+        });
+
+        const minAuthVersionSetting = await db.systemSetting.findUnique({
+          where: { key: "MIN_AUTH_VERSION" },
+        });
+        const minAuthVersion = minAuthVersionSetting ? parseInt(minAuthVersionSetting.value) : 0;
+
+        if (
+          !dbUser || 
+          !dbUser.isActive || 
+          dbUser.currentSessionId !== token.sessionId ||
+          dbUser.authVersion < minAuthVersion
+        ) {
+          return null as any; // Trigger logout
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
         session.user.departmentId = token.departmentId as number | null;
@@ -75,3 +115,4 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+

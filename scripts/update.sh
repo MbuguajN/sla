@@ -73,6 +73,29 @@ echo -e "${YELLOW}Running database migrations...${NC}"
 docker-compose run --rm app npx prisma migrate deploy
 echo -e "${GREEN}✓ Migrations applied${NC}"
 
+# Invalidate all active sessions on rebuild
+echo ""
+echo -e "${YELLOW}Invalidating all active sessions for security...${NC}"
+# This increments the MIN_AUTH_VERSION system setting or creates it if it doesn't exist
+docker-compose run --rm app node -e "
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+async function main() {
+  const setting = await prisma.systemSetting.findUnique({ where: { key: 'MIN_AUTH_VERSION' } });
+  const currentVersion = setting ? parseInt(setting.value) : 0;
+  const nextVersion = currentVersion + 1;
+  await prisma.systemSetting.upsert({
+    where: { key: 'MIN_AUTH_VERSION' },
+    update: { value: nextVersion.toString() },
+    create: { key: 'MIN_AUTH_VERSION', value: '1' }
+  });
+  console.log('✓ Global auth version incremented to ' + (setting ? nextVersion : 1));
+}
+main().catch(err => { console.error(err); process.exit(1); }).finally(() => prisma.\$disconnect());
+"
+echo -e "${GREEN}✓ All sessions invalidated${NC}"
+
+
 # Verify deployment
 echo ""
 echo -e "${YELLOW}Verifying deployment...${NC}"
