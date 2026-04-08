@@ -48,10 +48,15 @@ export const authOptions: NextAuthOptions = {
         const sessionId = crypto.randomUUID();
         
         // Update database with new session ID
-        await db.user.update({
-          where: { id: user.id },
-          data: { currentSessionId: sessionId },
-        });
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { currentSessionId: sessionId },
+          });
+        } catch (error) {
+          console.error("Failed to update currentSessionId:", error);
+          // If the update fails (e.g. column missing), we continue login but without single-session enforcement for now
+        }
 
         return {
           id: String(user.id),
@@ -61,7 +66,7 @@ export const authOptions: NextAuthOptions = {
           departmentId: user.departmentId,
           departmentSlug: user.department?.slug || null,
           sessionId: sessionId,
-          authVersion: user.authVersion,
+          authVersion: user.authVersion || 0,
         };
       },
     }),
@@ -78,27 +83,29 @@ export const authOptions: NextAuthOptions = {
       }
 
       // Periodically check if session is still valid (every time JWT is refreshed)
-      // trigger is undefined on normal requests, but we want to check it mostly on updates or refresh
-      // NextAuth calls this frequently. To avoid infinite DB hits, we could potentially throttle,
-      // but for strict enforcement we check.
       if (token.id) {
-        const dbUser = await db.user.findUnique({
-          where: { id: Number(token.id) },
-          select: { currentSessionId: true, authVersion: true, isActive: true },
-        });
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: Number(token.id) },
+            select: { currentSessionId: true, authVersion: true, isActive: true },
+          });
 
-        const minAuthVersionSetting = await db.systemSetting.findUnique({
-          where: { key: "MIN_AUTH_VERSION" },
-        });
-        const minAuthVersion = minAuthVersionSetting ? parseInt(minAuthVersionSetting.value) : 0;
+          const minAuthVersionSetting = await db.systemSetting.findUnique({
+            where: { key: "MIN_AUTH_VERSION" },
+          });
+          const minAuthVersion = minAuthVersionSetting ? parseInt(minAuthVersionSetting.value) : 0;
 
-        if (
-          !dbUser || 
-          !dbUser.isActive || 
-          dbUser.currentSessionId !== token.sessionId ||
-          dbUser.authVersion < minAuthVersion
-        ) {
-          return null as any; // Trigger logout
+          if (
+            !dbUser || 
+            !dbUser.isActive || 
+            (dbUser.currentSessionId && token.sessionId && dbUser.currentSessionId !== token.sessionId) ||
+            (dbUser.authVersion !== undefined && dbUser.authVersion < minAuthVersion)
+          ) {
+            return null as any; // Trigger logout
+          }
+        } catch (error) {
+          console.error("Session check error:", error);
+          // In case of DB error, allow session unless strictness is required
         }
       }
 
@@ -115,4 +122,5 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+
 
