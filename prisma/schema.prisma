@@ -17,8 +17,11 @@ model User {
   department    Department?     @relation("DepartmentMembers", fields: [departmentId], references: [id])
   departmentId  Int?
   isActive      Boolean         @default(true)
+  currentSessionId String?      // Tracks the only allowed active session
+  authVersion   Int             @default(0) // Used for global logout
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+
 
   // Relations
   tasksCreated      Task[]          @relation("TaskCreator")
