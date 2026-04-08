@@ -35,7 +35,7 @@ set +a
 if command -v docker-compose &> /dev/null; then
     echo -e "${YELLOW}Creating database backup...${NC}"
     BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
-    docker-compose exec -T postgres pg_dump -U postgres -d operations_control > "$BACKUP_FILE"
+    docker-compose exec -T postgres pg_dump -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-operations_control} > "$BACKUP_FILE"
     echo -e "${GREEN}✓ Backup saved to $BACKUP_FILE${NC}"
 fi
 
@@ -102,5 +102,5 @@ echo "Current deployment status:"
 docker-compose ps
 echo ""
 echo "If something went wrong, restore the backup:"
-echo "  docker-compose exec -T postgres psql -U postgres -d operations_control < $BACKUP_FILE"
+echo "  docker-compose exec -T postgres psql -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-operations_control} < $BACKUP_FILE"
 echo ""
