@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   reactStrictMode: true,
   // speed up compilation by optimizing hugeicons tree-shaking
   transpilePackages: ['hugeicons-react'],
@@ -23,5 +24,6 @@ const nextConfig = {
     },
   },
 };
+
 
 module.exports = nextConfig;
