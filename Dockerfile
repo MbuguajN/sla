@@ -1,33 +1,39 @@
-# Specialized Dockerfile for SLA Application (Optimized Standalone Build)
+# Specialized Dockerfile for SLA Application (High Performance Standalone Build)
 # =========================================================================
 
 # Phase 0: Base image with shared system libraries
 FROM node:20-slim AS base
+ENV NEXT_TELEMETRY_DISABLED 1
+# Install essential runtime libraries
 RUN apt-get update && apt-get install -y openssl tini && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-# Phase 1: Dependencies - Only re-runs if package.json or package-lock.json change
+# Phase 1: Dependencies - Using BuildKit caching for maximum speed
 FROM base AS deps
 COPY package.json package-lock.json ./
-# Use npm ci for clean, deterministic installs
-RUN npm ci --no-audit --no-fund --loglevel error
+# 1. Optimize for low-RAM servers by limiting parallel connections
+# 2. Use BuildKit cache mount to persist the .npm registry across builds
+RUN npm config set maxsockets 3 && \
+    --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund --loglevel error
 
-# Phase 2: Builder - Re-runs if any source code changes
-FROM base AS builder
-# Copy node_modules from deps stage
+# Phase 2: Prisma Client Generation - Isolated layer for better caching
+FROM base AS prisma
 COPY --from=deps /app/node_modules ./node_modules
+COPY prisma ./prisma
+RUN npx prisma generate
+
+# Phase 3: Builder - Only re-runs if code changes (excluding node_modules/prisma)
+FROM base AS builder
+COPY --from=prisma /app/node_modules ./node_modules
 # Copy all source files
 COPY . .
-# Generate Prisma client for build time
-RUN npx prisma generate
-# Environment variable for build-time optimization
-ENV NEXT_TELEMETRY_DISABLED 1
+# Perform actual build
 RUN npm run build
 
-# Phase 3: Runner - Final minimal production image
+# Phase 4: Runner - Final minimal production image (~100MB)
 FROM base AS runner
 ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -38,10 +44,9 @@ COPY --from=builder /app/public ./public
 RUN mkdir .next && chown nextjs:nodejs .next
 
 # Standalone output contains only necessary files
-# This includes its own node_modules (minimal version)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Copy prisma schema so migrations can run at runtime if needed
+# Copy prisma files for runtime migrations
 COPY --from=builder /app/prisma ./prisma
 
 USER nextjs
@@ -53,5 +58,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-# In standalone mode, we start with server.js
 CMD ["node", "server.js"]
