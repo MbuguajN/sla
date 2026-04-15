@@ -4,16 +4,43 @@ import { db } from "@/lib/db";
 import TasksClient from "./TasksClient";
 import { processLeaveTaskHandovers } from "@/app/actions/leaveHandoverActions";
 
-export default async function TasksPage() {
+type SearchParams = {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
+  clientId?: string;
+  reportView?: string;
+};
+
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   await processLeaveTaskHandovers();
 
-  // Fetch tasks based on user role
+  const filters = {
+    ...(params.department ? { assignedDepartment: { is: { name: params.department } } } : {}),
+    ...(params.clientId ? { project: { is: { clientId: parseInt(params.clientId, 10) } } } : {}),
+    ...(params.startDate || params.endDate
+      ? {
+          status: "DONE" as const,
+          completedAt: {
+            ...(params.startDate ? { gte: new Date(`${params.startDate}T00:00:00.000Z`) } : {}),
+            ...(params.endDate ? { lte: new Date(`${params.endDate}T23:59:59.999Z`) } : {}),
+          },
+        }
+      : {}),
+  };
+
   let tasks;
   if (user.role === "ADMIN" || user.role === "CEO") {
     tasks = await db.task.findMany({
+      where: filters,
       include: {
         project: { include: { client: true } },
         assignedTo: true,
@@ -25,10 +52,11 @@ export default async function TasksPage() {
   } else if (user.role === "MANAGER" && user.departmentId) {
     tasks = await db.task.findMany({
       where: {
-        OR: [
-          { deptId: user.departmentId },
-          { createdById: user.id },
-          { assignedUserId: user.id },
+        AND: [
+          {
+            OR: [{ deptId: user.departmentId }, { createdById: user.id }, { assignedUserId: user.id }],
+          },
+          filters,
         ],
       },
       include: {
@@ -42,7 +70,7 @@ export default async function TasksPage() {
   } else {
     tasks = await db.task.findMany({
       where: {
-        OR: [{ assignedUserId: user.id }, { createdById: user.id }],
+        AND: [{ OR: [{ assignedUserId: user.id }, { createdById: user.id }] }, filters],
       },
       include: {
         project: { include: { client: true } },
