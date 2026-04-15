@@ -17,6 +17,12 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  // Route group root ("/") should always land on the actual dashboard entry route.
+  if (user.role === "ADMIN") {
+    redirect("/admin");
+  }
+  redirect("/dashboard");
+
   const stats = await Promise.all([
     db.project.count(),
     db.task.count({ where: { status: { not: "DONE" } } }),
@@ -46,7 +52,7 @@ export default async function DashboardPage() {
             System <span className="text-rose-500 italic">Command</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-sm">
-            Welcome back, <span className="text-[#111827] dark:text-white">{user.name}</span> • Sector: {user.departmentSlug || "Unassigned"}
+            Welcome back, <span className="text-[#111827] dark:text-white">{user?.name}</span> • Sector: {user?.departmentSlug || "Unassigned"}
           </p>
         </div>
         <div className="flex items-center gap-3">

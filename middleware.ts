@@ -10,6 +10,10 @@ export default withAuth(
     const isHR = token?.departmentSlug === "human-resources";
     const isFinance = token?.departmentSlug === "finance";
 
+    if (path === "/") {
+      return NextResponse.redirect(new URL(isAdmin ? "/admin" : "/dashboard", req.url));
+    }
+
     // Admin-only routes
     if (path.startsWith("/admin") && !isAdmin) {
       return NextResponse.redirect(new URL("/dashboard", req.url));
@@ -58,6 +62,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/admin/:path*",
     "/clients/:path*",
