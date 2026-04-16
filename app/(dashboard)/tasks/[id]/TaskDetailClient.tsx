@@ -277,28 +277,28 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   const isHighPriority = task.priority === "HIGH";
 
   return (
-    <div className="max-w-[1280px] mx-auto space-y-8 p-6 md:p-8 bg-white min-h-screen text-[#0f172a] antialiased">
-      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 border-b border-gray-100 pb-8">
+    <div className="max-w-[1280px] mx-auto space-y-8 p-6 md:p-8 bg-white dark:bg-[#0b0b0f] min-h-screen text-[#0f172a] dark:text-zinc-100 antialiased">
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-6 border-b border-gray-100 dark:border-white/10 pb-8">
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-3">
-             <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isHighPriority ? "bg-red-50 text-red-600 border border-red-100" : "bg-blue-50 text-blue-600 border border-blue-100"}`}>
+             <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isHighPriority ? "bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-300 border border-red-100 dark:border-red-500/30" : "bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-500/30"}`}>
                {task.priority} PRIORITY
              </span>
-             <span className="text-gray-300 text-[10px] font-bold uppercase tracking-wider">•</span>
-             <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider">TASK #{task.id}</span>
+             <span className="text-gray-300 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-wider">•</span>
+             <span className="text-gray-400 dark:text-zinc-500 text-[10px] font-bold uppercase tracking-wider">TASK #{task.id}</span>
           </div>
-          <h1 className="text-[32px] md:text-[42px] font-extrabold text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-[32px] md:text-[42px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             {task.title}
           </h1>
         </div>
 
         <div className="flex flex-col items-end gap-3 min-w-[300px]">
-          <div className="w-full bg-slate-50 border border-slate-100 rounded-xl p-4">
+          <div className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TASK PROGRESS</span>
-              <span className="text-[20px] font-black text-slate-900 leading-none">{Math.round(progress.percentage)}%</span>
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">TASK PROGRESS</span>
+              <span className="text-[20px] font-black text-slate-900 dark:text-white leading-none">{Math.round(progress.percentage)}%</span>
             </div>
-            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
               <div 
                 className={`h-full rounded-full transition-all duration-1000 ease-in-out ${progress.status === "completed" ? "bg-emerald-500" : "bg-[#c91f41]"}`}
                 style={{ width: `${progress.percentage}%` }}
@@ -310,7 +310,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
             {canPause && (
               <button 
                 onClick={() => setShowPauseModal(true)}
-                className="flex-1 h-[44px] bg-slate-100 text-slate-600 rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-slate-200 transition-colors border border-slate-200"
+                className="flex-1 h-[44px] bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-zinc-300 rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-slate-200 dark:hover:bg-white/20 transition-colors border border-slate-200 dark:border-white/10"
               >
                 PAUSE TASK
               </button>
@@ -336,7 +336,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
               </button>
             )}
             {isAssignee && task.status === "IN_PROGRESS" && !hasAllSubtasksDone && (
-              <div className="flex-1 h-[44px] bg-slate-100 text-slate-400 rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-200 cursor-not-allowed" title="Complete all subtasks before submitting">
+              <div className="flex-1 h-[44px] bg-slate-100 dark:bg-white/10 text-slate-400 dark:text-zinc-500 rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-200 dark:border-white/10 cursor-not-allowed" title="Complete all subtasks before submitting">
                 SUBMIT
               </div>
             )}
@@ -349,26 +349,26 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
-              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Description</h2>
+              <h2 className="text-[11px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Description</h2>
             </div>
-            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6">
-              <p className="text-[16px] text-slate-700 leading-relaxed font-medium">
+            <div className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl p-6">
+              <p className="text-[16px] text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
                 {task.description || "The task initiator has not provided a detailed description."}
               </p>
-              <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-slate-200 dark:border-white/10">
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">DEADLINE</p>
-                  <p className="text-[14px] font-bold text-slate-900 text-center">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 text-center">DEADLINE</p>
+                  <p className="text-[14px] font-bold text-slate-900 dark:text-white text-center">
                     {new Date(task.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">ASSIGNED TO</p>
-                  <p className="text-[14px] font-bold text-slate-900 text-center truncate">{task.assigneeName || "Unassigned"}</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 text-center">ASSIGNED TO</p>
+                  <p className="text-[14px] font-bold text-slate-900 dark:text-white text-center truncate">{task.assigneeName || "Unassigned"}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">DEPARTMENT</p>
-                  <p className="text-[14px] font-bold text-slate-900 text-center truncate">{task.departmentName || "General"}</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 text-center">DEPARTMENT</p>
+                  <p className="text-[14px] font-bold text-slate-900 dark:text-white text-center truncate">{task.departmentName || "General"}</p>
                 </div>
               </div>
             </div>
@@ -377,24 +377,24 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <section>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
-              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Resources & Links</h2>
+              <h2 className="text-[11px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Resources & Links</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {task.links?.map((link) => (
-                <div key={link.id} className="group bg-white border border-slate-200 hover:border-slate-400 hover:shadow-sm h-[72px] rounded-xl p-3 flex items-center gap-3 transition-all">
-                  <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 group-hover:border-red-100 transition-colors">
-                    <Link2 className="h-5 w-5 text-slate-500 group-hover:text-red-500" />
+                <div key={link.id} className="group bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/25 hover:shadow-sm h-[72px] rounded-xl p-3 flex items-center gap-3 transition-all">
+                  <div className="w-10 h-10 bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 dark:group-hover:bg-red-500/15 group-hover:border-red-100 dark:group-hover:border-red-500/30 transition-colors">
+                    <Link2 className="h-5 w-5 text-slate-500 dark:text-zinc-400 group-hover:text-red-500 dark:group-hover:text-red-300" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-bold text-slate-900 truncate tracking-tight">{link.name}</p>
-                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">EXTERNAL RESOURCE</p>
+                    <p className="text-[13px] font-bold text-slate-900 dark:text-white truncate tracking-tight">{link.name}</p>
+                    <p className="text-[9px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">EXTERNAL RESOURCE</p>
                   </div>
                   <div className="flex items-center">
-                    <a href={link.url} target="_blank" className="p-2 text-slate-300 hover:text-[#c91f41] transition-colors">
+                    <a href={link.url} target="_blank" className="p-2 text-slate-300 dark:text-zinc-500 hover:text-[#c91f41] transition-colors">
                       <ExternalLink className="h-4 w-4" />
                     </a>
                     {canAddLink && (
-                      <button onClick={() => handleDeleteLink(link.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors">
+                      <button onClick={() => handleDeleteLink(link.id)} className="p-2 text-slate-200 dark:text-zinc-600 hover:text-red-500 transition-colors">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     )}
@@ -404,12 +404,12 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
               {canAddLink && (
                 <button 
                   onClick={() => setShowLinkModal(true)}
-                  className="h-[72px] rounded-xl border-2 border-dashed border-slate-200 flex items-center gap-3 group hover:border-slate-400 hover:bg-slate-50 transition-all px-4"
+                  className="h-[72px] rounded-xl border-2 border-dashed border-slate-200 dark:border-white/15 flex items-center gap-3 group hover:border-slate-400 dark:hover:border-white/25 hover:bg-slate-50 dark:hover:bg-white/5 transition-all px-4"
                 >
-                  <div className="w-10 h-10 rounded-lg border border-slate-200 flex items-center justify-center group-hover:bg-white transition-colors">
-                    <Plus className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                  <div className="w-10 h-10 rounded-lg border border-slate-200 dark:border-white/10 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-white/10 transition-colors">
+                    <Plus className="h-4 w-4 text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300" />
                   </div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest group-hover:text-slate-600">
+                  <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-slate-600 dark:group-hover:text-zinc-300">
                     ADD LINK
                   </span>
                 </button>
@@ -421,9 +421,9 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
-                <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Subtasks</h2>
+                <h2 className="text-[11px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Subtasks</h2>
               </div>
-              <span className="text-xs font-extrabold text-slate-900 uppercase tracking-tight">
+              <span className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-tight">
                 {task.subtasks?.filter(s => s.status === "DONE").length || 0} / {task.subtasks?.length || 0} SUBTASKS DONE
               </span>
             </div>
@@ -431,27 +431,27 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
               {task.subtasks?.map((sub) => {
                 const isDone = sub.status === "DONE";
                 return (
-                  <div key={sub.id} className={`bg-white rounded-xl border p-5 transition-all ${isDone ? "border-slate-100 bg-slate-50/50" : "border-slate-200 shadow-sm"}`}>
+                  <div key={sub.id} className={`bg-white dark:bg-white/5 rounded-xl border p-5 transition-all ${isDone ? "border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5" : "border-slate-200 dark:border-white/15 shadow-sm"}`}>
                     <div className="flex items-center gap-4">
                       <button 
                          onClick={() => updateSubtaskStatus(sub.id, isDone ? "PENDING" : "DONE").then(res => setTask(p => ({ ...p, subtasks: p.subtasks.map(s => s.id === res.id ? { ...s, status: res.status } : s) })))}
                          disabled={!canToggleSubtaskDone}
-                         className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all flex-shrink-0 ${isDone ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-slate-200 hover:border-[#c91f41]"}`}
+                         className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all flex-shrink-0 ${isDone ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white dark:bg-white/10 border-slate-200 dark:border-white/20 hover:border-[#c91f41]"}`}
                       >
                         {isDone && <Check className="h-3.5 w-3.5" strokeWidth={4} />}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-[15px] font-bold tracking-tight ${isDone ? "text-slate-300 line-through" : "text-slate-900"}`}>
+                        <p className={`text-[15px] font-bold tracking-tight ${isDone ? "text-slate-300 dark:text-zinc-500 line-through" : "text-slate-900 dark:text-white"}`}>
                           {sub.title}
                         </p>
                         {sub.description && (
-                          <p className={`mt-1 text-[12px] leading-relaxed ${isDone ? "text-slate-300" : "text-slate-500"}`}>
+                          <p className={`mt-1 text-[12px] leading-relaxed ${isDone ? "text-slate-300 dark:text-zinc-500" : "text-slate-500 dark:text-zinc-400"}`}>
                             {sub.description}
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {canDeleteSubtask && <button onClick={() => deleteSubtask(sub.id).then(() => setTask(p => ({...p, subtasks: p.subtasks.filter(s => s.id !== sub.id)})))} className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-4 w-4" /></button>}
+                        {canDeleteSubtask && <button onClick={() => deleteSubtask(sub.id).then(() => setTask(p => ({...p, subtasks: p.subtasks.filter(s => s.id !== sub.id)})))} className="text-slate-300 dark:text-zinc-500 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-4 w-4" /></button>}
                       </div>
                     </div>
                   </div>
@@ -460,12 +460,12 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
               {canAddSubtask && (
                 <div className="mt-4 space-y-2">
                   <div className="flex gap-3">
-                    <div className="flex-1 h-12 bg-white border border-slate-200 rounded-xl flex items-center gap-3 px-4 focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-50 transition-all">
+                    <div className="flex-1 h-12 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/15 rounded-xl flex items-center gap-3 px-4 focus-within:border-slate-400 dark:focus-within:border-white/30 focus-within:ring-2 focus-within:ring-slate-50 dark:focus-within:ring-white/10 transition-all">
                       <Plus className="h-4 w-4 text-[#c91f41] flex-shrink-0" strokeWidth={3} />
                       <input 
                         type="text" value={newSubtask} onChange={e => setNewSubtask(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAddSubtask()}
                         placeholder="Add a milestone step..."
-                        className="flex-1 bg-transparent border-none p-0 text-[14px] font-bold text-slate-900 placeholder:text-slate-400 focus:ring-0"
+                        className="flex-1 bg-transparent border-none p-0 text-[14px] font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-0"
                       />
                     </div>
                     <button onClick={handleAddSubtask} disabled={loading === "addSubtask"} className="h-12 px-6 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-60">ADD</button>
@@ -475,7 +475,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                     onChange={e => setNewSubtaskDesc(e.target.value)}
                     placeholder="Add a description (optional)"
                     rows={2}
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-[13px] text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-50 focus:border-slate-400 transition-all resize-none"
+                    className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/15 rounded-xl px-4 py-3 text-[13px] text-slate-700 dark:text-zinc-300 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-slate-50 dark:focus:ring-white/10 focus:border-slate-400 dark:focus:border-white/30 transition-all resize-none"
                   />
                 </div>
               )}
@@ -487,28 +487,28 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <section>
             <div className="flex items-center gap-2 mb-6">
               <div className="w-[4px] h-4 bg-[#c91f41] rounded-full" />
-              <h2 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">Progress activity</h2>
+              <h2 className="text-[11px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Progress activity</h2>
             </div>
             <div className="relative pl-7 space-y-6">
-              <div className="absolute left-[3px] top-2 bottom-2 w-[1.5px] bg-slate-100" />
+              <div className="absolute left-[3px] top-2 bottom-2 w-[1.5px] bg-slate-100 dark:bg-white/10" />
               {timeline?.slice(0, 4).map((act, idx) => {
                 const iL = idx === 0;
                 return (
                   <div key={act.id} className="relative group">
-                    <div className={`absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-white border-2 flex items-center justify-center z-10 ${iL ? "border-[#c91f41]" : "border-slate-200"}`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${iL ? "bg-[#c91f41]" : "bg-slate-300"}`} />
+                    <div className={`absolute -left-[31px] top-1 w-5 h-5 rounded-full bg-white dark:bg-[#0f0f14] border-2 flex items-center justify-center z-10 ${iL ? "border-[#c91f41]" : "border-slate-200 dark:border-white/20"}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${iL ? "bg-[#c91f41]" : "bg-slate-300 dark:bg-zinc-500"}`} />
                     </div>
                     <div className="flex flex-col gap-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[13px] font-bold text-slate-900">{act.userName}</span>
-                        <span className="text-[11px] font-medium text-slate-500">{act.description}</span>
+                        <span className="text-[13px] font-bold text-slate-900 dark:text-white">{act.userName}</span>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">{act.description}</span>
                       </div>
-                      <p className="text-[9px] font-bold text-slate-300 uppercase tracking-tighter">
+                      <p className="text-[9px] font-bold text-slate-300 dark:text-zinc-500 uppercase tracking-tighter">
                         {new Date(act.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} • {new Date(act.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                       {act.parsedMeta.kind === "COMMENT" && (
-                        <div className="mt-1.5 bg-slate-50 border border-slate-100 rounded-xl p-2.5">
-                          <p className="text-[12px] text-slate-600 leading-normal font-medium italic">"{act.parsedMeta.comment}"</p>
+                        <div className="mt-1.5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-2.5">
+                          <p className="text-[12px] text-slate-600 dark:text-zinc-300 leading-normal font-medium italic">"{act.parsedMeta.comment}"</p>
                         </div>
                       )}
                     </div>
@@ -518,23 +518,23 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
             </div>
           </section>
 
-          <section className="sticky top-6 bg-white rounded-2xl border border-slate-200 shadow-xl p-6 flex flex-col gap-4 ring-1 ring-black/5">
-            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Internal Status Update</h3>
+          <section className="sticky top-6 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/15 shadow-xl p-6 flex flex-col gap-4 ring-1 ring-black/5 dark:ring-white/10">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-2">Internal Status Update</h3>
             {canPostUpdate ? (
               <textarea 
                  value={commentText} onChange={e => setCommentText(e.target.value)}
                  placeholder="Write your update here... "
-                 className="w-full resize-none border-none p-0 text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:ring-0 min-h-[100px]"
+                 className="w-full resize-none border-none p-0 text-[14px] font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:ring-0 min-h-[100px] bg-transparent"
               />
             ) : (
-              <div className="min-h-[100px] flex items-center justify-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Post updates disabled for closed tasks</p>
+              <div className="min-h-[100px] flex items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/15">
+                <p className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Post updates disabled for closed tasks</p>
               </div>
             )}
-            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/10 pt-4">
               <div className="flex items-center gap-4">
-                 {canAddLink && <button onClick={() => setShowLinkModal(true)} title="Add Link" className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"><Link2 className="h-4 w-4"/></button>}
-                 <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"><AtSign className="h-4 w-4"/></button>
+                 {canAddLink && <button onClick={() => setShowLinkModal(true)} title="Add Link" className="p-2 text-slate-300 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg transition-all"><Link2 className="h-4 w-4"/></button>}
+                 <button className="p-2 text-slate-300 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-50 dark:hover:bg-white/10 rounded-lg transition-all"><AtSign className="h-4 w-4"/></button>
               </div>
               {canPostUpdate && (
                 <button 
@@ -553,27 +553,27 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
       {showLinkModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowLinkModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10">
-            <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">Add Resource Link</h2>
+          <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10 dark:ring-white/10 border border-transparent dark:border-white/10">
+            <h2 className="text-[20px] font-black text-slate-900 dark:text-white mb-8 tracking-tight text-center uppercase">Add Resource Link</h2>
             <div className="space-y-4">
                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">LINK NAME</label>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">LINK NAME</label>
                   <input 
                     type="text" value={linkName} onChange={e => setLinkName(e.target.value)}
                     placeholder="e.g. Project Brief, Figma File..."
-                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[14px] font-bold text-slate-900 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
+                    className="w-full h-12 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-4 text-[14px] font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
                   />
                </div>
                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 block">URL</label>
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 block">URL</label>
                   <input 
                     type="url" value={linkUrl} onChange={e => setLinkUrl(e.target.value)}
                     placeholder="https://..."
-                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[14px] font-bold text-slate-900 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
+                    className="w-full h-12 bg-slate-50 dark:bg-black border border-slate-200 dark:border-white/10 rounded-xl px-4 text-[14px] font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-[#c91f41]/10 focus:border-[#c91f41] transition-all"
                   />
                </div>
                <div className="flex gap-3 pt-4">
-                  <button onClick={() => setShowLinkModal(false)} className="flex-1 h-12 bg-slate-100 text-slate-600 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 transition-colors">CANCEL</button>
+                  <button onClick={() => setShowLinkModal(false)} className="flex-1 h-12 bg-slate-100 dark:bg-white/10 text-slate-600 dark:text-zinc-300 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-white/20 transition-colors">CANCEL</button>
                   <button onClick={handleAddLink} disabled={!linkName || !linkUrl} className="flex-1 h-12 bg-[#c91f41] text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-[#a61835] transition-colors disabled:opacity-50">ADD LINK</button>
                </div>
             </div>
@@ -584,16 +584,16 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
       {showAssignModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowAssignModal(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10">
-            <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">{canReassign ? "RE-ASSIGN TASK" : "ASSIGN TASK"}</h2>
+          <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl w-full max-w-md p-10 ring-1 ring-black/10 dark:ring-white/10 border border-transparent dark:border-white/10">
+            <h2 className="text-[20px] font-black text-slate-900 dark:text-white mb-8 tracking-tight text-center uppercase">{canReassign ? "RE-ASSIGN TASK" : "ASSIGN TASK"}</h2>
             <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
               {departmentMembers?.map(m => (
                 <button 
                   key={m.id} onClick={() => { handleAction(() => assignTask(task.id, m.id), "assign"); setShowAssignModal(false); }}
-                  className="w-full h-16 px-6 rounded-2xl border border-slate-100 hover:border-indigo-100 hover:bg-indigo-50/50 transition-all text-left flex items-center gap-4 group"
+                  className="w-full h-16 px-6 rounded-2xl border border-slate-100 dark:border-white/10 hover:border-indigo-100 dark:hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all text-left flex items-center gap-4 group"
                 >
-                  <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center font-black text-slate-500 text-[11px] group-hover:bg-indigo-600 group-hover:text-white transition-all ring-1 ring-black/5">{m.name[0]}</div>
-                  <span className="text-[15px] font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">{m.name}</span>
+                  <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center font-black text-slate-500 dark:text-zinc-300 text-[11px] group-hover:bg-indigo-600 group-hover:text-white transition-all ring-1 ring-black/5 dark:ring-white/10">{m.name[0]}</div>
+                  <span className="text-[15px] font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">{m.name}</span>
                 </button>
               ))}
             </div>
@@ -613,15 +613,15 @@ function ReasonModal({ title, placeholder, buttonText, onClose, onSubmit }: { ti
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-md p-10">
-        <h2 className="text-[20px] font-black text-slate-900 mb-8 tracking-tight text-center uppercase">{title}</h2>
+      <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl w-full max-w-md p-10 border border-transparent dark:border-white/10">
+        <h2 className="text-[20px] font-black text-slate-900 dark:text-white mb-8 tracking-tight text-center uppercase">{title}</h2>
         <textarea 
           value={reason} onChange={e => setReason(e.target.value)} rows={5} placeholder={placeholder} 
-          className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-6 text-[14px] font-medium text-slate-900 placeholder:text-slate-300 focus:ring-2 focus:ring-slate-100 mb-8 resize-none" 
+          className="w-full bg-slate-50 dark:bg-black border border-slate-100 dark:border-white/10 rounded-2xl p-6 text-[14px] font-medium text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-slate-100 dark:focus:ring-white/10 mb-8 resize-none" 
         />
         <div className="grid grid-cols-2 gap-4">
-          <button onClick={onClose} className="h-14 font-bold text-[11px] text-slate-400 uppercase tracking-widest hover:text-slate-600 transition-colors">CANCEL</button>
-          <button onClick={() => onSubmit(reason)} disabled={!reason.trim()} className="h-14 bg-[#c91f41] text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-red-100 disabled:opacity-50 hover:bg-[#a61835] transition-all">{buttonText}</button>
+          <button onClick={onClose} className="h-14 font-bold text-[11px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">CANCEL</button>
+          <button onClick={() => onSubmit(reason)} disabled={!reason.trim()} className="h-14 bg-[#c91f41] text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-red-100/70 dark:shadow-red-500/20 disabled:opacity-50 hover:bg-[#a61835] transition-all">{buttonText}</button>
         </div>
       </div>
     </div>
