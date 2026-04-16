@@ -7,6 +7,7 @@ import {
   canAccessProject,
   canViewAllProjects,
   canManageProjectStatus,
+  DEPARTMENTS,
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
@@ -183,6 +184,60 @@ export async function updateProject(
   revalidatePath("/projects");
   revalidatePath(`/projects/${projectId}`);
   return project;
+}
+
+export async function addProjectBriefLink(projectId: number, inputLink: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const canManageBriefLinks =
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE;
+
+  if (!canManageBriefLinks) {
+    throw new Error("Unauthorized - Only Business Development and Client Service can add brief links");
+  }
+
+  const trimmed = inputLink.trim();
+  if (!trimmed) throw new Error("Link is required");
+
+  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  const parsed = new URL(normalized);
+  if (!parsed.hostname) throw new Error("Invalid URL");
+
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { id: true, title: true, briefLink: true },
+  });
+
+  if (!project) throw new Error("Project not found");
+
+  const existing = (project.briefLink || "").trim();
+  const links = existing
+    ? existing.split(/[\n,]+/).map((value) => value.trim()).filter(Boolean)
+    : [];
+
+  const deduped = new Set(links.map((value) => value.toLowerCase()));
+  if (!deduped.has(normalized.toLowerCase())) links.push(normalized);
+
+  await db.project.update({
+    where: { id: projectId },
+    data: { briefLink: links.length > 0 ? links.join("\n") : null },
+  });
+
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: "Project brief link added",
+      projectId,
+      userId: user.id,
+      metadata: JSON.stringify({ link: normalized }),
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
 }
 
 export async function addDepartmentToProject(projectId: number, departmentId: number, slaHours: number = 48) {

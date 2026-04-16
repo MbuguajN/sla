@@ -1,5 +1,5 @@
 import { redirect, notFound } from "next/navigation";
-import { canAccessProject, canCreateProject, canCreateTask, canManageProjectStatus, getCurrentUser } from "@/lib/permissions";
+import { canAccessProject, canCreateProject, canCreateTask, canManageProjectStatus, DEPARTMENTS, getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import ProjectDetailClient from "./ProjectDetailClient";
 
@@ -40,6 +40,10 @@ export default async function ProjectDetailPage({
     select: { id: true, name: true },
   });
 
+  const canManageBriefLinks =
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE;
+
   return (
     <ProjectDetailClient
       project={project}
@@ -47,6 +51,7 @@ export default async function ProjectDetailPage({
       canAddTask={canCreateTask(user)}
       canManageDepartments={canCreateProject(user)}
       canManageStatus={canManageProjectStatus(user)}
+      canManageBriefLinks={canManageBriefLinks}
     />
   );
 }

@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addDepartmentToProject, closeProject, pauseProject, resumeProject } from "@/app/actions/projectActions";
+import { addDepartmentToProject, addProjectBriefLink, closeProject, pauseProject, resumeProject } from "@/app/actions/projectActions";
 import { cn } from "@/lib/utils";
-import { Download, Filter, Plus, Search, X, CheckCircle, PauseCircle, PlayCircle } from "lucide-react";
+import { Download, Filter, Plus, Search, X, CheckCircle, PauseCircle, PlayCircle, Link2 } from "lucide-react";
 
 type ProjectDepartment = {
   id: number;
@@ -37,6 +37,7 @@ type ProjectTask = {
 type ProjectDetail = {
   id: number;
   title: string;
+  briefLink: string | null;
   status: string;
   departments: ProjectDepartment[];
   tasks: ProjectTask[];
@@ -53,6 +54,7 @@ interface Props {
   canAddTask: boolean;
   canManageDepartments: boolean;
   canManageStatus: boolean;
+  canManageBriefLinks: boolean;
 }
 
 function toDate(value: string | Date | null) {
@@ -150,12 +152,16 @@ export default function ProjectDetailClient({
   canAddTask,
   canManageDepartments,
   canManageStatus,
+  canManageBriefLinks,
 }: Props) {
   const router = useRouter();
   const [currentStatus, setCurrentStatus] = useState(project.status);
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [showBriefLinkModal, setShowBriefLinkModal] = useState(false);
   const [showTimesheetModal, setShowTimesheetModal] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
+  const [briefLinkInput, setBriefLinkInput] = useState("");
+  const [briefLinkError, setBriefLinkError] = useState("");
   const [departmentError, setDepartmentError] = useState("");
   const [timesheetSearch, setTimesheetSearch] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -218,6 +224,19 @@ export default function ProjectDetailClient({
     const existingIds = new Set(project.departments.map((department) => department.department.id));
     return departments.filter((department) => !existingIds.has(department.id));
   }, [departments, project.departments]);
+
+  const briefLinks = useMemo(() => {
+    const raw = (project.briefLink || "").trim();
+    if (!raw) return [];
+
+    const placeholders = new Set(["none", "n/a", "na", "null", "undefined", "-"]);
+
+    return raw
+      .split(/[\n,]+/)
+      .map((link) => link.trim())
+      .filter((link) => Boolean(link) && !placeholders.has(link.toLowerCase()))
+      .map((link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`));
+  }, [project.briefLink]);
 
   const monthOptions = useMemo(() => {
     return Array.from(
@@ -298,6 +317,26 @@ export default function ProjectDetailClient({
         router.refresh();
       } catch (error) {
         setDepartmentError(error instanceof Error ? error.message : "Failed to add department.");
+      }
+    });
+  };
+
+  const handleAddBriefLink = () => {
+    const value = briefLinkInput.trim();
+    if (!value) {
+      setBriefLinkError("Link is required.");
+      return;
+    }
+
+    setBriefLinkError("");
+    startTransition(async () => {
+      try {
+        await addProjectBriefLink(project.id, value);
+        setShowBriefLinkModal(false);
+        setBriefLinkInput("");
+        router.refresh();
+      } catch (error) {
+        setBriefLinkError(error instanceof Error ? error.message : "Failed to add brief link.");
       }
     });
   };
@@ -398,6 +437,42 @@ export default function ProjectDetailClient({
                       {department.department.name}
                     </span>
                   ))}
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#7f8798] dark:text-zinc-500">Brief Links</p>
+                    {canManageBriefLinks && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBriefLinkError("");
+                          setShowBriefLinkModal(true);
+                        }}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#dfe5f2] dark:bg-white/10 text-[#44506a] dark:text-zinc-300 hover:text-[#c91f41]"
+                        aria-label="Add brief link"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {briefLinks.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      {briefLinks.map((link, index) => (
+                        <a
+                          key={`${link}-${index}`}
+                          href={link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-semibold text-[#c91f41] hover:text-[#aa1a37] dark:text-rose-300 dark:hover:text-rose-200 underline underline-offset-2 break-all"
+                        >
+                          {link}
+                        </a>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold text-[#44506a] dark:text-zinc-400">None</p>
+                  )}
                 </div>
               </div>
 
@@ -555,6 +630,59 @@ export default function ProjectDetailClient({
                 <button
                   type="button"
                   onClick={handleAddDepartment}
+                  disabled={isPending}
+                  className="rounded-xl bg-[#c91f41] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-white hover:bg-[#aa1a37] disabled:opacity-60"
+                >
+                  {isPending ? "Adding..." : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBriefLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" onClick={() => setShowBriefLinkModal(false)} />
+          <div className="relative w-full max-w-md rounded-3xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 shadow-2xl dark:shadow-black/60 p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7f8798] dark:text-zinc-500">Project Brief</p>
+                <h3 className="mt-1 text-xl font-black text-[#122038] dark:text-white">Add Brief Link</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBriefLinkModal(false)}
+                className="h-9 w-9 inline-flex items-center justify-center rounded-xl bg-gray-50 dark:bg-white/5 text-gray-400 dark:text-zinc-500 hover:text-[#c91f41]"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-600" />
+                <input
+                  type="url"
+                  value={briefLinkInput}
+                  onChange={(event) => setBriefLinkInput(event.target.value)}
+                  className="w-full h-12 rounded-2xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 pl-11 pr-4 text-sm font-medium text-gray-900 dark:text-white outline-none"
+                />
+              </div>
+
+              {briefLinkError && <p className="text-xs font-semibold text-red-600">{briefLinkError}</p>}
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBriefLinkModal(false)}
+                  className="rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-gray-500 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddBriefLink}
                   disabled={isPending}
                   className="rounded-xl bg-[#c91f41] px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-white hover:bg-[#aa1a37] disabled:opacity-60"
                 >
