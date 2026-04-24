@@ -13,15 +13,6 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '50mb',
     },
-    // Turbo settings for faster development
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
   },
 };
 

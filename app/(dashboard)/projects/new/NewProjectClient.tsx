@@ -312,7 +312,7 @@ export default function NewProjectClient({ clients, departments, preselectedClie
                   onClick={nextStep}
                   className="btn h-11 bg-[#c91f41] hover:bg-[#a61a35] text-white border-none rounded-xl px-8 font-black gap-2 shadow-sm"
                 >
-                  Continue
+                  Next
                 </button>
               ) : (
                 <button

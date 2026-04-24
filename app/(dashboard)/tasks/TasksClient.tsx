@@ -1,13 +1,12 @@
 ﻿"use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   CheckListIcon,
   Add01Icon,
   Search01Icon,
-  FilterIcon,
   Clock01Icon,
   Tick01Icon,
   CancelCircleIcon,
@@ -34,6 +33,16 @@ type TaskItem = {
 interface Props {
   initialTasks: TaskItem[];
   canCreate: boolean;
+  userRole?: string;
+  userDepartmentSlug?: string | null;
+}
+
+function calculateDueDate(task: TaskItem): Date | null {
+  if (!task.slaHours || !task.slaStartedAt) return null;
+  const started = new Date(task.slaStartedAt).getTime();
+  const totalMs = task.slaHours * 60 * 60 * 1000;
+  const pausedMs = (task.slaPausedDuration || 0) * 1000;
+  return new Date(started + totalMs - pausedMs);
 }
 
 function calculateSLA(task: TaskItem) {
@@ -81,18 +90,31 @@ function formatRemaining(ms: number | null) {
   return `${hours}h ${minutes}m`;
 }
 
-export default function TasksClient({ initialTasks, canCreate }: Props) {
+export default function TasksClient({ initialTasks, canCreate, userRole, userDepartmentSlug }: Props) {
   const router = useRouter();
+  const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"ACTIVE" | "ARCHIVE">("ACTIVE");
-  const [dateFilter, setDateFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH">("ALL");
+  const [dueFilter, setDueFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH">("ALL");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
+  const [itemsDisplayed, setItemsDisplayed] = useState(10);
+
+  const shouldShowDepartmentFilter =
+    userRole === "ADMIN" ||
+    userRole === "CEO" ||
+    userDepartmentSlug === "client-service" ||
+    userDepartmentSlug === "business-development";
 
   useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
+
+  useEffect(() => {
+    setItemsDisplayed(10);
+  }, [search, statusFilter, priorityFilter, activeTab, dueFilter, departmentFilter]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -102,8 +124,36 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
     return () => clearInterval(interval);
   }, [router]);
 
+  const statuses = useMemo(
+    () => ["ALL", ...Array.from(new Set(tasks.map((task) => task.status)))],
+    [tasks]
+  );
+
+  const priorities = useMemo(
+    () => ["ALL", ...Array.from(new Set(tasks.map((task) => task.priority)))],
+    [tasks]
+  );
+
+  const departments = useMemo(
+    () => Array.from(new Set(tasks.map((task) => task.departmentName).filter(Boolean as any as (d: any) => d is string))),
+    [tasks]
+  );
+
   const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+    const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 7);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    return tasks
+      .filter((t) => {
       const matchesSearch =
         t.title.toLowerCase().includes(search.toLowerCase()) ||
         t.projectTitle.toLowerCase().includes(search.toLowerCase()) ||
@@ -112,29 +162,47 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
       const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter;
       const isArchived = t.status === "DONE" || t.status === "CANCELLED";
       const matchesTab = activeTab === "ACTIVE" ? !isArchived : isArchived;
-      const matchesDate = (() => {
-        if (dateFilter === "ALL") return true;
-        const created = new Date(t.createdAt);
-        const now = new Date();
-        if (dateFilter === "TODAY") {
-          return created.toDateString() === now.toDateString();
+      
+      const matchesDepartment = departmentFilter === "ALL" || t.departmentName === departmentFilter;
+
+      const matchesDueDate = (() => {
+        if (dueFilter === "ALL") return true;
+        const dueDate = calculateDueDate(t);
+        if (!dueDate) return true;
+        
+        if (dueFilter === "TODAY") {
+          return dueDate >= startOfToday && dueDate < endOfToday;
         }
-        if (dateFilter === "THIS_WEEK") {
-          const day = now.getDay();
-          const diff = day === 0 ? -6 : 1 - day; // Monday = start
-          const startOfWeek = new Date(now);
-          startOfWeek.setDate(now.getDate() + diff);
-          startOfWeek.setHours(0, 0, 0, 0);
-          return created >= startOfWeek;
+        if (dueFilter === "THIS_WEEK") {
+          return dueDate >= startOfWeek && dueDate < endOfWeek;
         }
-        if (dateFilter === "THIS_MONTH") {
-          return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+        if (dueFilter === "THIS_MONTH") {
+          return dueDate >= startOfMonth && dueDate < endOfMonth;
         }
         return true;
       })();
-      return matchesSearch && matchesStatus && matchesPriority && matchesTab && matchesDate;
-    });
-  }, [tasks, search, statusFilter, priorityFilter, activeTab, dateFilter]);
+      
+        return matchesSearch && matchesStatus && matchesPriority && matchesTab && matchesDepartment && matchesDueDate;
+      })
+      .sort((left, right) => {
+        const leftDue = calculateDueDate(left)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const rightDue = calculateDueDate(right)?.getTime() ?? Number.POSITIVE_INFINITY;
+        if (leftDue !== rightDue) return leftDue - rightDue;
+        return left.id - right.id;
+      });
+  }, [tasks, search, statusFilter, priorityFilter, activeTab, dueFilter, departmentFilter]);
+
+  const displayedTasks = filteredTasks.slice(0, itemsDisplayed);
+  const hasMore = itemsDisplayed < filteredTasks.length;
+
+  const handleTableScroll = () => {
+    const el = tableScrollRef.current;
+    if (!el || !hasMore) return;
+    const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 64;
+    if (nearBottom) {
+      setItemsDisplayed((prev) => Math.min(prev + 10, filteredTasks.length));
+    }
+  };
 
   const statusPill: Record<string, string> = {
     UNASSIGNED: "bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-zinc-400",
@@ -154,9 +222,6 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
     HIGH: "text-orange-600 dark:text-orange-300",
     URGENT: "text-red-600 dark:text-red-300",
   };
-
-  const statuses = ["ALL", "UNASSIGNED", "ASSIGNED", "CONFIRMED", "IN_PROGRESS", "PAUSED", "SUBMITTED", "REVISION", "DONE", "CANCELLED"];
-  const priorities = ["ALL", "LOW", "MEDIUM", "HIGH", "URGENT"];
 
   const pendingCount = tasks.filter((t) => !["DONE", "CANCELLED"].includes(t.status)).length;
   const inProgressCount = tasks.filter((t) => ["CONFIRMED", "IN_PROGRESS", "PAUSED"].includes(t.status)).length;
@@ -228,7 +293,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+              className="h-9 min-w-[132px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {statuses.map((s) => (
                 <option key={s} value={s}>
@@ -240,7 +305,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-9 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+              className="h-9 min-w-[132px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {priorities.map((p) => (
                 <option key={p} value={p}>
@@ -249,33 +314,54 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
               ))}
             </select>
 
-            <button className="h-9 w-9 rounded-xl border border-gray-200 dark:border-white/10 flex items-center justify-center text-gray-500 dark:text-zinc-500 hover:text-[#c91f41] hover:border-[#ffd8e0]">
-              <FilterIcon className="h-4 w-4" />
-            </button>
+            {shouldShowDepartmentFilter && (
+              <select
+                value={departmentFilter}
+                onChange={(e) => {
+                  setDepartmentFilter(e.target.value);
+                  setItemsDisplayed(10);
+                }}
+                className="h-9 min-w-[140px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+              >
+                <option value="ALL">All Departments</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
-        <div className="px-6 pb-4 flex flex-wrap items-center gap-2">
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-600 mr-1">Created</span>
+        <div className="px-6 pt-3 pb-5 flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-600 mr-1">Due</span>
           {(["ALL", "TODAY", "THIS_WEEK", "THIS_MONTH"] as const).map((d) => (
             <button
               key={d}
-              onClick={() => setDateFilter(d)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                dateFilter === d
+              onClick={() => {
+                setDueFilter(d);
+                setItemsDisplayed(10);
+              }}
+              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                dueFilter === d
                   ? "bg-[#ffe8ec] text-[#c91f41] border border-[#ffd8e0]"
                   : "bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-zinc-500 border border-gray-100 dark:border-white/10 hover:text-[#c91f41] hover:border-[#ffd8e0]"
               }`}
             >
-              {d === "ALL" ? "All time" : d === "THIS_WEEK" ? "This week" : d === "THIS_MONTH" ? "This month" : "Today"}
+              {d === "ALL" ? "All" : d === "THIS_WEEK" ? "This week" : d === "THIS_MONTH" ? "This month" : "Today"}
             </button>
           ))}
         </div>
 
-        <div className="overflow-x-auto">
-          {filteredTasks.length > 0 ? (
+        <div
+          ref={tableScrollRef}
+          onScroll={handleTableScroll}
+          className="overflow-x-auto flex-1 max-h-[700px] overflow-y-auto"
+        >
+          {displayedTasks.length > 0 ? (
             <table className="w-full min-w-[860px]">
-              <thead>
+              <thead className="sticky top-0 bg-white dark:bg-[#111111] z-10">
                 <tr className="text-left text-[10px] text-gray-400 dark:text-zinc-600 font-black tracking-[0.16em] uppercase border-b border-gray-100 dark:border-white/10">
                   <th className="px-6 py-3">Task Name</th>
                   <th className="px-6 py-3">Project</th>
@@ -285,7 +371,7 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {filteredTasks.map((task) => {
+                {displayedTasks.map((task) => {
                   const sla = calculateSLA(task);
                   return (
                     <tr key={task.id} className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
@@ -377,6 +463,17 @@ export default function TasksClient({ initialTasks, canCreate }: Props) {
             </div>
           )}
         </div>
+
+        {hasMore && (
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 flex justify-center">
+            <button
+              onClick={() => setItemsDisplayed((prev) => prev + 10)}
+              className="px-6 py-2.5 bg-[#c91f41] hover:bg-[#a81a36] text-white font-bold text-sm rounded-xl transition-all active:scale-95"
+            >
+              Load More ({itemsDisplayed} of {filteredTasks.length})
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

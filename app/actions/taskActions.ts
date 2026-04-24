@@ -203,6 +203,7 @@ export async function createTask(data: {
   description?: string;
   priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   deptId: number;
+  briefReceivedAt: string;
   slaHours?: number;
   links?: { name: string; url: string }[];
 }) {
@@ -229,8 +230,52 @@ export async function createTask(data: {
     throw new Error(`Cannot create tasks for projects that are ${project.status.replace("_", " ").toLowerCase()}`);
   }
 
+  if (!data.briefReceivedAt) {
+    throw new Error("Brief received date is required");
+  }
+
+  const briefReceivedAt = new Date(data.briefReceivedAt);
+  if (Number.isNaN(briefReceivedAt.getTime())) {
+    throw new Error("Invalid brief received date");
+  }
+
+  const assignedDepartment = await db.department.findUnique({
+    where: { id: data.deptId },
+    select: { id: true, slug: true, name: true },
+  });
+
+  if (!assignedDepartment) {
+    throw new Error("Assigned department not found");
+  }
+
+  const blockedAssignmentSlugs = new Set(["client-service", "finance", "human-resources"]);
+  if (blockedAssignmentSlugs.has(assignedDepartment.slug)) {
+    throw new Error("This department cannot be assigned tasks from this workflow");
+  }
+
+  const now = new Date();
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const utcBrief = Date.UTC(
+    briefReceivedAt.getUTCFullYear(),
+    briefReceivedAt.getUTCMonth(),
+    briefReceivedAt.getUTCDate()
+  );
+  const utcToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const daysSinceBrief = Math.floor((utcToday - utcBrief) / msPerDay);
+  const briefCategory = daysSinceBrief > 3 ? "SAT" : "SAFE";
+
+  const minSlaSetting = await db.systemSetting.findUnique({
+    where: { key: "task_sla_min_hours" },
+    select: { value: true },
+  });
+  const configuredMinSla = Number.parseInt(minSlaSetting?.value || "1", 10);
+  const minSlaHours = Number.isNaN(configuredMinSla) ? 1 : Math.max(1, configuredMinSla);
+
   // SLA is managed at task level.
   const slaHours = data.slaHours || 48;
+  if (slaHours < minSlaHours) {
+    throw new Error(`SLA commitment cannot be below ${minSlaHours} hours`);
+  }
 
   // Filter out empty links
   const validLinks = (data.links || []).filter(l => l.name.trim() && l.url.trim());
@@ -241,9 +286,11 @@ export async function createTask(data: {
       title: data.title,
       description: data.description || null,
       priority: data.priority || "MEDIUM",
-      deptId: data.deptId,
+      deptId: assignedDepartment.id,
       createdById: user.id,
       slaHours,
+      briefReceivedAt,
+      briefCategory,
       status: "UNASSIGNED",
       ...(validLinks.length > 0 && {
         links: {

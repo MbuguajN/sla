@@ -167,7 +167,7 @@ export async function submitRequisitionForApproval(reqId: number, note?: string)
   await notifyCEO(
     "Requisition Pending CEO Approval",
     `${requisition.user.name} has a requisition for KES ${requisition.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending your approval`,
-    "/admin"
+    "/finance/requisitions"
   );
 
   revalidatePath("/requisitions");
@@ -378,7 +378,7 @@ export async function submitRefundForApproval(refundId: number, note?: string) {
   await notifyCEO(
     "Refund Pending CEO Approval",
     `${refund.user.name} has a refund request for KES ${refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending your approval`,
-    "/admin"
+    "/finance/refunds"
   );
 
   revalidatePath("/refunds");

@@ -78,6 +78,8 @@ type Task = {
   description: string | null;
   status: string;
   priority: string;
+  briefReceivedAt: string | null;
+  briefCategory: "SAFE" | "SAT" | null;
   projectId: number;
   projectTitle: string;
   clientName: string;
@@ -275,6 +277,13 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   };
 
   const isHighPriority = task.priority === "HIGH";
+  const briefLabel = task.briefCategory === "SAT" ? "SAT BRIEF" : task.briefCategory === "SAFE" ? "SAFE BRIEF" : "NO BRIEF DATE";
+  const briefClassName =
+    task.briefCategory === "SAT"
+      ? "bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-300 border border-red-100 dark:border-red-500/30"
+      : task.briefCategory === "SAFE"
+      ? "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/30"
+      : "bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-zinc-500 border border-slate-200 dark:border-white/10";
 
   return (
     <div className="max-w-[1280px] mx-auto space-y-8 p-6 md:p-8 bg-white dark:bg-[#0b0b0f] min-h-screen text-[#0f172a] dark:text-zinc-100 antialiased">
@@ -283,6 +292,10 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <div className="flex items-center gap-3">
              <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isHighPriority ? "bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-300 border border-red-100 dark:border-red-500/30" : "bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-100 dark:border-blue-500/30"}`}>
                {task.priority} PRIORITY
+             </span>
+             <span className="text-gray-300 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-wider">•</span>
+             <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${briefClassName}`}>
+               {briefLabel}
              </span>
              <span className="text-gray-300 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-wider">•</span>
              <span className="text-gray-400 dark:text-zinc-500 text-[10px] font-bold uppercase tracking-wider">TASK #{task.id}</span>

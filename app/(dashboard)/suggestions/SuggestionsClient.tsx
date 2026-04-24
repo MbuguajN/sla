@@ -37,6 +37,11 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [tableSearch, setTableSearch] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [formData, setFormData] = useState({
     category: "SUGGESTION",
     title: "",
@@ -69,6 +74,38 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
+  const filteredAndPaginatedSuggestions = (() => {
+    let filtered = initialSuggestions.filter((item) => {
+      const matchesSearch = item.title.toLowerCase().includes(tableSearch.toLowerCase()) || 
+                            item.category.toLowerCase().includes(tableSearch.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (filterFromDate || filterToDate) {
+        const itemDate = new Date(item.createdAt).getTime();
+        const fromTime = filterFromDate ? new Date(filterFromDate).getTime() : 0;
+        const toTime = filterToDate
+          ? new Date(new Date(filterToDate).getTime() + 86400000).getTime()
+          : Infinity;
+
+        if (itemDate < fromTime || itemDate > toTime) return false;
+      }
+
+      return true;
+    });
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const safePage = Math.min(currentPage, Math.max(1, totalPages));
+    const start = (safePage - 1) * itemsPerPage;
+
+    return {
+      items: filtered.slice(start, start + itemsPerPage),
+      total: filtered.length,
+      currentPage: safePage,
+      totalPages,
+    };
+  })();
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
@@ -98,14 +135,48 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
         </button>
       </div>
 
-      <div className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-[#111111] overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-600">{initialSuggestions.length} submission{initialSuggestions.length !== 1 ? "s" : ""} on record</p>
+      <div className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-[#111111] overflow-hidden flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 space-y-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-600">
+            {filteredAndPaginatedSuggestions.total} submission{filteredAndPaginatedSuggestions.total !== 1 ? "s" : ""} (showing {filteredAndPaginatedSuggestions.items.length})
+          </p>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input
+              type="text"
+              placeholder="Search title or category..."
+              value={tableSearch}
+              onChange={(e) => {
+                setTableSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="col-span-1 md:col-span-2 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="date"
+              value={filterFromDate}
+              onChange={(e) => {
+                setFilterFromDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="date"
+              value={filterToDate}
+              onChange={(e) => {
+                setFilterToDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          {initialSuggestions.length > 0 ? (
+
+        <div className="overflow-x-auto flex-1 max-h-[600px] overflow-y-auto">
+          {filteredAndPaginatedSuggestions.items.length > 0 ? (
             <table className="w-full min-w-[600px]">
-              <thead>
+              <thead className="sticky top-0 bg-white dark:bg-[#111111] z-10">
                 <tr className="text-left text-[10px] text-gray-400 dark:text-zinc-600 font-black tracking-[0.16em] uppercase border-b border-gray-100 dark:border-white/10">
                   <th className="px-6 py-3">Title</th>
                   <th className="px-6 py-3">Category</th>
@@ -115,7 +186,7 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {initialSuggestions.map((item) => {
+                {filteredAndPaginatedSuggestions.items.map((item) => {
                   const statusColors: Record<string, string> = {
                     PENDING: "bg-indigo-50 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30",
                     REVIEWED: "bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/30",
@@ -156,6 +227,30 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
             </div>
           )}
         </div>
+
+        {filteredAndPaginatedSuggestions.totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-white/5">
+            <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
+              Page {filteredAndPaginatedSuggestions.currentPage} of {filteredAndPaginatedSuggestions.totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={filteredAndPaginatedSuggestions.currentPage === 1}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-white/10 transition"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(filteredAndPaginatedSuggestions.totalPages, p + 1))}
+                disabled={filteredAndPaginatedSuggestions.currentPage === filteredAndPaginatedSuggestions.totalPages}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-white/10 transition"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -234,7 +329,7 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
                   onClick={currentStep === 3 ? handleSubmit : nextStep} disabled={loading}
                   className="bg-[#111827] dark:bg-white text-white dark:text-black px-10 h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
                >
-                  {loading ? "..." : currentStep === 3 ? "Submit Hub" : "Next Protocol"}
+                  {loading ? "..." : currentStep === 3 ? "Submit Hub" : "Next"}
                </button>
             </div>
           </div>

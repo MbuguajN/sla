@@ -34,6 +34,9 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
   useEffect(() => { setRefunds(initialRefunds); }, [initialRefunds]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [itemsDisplayed, setItemsDisplayed] = useState(9);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [actionNote, setActionNote] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,8 +84,24 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
   const filtered = refunds.filter((r) => {
     const matchSearch = r.userName.toLowerCase().includes(search.toLowerCase()) || r.reason.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "ALL" || r.status === statusFilter;
-    return matchSearch && matchStatus;
+
+    if (!matchSearch || !matchStatus) return false;
+
+    if (filterFromDate || filterToDate) {
+      const itemDate = new Date(r.createdAt).getTime();
+      const fromTime = filterFromDate ? new Date(filterFromDate).getTime() : 0;
+      const toTime = filterToDate
+        ? new Date(new Date(filterToDate).getTime() + 86400000).getTime()
+        : Infinity;
+
+      if (itemDate < fromTime || itemDate > toTime) return false;
+    }
+
+    return true;
   });
+
+  const displayedItems = filtered.slice(0, itemsDisplayed);
+  const hasMore = itemsDisplayed < filtered.length;
 
   const statuses = ["ALL", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
 
@@ -107,7 +126,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
       </div>
 
       {/* Global Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-white dark:bg-black p-4 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm">
+      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 bg-white dark:bg-black p-4 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm">
         <div className="lg:col-span-2 relative group">
           <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
             <Search01Icon className="w-4.5 h-4.5 text-gray-400 group-focus-within:text-rose-600 transition-colors" />
@@ -116,16 +135,42 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
             type="text"
             placeholder="Filter by name or reason..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setItemsDisplayed(9);
+            }}
             className="w-full h-14 pl-12 pr-6 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-2xl outline-none focus:ring-4 focus:ring-rose-500/5 transition-all font-bold text-sm text-gray-900 dark:text-white placeholder:text-zinc-700"
           />
         </div>
+
+        <input
+          type="date"
+          value={filterFromDate}
+          onChange={(e) => {
+            setFilterFromDate(e.target.value);
+            setItemsDisplayed(9);
+          }}
+          className="h-14 px-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-4 focus:ring-rose-500/5 transition-all"
+        />
+
+        <input
+          type="date"
+          value={filterToDate}
+          onChange={(e) => {
+            setFilterToDate(e.target.value);
+            setItemsDisplayed(9);
+          }}
+          className="h-14 px-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-4 focus:ring-rose-500/5 transition-all"
+        />
         
         <div className="lg:col-span-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
           {statuses.map((status) => (
             <button
               key={status}
-              onClick={() => setStatusFilter(status)}
+              onClick={() => {
+                setStatusFilter(status);
+                setItemsDisplayed(9);
+              }}
               className={cn(
                 "px-5 h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0 border-2",
                 statusFilter === status 
@@ -141,7 +186,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
 
       {/* Refund Cards */}
       <div className="grid grid-cols-1 gap-4">
-        {filtered.map((refund) => (
+        {displayedItems.map((refund) => (
           <div key={refund.id} className="group relative bg-white dark:bg-[#0f0f0f] border border-gray-100 dark:border-white/10 rounded-[2rem] overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-rose-500/5">
             <div className="p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="flex items-center gap-6">
@@ -271,6 +316,17 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
           </div>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-8">
+          <button
+            onClick={() => setItemsDisplayed((prev) => prev + 9)}
+            className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm uppercase tracking-widest rounded-xl transition-all active:scale-95"
+          >
+            Load More ({itemsDisplayed} of {filtered.length})
+          </button>
+        </div>
+      )}
     </div>
   );
 }

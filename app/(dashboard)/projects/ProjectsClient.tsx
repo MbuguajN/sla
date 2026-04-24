@@ -41,6 +41,7 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
   const [projects] = useState<ProjectItem[]>(initialProjects);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [itemsDisplayed, setItemsDisplayed] = useState(20);
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
@@ -49,6 +50,9 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
     const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const displayedProjects = filteredProjects.slice(0, itemsDisplayed);
+  const hasMore = itemsDisplayed < filteredProjects.length;
 
   const statuses = ["ALL", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"];
 
@@ -93,7 +97,10 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
             type="text"
             placeholder="Search projects or clients..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setItemsDisplayed(20);
+            }}
             className="w-full h-11 pl-10 pr-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-xl outline-none focus:ring-4 focus:ring-rose-500/5 focus:border-rose-200 transition-all font-medium text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-zinc-600"
           />
         </div>
@@ -102,7 +109,10 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
           {statuses.map((status) => (
             <button
               key={status}
-              onClick={() => setStatusFilter(status)}
+              onClick={() => {
+                setStatusFilter(status);
+                setItemsDisplayed(20);
+              }}
               className={cn(
                 "px-4 h-9 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all active:scale-95",
                 statusFilter === status 
@@ -118,7 +128,7 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
 
       {/* Pixel Matched Projects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredProjects.map((project) => (
+        {displayedProjects.map((project) => (
           <Link key={project.id} href={`/projects/${project.id}`}>
             <div className="group relative bg-white dark:bg-[#111111] border border-gray-100/60 dark:border-white/10 rounded-2xl p-4 transition-all duration-500 hover:shadow-[0_12px_30px_-10px_rgba(244,63,94,0.08)] hover:-translate-y-1 flex flex-col gap-4 overflow-hidden">
               {/* Background Accent Deco */}
@@ -184,6 +194,17 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
           </Link>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-8">
+          <button
+            onClick={() => setItemsDisplayed((prev) => prev + 20)}
+            className="px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-sm uppercase tracking-widest rounded-xl transition-all active:scale-95"
+          >
+            Load More ({itemsDisplayed} of {filteredProjects.length})
+          </button>
+        </div>
+      )}
 
       {filteredProjects.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 bg-white/50 dark:bg-[#111111] border border-dashed border-gray-200 dark:border-white/10 rounded-3xl">

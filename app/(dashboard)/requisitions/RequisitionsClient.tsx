@@ -39,6 +39,10 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [tableSearch, setTableSearch] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [itemsDisplayed, setItemsDisplayed] = useState(9);
   const [formData, setFormData] = useState({
     title: "",
     productType: "",
@@ -82,6 +86,30 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
     setCurrentStep(prev => Math.min(prev + 1, 3));
   };
 
+  const filtered = initialRequisitions.filter((item) => {
+    const matchSearch = 
+      item.title.toLowerCase().includes(tableSearch.toLowerCase()) ||
+      item.id.toString().includes(tableSearch) ||
+      item.totalAmount.toString().includes(tableSearch);
+
+    if (!matchSearch) return false;
+
+    if (filterFromDate || filterToDate) {
+      const itemDate = new Date(item.createdAt).getTime();
+      const fromTime = filterFromDate ? new Date(filterFromDate).getTime() : 0;
+      const toTime = filterToDate
+        ? new Date(new Date(filterToDate).getTime() + 86400000).getTime()
+        : Infinity;
+
+      if (itemDate < fromTime || itemDate > toTime) return false;
+    }
+
+    return true;
+  });
+
+  const displayedItems = filtered.slice(0, itemsDisplayed);
+  const hasMore = itemsDisplayed < filtered.length;
+
   return (
     <div className="space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
@@ -111,8 +139,39 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
         </button>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white dark:bg-black/40 p-4 rounded-3xl border border-gray-100 dark:border-white/10">
+        <input
+          type="text"
+          placeholder="Search by title, ID..."
+          value={tableSearch}
+          onChange={(e) => {
+            setTableSearch(e.target.value);
+            setItemsDisplayed(9);
+          }}
+          className="col-span-1 md:col-span-2 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <input
+          type="date"
+          value={filterFromDate}
+          onChange={(e) => {
+            setFilterFromDate(e.target.value);
+            setItemsDisplayed(9);
+          }}
+          className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <input
+          type="date"
+          value={filterToDate}
+          onChange={(e) => {
+            setFilterToDate(e.target.value);
+            setItemsDisplayed(9);
+          }}
+          className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {initialRequisitions.map((item) => (
+        {displayedItems.map((item) => (
           <div key={item.id} className="group relative bg-white dark:bg-[#0f0f0f] border border-gray-100 dark:border-white/10 rounded-[2.5rem] p-1.5 transition-all duration-500 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-2 overflow-hidden">
             <div className="bg-[#fcfdfe] dark:bg-black rounded-[2rem] p-6 space-y-6">
                 <div className="flex items-start justify-between">
@@ -138,6 +197,17 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
           </div>
         ))}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-8">
+          <button
+            onClick={() => setItemsDisplayed((prev) => prev + 9)}
+            className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm uppercase tracking-widest rounded-xl transition-all active:scale-95"
+          >
+            Load More ({itemsDisplayed} of {filtered.length})
+          </button>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">

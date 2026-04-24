@@ -47,6 +47,7 @@ const healthConfig = {
 export default function ClientsClient({ initialClients, canCreate, canClose }: Props) {
   const [clients, setClients] = useState<ClientItem[]>(initialClients);
   const [search, setSearch] = useState("");
+  const [itemsDisplayed, setItemsDisplayed] = useState(20);
   const [showModal, setShowModal] = useState(false);
   const [activeMenu, setActiveMenu] = useState<number | null>(null);
   const [error, setError] = useState("");
@@ -123,6 +124,9 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
     }
   };
 
+  const displayedClients = filteredClients.slice(0, itemsDisplayed);
+  const hasMore = itemsDisplayed < filteredClients.length;
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -143,7 +147,10 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
               type="text"
               placeholder="Search clients..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setItemsDisplayed(20);
+              }}
               className="w-64 pl-11 pr-4 py-2.5 text-sm font-medium bg-gray-50 dark:bg-[#111111] border border-gray-200 dark:border-white/10 rounded-xl placeholder-gray-400 dark:placeholder:text-zinc-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] transition-all"
             />
           </div>
@@ -177,7 +184,7 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
           </button>
         )}
 
-        {filteredClients.map((client) => {
+        {displayedClients.map((client) => {
           const hc = healthConfig[client.health];
           return (
             <div
@@ -288,6 +295,17 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
           );
         })}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-8">
+          <button
+            onClick={() => setItemsDisplayed((prev) => prev + 20)}
+            className="px-6 py-3 bg-[#c91f41] hover:bg-[#a61835] text-white font-bold text-sm uppercase tracking-widest rounded-xl transition-all active:scale-95"
+          >
+            Load More ({itemsDisplayed} of {filteredClients.length})
+          </button>
+        </div>
+      )}
 
       {filteredClients.length === 0 && (
         <div className="text-center py-16 bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10">

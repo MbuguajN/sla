@@ -180,6 +180,9 @@ export async function updateSystemSetting(key: string, value: string) {
   });
 
   revalidatePath("/admin/settings");
+  if (key === "task_sla_min_hours") {
+    revalidatePath("/tasks/new");
+  }
   return setting;
 }
 

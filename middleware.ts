@@ -37,19 +37,8 @@ export default withAuth(
       }
     }
 
-    // HR routes - HR department or admin (admin can view, not act)
-    if (path.startsWith("/hr")) {
-      if (!isHR && !isAdmin) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-    }
-
-    // Finance routes - Finance department or admin (admin can view, not act)
-    if (path.startsWith("/finance")) {
-      if (!isFinance && !isAdmin) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-    }
+    // HR/Finance route-level access is enforced inside server pages/actions using
+    // fresh DB-backed user data. Avoid blocking here on possibly stale JWT claims.
 
     return NextResponse.next();
   },

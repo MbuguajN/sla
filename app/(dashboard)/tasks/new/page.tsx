@@ -30,6 +30,17 @@ export default async function NewTaskPage({
     orderBy: { name: "asc" },
   });
 
+  const minSlaSetting = await db.systemSetting.findUnique({
+    where: { key: "task_sla_min_hours" },
+    select: { value: true },
+  });
+
+  const parsedMinSla = Number.parseInt(minSlaSetting?.value || "1", 10);
+  const minSlaHours = Number.isNaN(parsedMinSla) ? 1 : Math.max(1, parsedMinSla);
+
+  const excludedAssignmentSlugs = new Set(["client-service", "finance", "human-resources"]);
+  const assignableDepartments = departments.filter((d) => !excludedAssignmentSlugs.has(d.slug));
+
   return (
     <NewTaskClient
       projects={projects.map((p) => ({
@@ -43,10 +54,11 @@ export default async function NewTaskPage({
           slaHours: pd.slaHours,
         })),
       }))}
-      allDepartments={departments.map((d) => ({
+      allDepartments={assignableDepartments.map((d) => ({
         id: d.id,
         name: d.name,
       }))}
+      minSlaHours={minSlaHours}
       preselectedProjectId={params.projectId ? parseInt(params.projectId) : undefined}
     />
   );

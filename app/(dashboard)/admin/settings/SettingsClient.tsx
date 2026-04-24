@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { uploadLogo } from "@/app/actions/adminActions";
+import { uploadLogo, updateSystemSetting } from "@/app/actions/adminActions";
 import { 
   Settings02Icon, 
   Image01Icon, 
@@ -26,6 +26,9 @@ interface Props {
 export default function SettingsClient({ initialSettings, initialLogos }: Props) {
   const [uploadingLogos, setUploadingLogos] = useState(false);
   const [, setLogos] = useState(initialLogos);
+  const initialMinSlaSetting = initialSettings.find((setting) => setting.key === "task_sla_min_hours")?.value || "1";
+  const [minSlaHours, setMinSlaHours] = useState(initialMinSlaSetting);
+  const [savingMinSla, setSavingMinSla] = useState(false);
   
   const [tempLightLogo, setTempLightLogo] = useState<File | null>(null);
   const [tempDarkLogo, setTempDarkLogo] = useState<File | null>(null);
@@ -78,6 +81,25 @@ export default function SettingsClient({ initialSettings, initialLogos }: Props)
       alert(err instanceof Error ? err.message : "Logo upload failed");
     } finally {
       setUploadingLogos(false);
+    }
+  };
+
+  const handleSaveMinSla = async () => {
+    const parsed = Number.parseInt(minSlaHours, 10);
+    if (Number.isNaN(parsed) || parsed < 1) {
+      alert("SLA minimum must be at least 1 hour.");
+      return;
+    }
+
+    setSavingMinSla(true);
+    try {
+      await updateSystemSetting("task_sla_min_hours", String(parsed));
+      setMinSlaHours(String(parsed));
+      alert("SLA minimum updated successfully.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to update SLA minimum");
+    } finally {
+      setSavingMinSla(false);
     }
   };
 
@@ -198,6 +220,58 @@ export default function SettingsClient({ initialSettings, initialLogos }: Props)
                     <>
                       <Tick02Icon className="w-4 h-4 transition-transform group-hover:scale-110" />
                       Save Branding
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card bg-base-100 shadow-xl border border-base-200 overflow-visible">
+          <div className="card-body p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-[#fff1f3] flex items-center justify-center rounded-2xl">
+                <Settings02Icon className="w-6 h-6 text-[#f43f5e]" />
+              </div>
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-bold tracking-tight text-[#111827] dark:text-white">SLA Minimum</h2>
+                <span className="text-[10px] font-bold text-[#9ca3af] dark:text-zinc-500 uppercase tracking-[0.2em] mt-1">
+                  Task Creation Guardrail
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[220px_auto] gap-6 items-end">
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#9ca3af] dark:text-zinc-500 mb-3 block">
+                  Minimum SLA Hours
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={minSlaHours}
+                  onChange={(e) => setMinSlaHours(e.target.value)}
+                  className="w-full h-12 rounded-xl border border-[#e5e7eb] dark:border-white/10 bg-white dark:bg-black px-4 text-sm font-bold text-[#111827] dark:text-white focus:outline-none focus:ring-2 focus:ring-[#f43f5e]/20 focus:border-[#f43f5e]"
+                />
+                <p className="mt-2 text-[10px] font-semibold text-[#9ca3af] dark:text-zinc-500 uppercase tracking-wider">
+                  New tasks cannot go below this value.
+                </p>
+              </div>
+
+              <div className="flex items-center sm:justify-end">
+                <button
+                  onClick={handleSaveMinSla}
+                  disabled={savingMinSla}
+                  className="btn bg-white dark:bg-black hover:bg-[#fff1f3] dark:hover:bg-white/5 text-[#111827] dark:text-zinc-100 border border-[#f3f4f6] dark:border-white/10 shadow-[0_4px_14px_0_rgba(244,63,94,0.15)] dark:shadow-none rounded-3xl h-11 px-7 transition-all text-xs font-semibold flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  {savingMinSla ? (
+                    <span className="loading loading-spinner text-[#f43f5e]" />
+                  ) : (
+                    <>
+                      <Tick02Icon className="w-4 h-4" />
+                      Save SLA Minimum
                     </>
                   )}
                 </button>

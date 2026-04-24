@@ -38,7 +38,13 @@ export default async function TasksPage({
   };
 
   let tasks;
-  if (user.role === "ADMIN" || user.role === "CEO") {
+  const hasGlobalTaskAccess =
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    user.departmentSlug === "client-service" ||
+    user.departmentSlug === "business-development";
+
+  if (hasGlobalTaskAccess) {
     tasks = await db.task.findMany({
       where: filters,
       include: {
@@ -52,12 +58,7 @@ export default async function TasksPage({
   } else if (user.role === "MANAGER" && user.departmentId) {
     tasks = await db.task.findMany({
       where: {
-        AND: [
-          {
-            OR: [{ deptId: user.departmentId }, { createdById: user.id }, { assignedUserId: user.id }],
-          },
-          filters,
-        ],
+        AND: [{ deptId: user.departmentId }, filters],
       },
       include: {
         project: { include: { client: true } },
@@ -102,6 +103,8 @@ export default async function TasksPage({
         createdAt: t.createdAt.toISOString(),
       }))}
       canCreate={canCreateTask(user)}
+      userRole={user.role}
+      userDepartmentSlug={user.departmentSlug}
     />
   );
 }

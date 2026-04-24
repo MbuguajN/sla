@@ -70,6 +70,8 @@ export default async function TaskDetailPage({
         description: task.description,
         status: task.status,
         priority: task.priority,
+        briefReceivedAt: task.briefReceivedAt?.toISOString() || null,
+        briefCategory: task.briefCategory || null,
         projectId: task.projectId,
         projectTitle: task.project.title,
         clientName: task.project.client.name,

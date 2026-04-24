@@ -135,6 +135,8 @@ model Task {
   createdBy           User      @relation("TaskCreator", fields: [createdById], references: [id])
   createdById         Int
   slaHours            Int?
+  briefReceivedAt     DateTime?
+  briefCategory       BriefCategory?
   slaStartedAt        DateTime?
   startedAt           DateTime?
   slaPausedAt         DateTime?
@@ -172,6 +174,11 @@ enum Priority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum BriefCategory {
+  SAFE
+  SAT
 }
 
 // ============== TASK LINKS ==============

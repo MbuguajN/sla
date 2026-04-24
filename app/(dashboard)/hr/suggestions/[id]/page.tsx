@@ -49,6 +49,7 @@ export default async function HRSuggestionDetailPage({
         userName: suggestion.user.name,
         hrNote: suggestion.hrNote,
         createdAt: suggestion.createdAt.toISOString(),
+        updatedAt: suggestion.updatedAt.toISOString(),
       }}
     />
   );

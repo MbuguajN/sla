@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -120,7 +120,6 @@ function deltaChip(delta: number, invert = false) {
 
 export default function ReportsClient({ meta, summary, clientHealth, trend, departments }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
   const [customStart, setCustomStart] = useState(meta.startDate);
   const [customEnd, setCustomEnd] = useState(meta.endDate);
   const [trendMode, setTrendMode] = useState<"monthly" | "quarterly">("monthly");
@@ -162,7 +161,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
       params.delete("startDate");
       params.delete("endDate");
     }
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`/reports?${params.toString()}`);
   };
 
   const applyCustomRange = () => {
@@ -172,7 +171,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
       startDate: customStart,
       endDate: customEnd,
     });
-    router.push(`${pathname}?${params.toString()}`);
+    router.push(`/reports?${params.toString()}`);
   };
 
   const exportCsv = () => {

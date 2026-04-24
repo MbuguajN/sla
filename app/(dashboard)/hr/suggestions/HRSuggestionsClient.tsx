@@ -38,12 +38,33 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
   const [suggestions] = useState(initialSuggestions);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const filtered = suggestions.filter((s) => {
     const matchSearch = s.title.toLowerCase().includes(search.toLowerCase()) || s.content.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "ALL" || s.status === statusFilter;
-    return matchSearch && matchStatus;
+
+    if (!matchSearch || !matchStatus) return false;
+
+    if (filterFromDate || filterToDate) {
+      const itemDate = new Date(s.createdAt).getTime();
+      const fromTime = filterFromDate ? new Date(filterFromDate).getTime() : 0;
+      const toTime = filterToDate
+        ? new Date(new Date(filterToDate).getTime() + 86400000).getTime()
+        : Infinity;
+
+      if (itemDate < fromTime || itemDate > toTime) return false;
+    }
+
+    return true;
   });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const safePage = Math.min(currentPage, Math.max(1, totalPages));
+  const paginatedItems = filtered.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
 
   const statusColors: Record<string, string> = {
     OPEN: "info",
@@ -90,25 +111,58 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
         </div>
       </section>
 
-      <section className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-black/40 overflow-hidden">
-        <div className="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-white/10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search title or content"
-              value={search}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-              className="pl-10 h-10 rounded-xl border-gray-200 bg-white dark:bg-black dark:border-white/10 dark:text-zinc-100"
+      <section className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-black/40 overflow-hidden flex flex-col">
+        <div className="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-white/10 space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">
+              {filtered.length} suggestion{filtered.length !== 1 ? "s" : ""} (showing {paginatedItems.length})
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="md:col-span-2 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search title or content"
+                value={search}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="pl-10 h-10 rounded-xl border-gray-200 bg-white dark:bg-black dark:border-white/10 dark:text-zinc-100"
+              />
+            </div>
+            <input
+              type="date"
+              value={filterFromDate}
+              onChange={(e) => {
+                setFilterFromDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#c91f41]"
+            />
+            <input
+              type="date"
+              value={filterToDate}
+              onChange={(e) => {
+                setFilterToDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#c91f41]"
             />
           </div>
+
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 dark:bg-white/5 p-1.5 border border-gray-100 dark:border-white/10">
             {statuses.map((s) => (
               <Button
                 key={s}
                 size="sm"
                 variant="ghost"
-                onClick={() => setStatusFilter(s)}
+                onClick={() => {
+                  setStatusFilter(s);
+                  setCurrentPage(1);
+                }}
                 className={cn(
                   "rounded-xl h-8 px-3 text-[11px] font-black uppercase tracking-[0.12em] border transition-colors",
                   statusFilter === s
@@ -122,9 +176,10 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
           </div>
         </div>
 
-        <Card className="rounded-none border-0 shadow-none bg-transparent">
-          <CardBody className="p-0">
-            {filtered.length > 0 ? (
+        <div className="overflow-x-auto flex-1 max-h-[600px] overflow-y-auto">
+        <div className="rounded-none border-0 shadow-none bg-transparent">
+          <div className="p-0">
+            {paginatedItems.length > 0 ? (
               <Table>
                 <TableHead>
                   <TableHeader>Title</TableHeader>
@@ -134,8 +189,8 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
                   <TableHeader>Status</TableHeader>
                   <TableHeader>Actions</TableHeader>
                 </TableHead>
-                <TableBody>
-                  {filtered.map((s) => (
+                  <TableBody>
+                    {paginatedItems.map((s) => (
                     <TableRow key={s.id}>
                       <TableCell>
                         <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{s.title}</p>
@@ -174,8 +229,33 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
                 <p className="text-sm text-gray-500 dark:text-zinc-400">No suggestions found</p>
               </div>
             )}
-          </CardBody>
-        </Card>
+          </div>
+        </div>
+        </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 flex items-center justify-between bg-gray-50 dark:bg-white/5">
+            <span className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
+              Page {safePage} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-white/10 transition"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-white/10 transition"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -44,6 +44,7 @@ type Department = {
 interface Props {
   projects: Project[];
   allDepartments: Department[];
+  minSlaHours: number;
   preselectedProjectId?: number;
 }
 
@@ -53,8 +54,9 @@ const STEPS = [
   { id: 3, title: "Assignment", icon: Users },
 ];
 
-export default function NewTaskClient({ projects, allDepartments, preselectedProjectId }: Props) {
+export default function NewTaskClient({ projects, allDepartments, minSlaHours, preselectedProjectId }: Props) {
   const router = useRouter();
+  const defaultSlaHours = Math.max(48, minSlaHours).toString();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,8 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
     description: "",
     priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
     deptId: "",
-    slaHours: "48",
+    slaHours: defaultSlaHours,
+    briefReceivedAt: "",
     links: [] as { name: string; url: string }[],
   });
 
@@ -130,6 +133,17 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
       return;
     }
 
+    if (!formData.briefReceivedAt) {
+      setError("Please select the brief received date.");
+      return;
+    }
+
+    const parsedSlaHours = Number.parseInt(formData.slaHours, 10);
+    if (Number.isNaN(parsedSlaHours) || parsedSlaHours < minSlaHours) {
+      setError(`SLA commitment cannot be below ${minSlaHours} hours.`);
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -140,7 +154,8 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
         description: formData.description,
         priority: formData.priority,
         deptId: parseInt(formData.deptId),
-        slaHours: parseInt(formData.slaHours),
+        briefReceivedAt: formData.briefReceivedAt,
+        slaHours: parsedSlaHours,
         links: formData.links.filter(l => l.name.trim() && l.url.trim()),
       });
 
@@ -360,15 +375,31 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">SLA Commitment (Hours)</label>
-                    <div className="relative w-32">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">SLA Commitment (Hours)</label>
+                      <div className="relative w-full">
+                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="number"
+                          min={minSlaHours}
+                          value={formData.slaHours}
+                          onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
+                          className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                        />
+                      </div>
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Minimum allowed: {minSlaHours} hours
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Brief Received</label>
                       <input
-                        type="number"
-                        value={formData.slaHours}
-                        onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
-                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                        type="date"
+                        value={formData.briefReceivedAt}
+                        onChange={(e) => setFormData({ ...formData, briefReceivedAt: e.target.value })}
+                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl px-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
                       />
                     </div>
                   </div>
@@ -411,7 +442,7 @@ export default function NewTaskClient({ projects, allDepartments, preselectedPro
                     </>
                   ) : (
                     <>
-                      Next Protocol
+                      Next
                       <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </>
                   )}

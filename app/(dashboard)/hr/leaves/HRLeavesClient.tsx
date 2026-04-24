@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { reviewLeave } from "@/app/actions/hrActions";
 import { cn } from "@/lib/utils";
 import { CalendarDays, Search } from "lucide-react";
 import {
@@ -44,9 +43,6 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
   const [leaves, setLeaves] = useState(initialLeaves);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [reviewingId, setReviewingId] = useState<number | null>(null);
-  const [reviewNote, setReviewNote] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const filtered = leaves.filter((l) => {
     const matchSearch = l.userName.toLowerCase().includes(search.toLowerCase());
@@ -59,31 +55,6 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
     APPROVED: "success",
     DENIED: "error",
     CANCELLED: "secondary",
-  };
-
-  const handleReview = async (leaveId: number, decision: "APPROVED" | "DENIED") => {
-    setLoading(true);
-    try {
-      await reviewLeave(leaveId, decision, reviewNote || undefined);
-      setLeaves((prev) =>
-        prev.map((leave) =>
-          leave.id === leaveId
-            ? {
-                ...leave,
-                status: decision,
-                reviewNote: reviewNote || null,
-              }
-            : leave
-        )
-      );
-      setReviewingId(null);
-      setReviewNote("");
-      router.refresh();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to review leave");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const statuses = ["ALL", "PENDING", "APPROVED", "DENIED", "CANCELLED"];
@@ -184,38 +155,13 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
                       </TableCell>
                       {!viewOnly && (
                       <TableCell>
-                        {leave.status === "PENDING" &&
-                          (reviewingId === leave.id ? (
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Input
-                                type="text"
-                                placeholder="Note (optional)"
-                                value={reviewNote}
-                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReviewNote(e.target.value)}
-                                className="w-36 text-xs dark:bg-black dark:border-white/10 dark:text-zinc-100"
-                              />
-                              <Button variant="success" size="sm" onClick={() => handleReview(leave.id, "APPROVED")} disabled={loading}>
-                                Approve
-                              </Button>
-                              <Button variant="error" size="sm" onClick={() => handleReview(leave.id, "DENIED")} disabled={loading}>
-                                Deny
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setReviewingId(null);
-                                  setReviewNote("");
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button variant="outline" size="sm" onClick={() => setReviewingId(leave.id)}>
-                              Review
-                            </Button>
-                          ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push(`/hr/leaves/${leave.id}`)}
+                        >
+                          Review
+                        </Button>
                       </TableCell>
                       )}
                     </TableRow>

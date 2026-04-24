@@ -18,7 +18,16 @@ export default async function LeavePage() {
   const [leaves, leavePolicies, publicHolidays, activeTasks, departmentMembers] = await Promise.all([
     db.leave.findMany({
       where: { userId: user.id },
-      include: {
+      select: {
+        id: true,
+        type: true,
+        startDate: true,
+        endDate: true,
+        totalDays: true,
+        status: true,
+        reason: true,
+        reviewNote: true,
+        createdAt: true,
         handovers: {
           include: {
             task: { select: { id: true, title: true } },

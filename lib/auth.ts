@@ -87,7 +87,9 @@ export const authOptions: NextAuthOptions = {
         try {
           const dbUser = await db.user.findUnique({
             where: { id: Number(token.id) },
-            select: { currentSessionId: true, authVersion: true, isActive: true },
+            include: {
+              department: { select: { id: true, slug: true } },
+            },
           });
 
           const minAuthVersionSetting = await db.systemSetting.findUnique({
@@ -103,6 +105,12 @@ export const authOptions: NextAuthOptions = {
           ) {
             return null as any; // Trigger logout
           }
+
+          // Keep authorization claims current for middleware route checks.
+          token.role = dbUser.role;
+          token.departmentId = dbUser.departmentId;
+          token.departmentSlug = dbUser.department?.slug || null;
+          token.authVersion = dbUser.authVersion;
         } catch (error) {
           console.error("Session check error:", error);
           // In case of DB error, allow session unless strictness is required
