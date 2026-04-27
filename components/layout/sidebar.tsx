@@ -121,6 +121,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
       items: [
         { label: "Users", href: "/admin/users", icon: UserEdit01Icon },
         { label: "Departments", href: "/admin/departments", icon: Building01Icon },
+        { label: "Logs", href: "/admin/logs", icon: Book01Icon },
         { label: "App Settings", href: "/admin/settings", icon: Settings01Icon },
       ]
     }

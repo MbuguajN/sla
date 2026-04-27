@@ -4,6 +4,141 @@ import { compare } from "bcrypt";
 import crypto from "crypto";
 import db from "./db";
 
+const LOGIN_ATTEMPT_RETENTION_HOURS = 48;
+
+type AuthRequestLike = {
+  headers?: Headers | Record<string, string | string[] | undefined>;
+};
+
+function readHeader(
+  headers: AuthRequestLike["headers"],
+  name: string
+): string | null {
+  if (!headers) return null;
+
+  if (typeof (headers as Headers).get === "function") {
+    return (headers as Headers).get(name);
+  }
+
+  const record = headers as Record<string, string | string[] | undefined>;
+  const value = record[name] ?? record[name.toLowerCase()] ?? record[name.toUpperCase()];
+
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+function getRequestIp(req?: AuthRequestLike) {
+  const forwardedFor = readHeader(req?.headers, "x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || null;
+  }
+
+  const realIp = readHeader(req?.headers, "x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  return null;
+}
+
+function getUserAgent(req?: AuthRequestLike) {
+  return readHeader(req?.headers, "user-agent");
+}
+
+function isPrivateIp(ip: string) {
+  const normalizedIp = ip.replace(/^::ffff:/, "").trim().toLowerCase();
+
+  return (
+    normalizedIp === "::1" ||
+    normalizedIp === "localhost" ||
+    normalizedIp.startsWith("10.") ||
+    normalizedIp.startsWith("127.") ||
+    normalizedIp.startsWith("192.168.") ||
+    /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalizedIp)
+  );
+}
+
+async function resolveLoginLocation(ipAddress: string | null) {
+  if (!ipAddress) return null;
+  if (isPrivateIp(ipAddress)) return "Private network";
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 1500);
+
+  try {
+    const response = await fetch(`https://ipwho.is/${encodeURIComponent(ipAddress)}`, {
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      success?: boolean;
+      city?: string;
+      region?: string;
+      country?: string;
+    };
+
+    if (data.success === false) {
+      return null;
+    }
+
+    const parts = [data.city, data.region, data.country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function createLoginAttemptLog(params: {
+  email: string;
+  status: "SUCCESS" | "FAILED";
+  userId?: number | null;
+  req?: AuthRequestLike;
+  failureReason?: string;
+}) {
+  const email = params.email.trim().toLowerCase();
+  const ipAddress = getRequestIp(params.req);
+  const userAgent = getUserAgent(params.req);
+  const location = await resolveLoginLocation(ipAddress);
+  const retentionCutoff = new Date(
+    Date.now() - LOGIN_ATTEMPT_RETENTION_HOURS * 60 * 60 * 1000
+  );
+
+  try {
+    await db.$transaction([
+      db.loginAttempt.create({
+        data: {
+          email,
+          userId: params.userId ?? null,
+          status: params.status,
+          ipAddress,
+          location,
+          userAgent,
+          failureReason: params.failureReason ?? null,
+        },
+      }),
+      db.loginAttempt.deleteMany({
+        where: {
+          createdAt: {
+            lt: retentionCutoff,
+          },
+        },
+      }),
+    ]);
+  } catch (error) {
+    console.error("Failed to create login attempt log:", error);
+  }
+}
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -20,27 +155,49 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Email and password are required");
         }
 
+        const normalizedEmail = credentials.email.toLowerCase();
+
         const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+          where: { email: normalizedEmail },
           include: { department: true },
         });
 
         if (!user) {
+          await createLoginAttemptLog({
+            email: normalizedEmail,
+            status: "FAILED",
+            req,
+            failureReason: "Account not found",
+          });
           throw new Error("Invalid email or password");
         }
 
         if (!user.isActive) {
+          await createLoginAttemptLog({
+            email: normalizedEmail,
+            userId: user.id,
+            status: "FAILED",
+            req,
+            failureReason: "Account deactivated",
+          });
           throw new Error("Your account has been deactivated");
         }
 
         const isPasswordValid = await compare(credentials.password, user.password);
 
         if (!isPasswordValid) {
+          await createLoginAttemptLog({
+            email: normalizedEmail,
+            userId: user.id,
+            status: "FAILED",
+            req,
+            failureReason: "Invalid password",
+          });
           throw new Error("Invalid email or password");
         }
 
@@ -57,6 +214,13 @@ export const authOptions: NextAuthOptions = {
           console.error("Failed to update currentSessionId:", error);
           // If the update fails (e.g. column missing), we continue login but without single-session enforcement for now
         }
+
+        await createLoginAttemptLog({
+          email: normalizedEmail,
+          userId: user.id,
+          status: "SUCCESS",
+          req,
+        });
 
         return {
           id: String(user.id),
