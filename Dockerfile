@@ -3,7 +3,7 @@
 
 # Phase 0: Base image with shared system libraries
 FROM node:20-slim AS base
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 # Install essential runtime libraries
 RUN apt-get update && apt-get install -y openssl tini && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -34,7 +34,7 @@ RUN npm run build
 
 # Phase 4: Runner - Final minimal production image (~100MB)
 FROM base AS runner
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -55,8 +55,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 USER nextjs
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
