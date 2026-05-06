@@ -43,9 +43,12 @@ type EvaluatedTask = {
 type EmployeeCompletedTask = {
   id: number;
   title: string;
-  completedAt: Date;
-  slaStartedAt: Date;
-  slaHours: number;
+  createdById: number;
+  assignedUserId: number | null;
+  completedAt: Date | null;
+  updatedAt: Date;
+  slaStartedAt: Date | null;
+  slaHours: number | null;
   slaPausedDuration: number | null;
 };
 
