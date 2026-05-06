@@ -4,6 +4,7 @@ import { canViewReports, getCurrentUser } from "@/lib/permissions";
 import ReportsClient, {
   type ClientHealthSlice,
   type DepartmentPerformanceRow,
+  type EmployeeReportCard,
   type ReportMeta,
   type ReportSummary,
   type TrendPoint,
@@ -37,6 +38,15 @@ type EvaluatedTask = {
   clientId: number;
   clientName: string;
   completedAt: Date;
+};
+
+type EmployeeCompletedTask = {
+  id: number;
+  title: string;
+  completedAt: Date;
+  slaStartedAt: Date;
+  slaHours: number;
+  slaPausedDuration: number | null;
 };
 
 function round2(value: number) {
@@ -240,7 +250,11 @@ export default async function ReportsPage({
 
   const range = resolveDateRange(params);
 
-  const [tasks, previousTasks, departments, clients] = await Promise.all([
+  const currentYear = new Date().getFullYear();
+  const yearStart = new Date(currentYear, 0, 1);
+  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
+  const [tasks, previousTasks, departments, clients, employees, employeeCompletedTasks, leavePolicies] = await Promise.all([
     db.task.findMany({
       where: {
         status: "DONE",
@@ -269,7 +283,60 @@ export default async function ReportsPage({
     }),
     db.department.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
     db.client.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({
+      where: {
+        isActive: true,
+        role: { in: ["MANAGER", "EMPLOYEE"] },
+        department: {
+          slug: { notIn: ["finance", "human-resources"] },
+        },
+      },
+      include: {
+        department: { select: { name: true, slug: true } },
+      },
+      orderBy: { name: "asc" },
+    }),
+    db.task.findMany({
+      where: {
+        status: { in: ["DONE", "SUBMITTED"] },
+      },
+      select: {
+        id: true,
+        title: true,
+        createdById: true,
+        assignedUserId: true,
+        completedAt: true,
+        updatedAt: true,
+        slaStartedAt: true,
+        slaHours: true,
+        slaPausedDuration: true,
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.leavePolicy.findMany({
+      where: {
+        role: { in: ["MANAGER", "EMPLOYEE"] },
+      },
+      select: {
+        role: true,
+        leaveType: true,
+        daysAllowed: true,
+      },
+    }),
   ]);
+
+  const employeeLeaves = await db.leave.findMany({
+    where: {
+      userId: { in: employees.map((employee) => employee.id) },
+      status: { in: ["PENDING", "APPROVED"] },
+      startDate: { gte: yearStart, lte: yearEnd },
+    },
+    select: {
+      userId: true,
+      type: true,
+      totalDays: true,
+    },
+  });
 
   const evaluated = tasks
     .map((task) => evaluateTask(task as TrackedTask))
@@ -397,6 +464,85 @@ export default async function ReportsPage({
     rangeLabel: range.rangeLabel,
   };
 
+  const leaveUsageMap = new Map<number, Map<string, number>>();
+  for (const leave of employeeLeaves) {
+    const perType = leaveUsageMap.get(leave.userId) || new Map<string, number>();
+    perType.set(leave.type, (perType.get(leave.type) || 0) + leave.totalDays);
+    leaveUsageMap.set(leave.userId, perType);
+  }
+
+  const CS_BD_SLUGS = new Set(["client-service", "business-development"]);
+  const csBdEmployeeIds = new Set(
+    employees
+      .filter((e) => e.department && CS_BD_SLUGS.has(e.department.slug))
+      .map((e) => e.id)
+  );
+
+  const tasksByCreator = new Map<number, EmployeeCompletedTask[]>();
+  const tasksByAssignee = new Map<number, EmployeeCompletedTask[]>();
+
+  for (const task of employeeCompletedTasks) {
+    const taskData: EmployeeCompletedTask = {
+      id: task.id,
+      title: task.title,
+      createdById: task.createdById,
+      assignedUserId: task.assignedUserId,
+      completedAt: task.completedAt,
+      updatedAt: task.updatedAt,
+      slaStartedAt: task.slaStartedAt,
+      slaHours: task.slaHours,
+      slaPausedDuration: task.slaPausedDuration,
+    };
+
+    if (task.createdById && csBdEmployeeIds.has(task.createdById)) {
+      const list = tasksByCreator.get(task.createdById) || [];
+      list.push(taskData);
+      tasksByCreator.set(task.createdById, list);
+    }
+
+    if (task.assignedUserId && !csBdEmployeeIds.has(task.assignedUserId)) {
+      const list = tasksByAssignee.get(task.assignedUserId) || [];
+      list.push(taskData);
+      tasksByAssignee.set(task.assignedUserId, list);
+    }
+  }
+
+  const employeeReports: EmployeeReportCard[] = employees.map((employee) => {
+    const perType = leaveUsageMap.get(employee.id) || new Map<string, number>();
+    const roleLeaveEntries = leavePolicies.filter((p) => p.role === employee.role);
+    const leaveBalances = roleLeaveEntries.map((policy) => {
+      const used = perType.get(policy.leaveType) || 0;
+      return {
+        type: policy.leaveType,
+        daysAllowed: policy.daysAllowed,
+        usedDays: used,
+        remainingDays: Math.max(policy.daysAllowed - used, 0),
+      };
+    });
+
+    const isCsBd = employee.department && CS_BD_SLUGS.has(employee.department.slug);
+    const rawTasks = isCsBd
+      ? (tasksByCreator.get(employee.id) || [])
+      : (tasksByAssignee.get(employee.id) || []);
+
+    return {
+      id: employee.id,
+      name: employee.name,
+      email: employee.email,
+      role: employee.role,
+      departmentName: employee.department?.name || "No Department",
+      leaveBalances,
+      tasks: rawTasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        completedAt: (task.completedAt ?? task.updatedAt).toISOString(),
+        slaStartedAt: (task.slaStartedAt ?? new Date(0)).toISOString(),
+        slaHours: task.slaHours ?? 0,
+        slaPausedDuration: task.slaPausedDuration ?? 0,
+      })),
+    };
+  });
+
   return (
     <ReportsClient
       meta={meta}
@@ -404,6 +550,7 @@ export default async function ReportsPage({
       clientHealth={clientHealth}
       trend={trend}
       departments={departmentPerformance}
+      employeeReports={employeeReports}
     />
   );
 }

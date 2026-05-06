@@ -12,6 +12,10 @@ import {
   Calendar01Icon,
   Upload01Icon,
   Building01Icon,
+  Search01Icon,
+  UserIcon,
+  Mail01Icon,
+  Briefcase01Icon,
 } from "hugeicons-react";
 
 export type ReportMeta = {
@@ -60,12 +64,39 @@ export type ReportSummary = {
   avgCompletionDelta: number;
 };
 
+export type EmployeeTaskRecord = {
+  id: number;
+  title: string;
+  completedAt: string;
+  slaStartedAt: string;
+  slaHours: number;
+  slaPausedDuration: number;
+};
+
+export type LeaveBalance = {
+  type: string;
+  daysAllowed: number;
+  usedDays: number;
+  remainingDays: number;
+};
+
+export type EmployeeReportCard = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  departmentName: string;
+  leaveBalances: LeaveBalance[];
+  tasks: EmployeeTaskRecord[];
+};
+
 interface Props {
   meta: ReportMeta;
   summary: ReportSummary;
   clientHealth: ClientHealthSlice[];
   trend: TrendPoint[];
   departments: DepartmentPerformanceRow[];
+  employeeReports: EmployeeReportCard[];
 }
 
 function buildConicGradient(slices: ClientHealthSlice[]) {
@@ -118,11 +149,52 @@ function deltaChip(delta: number, invert = false) {
   return { tone, label: `${sign}${delta}%` };
 }
 
-export default function ReportsClient({ meta, summary, clientHealth, trend, departments }: Props) {
+function getStartOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+}
+
+function getEndOfDay(date: Date) {
+  const next = new Date(date);
+  next.setHours(23, 59, 59, 999);
+  return next;
+}
+
+function getStartOfWeek(date: Date) {
+  const next = getStartOfDay(date);
+  const day = next.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  next.setDate(next.getDate() + diff);
+  return next;
+}
+
+function parseDateInput(value: string) {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getTaskHours(task: EmployeeTaskRecord) {
+  const completedAt = new Date(task.completedAt).getTime();
+  const startedAt = new Date(task.slaStartedAt).getTime();
+  if (Number.isNaN(completedAt) || Number.isNaN(startedAt)) return 0;
+  const elapsedMs = Math.max(0, completedAt - startedAt - task.slaPausedDuration * 1000);
+  return Math.round((elapsedMs / (1000 * 60 * 60)) * 100) / 100;
+}
+
+export default function ReportsClient({ meta, summary, clientHealth, trend, departments, employeeReports }: Props) {
   const router = useRouter();
+  const [activeReportTab, setActiveReportTab] = useState<"company" | "employee">("company");
   const [customStart, setCustomStart] = useState(meta.startDate);
   const [customEnd, setCustomEnd] = useState(meta.endDate);
   const [trendMode, setTrendMode] = useState<"monthly" | "quarterly">("monthly");
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeeRange, setEmployeeRange] = useState<"today" | "week" | "custom">("today");
+  const [employeeCustomStart, setEmployeeCustomStart] = useState(meta.startDate);
+  const [employeeCustomEnd, setEmployeeCustomEnd] = useState(meta.endDate);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
+    employeeReports[0]?.id ?? null
+  );
 
   const donutBackground = buildConicGradient(clientHealth);
   const totalClientsForDonut = clientHealth.reduce((sum, s) => sum + s.value, 0);
@@ -205,104 +277,193 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
     { bgClass: "bg-[#fff7ed] dark:bg-orange-950/40", iconClass: "text-[#c2410c] dark:text-orange-300" },
   ];
 
+  const filteredEmployees = useMemo(() => {
+    const needle = employeeSearch.trim().toLowerCase();
+    if (!needle) return employeeReports;
+    return employeeReports.filter((employee) => {
+      return (
+        employee.name.toLowerCase().includes(needle) ||
+        employee.email.toLowerCase().includes(needle) ||
+        employee.departmentName.toLowerCase().includes(needle)
+      );
+    });
+  }, [employeeReports, employeeSearch]);
+
+  const selectedEmployee = useMemo(() => {
+    const fromFiltered = filteredEmployees.find((employee) => employee.id === selectedEmployeeId);
+    if (fromFiltered) return fromFiltered;
+    return filteredEmployees[0] || null;
+  }, [filteredEmployees, selectedEmployeeId]);
+
+  const employeeRangeBounds = useMemo(() => {
+    const now = new Date();
+    if (employeeRange === "today") {
+      return {
+        start: getStartOfDay(now),
+        end: getEndOfDay(now),
+      };
+    }
+
+    if (employeeRange === "week") {
+      return {
+        start: getStartOfWeek(now),
+        end: getEndOfDay(now),
+      };
+    }
+
+    const parsedStart = parseDateInput(employeeCustomStart);
+    const parsedEnd = parseDateInput(employeeCustomEnd);
+    if (!parsedStart || !parsedEnd) {
+      return {
+        start: getStartOfDay(now),
+        end: getEndOfDay(now),
+      };
+    }
+
+    return {
+      start: getStartOfDay(parsedStart),
+      end: getEndOfDay(parsedEnd),
+    };
+  }, [employeeRange, employeeCustomStart, employeeCustomEnd]);
+
+  const selectedEmployeeTasksInRange = useMemo(() => {
+    if (!selectedEmployee) return [] as EmployeeTaskRecord[];
+    return selectedEmployee.tasks.filter((task) => {
+      const completedAt = new Date(task.completedAt);
+      if (Number.isNaN(completedAt.getTime())) return false;
+      return completedAt >= employeeRangeBounds.start && completedAt <= employeeRangeBounds.end;
+    });
+  }, [selectedEmployee, employeeRangeBounds]);
+
+  const selectedEmployeeHoursInRange = useMemo(() => {
+    return Math.round(
+      selectedEmployeeTasksInRange.reduce((sum, task) => sum + getTaskHours(task), 0) * 100
+    ) / 100;
+  }, [selectedEmployeeTasksInRange]);
+
   return (
     <div className="space-y-8 bg-[#f5f7fc] dark:bg-black -mx-8 -mt-8 px-8 py-8 lg:px-10 min-h-screen">
       <section className="space-y-2 max-w-3xl">
-        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#495f85] dark:text-white">Company Reports</h1>
+        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#495f85] dark:text-white">Reports</h1>
       </section>
 
-      <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
-          {([
-            { key: "today", label: "Today" },
-            { key: "7d", label: "7D" },
-            { key: "30d", label: "1M" },
-            { key: "quarter", label: "Quarter" },
-            { key: "custom", label: "Custom" },
-          ] as const).map((item) => (
-            <button
-              key={item.key}
-              onClick={() => setRange(item.key)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
-                meta.activeRange === item.key
-                  ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
-                  : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
-              }`}
-            >
-              {item.label}
-              {item.key === "custom" && (
-                <Calendar01Icon className="inline-block ml-1.5 h-3 w-3 align-middle" />
-              )}
-            </button>
-          ))}
-        </div>
+      <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
+        <button
+          onClick={() => setActiveReportTab("company")}
+          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
+            activeReportTab === "company"
+              ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+          }`}
+        >
+          Company Report
+        </button>
+        <button
+          onClick={() => setActiveReportTab("employee")}
+          className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
+            activeReportTab === "employee"
+              ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+          }`}
+        >
+          Employee Report
+        </button>
       </section>
 
-      {meta.activeRange === "custom" ? (
-        <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-white bg-white/80 dark:bg-[#111111] dark:border-white/10 p-4 shadow-sm">
-          <input
-            type="date"
-            value={customStart}
-            onChange={(e) => setCustomStart(e.target.value)}
-            className="h-11 rounded-2xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-4 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
-          />
-          <input
-            type="date"
-            value={customEnd}
-            onChange={(e) => setCustomEnd(e.target.value)}
-            className="h-11 rounded-2xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-4 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
-          />
-          <button
-            onClick={applyCustomRange}
-            className="h-11 rounded-2xl bg-[#cf2145] px-5 text-[10px] font-black uppercase tracking-[0.18em] text-white"
-          >
-            Apply Range
-          </button>
-        </section>
-      ) : null}
+      {activeReportTab === "company" ? (
+        <>
+          <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
+              {([
+                { key: "today", label: "Today" },
+                { key: "7d", label: "7D" },
+                { key: "30d", label: "1M" },
+                { key: "quarter", label: "Quarter" },
+                { key: "custom", label: "Custom" },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setRange(item.key)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
+                    meta.activeRange === item.key
+                      ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+                      : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+                  }`}
+                >
+                  {item.label}
+                  {item.key === "custom" && (
+                    <Calendar01Icon className="inline-block ml-1.5 h-3 w-3 align-middle" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
 
-      <section className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <MetricCard
-          label="SLA Compliance"
-          value={`${summary.complianceRate}%`}
-          chip={complianceChip.label}
-          chipTone={complianceChip.tone}
-          icon={CheckmarkCircle01Icon}
-          iconBgClass="bg-emerald-100 dark:bg-emerald-900/35"
-          iconClass="text-emerald-600 dark:text-emerald-300"
-        />
-        <MetricCard
-          label="SLA Met"
-          value={summary.metCount.toLocaleString()}
-          chip={metChip.label}
-          chipTone={metChip.tone}
-          accent
-          icon={TaskDone01Icon}
-          iconBgClass="bg-sky-100 dark:bg-sky-900/35"
-          iconClass="text-sky-700 dark:text-sky-300"
-        />
-        <MetricCard
-          label="SLA Missed"
-          value={summary.missedCount.toLocaleString()}
-          chip={missedChip.label}
-          chipTone={missedChip.tone}
-          icon={AlertCircleIcon}
-          iconBgClass="bg-amber-100 dark:bg-amber-900/35"
-          iconClass="text-amber-700 dark:text-amber-300"
-        />
-        <MetricCard
-          label="Avg Completion"
-          value={`${summary.avgCompletionHours}`}
-          unit="hrs"
-          chip={avgChip.label}
-          chipTone={avgChip.tone}
-          icon={Clock01Icon}
-          iconBgClass="bg-violet-100 dark:bg-violet-900/35"
-          iconClass="text-violet-700 dark:text-violet-300"
-        />
-      </section>
+          {meta.activeRange === "custom" ? (
+            <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-white bg-white/80 dark:bg-[#111111] dark:border-white/10 p-4 shadow-sm">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="h-11 rounded-2xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-4 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
+              />
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="h-11 rounded-2xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-4 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
+              />
+              <button
+                onClick={applyCustomRange}
+                className="h-11 rounded-2xl bg-[#cf2145] px-5 text-[10px] font-black uppercase tracking-[0.18em] text-white"
+              >
+                Apply Range
+              </button>
+            </section>
+          ) : null}
 
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <section className="grid grid-cols-1 gap-4 xl:grid-cols-4">
+            <MetricCard
+              label="SLA Compliance"
+              value={`${summary.complianceRate}%`}
+              chip={complianceChip.label}
+              chipTone={complianceChip.tone}
+              icon={CheckmarkCircle01Icon}
+              iconBgClass="bg-emerald-100 dark:bg-emerald-900/35"
+              iconClass="text-emerald-600 dark:text-emerald-300"
+            />
+            <MetricCard
+              label="SLA Met"
+              value={summary.metCount.toLocaleString()}
+              chip={metChip.label}
+              chipTone={metChip.tone}
+              accent
+              icon={TaskDone01Icon}
+              iconBgClass="bg-sky-100 dark:bg-sky-900/35"
+              iconClass="text-sky-700 dark:text-sky-300"
+            />
+            <MetricCard
+              label="SLA Missed"
+              value={summary.missedCount.toLocaleString()}
+              chip={missedChip.label}
+              chipTone={missedChip.tone}
+              icon={AlertCircleIcon}
+              iconBgClass="bg-amber-100 dark:bg-amber-900/35"
+              iconClass="text-amber-700 dark:text-amber-300"
+            />
+            <MetricCard
+              label="Avg Completion"
+              value={`${summary.avgCompletionHours}`}
+              unit="hrs"
+              chip={avgChip.label}
+              chipTone={avgChip.tone}
+              icon={Clock01Icon}
+              iconBgClass="bg-violet-100 dark:bg-violet-900/35"
+              iconClass="text-violet-700 dark:text-violet-300"
+            />
+          </section>
+
+          <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <div className="xl:col-span-4 rounded-[28px] bg-[#eef2fb] dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Clients Health</h2>
@@ -385,9 +546,9 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
             </svg>
           </div>
         </div>
-      </section>
+          </section>
 
-      <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
+          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Department Performance</h2>
@@ -449,7 +610,206 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
             </tbody>
           </table>
         </div>
-      </section>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-5 shadow-sm space-y-4">
+            <div className="relative">
+              <Search01Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#8d97aa]" />
+              <input
+                type="text"
+                value={employeeSearch}
+                onChange={(e) => setEmployeeSearch(e.target.value)}
+                placeholder="Search employee by name, email, or department"
+                className="h-12 w-full rounded-2xl border border-[#e6e9f2] dark:border-white/10 bg-white dark:bg-[#0f0f10] pl-12 pr-4 text-sm font-semibold text-[#22314b] dark:text-zinc-100 outline-none"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {([
+                { key: "today", label: "Today" },
+                { key: "week", label: "This Week" },
+                { key: "custom", label: "Custom" },
+              ] as const).map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => setEmployeeRange(item.key)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
+                    employeeRange === item.key
+                      ? "bg-[#cf2145] text-white"
+                      : "bg-[#f3f5fa] dark:bg-[#1a1a1b] text-[#6d7893] dark:text-zinc-400"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+
+              {employeeRange === "custom" ? (
+                <>
+                  <input
+                    type="date"
+                    value={employeeCustomStart}
+                    onChange={(e) => setEmployeeCustomStart(e.target.value)}
+                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
+                  />
+                  <input
+                    type="date"
+                    value={employeeCustomEnd}
+                    onChange={(e) => setEmployeeCustomEnd(e.target.value)}
+                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
+                  />
+                </>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredEmployees.map((employee) => {
+              const isActive = selectedEmployee?.id === employee.id;
+              return (
+                <button
+                  key={employee.id}
+                  onClick={() => setSelectedEmployeeId(employee.id)}
+                  className={`text-left rounded-[24px] border p-5 shadow-sm transition-all ${
+                    isActive
+                      ? "border-[#cf2145] bg-white dark:bg-[#111111] ring-1 ring-[#cf2145]/20"
+                      : "border-white dark:border-white/10 bg-white dark:bg-[#111111]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="text-lg font-black text-[#182845] dark:text-white">{employee.name}</p>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8f98aa]">{employee.role}</p>
+                    </div>
+                    <div className="h-10 w-10 rounded-xl bg-[#fde8ed] dark:bg-[#2b1a20] flex items-center justify-center">
+                      <UserIcon className="h-5 w-5 text-[#cf2145]" />
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm text-[#51607a] dark:text-zinc-300">
+                    <p className="flex items-center gap-2"><Mail01Icon className="h-4 w-4" /> {employee.email}</p>
+                    <p className="flex items-center gap-2"><Briefcase01Icon className="h-4 w-4" /> {employee.departmentName}</p>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-black uppercase tracking-[0.12em]">
+                    {employee.leaveBalances.length === 0 ? (
+                      <div className="col-span-2 rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] px-3 py-2 text-[#3b4a67] dark:text-zinc-300">
+                        No leave configured
+                      </div>
+                    ) : (
+                      employee.leaveBalances.map((lb) => (
+                        <div key={lb.type} className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] px-3 py-2 text-[#3b4a67] dark:text-zinc-300">
+                          {lb.type.charAt(0) + lb.type.slice(1).toLowerCase().replace(/_/g, " ")} Left: {lb.remainingDays}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </section>
+
+          {selectedEmployee ? (
+            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm space-y-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">
+                    {selectedEmployee.name}
+                  </h2>
+                  <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">
+                    Employee task performance in selected period
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[#f5f7fc] dark:bg-[#19191a] px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#5d6a84] dark:text-zinc-300">
+                  {employeeRange === "today" ? "Today" : employeeRange === "week" ? "This Week" : "Custom"}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <MetricCard
+                  label="Tasks Completed"
+                  value={String(selectedEmployeeTasksInRange.length)}
+                  chip="Filtered"
+                  chipTone="bg-sky-50 text-sky-700"
+                  icon={TaskDone01Icon}
+                  iconBgClass="bg-sky-100"
+                  iconClass="text-sky-700"
+                />
+                <MetricCard
+                  label="Hours Worked"
+                  value={String(selectedEmployeeHoursInRange)}
+                  unit="hrs"
+                  chip="Calculated"
+                  chipTone="bg-violet-50 text-violet-700"
+                  icon={Clock01Icon}
+                  iconBgClass="bg-violet-100"
+                  iconClass="text-violet-700"
+                />
+                {selectedEmployee.leaveBalances.length === 0 ? (
+                  <MetricCard
+                    label="Leave"
+                    value="N/A"
+                    chip="No Policy"
+                    chipTone="bg-slate-50 text-slate-500"
+                    icon={Calendar01Icon}
+                    iconBgClass="bg-slate-100"
+                    iconClass="text-slate-500"
+                  />
+                ) : (
+                  selectedEmployee.leaveBalances.map((lb) => (
+                    <MetricCard
+                      key={lb.type}
+                      label={`${lb.type.charAt(0) + lb.type.slice(1).toLowerCase().replace(/_/g, " ")} Left`}
+                      value={String(lb.remainingDays)}
+                      chip="Current Year"
+                      chipTone="bg-emerald-50 text-emerald-700"
+                      icon={Calendar01Icon}
+                      iconBgClass="bg-emerald-100"
+                      iconClass="text-emerald-700"
+                    />
+                  ))
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-[#edf0f6] dark:border-white/10 overflow-hidden">
+                <table className="w-full min-w-[560px]">
+                  <thead className="bg-[#f7f9fc] dark:bg-[#181818]">
+                    <tr className="text-left text-[10px] font-black uppercase tracking-[0.16em] text-[#98a2b5]">
+                      <th className="px-4 py-3">Task</th>
+                      <th className="px-4 py-3">Completed At</th>
+                      <th className="px-4 py-3 text-right">Hours Worked</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEmployeeTasksInRange.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-8 text-center text-sm font-semibold text-[#7f8aa1]">
+                          No completed tasks in this period.
+                        </td>
+                      </tr>
+                    ) : (
+                      selectedEmployeeTasksInRange.map((task) => (
+                        <tr key={task.id} className="border-t border-[#f0f2f7] dark:border-white/10">
+                          <td className="px-4 py-3 text-sm font-semibold text-[#23324c] dark:text-zinc-200">{task.title}</td>
+                          <td className="px-4 py-3 text-sm text-[#5f6c86] dark:text-zinc-400">
+                            {new Date(task.completedAt).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right text-sm font-bold text-[#23324c] dark:text-zinc-200">
+                            {getTaskHours(task)} hrs
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-8 text-sm font-semibold text-[#7f8aa1]">
+              No employees match your search.
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }
