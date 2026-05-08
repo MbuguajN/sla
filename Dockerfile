@@ -12,10 +12,15 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json package-lock.json ./
 # 1. Optimize for low-RAM servers by limiting parallel connections
-# 2. Use BuildKit cache mount to persist the .npm registry across builds
-RUN --mount=type=cache,target=/root/.npm \
-    npm config set maxsockets 3 && \
-    npm ci --no-audit --no-fund --loglevel error
+# 2. Add retries/timeouts so slow registries do not hang builds indefinitely
+RUN npm config set maxsockets 3 && \
+  npm config set fetch-retries 5 && \
+  npm config set fetch-retry-mintimeout 20000 && \
+  npm config set fetch-retry-maxtimeout 120000 && \
+  npm config set fetch-timeout 300000 && \
+  npm config set progress false && \
+  npm config set fund false && \
+  npm ci --no-audit --no-fund --loglevel warn --prefer-online
 
 
 # Phase 2: Prisma Client Generation - Isolated layer for better caching
