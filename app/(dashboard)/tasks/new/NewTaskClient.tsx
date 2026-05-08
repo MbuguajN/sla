@@ -57,6 +57,9 @@ const STEPS = [
 export default function NewTaskClient({ projects, allDepartments, minSlaHours, preselectedProjectId }: Props) {
   const router = useRouter();
   const defaultSlaHours = Math.max(48, minSlaHours).toString();
+  const labelClassName = "mb-3 block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400";
+  const fieldClassName = "w-full rounded-2xl border-2 border-zinc-200/80 bg-zinc-50 text-sm font-bold text-zinc-950 outline-none transition-all placeholder:text-zinc-400 focus:border-[var(--primary)] focus:bg-white dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950";
+  const panelClassName = "rounded-[32px] border border-zinc-200/80 bg-white/95 p-6 shadow-[10px_10px_0px_0px_rgba(24,24,27,0.12)] backdrop-blur-sm transition-all dark:border-zinc-800 dark:bg-zinc-900/90 dark:shadow-[10px_10px_0px_0px_rgba(0,0,0,0.45)] md:p-8";
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -172,7 +175,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
       <div className="mb-12">
         <Link
           href="/tasks"
-          className="group inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-[#c91f41] transition-colors mb-6"
+          className="mb-6 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-[var(--primary)] dark:text-zinc-400 dark:hover:text-[var(--primary)]"
         >
           <ArrowLeft className="h-3 w-3 transition-transform group-hover:-translate-x-1" />
           Back to Tasks
@@ -182,8 +185,8 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         <div className="lg:col-span-4">
           <div className="sticky top-8">
-            <h1 className="text-3xl font-black text-gray-900 mb-2 leading-tight">New Assignment</h1>
-            <p className="text-sm text-gray-500 mb-8">Define the requirements and allocate resources.</p>
+            <h1 className="mb-2 text-3xl font-black leading-tight text-zinc-950 dark:text-zinc-50">New Assignment</h1>
+            <p className="mb-8 text-sm text-zinc-600 dark:text-zinc-400">Define the requirements and allocate resources.</p>
 
             <ul className="steps steps-vertical w-full">
               {STEPS.map((step) => {
@@ -202,14 +205,18 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                   >
                     <div className="flex items-center gap-3 ml-4 py-4">
                       <div className={cn(
-                        "w-8 h-8 rounded-xl flex items-center justify-center transition-all", 
-                        isActive ? "bg-[#c91f41] text-white shadow-lg" : "bg-gray-50 text-gray-400"
+                        "flex h-8 w-8 items-center justify-center rounded-xl transition-all",
+                        isActive
+                          ? "bg-[var(--primary)] text-white shadow-lg shadow-[color:var(--primary)]/20"
+                          : isCompleted
+                            ? "bg-rose-50 text-[var(--primary)] dark:bg-rose-950/40 dark:text-rose-200"
+                            : "bg-zinc-100 text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400"
                       )}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className={cn(
                         "text-[11px] font-extrabold uppercase tracking-widest transition-colors",
-                        isActive ? "text-[#c91f41]" : "text-gray-400"
+                        isActive || isCompleted ? "text-[var(--primary)]" : "text-zinc-500 dark:text-zinc-400"
                       )}>
                         {step.title}
                       </span>
@@ -220,7 +227,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
             </ul>
 
             {error && (
-              <div className="mt-8 p-4 bg-red-50 rounded-2xl border border-red-100 flex gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
+              <div className="mt-8 flex gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-700 animate-in fade-in slide-in-from-top-2 dark:border-rose-900/70 dark:bg-rose-950/40 dark:text-rose-200">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <p className="text-xs font-semibold leading-relaxed">{error}</p>
               </div>
@@ -229,41 +236,41 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
         </div>
 
         <div className="lg:col-span-8">
-          <div className="bg-white rounded-[32px] border-2 border-gray-900 shadow-[8px_8px_0px_0px_rgba(17,24,39,1)] p-6 md:p-8 relative overflow-hidden transition-all">
+          <div className={cn(panelClassName, "relative overflow-hidden")}>
             {currentStep === 1 && (
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Parent Project</label>
+                    <label className={labelClassName}>Parent Project</label>
                     <div className="relative group">
-                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Search className="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
                       <select
                         value={formData.projectId}
                         onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-5 text-sm font-bold text-gray-900 appearance-none focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                        className={cn(fieldClassName, "h-14 appearance-none pl-12 pr-12")}
                       >
                         <option value="">Search Projects...</option>
                         {filteredProjects.map((p) => (
                           <option key={p.id} value={p.id}>{p.clientName} &gt; {p.title}</option>
                         ))}
                       </select>
-                      <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none rotate-90" />
+                      <ChevronRight className="pointer-events-none absolute right-5 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-zinc-500 dark:text-zinc-400" />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Task Title</label>
+                    <label className={labelClassName}>Task Title</label>
                     <input
                       type="text"
                       placeholder="e.g. Logo Design V1"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl px-5 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none placeholder:text-gray-300"
+                      className={cn(fieldClassName, "h-14 px-5")}
                     />
                   </div>
 
                   <div className="pt-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Priority Level</label>
+                    <label className={labelClassName}>Priority Level</label>
                     <div className="grid grid-cols-4 gap-2">
                        {(["LOW", "MEDIUM", "HIGH", "URGENT"] as const).map((p) => (
                          <button
@@ -271,10 +278,10 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                            type="button"
                            onClick={() => setFormData({ ...formData, priority: p })}
                            className={cn(
-                             "h-12 rounded-xl text-[10px] font-black tracking-widest transition-all border-2",
+                             "h-12 rounded-xl border-2 text-[10px] font-black tracking-widest transition-all",
                              formData.priority === p 
-                               ? "bg-gray-900 border-gray-900 text-white" 
-                               : "bg-gray-50 border-transparent text-gray-400 hover:border-gray-200"
+                               ? "border-zinc-950 bg-zinc-950 text-white shadow-lg shadow-zinc-950/10 dark:border-[var(--primary)] dark:bg-[var(--primary)]"
+                               : "border-zinc-200/80 bg-zinc-50 text-zinc-600 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-400 dark:hover:border-zinc-700"
                            )}
                          >
                            {p}
@@ -290,23 +297,23 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-6">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Technical Instruction</label>
+                    <label className={labelClassName}>Technical Instruction</label>
                     <textarea
                       placeholder="What needs to be done? Include specific dimensions, formats, or requirements..."
                       rows={6}
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full bg-gray-50 border-2 border-transparent rounded-2xl p-5 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none placeholder:text-gray-300 resize-none"
+                      className={cn(fieldClassName, "resize-none p-5")}
                     />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">External Links & Assets</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">External Links & Assets</label>
                       <button 
                         onClick={addLink}
                         type="button"
-                        className="text-[10px] font-black text-[#c91f41] uppercase tracking-widest hover:underline"
+                        className="text-[10px] font-black uppercase tracking-widest text-[var(--primary)] hover:underline"
                       >
                         + Add Resource
                       </button>
@@ -319,18 +326,18 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                             placeholder="Link Name (e.g. Design Doc)"
                             value={link.name}
                             onChange={(e) => updateLink(idx, "name", e.target.value)}
-                            className="flex-1 h-12 bg-gray-50 border-2 border-transparent rounded-xl px-4 text-[11px] font-bold focus:bg-white focus:border-[#c91f41] outline-none"
+                            className={cn(fieldClassName, "h-12 flex-1 rounded-xl px-4 text-[11px]")}
                           />
                           <input
                             placeholder="URL (https://...)"
                             value={link.url}
                             onChange={(e) => updateLink(idx, "url", e.target.value)}
-                            className="flex-[2] h-12 bg-gray-50 border-2 border-transparent rounded-xl px-4 text-[11px] font-bold focus:bg-white focus:border-[#c91f41] outline-none"
+                            className={cn(fieldClassName, "h-12 flex-[2] rounded-xl px-4 text-[11px]")}
                           />
                           <button 
                             onClick={() => removeLink(idx)}
                             type="button"
-                            className="w-12 h-12 flex items-center justify-center bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-xl transition-colors"
+                            className="flex h-12 w-12 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 text-zinc-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-400 dark:hover:border-rose-900 dark:hover:bg-rose-950/40 dark:hover:text-rose-300"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -346,7 +353,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
               <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="space-y-8">
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 block">Assigned Department</label>
+                    <label className="mb-4 block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Assigned Department</label>
                     <div className="grid grid-cols-2 gap-3">
                       {allDepartments.map((dept) => {
                         const isSelected = formData.deptId === dept.id.toString();
@@ -356,16 +363,18 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                             type="button"
                             onClick={() => setFormData({ ...formData, deptId: dept.id.toString() })}
                             className={cn(
-                              "flex items-center justify-between p-4 rounded-2xl border-2 transition-all",
+                              "flex items-center justify-between rounded-2xl border-2 p-4 transition-all",
                               isSelected 
-                                ? "bg-gray-900 border-gray-900 text-white" 
-                                : "bg-gray-50 border-transparent hover:border-gray-200 text-gray-900"
+                                ? "border-zinc-950 bg-zinc-950 text-white shadow-lg shadow-zinc-950/10 dark:border-[var(--primary)] dark:bg-zinc-900 dark:text-zinc-50"
+                                : "border-zinc-200/80 bg-zinc-50 text-zinc-900 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-100 dark:hover:border-zinc-700"
                             )}
                           >
                             <span className="text-[11px] font-black uppercase italic tracking-wide">{dept.name}</span>
                             <div className={cn(
-                              "w-5 h-5 rounded-lg flex items-center justify-center transition-colors",
-                              isSelected ? "bg-[#c91f41] text-white" : "bg-white border-2 border-gray-100"
+                              "flex h-5 w-5 items-center justify-center rounded-lg transition-colors",
+                              isSelected
+                                ? "bg-[var(--primary)] text-white"
+                                : "border-2 border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
                             )}>
                               {isSelected && <Check className="h-3 w-3" />}
                             </div>
@@ -377,29 +386,29 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">SLA Commitment (Hours)</label>
+                      <label className={labelClassName}>SLA Commitment (Hours)</label>
                       <div className="relative w-full">
-                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Clock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
                         <input
                           type="number"
                           min={minSlaHours}
                           value={formData.slaHours}
                           onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
-                          className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl pl-12 pr-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                          className={cn(fieldClassName, "h-14 pl-12 pr-4")}
                         />
                       </div>
-                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         Minimum allowed: {minSlaHours} hours
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Brief Received</label>
+                      <label className={labelClassName}>Brief Received</label>
                       <input
                         type="date"
                         value={formData.briefReceivedAt}
                         onChange={(e) => setFormData({ ...formData, briefReceivedAt: e.target.value })}
-                        className="w-full h-14 bg-gray-50 border-2 border-transparent rounded-2xl px-4 text-sm font-bold text-gray-900 focus:bg-white focus:border-[#c91f41] transition-all outline-none"
+                        className={cn(fieldClassName, "h-14 px-4")}
                       />
                     </div>
                   </div>
@@ -407,12 +416,12 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
               </div>
             )}
 
-            <div className="mt-8 pt-6 border-t border-gray-100 flex items-center justify-between">
+            <div className="mt-8 flex items-center justify-between border-t border-zinc-200/80 pt-6 dark:border-zinc-800">
               {currentStep > 1 ? (
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 transition-colors"
+                  className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   Recall
@@ -426,10 +435,10 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                 disabled={loading}
                 onClick={currentStep === 3 ? handleSubmit : nextStep}
                 className={cn(
-                  "relative h-14 px-8 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all group active:scale-95 disabled:opacity-50",
+                  "group relative h-14 rounded-2xl px-8 font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 disabled:opacity-50",
                   currentStep === 3 
-                    ? "bg-[#c91f41] text-white shadow-xl shadow-[#c91f41]/20 hover:bg-[#b01b39]" 
-                    : "bg-gray-900 text-white hover:bg-black shadow-xl shadow-black/10"
+                    ? "bg-[var(--primary)] text-white shadow-xl shadow-[color:var(--primary)]/25 hover:brightness-95"
+                    : "bg-zinc-950 text-white shadow-xl shadow-zinc-950/15 hover:bg-black dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
                 )}
               >
                 <span className="relative z-10 flex items-center gap-3">

@@ -4,17 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { upsertLeavePolicy, addPublicHoliday, deletePublicHoliday, deleteLeavePolicy } from "@/app/actions/hrActions";
 import { Plus, Trash2, X, AlertCircle, Check, CalendarDays, ShieldCheck } from "lucide-react";
+import { MODERN_LEAVE_TYPES, getLeaveTypeLabel } from "@/lib/leave";
 
 type Policy = { id: number; role: string; leaveType: string; daysAllowed: number };
 type Holiday = { id: number; name: string; date: string };
+type RoleOption = "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
 
 interface Props {
   initialPolicies: Policy[];
   initialHolidays: Holiday[];
 }
 
-const roles = ["ADMIN", "CEO", "MANAGER", "EMPLOYEE"];
-const leaveTypes = ["ANNUAL", "SICK", "MATERNITY", "PATERNITY", "UNPAID", "COMPASSIONATE", "OTHER"];
+const roles: RoleOption[] = ["ADMIN", "CEO", "MANAGER", "EMPLOYEE"];
+const leaveTypes = [...MODERN_LEAVE_TYPES];
 
 export default function LeavePolicyClient({ initialPolicies, initialHolidays }: Props) {
   const router = useRouter();
@@ -26,7 +28,11 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const [policyForm, setPolicyForm] = useState({ role: "EMPLOYEE", leaveType: "ANNUAL", daysAllowed: "21" });
+  const [policyForm, setPolicyForm] = useState<{ role: RoleOption; leaveType: (typeof MODERN_LEAVE_TYPES)[number]; daysAllowed: string }>({
+    role: "EMPLOYEE",
+    leaveType: leaveTypes[0],
+    daysAllowed: "21",
+  });
   const [holidayForm, setHolidayForm] = useState({ name: "", date: "" });
 
   const policyMap: Record<string, number> = {};
@@ -41,7 +47,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
     try {
       const updated = await upsertLeavePolicy({
         role: policyForm.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE",
-        leaveType: policyForm.leaveType as "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER",
+        leaveType: policyForm.leaveType,
         daysAllowed: parseInt(policyForm.daysAllowed),
       });
       setPolicies((prev) => {
@@ -73,7 +79,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
     try {
       await deleteLeavePolicy({
         role: policyForm.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE",
-        leaveType: policyForm.leaveType as "ANNUAL" | "SICK" | "MATERNITY" | "PATERNITY" | "UNPAID" | "COMPASSIONATE" | "OTHER",
+        leaveType: policyForm.leaveType,
       });
       setPolicies((prev) => prev.filter((p) => !(p.role === policyForm.role && p.leaveType === policyForm.leaveType)));
       setShowPolicyModal(false);
@@ -179,7 +185,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
               <tr className="text-left text-[10px] text-gray-400 font-black tracking-[0.16em] uppercase border-b border-gray-100 dark:border-white/10">
                 <th className="px-6 py-3">Role</th>
                 {leaveTypes.map((t) => (
-                  <th key={t} className="px-4 py-3 text-center">{t}</th>
+                  <th key={t} className="px-4 py-3 text-center">{getLeaveTypeLabel(t)}</th>
                 ))}
               </tr>
             </thead>
@@ -283,7 +289,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
                 <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Role</label>
                 <select
                   value={policyForm.role}
-                  onChange={(e) => setPolicyForm({ ...policyForm, role: e.target.value })}
+                  onChange={(e) => setPolicyForm({ ...policyForm, role: e.target.value as RoleOption })}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] dark:text-zinc-100"
                 >
                   {roles.map((r) => (
@@ -295,11 +301,11 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
                 <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Leave Type</label>
                 <select
                   value={policyForm.leaveType}
-                  onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value })}
+                  onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value as (typeof MODERN_LEAVE_TYPES)[number] })}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] dark:text-zinc-100"
                 >
                   {leaveTypes.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>{getLeaveTypeLabel(t)}</option>
                   ))}
                 </select>
               </div>

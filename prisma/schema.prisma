@@ -277,7 +277,7 @@ model Leave {
   type         LeaveType
   startDate    DateTime
   endDate      DateTime
-  totalDays    Int
+  totalDays    Float
   reason       String
   status       LeaveStatus @default(PENDING)
   reviewedBy   Int?
@@ -290,13 +290,17 @@ model Leave {
 }
 
 enum LeaveType {
-  ANNUAL
-  SICK
+  LEAVE_FULL_DAY
+  LEAVE_MORNING
+  LEAVE_AFTERNOON
+  SICKNESS_LEAVE_FULL_DAY
+  SICKNESS_LEAVE_MORNING
+  SICKNESS_LEAVE_AFTERNOON
   MATERNITY
   PATERNITY
-  UNPAID
-  COMPASSIONATE
-  OTHER
+  COMPASSIONATE_LEAVE
+  TOIL
+  WORK_FROM_HOME
 }
 
 enum LeaveStatus {

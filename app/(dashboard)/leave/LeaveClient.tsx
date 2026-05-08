@@ -12,6 +12,7 @@ import {
   NoteIcon,
 } from "hugeicons-react";
 import { cn } from "@/lib/utils";
+import { getLeaveDayFactor, getLeaveTimeWindow, getLeaveTypeLabel } from "@/lib/leave";
 
 type LeaveRequest = {
   id: number;
@@ -65,7 +66,12 @@ const STEPS = [
   { id: 4, title: "Handover", icon: ArrowRight01Icon },
 ];
 
-const formatTypeLabel = (value: string) => value.replaceAll("_", " ");
+const formatTypeLabel = (value: string) => getLeaveTypeLabel(value);
+
+const formatLeaveDays = (value: number) => {
+  if (Number.isInteger(value)) return `${value}`;
+  return value.toFixed(1);
+};
 
 export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates, activeTasks, departmentMembers }: Props) {
   const router = useRouter();
@@ -121,13 +127,14 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
     }
 
     let totalDays = 0;
+    const factor = getLeaveDayFactor(formData.type);
     const cursor = new Date(start);
 
     while (cursor <= end) {
       const day = cursor.getDay();
       const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
       if (day !== 0 && day !== 6 && !holidaySet.has(key)) {
-        totalDays += 1;
+        totalDays += factor;
       }
       cursor.setDate(cursor.getDate() + 1);
     }
@@ -460,7 +467,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-zinc-200">{start.toLocaleDateString()}</td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-zinc-200">{end.toLocaleDateString()}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{item.totalDays}d</td>
+                      <td className="px-6 py-4 text-sm font-bold text-gray-900 dark:text-white">{formatLeaveDays(item.totalDays)}d</td>
                       <td className="px-6 py-4 text-sm text-gray-500 dark:text-zinc-400 max-w-[220px] truncate">{item.reason || "-"}</td>
                       <td className="px-6 py-4">
                         <div className="relative inline-block group">
@@ -597,10 +604,16 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                   <div className="rounded-2xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-5 py-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Selected Leave Balance</p>
                     <p className="mt-2 text-sm font-extrabold text-gray-800 dark:text-zinc-200">
-                      {formatTypeLabel(formData.type)}: {selectedBalance?.remainingDays ?? 0} day(s) remaining
+                      {formatTypeLabel(formData.type)}: {formatLeaveDays(selectedBalance?.remainingDays ?? 0)} day(s) remaining
                     </p>
                     <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
-                      Used {selectedBalance?.usedDays ?? 0} of {selectedBalance?.daysAllowed ?? 0} days this year
+                      Used {formatLeaveDays(selectedBalance?.usedDays ?? 0)} of {formatLeaveDays(selectedBalance?.daysAllowed ?? 0)} days this year
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
+                      Time window: {(() => {
+                        const window = getLeaveTimeWindow(formData.type);
+                        return `${window.startHour}:00 - ${window.endHour}:00`;
+                      })()}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-6">
@@ -625,7 +638,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                   </div>
                   {selectedRangeDays > 0 && (
                     <p className={cn("text-xs font-bold", exceedsBalance ? "text-rose-500" : "text-emerald-600 dark:text-emerald-300")}>
-                      Selected working days: {selectedRangeDays}
+                      Selected working days: {formatLeaveDays(selectedRangeDays)}
                     </p>
                   )}
                 </div>

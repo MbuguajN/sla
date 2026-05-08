@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
+    "db:seed:stress": "node prisma/seed.stress.js",
     "docker:build": "docker build -t sla-app:latest .",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

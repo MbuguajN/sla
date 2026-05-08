@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Prisma } from "@prisma/client";
 import db from "@/lib/db";
 import { canViewReports, getCurrentUser } from "@/lib/permissions";
 import ReportsClient, {
@@ -9,6 +10,12 @@ import ReportsClient, {
   type ReportSummary,
   type TrendPoint,
 } from "./ReportsClient";
+import {
+  ANNUAL_LEAVE_TYPES,
+  SICKNESS_LEAVE_TYPES,
+  getLeaveFamily,
+  getLeaveFamilyLabel,
+} from "@/lib/leave";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +23,7 @@ type SearchParams = {
   dateRange?: string;
   startDate?: string;
   endDate?: string;
+  reportTab?: string;
 };
 
 type TrackedTask = {
@@ -51,6 +59,12 @@ type EmployeeCompletedTask = {
   slaHours: number | null;
   slaPausedDuration: number | null;
 };
+
+type EmployeeWithDepartment = Prisma.UserGetPayload<{
+  include: {
+    department: { select: { name: true; slug: true } };
+  };
+}>;
 
 function round2(value: number) {
   return Math.round(value * 100) / 100;
@@ -252,12 +266,13 @@ export default async function ReportsPage({
   if (!canViewReports(user)) redirect("/dashboard");
 
   const range = resolveDateRange(params);
+  const initialReportTab = params.reportTab === "employee" ? "employee" : "company";
 
   const currentYear = new Date().getFullYear();
   const yearStart = new Date(currentYear, 0, 1);
   const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
 
-  const [tasks, previousTasks, departments, clients, employees, employeeCompletedTasks, leavePolicies] = await Promise.all([
+  const [tasks, previousTasks, departments, clients] = await Promise.all([
     db.task.findMany({
       where: {
         status: "DONE",
@@ -286,7 +301,23 @@ export default async function ReportsPage({
     }),
     db.department.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
     db.client.findMany({ where: { status: "ACTIVE" }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
-    db.user.findMany({
+  ]);
+
+  let employees: EmployeeWithDepartment[] = [];
+  let employeeCompletedTasks: EmployeeCompletedTask[] = [];
+  let leavePolicies: { role: "MANAGER" | "EMPLOYEE"; leaveType: string; daysAllowed: number }[] = [];
+  let employeeLeaves: { userId: number; type: string; totalDays: number }[] = [];
+  let dailyLogActivities: {
+    id: number;
+    userId: number;
+    createdAt: Date;
+    metadata: string | null;
+    task: { title: string } | null;
+    project: { title: string } | null;
+  }[] = [];
+
+  if (initialReportTab === "employee") {
+    employees = await db.user.findMany({
       where: {
         isActive: true,
         role: { in: ["MANAGER", "EMPLOYEE"] },
@@ -298,48 +329,75 @@ export default async function ReportsPage({
         department: { select: { name: true, slug: true } },
       },
       orderBy: { name: "asc" },
-    }),
-    db.task.findMany({
-      where: {
-        status: { in: ["DONE", "SUBMITTED"] },
-      },
-      select: {
-        id: true,
-        title: true,
-        createdById: true,
-        assignedUserId: true,
-        completedAt: true,
-        updatedAt: true,
-        slaStartedAt: true,
-        slaHours: true,
-        slaPausedDuration: true,
-      },
-      orderBy: { updatedAt: "desc" },
-    }),
-    db.leavePolicy.findMany({
-      where: {
-        role: { in: ["MANAGER", "EMPLOYEE"] },
-      },
-      select: {
-        role: true,
-        leaveType: true,
-        daysAllowed: true,
-      },
-    }),
-  ]);
+    });
 
-  const employeeLeaves = await db.leave.findMany({
-    where: {
-      userId: { in: employees.map((employee) => employee.id) },
-      status: { in: ["PENDING", "APPROVED"] },
-      startDate: { gte: yearStart, lte: yearEnd },
-    },
-    select: {
-      userId: true,
-      type: true,
-      totalDays: true,
-    },
-  });
+    const employeeIds = employees.map((employee) => employee.id);
+
+    const [rawEmployeeTasks, rawLeavePolicies, rawEmployeeLeaves, rawDailyLogActivities] = await Promise.all([
+      db.task.findMany({
+        where: {
+          status: "DONE",
+          completedAt: { not: null, gte: yearStart },
+        },
+        select: {
+          id: true,
+          title: true,
+          createdById: true,
+          assignedUserId: true,
+          completedAt: true,
+          updatedAt: true,
+          slaStartedAt: true,
+          slaHours: true,
+          slaPausedDuration: true,
+        },
+        orderBy: { completedAt: "desc" },
+      }),
+      db.leavePolicy.findMany({
+        where: {
+          role: { in: ["MANAGER", "EMPLOYEE"] },
+        },
+        select: {
+          role: true,
+          leaveType: true,
+          daysAllowed: true,
+        },
+      }),
+      db.leave.findMany({
+        where: {
+          userId: { in: employeeIds },
+          status: { in: ["PENDING", "APPROVED"] },
+          startDate: { gte: yearStart, lte: yearEnd },
+        },
+        select: {
+          userId: true,
+          type: true,
+          totalDays: true,
+        },
+      }),
+      db.activityLog.findMany({
+        where: {
+          userId: { in: employeeIds },
+          type: "COMMENTED",
+          metadata: { contains: '"kind":"DAILY_LOG"' },
+          createdAt: { gte: range.start, lte: range.end },
+        },
+        select: {
+          id: true,
+          userId: true,
+          createdAt: true,
+          metadata: true,
+          task: { select: { title: true } },
+          project: { select: { title: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    employeeCompletedTasks = rawEmployeeTasks as EmployeeCompletedTask[];
+    leavePolicies = rawLeavePolicies as { role: "MANAGER" | "EMPLOYEE"; leaveType: string; daysAllowed: number }[];
+    employeeLeaves = rawEmployeeLeaves as { userId: number; type: string; totalDays: number }[];
+    dailyLogActivities = rawDailyLogActivities;
+  }
 
   const evaluated = tasks
     .map((task) => evaluateTask(task as TrackedTask))
@@ -474,6 +532,40 @@ export default async function ReportsPage({
     leaveUsageMap.set(leave.userId, perType);
   }
 
+  const dailyLogsByUser = new Map<
+    number,
+    { id: number; note: string; markCompleted: boolean; taskTitle: string; projectTitle: string; createdAt: string }[]
+  >();
+
+  for (const log of dailyLogActivities) {
+    if (!log.metadata) continue;
+
+    try {
+      const parsed = JSON.parse(log.metadata) as {
+        kind?: string;
+        note?: string;
+        markCompleted?: boolean;
+        taskTitle?: string;
+        projectTitle?: string;
+      };
+
+      if (parsed.kind !== "DAILY_LOG") continue;
+
+      const list = dailyLogsByUser.get(log.userId) || [];
+      list.push({
+        id: log.id,
+        note: parsed.note || "",
+        markCompleted: Boolean(parsed.markCompleted),
+        taskTitle: parsed.taskTitle || log.task?.title || "Unknown Task",
+        projectTitle: parsed.projectTitle || log.project?.title || "Unknown Project",
+        createdAt: log.createdAt.toISOString(),
+      });
+      dailyLogsByUser.set(log.userId, list);
+    } catch {
+      continue;
+    }
+  }
+
   const CS_BD_SLUGS = new Set(["client-service", "business-development"]);
   const csBdEmployeeIds = new Set(
     employees
@@ -513,15 +605,38 @@ export default async function ReportsPage({
   const employeeReports: EmployeeReportCard[] = employees.map((employee) => {
     const perType = leaveUsageMap.get(employee.id) || new Map<string, number>();
     const roleLeaveEntries = leavePolicies.filter((p) => p.role === employee.role);
-    const leaveBalances = roleLeaveEntries.map((policy) => {
-      const used = perType.get(policy.leaveType) || 0;
-      return {
-        type: policy.leaveType,
-        daysAllowed: policy.daysAllowed,
-        usedDays: used,
-        remainingDays: Math.max(policy.daysAllowed - used, 0),
-      };
-    });
+
+    const annualPolicy =
+      roleLeaveEntries.find((policy) => ANNUAL_LEAVE_TYPES.includes(policy.leaveType as any)) ?? null;
+    const sicknessPolicy =
+      roleLeaveEntries.find((policy) => SICKNESS_LEAVE_TYPES.includes(policy.leaveType as any)) ?? null;
+
+    const annualUsed = Array.from(perType.entries())
+      .filter(([type]) => getLeaveFamily(type) === "ANNUAL")
+      .reduce((sum, [, value]) => sum + value, 0);
+
+    const sicknessUsed = Array.from(perType.entries())
+      .filter(([type]) => getLeaveFamily(type) === "SICKNESS")
+      .reduce((sum, [, value]) => sum + value, 0);
+
+    const leaveBalances = [
+      annualPolicy
+        ? {
+            type: getLeaveFamilyLabel("ANNUAL"),
+            daysAllowed: annualPolicy.daysAllowed,
+            usedDays: annualUsed,
+            remainingDays: Math.max(annualPolicy.daysAllowed - annualUsed, 0),
+          }
+        : null,
+      sicknessPolicy
+        ? {
+            type: getLeaveFamilyLabel("SICKNESS"),
+            daysAllowed: sicknessPolicy.daysAllowed,
+            usedDays: sicknessUsed,
+            remainingDays: Math.max(sicknessPolicy.daysAllowed - sicknessUsed, 0),
+          }
+        : null,
+    ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
     const isCsBd = employee.department && CS_BD_SLUGS.has(employee.department.slug);
     const rawTasks = isCsBd
@@ -535,6 +650,7 @@ export default async function ReportsPage({
       role: employee.role,
       departmentName: employee.department?.name || "No Department",
       leaveBalances,
+      dailyLogs: dailyLogsByUser.get(employee.id) || [],
       tasks: rawTasks.map((task) => ({
         id: task.id,
         title: task.title,
@@ -554,6 +670,7 @@ export default async function ReportsPage({
       trend={trend}
       departments={departmentPerformance}
       employeeReports={employeeReports}
+      initialReportTab={initialReportTab}
     />
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type ComponentType } from "react";
+import { useEffect } from "react";
 import { changePassword } from "@/app/actions/profileActions";
-import { LogOut, Lock, Shield, UserRound, Mail, Briefcase, Building2 } from "lucide-react";
+import { LogOut, Shield, UserRound, Mail, Briefcase, Building2 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 interface User {

@@ -128,7 +128,7 @@ export default function Header({ user }: HeaderProps) {
 
   return (
     <header className="h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-white/10 px-10">
-      {/* Greeting + Weather */}
+      {/* Greeting + Header Widgets */}
       <div className="flex items-center gap-4 flex-1">
         <div>
           <p className="text-sm font-black text-gray-900 dark:text-white">

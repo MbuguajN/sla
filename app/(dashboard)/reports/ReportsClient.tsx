@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -16,7 +16,9 @@ import {
   UserIcon,
   Mail01Icon,
   Briefcase01Icon,
+  NoteIcon,
 } from "hugeicons-react";
+import { getLeaveTypeLabel } from "@/lib/leave";
 
 export type ReportMeta = {
   activeRange: "today" | "7d" | "30d" | "quarter" | "custom";
@@ -87,6 +89,14 @@ export type EmployeeReportCard = {
   role: string;
   departmentName: string;
   leaveBalances: LeaveBalance[];
+  dailyLogs: {
+    id: number;
+    note: string;
+    markCompleted: boolean;
+    taskTitle: string;
+    projectTitle: string;
+    createdAt: string;
+  }[];
   tasks: EmployeeTaskRecord[];
 };
 
@@ -97,6 +107,7 @@ interface Props {
   trend: TrendPoint[];
   departments: DepartmentPerformanceRow[];
   employeeReports: EmployeeReportCard[];
+  initialReportTab?: "company" | "employee";
 }
 
 function buildConicGradient(slices: ClientHealthSlice[]) {
@@ -149,6 +160,10 @@ function deltaChip(delta: number, invert = false) {
   return { tone, label: `${sign}${delta}%` };
 }
 
+function formatDecimal(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 function getStartOfDay(date: Date) {
   const next = new Date(date);
   next.setHours(0, 0, 0, 0);
@@ -169,32 +184,42 @@ function getStartOfWeek(date: Date) {
   return next;
 }
 
+function getStartOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+}
+
 function parseDateInput(value: string) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getTaskHours(task: EmployeeTaskRecord) {
-  const completedAt = new Date(task.completedAt).getTime();
-  const startedAt = new Date(task.slaStartedAt).getTime();
-  if (Number.isNaN(completedAt) || Number.isNaN(startedAt)) return 0;
-  const elapsedMs = Math.max(0, completedAt - startedAt - task.slaPausedDuration * 1000);
-  return Math.round((elapsedMs / (1000 * 60 * 60)) * 100) / 100;
+function isWithinRange(dateValue: string, start: Date, end: Date) {
+  const timestamp = new Date(dateValue).getTime();
+  if (Number.isNaN(timestamp)) return false;
+  return timestamp >= start.getTime() && timestamp <= end.getTime();
 }
 
-export default function ReportsClient({ meta, summary, clientHealth, trend, departments, employeeReports }: Props) {
+export default function ReportsClient({
+  meta,
+  summary,
+  clientHealth,
+  trend,
+  departments,
+  employeeReports,
+  initialReportTab = "company",
+}: Props) {
   const router = useRouter();
-  const [activeReportTab, setActiveReportTab] = useState<"company" | "employee">("company");
+  const searchParams = useSearchParams();
+  const [activeReportTab, setActiveReportTab] = useState<"company" | "employee">(initialReportTab);
   const [customStart, setCustomStart] = useState(meta.startDate);
   const [customEnd, setCustomEnd] = useState(meta.endDate);
   const [trendMode, setTrendMode] = useState<"monthly" | "quarterly">("monthly");
   const [employeeSearch, setEmployeeSearch] = useState("");
-  const [employeeRange, setEmployeeRange] = useState<"today" | "week" | "custom">("today");
-  const [employeeCustomStart, setEmployeeCustomStart] = useState(meta.startDate);
-  const [employeeCustomEnd, setEmployeeCustomEnd] = useState(meta.endDate);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
-    employeeReports[0]?.id ?? null
-  );
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [employeeDateRange, setEmployeeDateRange] = useState<"today" | "week" | "month" | "custom">("today");
+  const [employeeCustomStart, setEmployeeCustomStart] = useState("");
+  const [employeeCustomEnd, setEmployeeCustomEnd] = useState("");
+  const [openedLogId, setOpenedLogId] = useState<number | null>(null);
 
   const donutBackground = buildConicGradient(clientHealth);
   const totalClientsForDonut = clientHealth.reduce((sum, s) => sum + s.value, 0);
@@ -227,7 +252,10 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
   }, [departments, meta.rangeLabel]);
 
   const setRange = (dateRange: ReportMeta["activeRange"], overrides?: Record<string, string>) => {
-    const params = new URLSearchParams(overrides || {});
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(overrides || {})) {
+      params.set(key, value);
+    }
     params.set("dateRange", dateRange);
     if (dateRange !== "custom") {
       params.delete("startDate");
@@ -238,11 +266,17 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
 
   const applyCustomRange = () => {
     if (!customStart || !customEnd) return;
-    const params = new URLSearchParams({
-      dateRange: "custom",
-      startDate: customStart,
-      endDate: customEnd,
-    });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("dateRange", "custom");
+    params.set("startDate", customStart);
+    params.set("endDate", customEnd);
+    router.push(`/reports?${params.toString()}`);
+  };
+
+  const switchReportTab = (tab: "company" | "employee") => {
+    setActiveReportTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("reportTab", tab);
     router.push(`/reports?${params.toString()}`);
   };
 
@@ -279,7 +313,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
 
   const filteredEmployees = useMemo(() => {
     const needle = employeeSearch.trim().toLowerCase();
-    if (!needle) return employeeReports;
+    if (!needle) return [];
     return employeeReports.filter((employee) => {
       return (
         employee.name.toLowerCase().includes(needle) ||
@@ -290,56 +324,102 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
   }, [employeeReports, employeeSearch]);
 
   const selectedEmployee = useMemo(() => {
-    const fromFiltered = filteredEmployees.find((employee) => employee.id === selectedEmployeeId);
-    if (fromFiltered) return fromFiltered;
-    return filteredEmployees[0] || null;
+    if (!filteredEmployees.length) return null;
+    const explicit = filteredEmployees.find((employee) => employee.id === selectedEmployeeId);
+    return explicit ?? filteredEmployees[0];
   }, [filteredEmployees, selectedEmployeeId]);
+
+  const selectedEmployeeTasks = useMemo(() => {
+    if (!selectedEmployee) return [] as EmployeeTaskRecord[];
+    return selectedEmployee.tasks;
+  }, [selectedEmployee]);
+
+  const selectedEmployeeLogs = useMemo(() => {
+    if (!selectedEmployee) return [] as EmployeeReportCard["dailyLogs"];
+    return selectedEmployee.dailyLogs;
+  }, [selectedEmployee]);
 
   const employeeRangeBounds = useMemo(() => {
     const now = new Date();
-    if (employeeRange === "today") {
-      return {
-        start: getStartOfDay(now),
-        end: getEndOfDay(now),
-      };
+
+    if (employeeDateRange === "today") {
+      return { start: getStartOfDay(now), end: getEndOfDay(now), label: "Today" };
     }
 
-    if (employeeRange === "week") {
-      return {
-        start: getStartOfWeek(now),
-        end: getEndOfDay(now),
-      };
+    if (employeeDateRange === "week") {
+      return { start: getStartOfWeek(now), end: getEndOfDay(now), label: "This Week" };
     }
 
-    const parsedStart = parseDateInput(employeeCustomStart);
-    const parsedEnd = parseDateInput(employeeCustomEnd);
-    if (!parsedStart || !parsedEnd) {
-      return {
-        start: getStartOfDay(now),
-        end: getEndOfDay(now),
-      };
+    if (employeeDateRange === "month") {
+      return { start: getStartOfMonth(now), end: getEndOfDay(now), label: "This Month" };
+    }
+
+    const customStart = parseDateInput(employeeCustomStart);
+    const customEnd = parseDateInput(employeeCustomEnd);
+    if (!customStart || !customEnd) {
+      return null;
     }
 
     return {
-      start: getStartOfDay(parsedStart),
-      end: getEndOfDay(parsedEnd),
+      start: getStartOfDay(customStart),
+      end: getEndOfDay(customEnd),
+      label: "Custom",
     };
-  }, [employeeRange, employeeCustomStart, employeeCustomEnd]);
+  }, [employeeDateRange, employeeCustomStart, employeeCustomEnd]);
 
-  const selectedEmployeeTasksInRange = useMemo(() => {
-    if (!selectedEmployee) return [] as EmployeeTaskRecord[];
-    return selectedEmployee.tasks.filter((task) => {
-      const completedAt = new Date(task.completedAt);
-      if (Number.isNaN(completedAt.getTime())) return false;
-      return completedAt >= employeeRangeBounds.start && completedAt <= employeeRangeBounds.end;
-    });
-  }, [selectedEmployee, employeeRangeBounds]);
+  const filteredSelectedEmployeeTasks = useMemo(() => {
+    if (!employeeRangeBounds) return selectedEmployeeTasks;
+    return selectedEmployeeTasks.filter((task) => isWithinRange(task.completedAt, employeeRangeBounds.start, employeeRangeBounds.end));
+  }, [selectedEmployeeTasks, employeeRangeBounds]);
 
-  const selectedEmployeeHoursInRange = useMemo(() => {
-    return Math.round(
-      selectedEmployeeTasksInRange.reduce((sum, task) => sum + getTaskHours(task), 0) * 100
-    ) / 100;
-  }, [selectedEmployeeTasksInRange]);
+  const filteredSelectedEmployeeLogs = useMemo(() => {
+    if (!employeeRangeBounds) return selectedEmployeeLogs;
+    return selectedEmployeeLogs.filter((log) => isWithinRange(log.createdAt, employeeRangeBounds.start, employeeRangeBounds.end));
+  }, [selectedEmployeeLogs, employeeRangeBounds]);
+
+  const selectedEmployeeCompletedLogCount = useMemo(() => {
+    return filteredSelectedEmployeeLogs.filter((log) => log.markCompleted).length;
+  }, [filteredSelectedEmployeeLogs]);
+
+  const mergedActivityRows = useMemo(() => {
+    const taskRows = filteredSelectedEmployeeTasks.map((task) => ({
+      id: `task-${task.id}`,
+      logId: null,
+      occurredAt: task.completedAt,
+      source: "TASK_COMPLETED" as const,
+      projectTitle: "-",
+      taskTitle: task.title,
+      note: "Task completed in workflow",
+      result: "Completed",
+    }));
+
+    const logRows = filteredSelectedEmployeeLogs.map((log) => ({
+      id: `log-${log.id}`,
+      logId: log.id,
+      occurredAt: log.createdAt,
+      source: "DAILY_LOG" as const,
+      projectTitle: log.projectTitle,
+      taskTitle: log.taskTitle,
+      note: log.note,
+      result: log.markCompleted ? "Completed" : "Progress",
+    }));
+
+    return [...taskRows, ...logRows].sort(
+      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+    );
+  }, [filteredSelectedEmployeeTasks, filteredSelectedEmployeeLogs]);
+
+  const totalCompletedTaskCount = filteredSelectedEmployeeTasks.length;
+
+  const selectedEmployeeAnnualLeave = useMemo(() => {
+    if (!selectedEmployee) return null;
+    return selectedEmployee.leaveBalances.find((lb) => lb.type.toLowerCase().includes("annual")) ?? null;
+  }, [selectedEmployee]);
+
+  const openedLog = useMemo(() => {
+    if (!openedLogId) return null;
+    return filteredSelectedEmployeeLogs.find((log) => log.id === openedLogId) ?? null;
+  }, [openedLogId, filteredSelectedEmployeeLogs]);
 
   return (
     <div className="space-y-8 bg-[#f5f7fc] dark:bg-black -mx-8 -mt-8 px-8 py-8 lg:px-10 min-h-screen">
@@ -349,7 +429,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
 
       <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
         <button
-          onClick={() => setActiveReportTab("company")}
+          onClick={() => switchReportTab("company")}
           className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
             activeReportTab === "company"
               ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
@@ -359,7 +439,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
           Company Report
         </button>
         <button
-          onClick={() => setActiveReportTab("employee")}
+          onClick={() => switchReportTab("employee")}
           className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
             activeReportTab === "employee"
               ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
@@ -625,43 +705,6 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
                 className="h-12 w-full rounded-2xl border border-[#e6e9f2] dark:border-white/10 bg-white dark:bg-[#0f0f10] pl-12 pr-4 text-sm font-semibold text-[#22314b] dark:text-zinc-100 outline-none"
               />
             </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {([
-                { key: "today", label: "Today" },
-                { key: "week", label: "This Week" },
-                { key: "custom", label: "Custom" },
-              ] as const).map((item) => (
-                <button
-                  key={item.key}
-                  onClick={() => setEmployeeRange(item.key)}
-                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
-                    employeeRange === item.key
-                      ? "bg-[#cf2145] text-white"
-                      : "bg-[#f3f5fa] dark:bg-[#1a1a1b] text-[#6d7893] dark:text-zinc-400"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-
-              {employeeRange === "custom" ? (
-                <>
-                  <input
-                    type="date"
-                    value={employeeCustomStart}
-                    onChange={(e) => setEmployeeCustomStart(e.target.value)}
-                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
-                  />
-                  <input
-                    type="date"
-                    value={employeeCustomEnd}
-                    onChange={(e) => setEmployeeCustomEnd(e.target.value)}
-                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-sm font-medium text-[#33415d] dark:text-zinc-200 outline-none"
-                  />
-                </>
-              ) : null}
-            </div>
           </section>
 
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -671,11 +714,12 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
                 <button
                   key={employee.id}
                   onClick={() => setSelectedEmployeeId(employee.id)}
-                  className={`text-left rounded-[24px] border p-5 shadow-sm transition-all ${
+                  className={cn(
+                    "text-left rounded-[24px] border bg-white p-5 shadow-sm transition-all dark:bg-[#111111]",
                     isActive
-                      ? "border-[#cf2145] bg-white dark:bg-[#111111] ring-1 ring-[#cf2145]/20"
-                      : "border-white dark:border-white/10 bg-white dark:bg-[#111111]"
-                  }`}
+                      ? "border-[#cf2145] ring-1 ring-[#cf2145]/20 dark:border-[#cf2145]"
+                      : "border-white dark:border-white/10"
+                  )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -698,7 +742,7 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
                     ) : (
                       employee.leaveBalances.map((lb) => (
                         <div key={lb.type} className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] px-3 py-2 text-[#3b4a67] dark:text-zinc-300">
-                          {lb.type.charAt(0) + lb.type.slice(1).toLowerCase().replace(/_/g, " ")} Left: {lb.remainingDays}
+                          {getLeaveTypeLabel(lb.type)} Left: {formatDecimal(lb.remainingDays)}
                         </div>
                       ))
                     )}
@@ -716,37 +760,80 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
                     {selectedEmployee.name}
                   </h2>
                   <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">
-                    Employee task performance in selected period
+                    Employee task and log performance snapshot
                   </p>
                 </div>
-                <div className="rounded-2xl bg-[#f5f7fc] dark:bg-[#19191a] px-4 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#5d6a84] dark:text-zinc-300">
-                  {employeeRange === "today" ? "Today" : employeeRange === "week" ? "This Week" : "Custom"}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {([
+                    { key: "today", label: "Today" },
+                    { key: "week", label: "This Week" },
+                    { key: "month", label: "This Month" },
+                    { key: "custom", label: "Custom" },
+                  ] as const).map((item) => (
+                    <button
+                      key={item.key}
+                      onClick={() => setEmployeeDateRange(item.key)}
+                      className={cn(
+                        "px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.14em] transition-all",
+                        employeeDateRange === item.key
+                          ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+                          : "bg-[#f5f7fc] text-[#6d7893] dark:bg-[#181818] dark:text-zinc-400"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {employeeDateRange === "custom" ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[#edf0f6] dark:border-white/10 p-3">
+                  <input
+                    type="date"
+                    value={employeeCustomStart}
+                    onChange={(e) => setEmployeeCustomStart(e.target.value)}
+                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-xs font-semibold text-[#33415d] dark:text-zinc-200 outline-none"
+                  />
+                  <input
+                    type="date"
+                    value={employeeCustomEnd}
+                    onChange={(e) => setEmployeeCustomEnd(e.target.value)}
+                    className="h-10 rounded-xl border border-[#e4e8f1] dark:border-white/10 bg-white dark:bg-[#0f0f10] px-3 text-xs font-semibold text-[#33415d] dark:text-zinc-200 outline-none"
+                  />
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                 <MetricCard
                   label="Tasks Completed"
-                  value={String(selectedEmployeeTasksInRange.length)}
-                  chip="Filtered"
+                  value={String(totalCompletedTaskCount)}
+                  chip={employeeRangeBounds?.label ?? "All Time"}
                   chipTone="bg-sky-50 text-sky-700"
                   icon={TaskDone01Icon}
                   iconBgClass="bg-sky-100"
                   iconClass="text-sky-700"
                 />
                 <MetricCard
-                  label="Hours Worked"
-                  value={String(selectedEmployeeHoursInRange)}
-                  unit="hrs"
-                  chip="Calculated"
-                  chipTone="bg-violet-50 text-violet-700"
-                  icon={Clock01Icon}
-                  iconBgClass="bg-violet-100"
-                  iconClass="text-violet-700"
+                  label="Daily Logs"
+                  value={String(filteredSelectedEmployeeLogs.length)}
+                  chip={employeeRangeBounds?.label ?? "All Time"}
+                  chipTone="bg-blue-50 text-blue-700"
+                  icon={NoteIcon}
+                  iconBgClass="bg-blue-100"
+                  iconClass="text-blue-700"
                 />
-                {selectedEmployee.leaveBalances.length === 0 ? (
+                <MetricCard
+                  label="Completed in Logs"
+                  value={String(selectedEmployeeCompletedLogCount)}
+                  chip={employeeRangeBounds?.label ?? "Marked Complete"}
+                  chipTone="bg-emerald-50 text-emerald-700"
+                  icon={CheckmarkCircle01Icon}
+                  iconBgClass="bg-emerald-100"
+                  iconClass="text-emerald-700"
+                />
+                {!selectedEmployeeAnnualLeave ? (
                   <MetricCard
-                    label="Leave"
+                    label="Annual Leave Left"
                     value="N/A"
                     chip="No Policy"
                     chipTone="bg-slate-50 text-slate-500"
@@ -755,59 +842,148 @@ export default function ReportsClient({ meta, summary, clientHealth, trend, depa
                     iconClass="text-slate-500"
                   />
                 ) : (
-                  selectedEmployee.leaveBalances.map((lb) => (
-                    <MetricCard
-                      key={lb.type}
-                      label={`${lb.type.charAt(0) + lb.type.slice(1).toLowerCase().replace(/_/g, " ")} Left`}
-                      value={String(lb.remainingDays)}
-                      chip="Current Year"
-                      chipTone="bg-emerald-50 text-emerald-700"
-                      icon={Calendar01Icon}
-                      iconBgClass="bg-emerald-100"
-                      iconClass="text-emerald-700"
-                    />
-                  ))
+                  <MetricCard
+                    label="Annual Leave Left"
+                    value={formatDecimal(selectedEmployeeAnnualLeave.remainingDays)}
+                    chip="Current Year"
+                    chipTone="bg-emerald-50 text-emerald-700"
+                    icon={Calendar01Icon}
+                    iconBgClass="bg-emerald-100"
+                    iconClass="text-emerald-700"
+                  />
                 )}
               </div>
 
               <div className="rounded-2xl border border-[#edf0f6] dark:border-white/10 overflow-hidden">
-                <table className="w-full min-w-[560px]">
-                  <thead className="bg-[#f7f9fc] dark:bg-[#181818]">
-                    <tr className="text-left text-[10px] font-black uppercase tracking-[0.16em] text-[#98a2b5]">
-                      <th className="px-4 py-3">Task</th>
-                      <th className="px-4 py-3">Completed At</th>
-                      <th className="px-4 py-3 text-right">Hours Worked</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedEmployeeTasksInRange.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="px-4 py-8 text-center text-sm font-semibold text-[#7f8aa1]">
-                          No completed tasks in this period.
-                        </td>
+                <div className="max-h-[520px] overflow-y-auto">
+                  <table className="w-full min-w-[700px]">
+                    <thead className="bg-[#f7f9fc] dark:bg-[#181818]">
+                      <tr className="text-left text-[10px] font-black uppercase tracking-[0.16em] text-[#98a2b5]">
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Source</th>
+                        <th className="px-4 py-3">Project</th>
+                        <th className="px-4 py-3">Task</th>
+                        <th className="px-4 py-3 text-right">Result</th>
+                        <th className="px-4 py-3 text-right">Open</th>
                       </tr>
-                    ) : (
-                      selectedEmployeeTasksInRange.map((task) => (
-                        <tr key={task.id} className="border-t border-[#f0f2f7] dark:border-white/10">
-                          <td className="px-4 py-3 text-sm font-semibold text-[#23324c] dark:text-zinc-200">{task.title}</td>
-                          <td className="px-4 py-3 text-sm text-[#5f6c86] dark:text-zinc-400">
-                            {new Date(task.completedAt).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-bold text-[#23324c] dark:text-zinc-200">
-                            {getTaskHours(task)} hrs
+                    </thead>
+                    <tbody>
+                      {mergedActivityRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-8 text-center text-sm font-semibold text-[#7f8aa1]">
+                            No completed tasks or logs available.
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      ) : (
+                        mergedActivityRows.map((row) => (
+                          <tr key={row.id} className="border-t border-[#f0f2f7] dark:border-white/10">
+                            <td className="px-4 py-3 text-sm text-[#5f6c86] dark:text-zinc-400">
+                              {new Date(row.occurredAt).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-[#23324c] dark:text-zinc-200">
+                              {row.source === "TASK_COMPLETED" ? "Task Completion" : "Daily Log"}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-[#23324c] dark:text-zinc-200">{row.projectTitle}</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-[#23324c] dark:text-zinc-200">{row.taskTitle}</td>
+                            <td className="px-4 py-3 text-right text-sm font-bold">
+                              <span
+                                className={cn(
+                                  "rounded-full px-2.5 py-1 text-[10px] uppercase tracking-[0.14em]",
+                                  row.result === "Completed"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                                    : "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                                )}
+                              >
+                                {row.result}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {row.source === "DAILY_LOG" && row.logId ? (
+                                <button
+                                  onClick={() => setOpenedLogId(row.logId)}
+                                  className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] bg-[#fde8ed] text-[#cf2145] dark:bg-[#2b1a20] dark:text-rose-300"
+                                >
+                                  View Log
+                                </button>
+                              ) : (
+                                <span className="text-xs font-semibold text-[#9aa3b6]">-</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </section>
-          ) : (
+          ) : null}
+
+          {selectedEmployee && openedLog ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+              <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white dark:bg-[#111111] p-6 shadow-2xl">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight text-[#11203a] dark:text-white">Daily Log Details</h3>
+                    <p className="mt-1 text-xs font-semibold text-[#8d97aa]">Full entry information</p>
+                  </div>
+                  <button
+                    onClick={() => setOpenedLogId(null)}
+                    className="rounded-xl border border-[#e6e9f2] dark:border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#6d7893] dark:text-zinc-300"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Employee</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{selectedEmployee.name}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Email</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{selectedEmployee.email}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Department</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{selectedEmployee.departmentName}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Date</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{new Date(openedLog.createdAt).toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Project</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{openedLog.projectTitle}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Task</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">{openedLog.taskTitle}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3 sm:col-span-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Note</p>
+                    <p className="mt-1 font-semibold text-[#23324c] dark:text-zinc-200 whitespace-pre-wrap">{openedLog.note}</p>
+                  </div>
+                  <div className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] p-3 sm:col-span-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#9aa3b6]">Status</p>
+                    <p className="mt-1 font-bold text-[#23324c] dark:text-zinc-200">
+                      {openedLog.markCompleted ? "Marked Complete" : "In Progress"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {employeeSearch.trim().length === 0 ? (
+            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-8 text-sm font-semibold text-[#7f8aa1]">
+              Type in the search box to show employee cards.
+            </section>
+          ) : filteredEmployees.length === 0 ? (
             <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-8 text-sm font-semibold text-[#7f8aa1]">
               No employees match your search.
             </section>
-          )}
+          ) : null}
         </>
       )}
     </div>

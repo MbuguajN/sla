@@ -5,15 +5,15 @@ import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions, DEP
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
 import { hasApprovedLeaveOverlap, processLeaveTaskHandovers } from "./leaveHandoverActions";
+import {
+  MODERN_LEAVE_TYPES,
+  getLeaveDayFactor,
+  getLeaveTimeWindow,
+  getLeaveTypesForBalance,
+  toUtcDateTime,
+} from "@/lib/leave";
 
-type LeavePolicyType =
-  | "ANNUAL"
-  | "SICK"
-  | "MATERNITY"
-  | "PATERNITY"
-  | "UNPAID"
-  | "COMPASSIONATE"
-  | "OTHER";
+type LeavePolicyType = (typeof MODERN_LEAVE_TYPES)[number];
 
 type LeaveHandoverInput = {
   taskId: number;
@@ -156,6 +156,10 @@ export async function createLeave(data: {
     throw new Error("End date cannot be before start date");
   }
 
+  if (!MODERN_LEAVE_TYPES.includes(data.type)) {
+    throw new Error("Unsupported leave type");
+  }
+
   // Fetch public holidays for exclusion
   const publicHolidays = await db.publicHoliday.findMany();
   const holidaySet = new Set(
@@ -165,14 +169,15 @@ export async function createLeave(data: {
     })
   );
 
-  // Count working days only (Mon–Fri, excluding public holidays)
+  // Count working days only (Mon-Fri, excluding public holidays), with half-day support.
+  const dayFactor = getLeaveDayFactor(data.type);
   const cursor = new Date(start);
   let totalDays = 0;
   while (cursor <= end) {
     const day = cursor.getDay();
     const key = `${cursor.getFullYear()}-${cursor.getMonth()}-${cursor.getDate()}`;
     if (day !== 0 && day !== 6 && !holidaySet.has(key)) {
-      totalDays += 1;
+      totalDays += dayFactor;
     }
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -183,14 +188,18 @@ export async function createLeave(data: {
 
   const userRole = user.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
 
-  const leavePolicy = await db.leavePolicy.findUnique({
+  const balanceTypes = getLeaveTypesForBalance(data.type);
+
+  const policyCandidates = await db.leavePolicy.findMany({
     where: {
-      role_leaveType: {
-        role: userRole,
-        leaveType: data.type,
-      },
+      role: userRole,
+      leaveType: { in: balanceTypes as LeavePolicyType[] },
     },
+    orderBy: { leaveType: "asc" },
   });
+
+  const leavePolicy =
+    policyCandidates.find((policy) => policy.leaveType === data.type) ?? policyCandidates[0] ?? null;
 
   if (!leavePolicy) {
     throw new Error("This leave type is not configured for your role");
@@ -203,7 +212,7 @@ export async function createLeave(data: {
   const consumed = await db.leave.aggregate({
     where: {
       userId: user.id,
-      type: data.type,
+      type: { in: balanceTypes as LeavePolicyType[] },
       status: { in: ["PENDING", "APPROVED"] },
       startDate: {
         gte: yearStart,
@@ -227,16 +236,20 @@ export async function createLeave(data: {
   const validatedHandovers = await validateLeaveHandoversForUser(
     user,
     data.handovers,
-    start,
-    end
+    toUtcDateTime(start, getLeaveTimeWindow(data.type).startHour),
+    toUtcDateTime(end, getLeaveTimeWindow(data.type).endHour)
   );
+
+  const { startHour, endHour } = getLeaveTimeWindow(data.type);
+  const leaveStartDateTime = toUtcDateTime(start, startHour);
+  const leaveEndDateTime = toUtcDateTime(end, endHour);
 
   const leave = await db.leave.create({
     data: {
       userId: user.id,
       type: data.type,
-      startDate: start,
-      endDate: end,
+      startDate: leaveStartDateTime,
+      endDate: leaveEndDateTime,
       totalDays,
       reason: data.reason,
       status: "PENDING",

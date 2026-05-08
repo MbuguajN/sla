@@ -59,6 +59,7 @@ export const config = {
     "/clients/:path*",
     "/projects/:path*",
     "/tasks/:path*",
+    "/daily-log/:path*",
     "/manager/:path*",
     "/profile/:path*",
     "/hr/:path*",
