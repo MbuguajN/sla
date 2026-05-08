@@ -13,8 +13,66 @@ import {
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
 import { mkdir, writeFile } from "fs/promises";
-import { join } from "path";
+import { extname, join } from "path";
 import { isUserCurrentlyOnApprovedLeave, processLeaveTaskHandovers } from "./leaveHandoverActions";
+
+const MAX_TASK_RESOURCE_SIZE_BYTES = 10 * 1024 * 1024;
+
+const ALLOWED_TASK_RESOURCE_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "text/plain",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
+const ALLOWED_TASK_RESOURCE_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".pdf",
+  ".txt",
+  ".doc",
+  ".docx",
+]);
+
+function startsWithBytes(buffer: Buffer, bytes: number[]) {
+  if (buffer.length < bytes.length) return false;
+  return bytes.every((value, index) => buffer[index] === value);
+}
+
+function detectFileSignature(buffer: Buffer):
+  | "image/png"
+  | "image/jpeg"
+  | "image/gif"
+  | "image/webp"
+  | "application/pdf"
+  | "text/plain"
+  | "unknown" {
+  if (startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47])) return "image/png";
+  if (startsWithBytes(buffer, [0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (startsWithBytes(buffer, [0x47, 0x49, 0x46, 0x38])) return "image/gif";
+  if (
+    startsWithBytes(buffer, [0x52, 0x49, 0x46, 0x46]) &&
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  if (startsWithBytes(buffer, [0x25, 0x50, 0x44, 0x46])) return "application/pdf";
+
+  const isLikelyText = buffer
+    .subarray(0, Math.min(buffer.length, 2048))
+    .every((byte) => byte === 0x09 || byte === 0x0a || byte === 0x0d || (byte >= 0x20 && byte <= 0x7e));
+  if (isLikelyText) return "text/plain";
+
+  return "unknown";
+}
 
 // ============== CLEAR LATEST ACTIVITY ==============
 
@@ -903,8 +961,31 @@ export async function addTaskResource(taskId: number, formData: FormData) {
   const file = formData.get("file") as File;
   if (!file) throw new Error("No file provided");
 
+  if (file.size <= 0) {
+    throw new Error("File is empty");
+  }
+
+  if (file.size > MAX_TASK_RESOURCE_SIZE_BYTES) {
+    throw new Error("File too large. Max size is 10MB");
+  }
+
+  const rawExtension = extname(file.name).toLowerCase();
+  if (!ALLOWED_TASK_RESOURCE_EXTENSIONS.has(rawExtension)) {
+    throw new Error("File type not allowed");
+  }
+
+  if (file.type && !ALLOWED_TASK_RESOURCE_MIME_TYPES.has(file.type)) {
+    throw new Error("File type not allowed");
+  }
+
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
+
+  const detectedType = detectFileSignature(buffer);
+  const allowDocByExtension = rawExtension === ".doc" || rawExtension === ".docx";
+  if (detectedType === "unknown" && !allowDocByExtension) {
+    throw new Error("Unsupported or unsafe file content");
+  }
 
   const uploadsDir = join(process.cwd(), "public", "uploads", "task-resources");
   await mkdir(uploadsDir, { recursive: true });

@@ -7,6 +7,28 @@ import bcrypt from "bcryptjs";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
+const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
+
+function startsWithBytes(buffer: Buffer, bytes: number[]) {
+  if (buffer.length < bytes.length) return false;
+  return bytes.every((value, index) => buffer[index] === value);
+}
+
+function detectImageMime(buffer: Buffer): "image/png" | "image/jpeg" | "image/gif" | "image/webp" | "unknown" {
+  if (startsWithBytes(buffer, [0x89, 0x50, 0x4e, 0x47])) return "image/png";
+  if (startsWithBytes(buffer, [0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (startsWithBytes(buffer, [0x47, 0x49, 0x46, 0x38])) return "image/gif";
+  if (
+    startsWithBytes(buffer, [0x52, 0x49, 0x46, 0x46]) &&
+    buffer.length >= 12 &&
+    buffer.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+
+  return "unknown";
+}
+
 // ============== USER MANAGEMENT ==============
 
 export async function getUsers() {
@@ -196,6 +218,14 @@ export async function uploadLogo(formData: FormData, mode: "light" | "dark" = "l
     const file = formData.get("file") as File;
     if (!file) throw new Error("No file provided");
 
+    if (file.size <= 0) {
+      throw new Error("File is empty");
+    }
+
+    if (file.size > MAX_LOGO_SIZE_BYTES) {
+      throw new Error("Logo too large. Max size is 5MB");
+    }
+
     // Validate file type
     if (!file.type.startsWith("image/")) {
       throw new Error("File must be an image");
@@ -204,18 +234,26 @@ export async function uploadLogo(formData: FormData, mode: "light" | "dark" = "l
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    const detectedMime = detectImageMime(buffer);
+    if (detectedMime === "unknown") {
+      throw new Error("Unsupported or unsafe image format");
+    }
+
+    if (file.type !== detectedMime) {
+      throw new Error("Image type does not match file contents");
+    }
+
     // Create uploads directory if it doesn't exist
     const uploadsDir = join(process.cwd(), "public", "uploads");
     await mkdir(uploadsDir, { recursive: true });
 
     // Generate unique filename
     const timestamp = Date.now();
-    // Improved extension extraction
+    // Extension is derived from validated mime signature.
     let ext = "png";
-    if (file.type === "image/jpeg") ext = "jpg";
-    else if (file.type === "image/gif") ext = "gif";
-    else if (file.type === "image/webp") ext = "webp";
-    else if (file.type === "image/svg+xml") ext = "svg";
+    if (detectedMime === "image/jpeg") ext = "jpg";
+    else if (detectedMime === "image/gif") ext = "gif";
+    else if (detectedMime === "image/webp") ext = "webp";
     
     const filename = `logo-${mode}-${timestamp}.${ext}`;
     const filepath = join(uploadsDir, filename);

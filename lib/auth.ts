@@ -5,6 +5,9 @@ import crypto from "crypto";
 import db from "./db";
 
 const LOGIN_ATTEMPT_RETENTION_HOURS = 48;
+const LOGIN_RATE_LIMIT_WINDOW_MINUTES = 15;
+const LOGIN_MAX_FAILED_ATTEMPTS_PER_EMAIL = 5;
+const LOGIN_MAX_FAILED_ATTEMPTS_PER_IP = 20;
 
 type AuthRequestLike = {
   headers?: Headers | Record<string, string | string[] | undefined>;
@@ -33,7 +36,16 @@ function readHeader(
 function getRequestIp(req?: AuthRequestLike) {
   const forwardedFor = readHeader(req?.headers, "x-forwarded-for");
   if (forwardedFor) {
-    return forwardedFor.split(",")[0]?.trim() || null;
+    const candidates = forwardedFor
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => part.replace(/^\[(.*)\](:\d+)?$/, "$1"))
+      .map((part) => part.replace(/:\d+$/, ""));
+
+    if (candidates.length > 0) {
+      return candidates[candidates.length - 1] ?? null;
+    }
   }
 
   const realIp = readHeader(req?.headers, "x-real-ip");
@@ -42,6 +54,43 @@ function getRequestIp(req?: AuthRequestLike) {
   }
 
   return null;
+}
+
+async function getRecentFailedLoginAttempts(params: { email: string; ipAddress: string | null }) {
+  const cutoff = new Date(Date.now() - LOGIN_RATE_LIMIT_WINDOW_MINUTES * 60 * 1000);
+
+  const [emailFailures, ipFailures] = await Promise.all([
+    db.loginAttempt.count({
+      where: {
+        email: params.email,
+        status: "FAILED",
+        createdAt: { gte: cutoff },
+      },
+    }),
+    params.ipAddress
+      ? db.loginAttempt.count({
+          where: {
+            ipAddress: params.ipAddress,
+            status: "FAILED",
+            createdAt: { gte: cutoff },
+          },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  return { emailFailures, ipFailures };
+}
+
+async function assertLoginNotRateLimited(email: string, req?: AuthRequestLike) {
+  const ipAddress = getRequestIp(req);
+  const { emailFailures, ipFailures } = await getRecentFailedLoginAttempts({
+    email,
+    ipAddress,
+  });
+
+  if (emailFailures >= LOGIN_MAX_FAILED_ATTEMPTS_PER_EMAIL || ipFailures >= LOGIN_MAX_FAILED_ATTEMPTS_PER_IP) {
+    throw new Error("Too many failed login attempts. Please try again in 15 minutes.");
+  }
 }
 
 function getUserAgent(req?: AuthRequestLike) {
@@ -143,7 +192,7 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 8 * 60 * 60, // 8 hours
   },
   pages: {
     signIn: "/login",
@@ -162,6 +211,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         const normalizedEmail = credentials.email.toLowerCase();
+
+        await assertLoginNotRateLimited(normalizedEmail, req);
 
         const user = await db.user.findUnique({
           where: { email: normalizedEmail },
