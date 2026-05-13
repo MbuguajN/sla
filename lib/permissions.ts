@@ -73,6 +73,14 @@ export function canViewReports(user: { role: string }): boolean {
   return user.role === "ADMIN" || user.role === "CEO";
 }
 
+export function canViewOtherBoards(user: { role: string; departmentSlug: string | null }): boolean {
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  return (
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE
+  );
+}
+
 // ============== PROJECT PERMISSIONS ==============
 // Only Client Service and Business Development can create projects
 export function canCreateProject(user: { role: string; departmentSlug: string | null }): boolean {

@@ -67,19 +67,14 @@ fi
 # Check if .env.production exists
 if [ ! -f ".env.production" ]; then
     echo -e "${YELLOW}No .env.production found. Creating from template...${NC}"
-    if [ -f ".env.example" ]; then
-        cp .env.example .env.production
-        echo -e "${YELLOW}⚠️  Please edit .env.production with your production values:${NC}"
-        echo "   - Set POSTGRES_PASSWORD"
-        echo "   - Set NEXTAUTH_SECRET (run: openssl rand -base64 32)"
-        echo "   - Set NEXTAUTH_URL to your domain"
-        echo ""
-        echo -e "${YELLOW}Edit the file and run this script again${NC}"
-        nano .env.production
-    else
-        echo -e "${RED}❌ .env.example not found${NC}"
-        exit 1
-    fi
+    touch .env.production
+    echo -e "${YELLOW}⚠️  Please edit .env.production with your production values:${NC}"
+    echo "   - Set POSTGRES_PASSWORD"
+    echo "   - Set NEXTAUTH_SECRET (run: openssl rand -base64 32)"
+    echo "   - Set NEXTAUTH_URL to your domain"
+    echo ""
+    echo -e "${YELLOW}Edit the file and run this script again${NC}"
+    nano .env.production
 fi
 
 # Source environment file

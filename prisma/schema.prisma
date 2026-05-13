@@ -41,6 +41,9 @@ model User {
   equipmentOwned    EquipmentItem[] @relation("EquipmentOwner")
   equipmentViewAccess EquipmentViewer[] @relation("EquipmentViewerUser")
   equipmentViewerGrants EquipmentViewer[] @relation("EquipmentViewerGrantedBy")
+  boardColumns     PersonalBoardColumn[]
+  boardCardsOwned  PersonalBoardCard[] @relation("BoardCardOwner")
+  boardCardsAssignedBy PersonalBoardCard[] @relation("BoardCardAssignedBy")
 }
 
 enum Role {
@@ -97,6 +100,7 @@ model Client {
   description   String?
   status        ClientStatus @default(ACTIVE)
   projects      Project[]
+  boardCards    PersonalBoardCard[]
   createdBy     Int?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -119,6 +123,7 @@ model Project {
   createdBy       Int?
   departments     ProjectDepartment[]
   tasks           Task[]
+  boardCards      PersonalBoardCard[]
   activityLog     ActivityLog[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -150,6 +155,7 @@ model Task {
   projectId           Int
   title               String
   description         String?
+  source              TaskSource @default(STANDARD)
   status              TaskStatus @default(UNASSIGNED)
   priority            Priority  @default(MEDIUM)
   assignedDepartment  Department? @relation(fields: [deptId], references: [id])
@@ -172,6 +178,7 @@ model Task {
   links               TaskLink[]
   activityLog         ActivityLog[]
   leaveHandovers      LeaveTaskHandover[]
+  boardCard           PersonalBoardCard?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -179,6 +186,11 @@ model Task {
   @@index([assignedUserId])
   @@index([deptId])
   @@index([projectId])
+}
+
+enum TaskSource {
+  STANDARD
+  SELF_BOARD
 }
 
 enum TaskStatus {
@@ -215,6 +227,54 @@ model TaskLink {
   createdAt DateTime @default(now())
 
   @@index([taskId])
+}
+
+model PersonalBoardColumn {
+  id               Int             @id @default(autoincrement())
+  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int
+  title            String
+  code             String
+  kind             BoardColumnKind
+  mappedTaskStatus TaskStatus
+  position         Int             @default(0)
+  cards            PersonalBoardCard[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([userId, code])
+  @@index([userId, position])
+}
+
+enum BoardColumnKind {
+  TODO
+  IN_PROGRESS
+  DONE
+  CUSTOM
+}
+
+model PersonalBoardCard {
+  id           Int                 @id @default(autoincrement())
+  owner        User                @relation("BoardCardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId      Int
+  assignedBy   User?               @relation("BoardCardAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById Int?
+  column       PersonalBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId     Int
+  task         Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId       Int                 @unique
+  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    Int
+  client       Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     Int
+  title        String
+  description  String?
+  position     Int                 @default(0)
+  enteredColumnAt DateTime         @default(now())
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([ownerId, columnId, position])
 }
 
 // ============== SUBTASKS ==============

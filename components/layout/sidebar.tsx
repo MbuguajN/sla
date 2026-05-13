@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   DashboardSquare01Icon,
+  BoardMathIcon,
   Book01Icon,
   Briefcase02Icon,
   TaskDone01Icon,
@@ -70,6 +71,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
+    ...(!isHROnly && !isFinanceOnly ? [{ label: "Board", href: "/board", icon: BoardMathIcon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 

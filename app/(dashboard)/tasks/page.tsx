@@ -3,6 +3,7 @@ import { getCurrentUser, canCreateTask } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import TasksClient from "./TasksClient";
 import { processLeaveTaskHandovers } from "@/app/actions/leaveHandoverActions";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 type SearchParams = {
   startDate?: string;
@@ -84,27 +85,30 @@ export default async function TasksPage({
   }
 
   return (
-    <TasksClient
-      initialTasks={tasks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        status: t.status,
-        priority: t.priority,
-        projectId: t.projectId,
-        projectTitle: t.project.title,
-        clientName: t.project.client.name,
-        departmentName: t.assignedDepartment?.name || null,
-        assigneeName: t.assignedTo?.name || null,
-        creatorName: t.createdBy.name,
-        slaHours: t.slaHours,
-        slaStartedAt: t.slaStartedAt?.toISOString() || null,
-        slaPausedAt: t.slaPausedAt?.toISOString() || null,
-        slaPausedDuration: t.slaPausedDuration,
-        createdAt: t.createdAt.toISOString(),
-      }))}
-      canCreate={canCreateTask(user)}
-      userRole={user.role}
-      userDepartmentSlug={user.departmentSlug}
-    />
+    <>
+      <RealtimeRefresh intervalMs={5000} />
+      <TasksClient
+        initialTasks={tasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          status: t.status,
+          priority: t.priority,
+          projectId: t.projectId,
+          projectTitle: t.project.title,
+          clientName: t.project.client.name,
+          departmentName: t.assignedDepartment?.name || null,
+          assigneeName: t.assignedTo?.name || null,
+          creatorName: t.createdBy.name,
+          slaHours: t.slaHours,
+          slaStartedAt: t.slaStartedAt?.toISOString() || null,
+          slaPausedAt: t.slaPausedAt?.toISOString() || null,
+          slaPausedDuration: t.slaPausedDuration,
+          createdAt: t.createdAt.toISOString(),
+        }))}
+        canCreate={canCreateTask(user)}
+        userRole={user.role}
+        userDepartmentSlug={user.departmentSlug}
+      />
+    </>
   );
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import DailyLogClient from "./DailyLogClient";
+import RealtimeRefresh from "@/components/RealtimeRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -117,9 +118,12 @@ export default async function DailyLogPage() {
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   return (
-    <DailyLogClient
-      projects={Array.from(projectsMap.values())}
-      initialLogs={logs}
-    />
+    <>
+      <RealtimeRefresh intervalMs={5000} />
+      <DailyLogClient
+        projects={Array.from(projectsMap.values())}
+        initialLogs={logs}
+      />
+    </>
   );
 }

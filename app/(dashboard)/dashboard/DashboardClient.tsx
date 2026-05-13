@@ -210,19 +210,19 @@ export default function DashboardClient({ user, stats, activity }: { user: any, 
               )}
             </div>
             {activeTasks.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+              <div className="grid grid-cols-1 gap-2.5 overflow-y-auto pr-2 custom-scrollbar flex-1">
                 {activeTasks.map((task: any) => (
                   <Link
                     key={task.id}
                     href={"/tasks/" + task.id}
-                    className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 dark:hover:border-[#c91f41]/30 hover:bg-white dark:hover:bg-[#111] hover:shadow-lg dark:hover:shadow-none transition-all duration-300"
+                    className="group block p-2.5 rounded-xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 dark:hover:border-[#c91f41]/30 hover:bg-white dark:hover:bg-[#111] hover:shadow-lg dark:hover:shadow-none transition-all duration-300"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#c91f41]">
                           {task.title}
                         </p>
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-1.5 mt-1">
                           <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-500">{task.project?.client?.name}</span>
                           <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
                           <span className="text-[10px] font-bold text-gray-500 dark:text-zinc-400">{task.project?.title}</span>

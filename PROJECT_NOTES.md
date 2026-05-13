@@ -5,24 +5,26 @@ This file consolidates deployment and operational notes for the SLA application.
 ## Overview
 
 - Stack: Next.js 14, Prisma, PostgreSQL, NextAuth
-- Runtime: Docker Compose for production deployment
-- Scripts: `scripts/deploy.sh` and `scripts/update.sh`
+- Runtime: systemd service behind FastPanel/Nginx
+- Scripts: `scripts/deploy.sh` and `scripts/update.sh` remain available, but the primary production path is systemd
 
 ## Deployment (Server)
 
 1. SSH into server and clone repository.
-2. Copy environment template and set production values.
-3. Run deploy script.
-4. Verify containers and logs.
+2. Create `.env.production` manually and set production values.
+3. Install dependencies, generate Prisma client, run migrations, and build.
+4. Start the app with systemd and proxy it through FastPanel.
 
 ```bash
 ssh user@your-server-ip
 git clone https://github.com/yourusername/sla.git
 cd sla
-cp .env.example .env.production
+touch .env.production
 nano .env.production
-chmod +x scripts/deploy.sh scripts/update.sh
-./scripts/deploy.sh
+npm ci
+npx prisma generate
+npx prisma migrate deploy
+npm run build
 ```
 
 ## Required Environment Variables
@@ -58,6 +60,15 @@ docker-compose exec postgres psql -U postgres -d operations_control
 docker-compose run --rm app npx prisma migrate deploy
 ```
 
+## systemd Start
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable sla
+sudo systemctl start sla
+sudo systemctl status sla
+```
+
 ## Verification Checklist
 
 ```bash
@@ -74,7 +85,11 @@ docker-compose exec postgres pg_isready
 ## Update Flow
 
 ```bash
-./scripts/update.sh
+git pull
+npm ci
+npx prisma migrate deploy
+npm run build
+sudo systemctl restart sla
 ```
 
 Use this after pulling latest code on the server.

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "PersonalBoardCard"
+ADD COLUMN "enteredColumnAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
