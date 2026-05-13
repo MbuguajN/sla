@@ -8,7 +8,8 @@
 
 */
 -- AlterTable
-ALTER TABLE "User" DROP COLUMN "homeAddress",
-DROP COLUMN "homeLat",
-DROP COLUMN "homeLng",
-DROP COLUMN "homeSetAt";
+ALTER TABLE "User"
+DROP COLUMN IF EXISTS "homeAddress",
+DROP COLUMN IF EXISTS "homeLat",
+DROP COLUMN IF EXISTS "homeLng",
+DROP COLUMN IF EXISTS "homeSetAt";

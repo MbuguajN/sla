@@ -1,5 +1,1 @@
-ALTER TABLE "User"
-ADD COLUMN "homeAddress" TEXT,
-ADD COLUMN "homeLat" DOUBLE PRECISION,
-ADD COLUMN "homeLng" DOUBLE PRECISION,
-ADD COLUMN "homeSetAt" TIMESTAMP(3);
+-- no-op: home location fields were removed before production rollout
