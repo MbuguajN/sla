@@ -8,7 +8,7 @@ import {
   rejectRequisitionAsFinance,
   rejectRequisitionAsCEO,
 } from "@/app/actions/financeActions";
-import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Cancel01Icon, Clock01Icon, ShoppingBasket01Icon, BitcoinIcon, SquareLock02Icon } from "hugeicons-react";
+import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Cancel01Icon, Clock01Icon, ShoppingBasket01Icon, BitcoinIcon, SquareLock02Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type ReqItem = { id: number; itemName: string; quantity: number; unitPrice: number; vatInclusive: boolean };

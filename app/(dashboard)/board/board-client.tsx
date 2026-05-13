@@ -9,7 +9,7 @@ import {
   UserGroupIcon,
   ArrowRight02Icon,
   Cancel01Icon,
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import {
   createPersonalBoardCard,
   createPersonalBoardColumn,

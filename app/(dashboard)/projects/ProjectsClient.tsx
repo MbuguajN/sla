@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -8,7 +8,7 @@ import {
   Search01Icon,
   Tick02Icon,
   More01Icon,
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type ProjectItem = {
@@ -71,7 +71,7 @@ export default function ProjectsClient({ initialProjects, canCreate }: Props) {
             Projects <span className="text-rose-500">Inventory</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 mt-1 font-medium text-xs">
-            {projects.length} Total Initiatives • <span className="text-rose-500 font-bold">{projects.filter(p => p.status === 'ACTIVE').length} Active</span>
+            {projects.length} Total Initiatives - <span className="text-rose-500 font-bold">{projects.filter(p => p.status === 'ACTIVE').length} Active</span>
           </p>
         </div>
         

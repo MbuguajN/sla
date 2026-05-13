@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { 
@@ -9,7 +9,7 @@ import {
   Tick02Icon,
   Clock01Icon,
   AlertCircleIcon
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
             System <span className="text-rose-500 italic">Command</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-sm">
-            Welcome back, <span className="text-[#111827] dark:text-white">{user?.name}</span> • Sector: {user?.departmentSlug || "Unassigned"}
+            Welcome back, <span className="text-[#111827] dark:text-white">{user?.name}</span> - Sector: {user?.departmentSlug || "Unassigned"}
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -8,7 +8,7 @@ import {
   rejectRefundAsFinance,
   rejectRefundAsCEO,
 } from "@/app/actions/financeActions";
-import { CreditCardIcon, Search01Icon, Cancel01Icon, CheckmarkCircle01Icon, ArrowDown01Icon } from "hugeicons-react";
+import { CreditCardIcon, Search01Icon, Cancel01Icon, CheckmarkCircle01Icon, ArrowDown01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type Refund = {

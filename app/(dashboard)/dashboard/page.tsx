@@ -1,4 +1,4 @@
-﻿import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import db from "@/lib/db";
 import { Suspense } from "react";
@@ -19,7 +19,7 @@ import {
   Calendar01Icon,
   Message01Icon,
   Settings02Icon,
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
 import DeadlineCalendarClient from "./DeadlineCalendarClient";
@@ -536,7 +536,7 @@ async function HRDashboardSection() {
             <div className="flex items-center justify-center border-t border-slate-100 dark:border-white/10 p-4">
               <Link href="/hr/suggestions" className="inline-flex items-center gap-2 text-sm font-black text-slate-600 dark:text-zinc-400 hover:text-[#c91f41] transition-colors">
                 View All Suggestions
-                <span>→</span>
+                <span>-&gt;</span>
               </Link>
             </div>
           </div>
@@ -1071,10 +1071,10 @@ export default async function DashboardPage() {
   );
 }
 
-/* ───── Stat Card ───── */
+/* ----- Stat Card ----- */
 // Removed previous StatCard as it's now inline for richer content per request
 
-/* ───── Deadline Calendar ───── */
+/* ----- Deadline Calendar ----- */
 function DeadlineCalendar({
   tasks,
 }: {
@@ -1175,7 +1175,7 @@ function DeadlineCalendar({
   );
 }
 
-/* ───── Helper function ───── */
+/* ----- Helper function ----- */
 function formatTime(date: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - new Date(date).getTime();

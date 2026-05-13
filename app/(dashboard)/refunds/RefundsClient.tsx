@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ import {
   Coins01Icon,
   CreditCardIcon,
   Invoice01Icon
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type RefundRequest = {

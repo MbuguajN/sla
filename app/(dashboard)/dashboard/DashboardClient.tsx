@@ -12,7 +12,7 @@ import {
   TaskDone01Icon, 
   Add01Icon, 
   CheckmarkCircle01Icon 
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import RealtimeRefresh from "@/components/RealtimeRefresh";

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -10,7 +10,7 @@ import {
   Clock01Icon,
   Tick01Icon,
   CancelCircleIcon,
-} from "hugeicons-react";
+} from "@hugeicons/react";
 
 type TaskItem = {
   id: number;

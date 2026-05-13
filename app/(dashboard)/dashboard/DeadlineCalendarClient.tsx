@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "hugeicons-react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/react";
 
 type DeadlineTask = {
   id: number;

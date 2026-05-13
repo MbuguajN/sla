@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDailyLogs } from "@/app/actions/dailyLogActions";
-import { Calendar01Icon, Add01Icon, Search01Icon, Tick01Icon, Cancel01Icon } from "hugeicons-react";
+import { Calendar01Icon, Add01Icon, Search01Icon, Tick01Icon, Cancel01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type TaskOption = {

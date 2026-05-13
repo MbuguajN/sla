@@ -17,7 +17,7 @@ import {
   Mail01Icon,
   Briefcase01Icon,
   NoteIcon,
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { getLeaveTypeLabel } from "@/lib/leave";
 
 export type ReportMeta = {

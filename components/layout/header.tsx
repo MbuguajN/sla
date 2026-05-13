@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { Moon02Icon, Sun01Icon, Logout01Icon } from "hugeicons-react";
+import { Moon02Icon, Sun01Icon, Logout01Icon } from "@hugeicons/react";
 import { useState, useEffect } from "react";
 import NotificationDropdown from "./NotificationDropdown";
 

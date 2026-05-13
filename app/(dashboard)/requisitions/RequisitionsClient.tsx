@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,7 +13,7 @@ import {
   ShoppingBasket01Icon,
   InformationCircleIcon,
   CheckmarkCircle01Icon
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type RequisitionItem = {

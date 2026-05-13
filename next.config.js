@@ -3,7 +3,7 @@ const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   // speed up compilation by optimizing hugeicons tree-shaking
-  transpilePackages: ['hugeicons-react'],
+  transpilePackages: ['@hugeicons/react'],
   logging: {
     fetches: {
       fullUrl: true,

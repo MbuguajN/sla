@@ -9,7 +9,7 @@ import {
   Moon02Icon, 
   Upload01Icon, 
   Tick02Icon
-} from "hugeicons-react";
+} from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
 type Setting = {
