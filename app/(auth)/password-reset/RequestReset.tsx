@@ -7,7 +7,7 @@ import { Loader2, Shield, Lock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 interface RequestResetProps {
-  onSuccess: (email: string, token: string) => void;
+  onSuccess: (email: string) => void;
 }
 
 export default function RequestReset({ onSuccess }: RequestResetProps) {
@@ -33,6 +33,7 @@ export default function RequestReset({ onSuccess }: RequestResetProps) {
         if (result.success) {
           setResetSent(true);
           setResendCountdown(60);
+          onSuccess(email);
           
           const interval = setInterval(() => {
             setResendCountdown((prev) => {

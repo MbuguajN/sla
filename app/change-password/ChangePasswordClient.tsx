@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { changeFirstLoginPassword, completeInvitePasswordSetup } from "@/app/actions/authActions";
+import { changeFirstLoginPassword, completeInvitePasswordSetup, resetPassword } from "@/app/actions/authActions";
 import { Loader2, Shield, Lock, ArrowLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -21,7 +21,12 @@ interface InviteProps extends BaseProps {
   inviteToken: string;
 }
 
-type ChangePasswordClientProps = AuthenticatedProps | InviteProps;
+interface ResetProps extends BaseProps {
+  mode: "reset";
+  resetToken: string;
+}
+
+type ChangePasswordClientProps = AuthenticatedProps | InviteProps | ResetProps;
 
 export default function ChangePasswordClient(props: ChangePasswordClientProps) {
   const router = useRouter();
@@ -50,6 +55,8 @@ export default function ChangePasswordClient(props: ChangePasswordClientProps) {
       const result =
         props.mode === "invite"
           ? await completeInvitePasswordSetup(props.inviteToken, newPassword)
+          : props.mode === "reset"
+          ? await resetPassword(props.userEmail, props.resetToken, newPassword)
           : await changeFirstLoginPassword(props.userId, newPassword);
 
       if (!result.success) {
@@ -112,11 +119,17 @@ export default function ChangePasswordClient(props: ChangePasswordClientProps) {
 
       <div className="mb-6 text-center">
         <h1 className="text-2xl leading-tight font-black tracking-tight text-[#1b2536] dark:text-white">
-          {props.mode === "invite" ? "Set Your Password" : "Change Password"}
+          {props.mode === "invite"
+            ? "Set Your Password"
+            : props.mode === "reset"
+            ? "Create New Password"
+            : "Change Password"}
         </h1>
         <p className="mt-2 text-xs font-semibold text-[#75666f] dark:text-slate-400">
           {props.mode === "invite"
             ? "Use this secure invite to create your password and activate your account."
+            : props.mode === "reset"
+            ? "Enter a new secure password to regain access to your account."
             : "Create a new password before continuing to your dashboard."}
         </p>
       </div>
