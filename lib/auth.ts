@@ -283,6 +283,9 @@ export const authOptions: NextAuthOptions = {
           departmentSlug: user.department?.slug || null,
           sessionId: sessionId,
           authVersion: user.authVersion || 0,
+          firstLoginAt: user.firstLoginAt,
+          firstLoginAt: user.firstLoginAt,
+          firstLoginAt: user.firstLoginAt,
         };
       },
     }),
@@ -296,6 +299,9 @@ export const authOptions: NextAuthOptions = {
         token.departmentSlug = user.departmentSlug;
         token.sessionId = user.sessionId;
         token.authVersion = user.authVersion;
+        token.firstLoginAt = user.firstLoginAt;
+        token.firstLoginAt = user.firstLoginAt;
+        token.firstLoginAt = user.firstLoginAt;
       }
 
       // Periodically check if session is still valid (every time JWT is refreshed)
@@ -327,6 +333,9 @@ export const authOptions: NextAuthOptions = {
           token.departmentId = dbUser.departmentId;
           token.departmentSlug = dbUser.department?.slug || null;
           token.authVersion = dbUser.authVersion;
+          token.firstLoginAt = dbUser.firstLoginAt;
+          token.firstLoginAt = dbUser.firstLoginAt;
+          token.firstLoginAt = dbUser.firstLoginAt;
         } catch (error) {
           console.error("Session check error:", error);
           // In case of DB error, allow session unless strictness is required

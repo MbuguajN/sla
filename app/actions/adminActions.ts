@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { sendInviteEmail } from "@/lib/email";
+import { validateEmailDomain, generateTemporaryPassword } from "@/lib/validators";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -45,7 +47,7 @@ export async function getUsers() {
 
 export async function createUser(data: {
   email: string;
-  password: string;
+  password?: string;
   name: string;
   role: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
   departmentId?: number;
@@ -61,7 +63,7 @@ export async function createUser(data: {
     throw new Error("Email already exists");
   }
 
-  const hashedPassword = await bcrypt.hash(data.password, 10);
+  const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
   const newUser = await db.user.create({
     data: {
@@ -70,6 +72,7 @@ export async function createUser(data: {
       name: data.name,
       role: data.role,
       departmentId: data.departmentId || null,
+      firstLoginAt: null,
     },
   });
 

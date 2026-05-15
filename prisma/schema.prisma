@@ -19,6 +19,7 @@ model User {
   isActive      Boolean         @default(true)
   currentSessionId String?      // Tracks the only allowed active session
   authVersion   Int             @default(0) // Used for global logout
+  firstLoginAt  DateTime?       // Null = user must set password on first login
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
@@ -74,6 +75,17 @@ model LoginAttempt {
 enum LoginAttemptStatus {
   SUCCESS
   FAILED
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  email     String
+  token     String    @unique // hashed token
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
 }
 
 // ============== DEPARTMENTS ==============

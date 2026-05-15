@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Loader2, Lock, Shield } from "lucide-react";
 
 interface Props {
@@ -104,12 +105,12 @@ export default function LoginClient({ logos }: Props) {
               <label htmlFor="password" className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">
                 Password
               </label>
-              <button
-                type="button"
+              <Link
+                href="/password-reset"
                 className="text-[11px] font-black uppercase tracking-[0.06em] text-[#d54b6b] hover:text-[#c91f41]"
               >
                 Reset?
-              </button>
+              </Link>
             </div>
             <input
               id="password"

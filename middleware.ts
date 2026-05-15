@@ -40,6 +40,11 @@ export default withAuth(
     // HR/Finance route-level access is enforced inside server pages/actions using
     // fresh DB-backed user data. Avoid blocking here on possibly stale JWT claims.
 
+    // Force password change on first login
+    if (path !== "/change-password" && !path.startsWith("/logout") && !path.startsWith("/api/") && !token?.firstLoginAt) {
+      return NextResponse.redirect(new URL("/change-password", req.url));
+    }
+
     return NextResponse.next();
   },
   {
@@ -52,6 +57,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
+    "/change-password",
     "/",
     "/dashboard/:path*",
     "/admin/:path*",
