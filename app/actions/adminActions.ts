@@ -63,6 +63,15 @@ export async function createUser(data: {
     throw new Error("Email already exists");
   }
 
+  // Validate domain
+  const domainValidation = validateEmailDomain(data.email);
+  if (!domainValidation.isValid) {
+    throw new Error(domainValidation.error || "Invalid email domain");
+  }
+
+  // Use provided password or generate a temporary one
+  const tempPassword = generateTemporaryPassword();
+  const finalPassword = data.password || tempPassword;
   const hashedPassword = await bcrypt.hash(finalPassword, 10);
 
   const newUser = await db.user.create({
@@ -72,9 +81,19 @@ export async function createUser(data: {
       name: data.name,
       role: data.role,
       departmentId: data.departmentId || null,
-      firstLoginAt: null,
+      firstLoginAt: null, // Force password change
     },
   });
+
+  // Send invitation email
+  try {
+    const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
+    await sendInviteEmail(data.email, finalPassword, appDomain);
+  } catch (error) {
+    console.error("Failed to send invitation email:", error);
+    // We don't throw here to avoid rolling back user creation, 
+    // but the admin should be notified in a real app.
+  }
 
   revalidatePath("/admin/users");
   return newUser;
