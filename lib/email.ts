@@ -54,7 +54,7 @@ export async function sendInviteEmail(
           <meta charset="UTF-8">
           <style>
             body { margin: 0; padding: 24px 0; background: #eceef2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #202938; }
-            .container { max-width: 540px; margin: 0 auto; padding: 0 14px; }
+            .container { max-width: 500px; margin: 0 auto; padding: 0 14px; }
             .card { background: #f9fafb; border: 1px solid #dfe3e8; border-radius: 12px; box-shadow: 0 8px 24px rgba(18, 24, 40, 0.08); overflow: hidden; }
             .header { background: #c91f41; color: #ffffff; padding: 22px 24px 20px; text-align: center; }
             .title { margin: 0; font-size: 30px; font-weight: 800; line-height: 1.12; letter-spacing: -0.02em; }
