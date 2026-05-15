@@ -10,6 +10,8 @@ declare module "next-auth" {
       departmentSlug: string | null;
       sessionId?: string;
       authVersion?: number;
+      passwordSetupRequired?: boolean;
+      firstLoginAt?: Date | null;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +22,7 @@ declare module "next-auth" {
     sessionId?: string;
     authVersion?: number;
     firstLoginAt?: Date | null;
+    passwordSetupRequired?: boolean;
   }
 }
 
@@ -32,6 +35,7 @@ declare module "next-auth/jwt" {
     sessionId?: string;
     authVersion?: number;
     firstLoginAt?: Date | null;
+    passwordSetupRequired?: boolean;
   }
 }
 

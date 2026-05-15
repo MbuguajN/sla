@@ -37,7 +37,7 @@ function getTransporter(): Transporter {
  */
 export async function sendInviteEmail(
   email: string,
-  tempPassword: string,
+  inviteToken: string,
   userName: string,
   appDomain: string
 ): Promise<void> {
@@ -45,7 +45,7 @@ export async function sendInviteEmail(
     const transport = getTransporter();
     const fromAddress = process.env.MAIL_FROM_ADDRESS || "portal@5dm.africa";
     const fromName = process.env.MAIL_FROM_NAME || "5DM Portal";
-    const loginUrl = `https://${appDomain}/login`;
+    const inviteUrl = `https://${appDomain}/change-password?invite=${encodeURIComponent(inviteToken)}`;
 
     const htmlContent = `
       <!DOCTYPE html>
@@ -53,60 +53,46 @@ export async function sendInviteEmail(
         <head>
           <meta charset="UTF-8">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #333; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #25314a; background: #edeef3; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .header { background: #c91f41; color: white; padding: 30px; border-radius: 16px 16px 0 0; text-align: center; }
+            .content { background: #fbfbfc; padding: 30px; border-radius: 0 0 16px 16px; border: 1px solid #e9ebf0; border-top: 0; }
             .section { margin-bottom: 20px; }
-            .credentials { background: white; padding: 15px; border-left: 4px solid #667eea; margin: 20px 0; font-family: 'Courier New', monospace; }
-            .credentials-label { font-size: 12px; color: #999; font-family: sans-serif; margin-bottom: 5px; }
-            .credentials-value { font-size: 14px; font-weight: bold; color: #333; }
-            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
-            .warning { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin: 15px 0; font-size: 13px; }
+            .button { display: inline-block; background: #c91f41; color: white; padding: 12px 30px; text-decoration: none; border-radius: 12px; margin: 20px 0; font-weight: 800; }
+            .footer { text-align: center; color: #75666f; font-size: 12px; margin-top: 30px; }
+            .warning { background: #fff1f4; border: 1px solid #f8b4c0; color: #8b1531; padding: 12px; border-radius: 12px; margin: 15px 0; font-size: 13px; }
+            .panel { background: white; padding: 16px; border: 1px solid #e9ebf0; border-radius: 14px; margin: 16px 0; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
               <h1>Welcome to 5DM Portal</h1>
-              <p>Your account has been created</p>
+              <p>Your account is ready for first-time setup</p>
             </div>
             <div class="content">
               <div class="section">
                 <p>Hi ${userName},</p>
-                <p>Your account has been created on the 5DM Portal. Below are your temporary login credentials.</p>
+                <p>Your account has been created on the 5DM Portal. Use the button below to set your password and activate your account.</p>
               </div>
 
               <div class="section">
-                <p><strong>Login Information:</strong></p>
-                <div class="credentials">
-                  <div class="credentials-label">Email</div>
-                  <div class="credentials-value">${email}</div>
-                  <div class="credentials-label" style="margin-top: 10px;">Temporary Password</div>
-                  <div class="credentials-value">${tempPassword}</div>
+                <div class="panel">
+                  <p><strong>Account Email:</strong> ${email}</p>
+                  <p style="margin-top: 8px;"><strong>Next step:</strong> Set your new password using the secure button below.</p>
                 </div>
               </div>
 
               <div class="section">
-                <p><strong>Next Steps:</strong></p>
-                <ol>
-                  <li>Visit <a href="${loginUrl}">${appDomain}</a> and log in with the credentials above</li>
-                  <li>You will be required to set a new password on your first login</li>
-                  <li>Once set, you can access all portal features</li>
-                </ol>
-              </div>
-
-              <div class="section">
-                <a href="${loginUrl}" class="button">Go to Portal</a>
+                <a href="${inviteUrl}" class="button">Set Password and Continue</a>
               </div>
 
               <div class="warning">
-                <strong>⚠️ Security Notice:</strong> This temporary password will expire after your first login. Do not share this email or password with anyone. If you did not create this account, please contact your administrator immediately.
+                <strong>⚠️ Security Notice:</strong> This invitation link is for your account only. Do not share it with anyone.
               </div>
 
               <div class="section">
-                <p>If you have any questions, please contact your administrator.</p>
+                <p>If you have any questions, please contact your administrator. If the button does not open correctly, you can visit <a href="https://${appDomain}">${appDomain}</a>.</p>
               </div>
 
               <div class="footer">
@@ -121,17 +107,14 @@ export async function sendInviteEmail(
     const textContent = `
 Welcome to 5DM Portal
 
-Your account has been created. Here are your login details:
+Your account has been created.
 
 Email: ${email}
-Temporary Password: ${tempPassword}
 
-Next Steps:
-1. Visit ${loginUrl} and log in with the credentials above
-2. You will be required to set a new password on your first login
-3. Once set, you can access all portal features
+Set your password here:
+${inviteUrl}
 
-SECURITY NOTICE: This temporary password will expire after your first login. Do not share this email or password with anyone.
+SECURITY NOTICE: This invitation link is for your account only. Do not share this email or link with anyone.
 
 If you have any questions, please contact your administrator.
     `;
@@ -139,7 +122,7 @@ If you have any questions, please contact your administrator.
     await transport.sendMail({
       from: `${fromName} <${fromAddress}>`,
       to: email,
-      subject: `Welcome to 5DM Portal - Account Created`,
+      subject: `Welcome to 5DM Portal - Set Your Password`,
       html: htmlContent,
       text: textContent,
     });
@@ -171,18 +154,18 @@ export async function sendPasswordResetEmail(
         <head>
           <meta charset="UTF-8">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #333; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #25314a; background: #edeef3; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; text-align: center; }
-            .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; }
+            .header { background: #c91f41; color: white; padding: 30px; border-radius: 16px 16px 0 0; text-align: center; }
+            .content { background: #fbfbfc; padding: 30px; border-radius: 0 0 16px 16px; border: 1px solid #e9ebf0; border-top: 0; }
             .section { margin-bottom: 20px; }
-            .code-box { background: white; padding: 20px; border-left: 4px solid #667eea; margin: 20px 0; text-align: center; }
-            .code-label { font-size: 12px; color: #999; margin-bottom: 10px; }
-            .code-value { font-size: 18px; font-weight: bold; color: #333; letter-spacing: 2px; font-family: 'Courier New', monospace; }
-            .button { display: inline-block; background: #667eea; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
-            .warning { background: #fee; border: 1px solid #f99; color: #c33; padding: 12px; border-radius: 4px; margin: 15px 0; font-size: 13px; }
-            .expiry { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin: 15px 0; font-size: 13px; }
+            .code-box { background: white; padding: 20px; border: 1px solid #e9ebf0; border-radius: 14px; margin: 20px 0; text-align: center; }
+            .code-label { font-size: 12px; color: #75666f; margin-bottom: 10px; }
+            .code-value { font-size: 18px; font-weight: bold; color: #25314a; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+            .button { display: inline-block; background: #c91f41; color: white; padding: 12px 30px; text-decoration: none; border-radius: 12px; margin: 20px 0; font-weight: 800; }
+            .footer { text-align: center; color: #75666f; font-size: 12px; margin-top: 30px; }
+            .warning { background: #fff1f4; border: 1px solid #f8b4c0; color: #8b1531; padding: 12px; border-radius: 12px; margin: 15px 0; font-size: 13px; }
+            .expiry { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; padding: 12px; border-radius: 12px; margin: 15px 0; font-size: 13px; }
           </style>
         </head>
         <body>
@@ -205,7 +188,6 @@ export async function sendPasswordResetEmail(
               </div>
 
               <div class="section">
-                <p><strong>Or use the link below:</strong></p>
                 <a href="${resetUrl}" class="button">Reset Password</a>
               </div>
 

@@ -21,6 +21,45 @@ function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+export async function validateInviteToken(
+  token: string
+): Promise<{
+  isValid: boolean;
+  email?: string;
+  userId?: number;
+  error?: string;
+}> {
+  try {
+    const hashedToken = hashToken(token);
+    const inviteToken = await prisma.userInviteToken.findUnique({
+      where: { token: hashedToken },
+      include: { user: true },
+    });
+
+    if (!inviteToken || inviteToken.usedAt) {
+      return { isValid: false, error: "Invalid or expired invitation link" };
+    }
+
+    if (inviteToken.expiresAt < new Date()) {
+      await prisma.userInviteToken.delete({ where: { id: inviteToken.id } });
+      return { isValid: false, error: "Invitation link has expired" };
+    }
+
+    if (!inviteToken.user.passwordSetupRequired) {
+      return { isValid: false, error: "Invitation has already been used" };
+    }
+
+    return {
+      isValid: true,
+      email: inviteToken.email,
+      userId: inviteToken.userId,
+    };
+  } catch (error) {
+    console.error("Invite token validation error:", error);
+    return { isValid: false, error: "An error occurred. Please try again." };
+  }
+}
+
 /**
  * Request a password reset email
  * Rate-limited to prevent abuse
@@ -237,12 +276,12 @@ export async function resetPassword(
     // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update user password and set firstLoginAt if null
+    // Update user password and clear first-login requirement for reset users
     await prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
-        firstLoginAt: user.firstLoginAt || new Date(), // Set if not already set
+        passwordSetupRequired: false,
       },
     });
 
@@ -276,10 +315,10 @@ export async function checkFirstLoginRequired(userId: number): Promise<boolean> 
   try {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { firstLoginAt: true },
+      select: { passwordSetupRequired: true },
     });
 
-    return user?.firstLoginAt === null;
+    return !!user?.passwordSetupRequired;
   } catch (error) {
     console.error("Error checking first login requirement:", error);
     return false;
@@ -300,7 +339,7 @@ export async function changeFirstLoginPassword(
     // Check if user needs to change password
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, firstLoginAt: true, email: true },
+      select: { id: true, firstLoginAt: true, email: true, passwordSetupRequired: true },
     });
 
     if (!user) {
@@ -327,7 +366,8 @@ export async function changeFirstLoginPassword(
       where: { id: userId },
       data: {
         password: hashedPassword,
-        firstLoginAt: new Date(),
+        firstLoginAt: user.firstLoginAt || new Date(),
+        passwordSetupRequired: false,
       },
     });
 
@@ -340,6 +380,62 @@ export async function changeFirstLoginPassword(
     return {
       success: false,
       message: "An error occurred while changing your password. Please try again.",
+    };
+  }
+}
+
+export async function completeInvitePasswordSetup(
+  inviteToken: string,
+  newPassword: string
+): Promise<{
+  success: boolean;
+  message: string;
+  email?: string;
+}> {
+  try {
+    const inviteValidation = await validateInviteToken(inviteToken);
+    if (!inviteValidation.isValid || !inviteValidation.userId || !inviteValidation.email) {
+      return {
+        success: false,
+        message: inviteValidation.error || "Invalid or expired invitation link",
+      };
+    }
+
+    const passwordValidation = validatePasswordStrength(newPassword);
+    if (!passwordValidation.isValid) {
+      return {
+        success: false,
+        message: `Password requirements not met:\n${passwordValidation.errors.join("\n")}`,
+      };
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: inviteValidation.userId },
+        data: {
+          password: hashedPassword,
+          passwordSetupRequired: false,
+          firstLoginAt: new Date(),
+        },
+      }),
+      prisma.userInviteToken.update({
+        where: { userId: inviteValidation.userId },
+        data: { usedAt: new Date() },
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: "Password set successfully",
+      email: inviteValidation.email,
+    };
+  } catch (error) {
+    console.error("Error completing invite password setup:", error);
+    return {
+      success: false,
+      message: "An error occurred while setting your password. Please try again.",
     };
   }
 }

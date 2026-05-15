@@ -284,6 +284,7 @@ export const authOptions: NextAuthOptions = {
           sessionId: sessionId,
           authVersion: user.authVersion || 0,
           firstLoginAt: user.firstLoginAt,
+          passwordSetupRequired: user.passwordSetupRequired,
         };
       },
     }),
@@ -298,6 +299,7 @@ export const authOptions: NextAuthOptions = {
         token.sessionId = user.sessionId;
         token.authVersion = user.authVersion;
         token.firstLoginAt = user.firstLoginAt;
+        token.passwordSetupRequired = user.passwordSetupRequired;
       }
 
       // Periodically check if session is still valid (every time JWT is refreshed)
@@ -330,8 +332,7 @@ export const authOptions: NextAuthOptions = {
           token.departmentSlug = dbUser.department?.slug || null;
           token.authVersion = dbUser.authVersion;
           token.firstLoginAt = dbUser.firstLoginAt;
-          token.firstLoginAt = dbUser.firstLoginAt;
-          token.firstLoginAt = dbUser.firstLoginAt;
+          token.passwordSetupRequired = dbUser.passwordSetupRequired;
         } catch (error) {
           console.error("Session check error:", error);
           // In case of DB error, allow session unless strictness is required
@@ -346,6 +347,10 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.departmentId = token.departmentId as number | null;
         session.user.departmentSlug = token.departmentSlug as string | null;
+        session.user.sessionId = token.sessionId as string | undefined;
+        session.user.authVersion = token.authVersion as number | undefined;
+        session.user.passwordSetupRequired = token.passwordSetupRequired as boolean | undefined;
+        session.user.firstLoginAt = token.firstLoginAt as Date | null | undefined;
       }
       return session;
     },

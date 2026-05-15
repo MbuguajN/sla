@@ -4,10 +4,11 @@ import { db } from "@/lib/db";
 import { getCurrentUser, canManageUsers, canManageSystemSettings } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { sendInviteEmail } from "@/lib/email";
-import { validateEmailDomain, generateTemporaryPassword } from "@/lib/validators";
+import { validateEmailDomain } from "@/lib/validators";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -69,10 +70,11 @@ export async function createUser(data: {
     throw new Error(domainValidation.error || "Invalid email domain");
   }
 
-  // Use provided password or generate a temporary one
-  const tempPassword = generateTemporaryPassword();
-  const finalPassword = data.password || tempPassword;
+  // Generate a placeholder password; the invite link is the real onboarding path.
+  const finalPassword = data.password || crypto.randomBytes(24).toString("hex");
   const hashedPassword = await bcrypt.hash(finalPassword, 10);
+  const plainInviteToken = crypto.randomBytes(32).toString("hex");
+  const hashedInviteToken = crypto.createHash("sha256").update(plainInviteToken).digest("hex");
 
   const newUser = await db.user.create({
     data: {
@@ -81,14 +83,31 @@ export async function createUser(data: {
       name: data.name,
       role: data.role,
       departmentId: data.departmentId || null,
-      firstLoginAt: null, // Force password change
+      passwordSetupRequired: true,
+      firstLoginAt: null,
+    },
+  });
+
+  await db.userInviteToken.upsert({
+    where: { userId: newUser.id },
+    update: {
+      email: data.email,
+      token: hashedInviteToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      usedAt: null,
+    },
+    create: {
+      userId: newUser.id,
+      email: data.email,
+      token: hashedInviteToken,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     },
   });
 
   // Send invitation email
   try {
     const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
-    await sendInviteEmail(data.email, finalPassword, data.name, appDomain);
+    await sendInviteEmail(data.email, plainInviteToken, data.name, appDomain);
   } catch (error) {
     console.error("Failed to send invitation email:", error);
     // We don't throw here to avoid rolling back user creation, 

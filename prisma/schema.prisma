@@ -9,42 +9,43 @@ datasource db {
 
 // ============== USERS & AUTH ==============
 model User {
-  id            Int             @id @default(autoincrement())
-  email         String          @unique
-  password      String
-  name          String
-  role          Role
-  department    Department?     @relation("DepartmentMembers", fields: [departmentId], references: [id])
-  departmentId  Int?
-  isActive      Boolean         @default(true)
-  currentSessionId String?      // Tracks the only allowed active session
-  authVersion   Int             @default(0) // Used for global logout
-  firstLoginAt  DateTime?       // Null = user must set password on first login
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-
+  id                    Int         @id @default(autoincrement())
+  email                 String      @unique
+  password              String
+  name                  String
+  role                  Role
+  department            Department? @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  departmentId          Int?
+  isActive              Boolean     @default(true)
+  currentSessionId      String? // Tracks the only allowed active session
+  authVersion           Int         @default(0) // Used for global logout
+  passwordSetupRequired Boolean     @default(false) // True only for invited new users who still need to set a password
+  firstLoginAt          DateTime? // Null = user must set password on first login
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
 
   // Relations
-  tasksCreated      Task[]          @relation("TaskCreator")
-  tasksAssigned     Task[]          @relation("TaskAssignee")
-  departmentHead    Department[]    @relation("DepartmentHead")
-  activityLogs      ActivityLog[]
-  leaves            Leave[]
-  suggestions       Suggestion[]
-  requisitions      Requisition[]
-  refunds           Refund[]
-  itTicketsCreated  ITTicket[]      @relation("TicketCreator")
-  itTicketsAssigned ITTicket[]      @relation("TicketAssignee")
-  notifications     Notification[]
-  loginAttempts     LoginAttempt[]
-  leaveHandoversAsOriginal LeaveTaskHandover[] @relation("LeaveHandoverOriginalAssignee")
-  leaveHandoversAsDelegate LeaveTaskHandover[] @relation("LeaveHandoverDelegate")
-  equipmentOwned    EquipmentItem[] @relation("EquipmentOwner")
-  equipmentViewAccess EquipmentViewer[] @relation("EquipmentViewerUser")
-  equipmentViewerGrants EquipmentViewer[] @relation("EquipmentViewerGrantedBy")
-  boardColumns     PersonalBoardColumn[]
-  boardCardsOwned  PersonalBoardCard[] @relation("BoardCardOwner")
-  boardCardsAssignedBy PersonalBoardCard[] @relation("BoardCardAssignedBy")
+  tasksCreated             Task[]                @relation("TaskCreator")
+  tasksAssigned            Task[]                @relation("TaskAssignee")
+  departmentHead           Department[]          @relation("DepartmentHead")
+  activityLogs             ActivityLog[]
+  leaves                   Leave[]
+  suggestions              Suggestion[]
+  requisitions             Requisition[]
+  refunds                  Refund[]
+  itTicketsCreated         ITTicket[]            @relation("TicketCreator")
+  itTicketsAssigned        ITTicket[]            @relation("TicketAssignee")
+  notifications            Notification[]
+  loginAttempts            LoginAttempt[]
+  leaveHandoversAsOriginal LeaveTaskHandover[]   @relation("LeaveHandoverOriginalAssignee")
+  leaveHandoversAsDelegate LeaveTaskHandover[]   @relation("LeaveHandoverDelegate")
+  equipmentOwned           EquipmentItem[]       @relation("EquipmentOwner")
+  equipmentViewAccess      EquipmentViewer[]     @relation("EquipmentViewerUser")
+  equipmentViewerGrants    EquipmentViewer[]     @relation("EquipmentViewerGrantedBy")
+  boardColumns             PersonalBoardColumn[]
+  boardCardsOwned          PersonalBoardCard[]   @relation("BoardCardOwner")
+  boardCardsAssignedBy     PersonalBoardCard[]   @relation("BoardCardAssignedBy")
+  UserInviteToken          UserInviteToken?
 }
 
 enum Role {
@@ -78,10 +79,24 @@ enum LoginAttemptStatus {
 }
 
 model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @unique // hashed token
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model UserInviteToken {
   id        Int       @id @default(autoincrement())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int       @unique
   email     String
   token     String    @unique // hashed token
   expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime  @default(now())
 
   @@index([email])
@@ -90,32 +105,32 @@ model PasswordResetToken {
 
 // ============== DEPARTMENTS ==============
 model Department {
-  id            Int       @id @default(autoincrement())
-  name          String    @unique
-  slug          String    @unique
-  head          User?     @relation("DepartmentHead", fields: [headId], references: [id])
-  headId        Int?      @unique
-  members       User[]    @relation("DepartmentMembers")
-  projects      ProjectDepartment[]
-  tasks         Task[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        Int                 @id @default(autoincrement())
+  name      String              @unique
+  slug      String              @unique
+  head      User?               @relation("DepartmentHead", fields: [headId], references: [id])
+  headId    Int?                @unique
+  members   User[]              @relation("DepartmentMembers")
+  projects  ProjectDepartment[]
+  tasks     Task[]
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
 }
 
 // ============== CLIENTS ==============
 model Client {
-  id            Int       @id @default(autoincrement())
-  name          String
-  contactName   String?
-  email         String?
-  phone         String?
-  description   String?
-  status        ClientStatus @default(ACTIVE)
-  projects      Project[]
-  boardCards    PersonalBoardCard[]
-  createdBy     Int?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          Int                 @id @default(autoincrement())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  description String?
+  status      ClientStatus        @default(ACTIVE)
+  projects    Project[]
+  boardCards  PersonalBoardCard[]
+  createdBy   Int?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 enum ClientStatus {
@@ -125,20 +140,20 @@ enum ClientStatus {
 
 // ============== PROJECTS ==============
 model Project {
-  id              Int       @id @default(autoincrement())
-  client          Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId        Int
-  title           String
-  description     String?
-  briefLink       String?
-  status          ProjectStatus @default(ACTIVE)
-  createdBy       Int?
-  departments     ProjectDepartment[]
-  tasks           Task[]
-  boardCards      PersonalBoardCard[]
-  activityLog     ActivityLog[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id          Int                 @id @default(autoincrement())
+  client      Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    Int
+  title       String
+  description String?
+  briefLink   String?
+  status      ProjectStatus       @default(ACTIVE)
+  createdBy   Int?
+  departments ProjectDepartment[]
+  tasks       Task[]
+  boardCards  PersonalBoardCard[]
+  activityLog ActivityLog[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 enum ProjectStatus {
@@ -149,50 +164,50 @@ enum ProjectStatus {
 }
 
 model ProjectDepartment {
-  id            Int       @id @default(autoincrement())
-  project       Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId     Int
-  department    Department @relation(fields: [departmentId], references: [id])
-  departmentId  Int
-  slaHours      Int       @default(48)
-  createdAt     DateTime  @default(now())
+  id           Int        @id @default(autoincrement())
+  project      Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId    Int
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  slaHours     Int        @default(48)
+  createdAt    DateTime   @default(now())
 
   @@unique([projectId, departmentId])
 }
 
 // ============== TASKS ==============
 model Task {
-  id                  Int       @id @default(autoincrement())
-  project             Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId           Int
-  title               String
-  description         String?
-  source              TaskSource @default(STANDARD)
-  status              TaskStatus @default(UNASSIGNED)
-  priority            Priority  @default(MEDIUM)
-  assignedDepartment  Department? @relation(fields: [deptId], references: [id])
-  deptId              Int?
-  assignedTo          User?     @relation("TaskAssignee", fields: [assignedUserId], references: [id])
-  assignedUserId      Int?
-  createdBy           User      @relation("TaskCreator", fields: [createdById], references: [id])
-  createdById         Int
-  slaHours            Int?
-  briefReceivedAt     DateTime?
-  briefCategory       BriefCategory?
-  slaStartedAt        DateTime?
-  startedAt           DateTime?
-  slaPausedAt         DateTime?
-  slaPausedDuration   Int?      @default(0)
-  confirmedAt         DateTime?
-  submittedAt         DateTime?
-  completedAt         DateTime?
-  subtasks            Subtask[]
-  links               TaskLink[]
-  activityLog         ActivityLog[]
-  leaveHandovers      LeaveTaskHandover[]
-  boardCard           PersonalBoardCard?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                 Int                 @id @default(autoincrement())
+  project            Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId          Int
+  title              String
+  description        String?
+  source             TaskSource          @default(STANDARD)
+  status             TaskStatus          @default(UNASSIGNED)
+  priority           Priority            @default(MEDIUM)
+  assignedDepartment Department?         @relation(fields: [deptId], references: [id])
+  deptId             Int?
+  assignedTo         User?               @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  assignedUserId     Int?
+  createdBy          User                @relation("TaskCreator", fields: [createdById], references: [id])
+  createdById        Int
+  slaHours           Int?
+  briefReceivedAt    DateTime?
+  briefCategory      BriefCategory?
+  slaStartedAt       DateTime?
+  startedAt          DateTime?
+  slaPausedAt        DateTime?
+  slaPausedDuration  Int?                @default(0)
+  confirmedAt        DateTime?
+  submittedAt        DateTime?
+  completedAt        DateTime?
+  subtasks           Subtask[]
+  links              TaskLink[]
+  activityLog        ActivityLog[]
+  leaveHandovers     LeaveTaskHandover[]
+  boardCard          PersonalBoardCard?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([status])
   @@index([assignedUserId])
@@ -242,17 +257,17 @@ model TaskLink {
 }
 
 model PersonalBoardColumn {
-  id               Int             @id @default(autoincrement())
-  user             User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               Int                 @id @default(autoincrement())
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId           Int
   title            String
   code             String
   kind             BoardColumnKind
   mappedTaskStatus TaskStatus
-  position         Int             @default(0)
+  position         Int                 @default(0)
   cards            PersonalBoardCard[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@unique([userId, code])
   @@index([userId, position])
@@ -266,25 +281,25 @@ enum BoardColumnKind {
 }
 
 model PersonalBoardCard {
-  id           Int                 @id @default(autoincrement())
-  owner        User                @relation("BoardCardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId      Int
-  assignedBy   User?               @relation("BoardCardAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
-  assignedById Int?
-  column       PersonalBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  columnId     Int
-  task         Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId       Int                 @unique
-  project      Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId    Int
-  client       Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  clientId     Int
-  title        String
-  description  String?
-  position     Int                 @default(0)
-  enteredColumnAt DateTime         @default(now())
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id              Int                 @id @default(autoincrement())
+  owner           User                @relation("BoardCardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId         Int
+  assignedBy      User?               @relation("BoardCardAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById    Int?
+  column          PersonalBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId        Int
+  task            Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId          Int                 @unique
+  project         Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId       Int
+  client          Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId        Int
+  title           String
+  description     String?
+  position        Int                 @default(0)
+  enteredColumnAt DateTime            @default(now())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   @@index([ownerId, columnId, position])
 }
@@ -309,18 +324,18 @@ enum SubtaskStatus {
 
 // ============== ACTIVITY LOGS ==============
 model ActivityLog {
-  id          Int         @id @default(autoincrement())
-  type        ActivityType
-  description String
-  task        Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId      Int?
-  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  projectId   Int?
-  user        User        @relation(fields: [userId], references: [id])
-  userId      Int
-  metadata    String?     @default("{}")
-  isHiddenFromDashboard Boolean @default(false)
-  createdAt   DateTime    @default(now())
+  id                    Int          @id @default(autoincrement())
+  type                  ActivityType
+  description           String
+  task                  Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId                Int?
+  project               Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId             Int?
+  user                  User         @relation(fields: [userId], references: [id])
+  userId                Int
+  metadata              String?      @default("{}")
+  isHiddenFromDashboard Boolean      @default(false)
+  createdAt             DateTime     @default(now())
 
   @@index([userId])
   @@index([taskId])
@@ -343,20 +358,20 @@ enum ActivityType {
 
 // ============== HR - LEAVES ==============
 model Leave {
-  id           Int       @id @default(autoincrement())
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       Int
-  type         LeaveType
-  startDate    DateTime
-  endDate      DateTime
-  totalDays    Float
-  reason       String
-  status       LeaveStatus @default(PENDING)
-  reviewedBy   Int?
-  reviewNote   String?
-  handovers    LeaveTaskHandover[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id         Int                 @id @default(autoincrement())
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  type       LeaveType
+  startDate  DateTime
+  endDate    DateTime
+  totalDays  Float
+  reason     String
+  status     LeaveStatus         @default(PENDING)
+  reviewedBy Int?
+  reviewNote String?
+  handovers  LeaveTaskHandover[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
 
   @@index([status])
 }
@@ -383,20 +398,20 @@ enum LeaveStatus {
 }
 
 model LeaveTaskHandover {
-  id                 Int             @id @default(autoincrement())
-  leave              Leave           @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  id                 Int            @id @default(autoincrement())
+  leave              Leave          @relation(fields: [leaveId], references: [id], onDelete: Cascade)
   leaveId            Int
-  task               Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task               Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
   taskId             Int
-  originalAssignee   User            @relation("LeaveHandoverOriginalAssignee", fields: [originalAssigneeId], references: [id], onDelete: Cascade)
+  originalAssignee   User           @relation("LeaveHandoverOriginalAssignee", fields: [originalAssigneeId], references: [id], onDelete: Cascade)
   originalAssigneeId Int
-  delegateUser       User            @relation("LeaveHandoverDelegate", fields: [delegateUserId], references: [id], onDelete: Cascade)
+  delegateUser       User           @relation("LeaveHandoverDelegate", fields: [delegateUserId], references: [id], onDelete: Cascade)
   delegateUserId     Int
-  status             HandoverStatus  @default(PENDING_TRANSFER)
+  status             HandoverStatus @default(PENDING_TRANSFER)
   transferredAt      DateTime?
   returnedAt         DateTime?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   @@unique([leaveId, taskId])
   @@index([status])
@@ -426,28 +441,28 @@ model LeavePolicy {
 
 // ============== HR - PUBLIC HOLIDAYS ==============
 model PublicHoliday {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
   date      DateTime
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([date])
 }
 
 // ============== HR - SUGGESTIONS ==============
 model Suggestion {
-  id          Int       @id @default(autoincrement())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          Int                @id @default(autoincrement())
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      Int
   title       String
   content     String
   category    SuggestionCategory
-  isAnonymous Boolean   @default(false)
-  status      SuggestionStatus @default(OPEN)
+  isAnonymous Boolean            @default(false)
+  status      SuggestionStatus   @default(OPEN)
   hrNote      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([status])
 }
@@ -468,19 +483,19 @@ enum SuggestionStatus {
 
 // ============== FINANCE - REQUISITIONS ==============
 model Requisition {
-  id            Int         @id @default(autoincrement())
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId        Int
-  title         String
-  reason        String
-  totalAmount   Float
-  items         RequisitionItem[]
-  status        RequisitionStatus @default(PENDING_FINANCE)
-  managerNote   String?
-  financeNote   String?
-  ceoNote       String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id          Int               @id @default(autoincrement())
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  title       String
+  reason      String
+  totalAmount Float
+  items       RequisitionItem[]
+  status      RequisitionStatus @default(PENDING_FINANCE)
+  managerNote String?
+  financeNote String?
+  ceoNote     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([status])
 }
@@ -504,16 +519,16 @@ enum RequisitionStatus {
 
 // ============== FINANCE - REFUNDS ==============
 model Refund {
-  id          Int       @id @default(autoincrement())
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          Int          @id @default(autoincrement())
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      Int
   amount      Float
   reason      String
   status      RefundStatus @default(PENDING_FINANCE)
   financeNote String?
   ceoNote     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
   @@index([status])
 }
@@ -527,18 +542,18 @@ enum RefundStatus {
 
 // ============== IT SUPPORT ==============
 model ITTicket {
-  id             Int       @id @default(autoincrement())
-  user           User      @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
+  id             Int              @id @default(autoincrement())
+  user           User             @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
   userId         Int
   title          String
   description    String
   priority       ITTicketPriority @default(MEDIUM)
-  status         ITTicketStatus @default(OPEN)
-  assignedTo     User?     @relation("TicketAssignee", fields: [assignedUserId], references: [id])
+  status         ITTicketStatus   @default(OPEN)
+  assignedTo     User?            @relation("TicketAssignee", fields: [assignedUserId], references: [id])
   assignedUserId Int?
   resolvedAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([status])
 }
@@ -568,18 +583,18 @@ model EquipmentCategory {
 }
 
 model EquipmentItem {
-  id            Int               @id @default(autoincrement())
-  category      EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  categoryId    Int
-  make          String
-  model         String
-  ownerUser     User?             @relation("EquipmentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
-  ownerUserId   Int?
-  ownerLabel    String            @default("5DM")
-  status        EquipmentStatus   @default(IN_USE)
-  serialNumber  String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id           Int               @id @default(autoincrement())
+  category     EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId   Int
+  make         String
+  model        String
+  ownerUser    User?             @relation("EquipmentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  ownerUserId  Int?
+  ownerLabel   String            @default("5DM")
+  status       EquipmentStatus   @default(IN_USE)
+  serialNumber String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@index([categoryId])
   @@index([ownerUserId])
@@ -606,15 +621,15 @@ enum EquipmentStatus {
 
 // ============== NOTIFICATIONS ==============
 model Notification {
-  id        Int       @id @default(autoincrement())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        Int              @id @default(autoincrement())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
   type      NotificationType
   title     String
   message   String
   link      String?
-  isRead    Boolean   @default(false)
-  createdAt DateTime  @default(now())
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
 
   @@index([userId, isRead])
 }
@@ -638,9 +653,9 @@ enum NotificationType {
 
 // ============== SYSTEM SETTINGS ==============
 model SystemSetting {
-  id        Int       @id @default(autoincrement())
-  key       String    @unique
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
   value     String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
