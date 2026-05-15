@@ -53,46 +53,51 @@ export async function sendInviteEmail(
         <head>
           <meta charset="UTF-8">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; line-height: 1.6; color: #25314a; background: #edeef3; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #c91f41; color: white; padding: 30px; border-radius: 16px 16px 0 0; text-align: center; }
-            .content { background: #fbfbfc; padding: 30px; border-radius: 0 0 16px 16px; border: 1px solid #e9ebf0; border-top: 0; }
-            .section { margin-bottom: 20px; }
-            .button { display: inline-block; background: #c91f41; color: white; padding: 12px 30px; text-decoration: none; border-radius: 12px; margin: 20px 0; font-weight: 800; }
-            .footer { text-align: center; color: #75666f; font-size: 12px; margin-top: 30px; }
-            .warning { background: #fff1f4; border: 1px solid #f8b4c0; color: #8b1531; padding: 12px; border-radius: 12px; margin: 15px 0; font-size: 13px; }
-            .panel { background: white; padding: 16px; border: 1px solid #e9ebf0; border-radius: 14px; margin: 16px 0; }
+            body { margin: 0; padding: 24px 0; background: #eceef2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #202938; }
+            .container { max-width: 620px; margin: 0 auto; padding: 0 18px; }
+            .card { background: #f9fafb; border: 1px solid #dfe3e8; border-radius: 12px; box-shadow: 0 8px 24px rgba(18, 24, 40, 0.08); overflow: hidden; }
+            .header { background: #c91f41; color: #ffffff; padding: 24px 28px 22px; text-align: center; }
+            .title { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+            .subtitle { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: #f6ced8; }
+            .content { padding: 26px 28px 18px; }
+            .greeting { margin: 0 0 10px; font-size: 24px; font-weight: 800; color: #2c3446; }
+            .muted { margin: 0; color: #6d7585; font-size: 16px; line-height: 1.55; font-weight: 600; }
+            .panel { background: #eef1f5; border: 1px solid #d8dde5; border-radius: 8px; padding: 14px 16px; margin: 18px 0; }
+            .panel p { margin: 0; font-size: 15px; color: #4f596a; font-weight: 700; }
+            .panel p + p { margin-top: 8px; }
+            .button-wrap { margin: 18px 0 16px; }
+            .button { display: inline-block; background: #c91f41; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 800; padding: 11px 20px; border-radius: 6px; box-shadow: 0 6px 14px rgba(201, 31, 65, 0.24); }
+            .warning { background: #fff0f2; border: 1px solid #f7c9d2; color: #b22345; border-radius: 8px; padding: 12px 13px; margin: 14px 0 10px; font-size: 13px; line-height: 1.45; font-weight: 700; }
+            .support { margin: 12px 0 0; color: #848c99; font-size: 12px; line-height: 1.45; font-weight: 600; }
+            .support a { color: #7a8392; text-decoration: underline; }
+            .footer { text-align: center; color: #a0a7b3; font-size: 11px; font-weight: 700; padding: 8px 0 14px; }
           </style>
         </head>
         <body>
           <div class="container">
-            <div class="header">
-              <h1>Welcome to 5DM Portal</h1>
-              <p>Your account is ready for first-time setup</p>
-            </div>
-            <div class="content">
-              <div class="section">
-                <p>Hi ${userName},</p>
-                <p>Your account has been created on the 5DM Portal. Use the button below to set your password and activate your account.</p>
+            <div class="card">
+              <div class="header">
+                <h1 class="title">Welcome to 5DM Portal</h1>
+                <p class="subtitle">Your account is ready for first-time setup</p>
               </div>
+              <div class="content">
+                <p class="greeting">Hi ${userName},</p>
+                <p class="muted">Your account has been created on the 5DM Portal. Use the button below to set your password and activate your account.</p>
 
-              <div class="section">
                 <div class="panel">
                   <p><strong>Account Email:</strong> ${email}</p>
-                  <p style="margin-top: 8px;"><strong>Next step:</strong> Set your new password using the secure button below.</p>
+                  <p><strong>Next step:</strong> Set your new password using the secure button below.</p>
                 </div>
-              </div>
 
-              <div class="section">
+                <div class="button-wrap">
                 <a href="${inviteUrl}" class="button">Set Password and Continue</a>
-              </div>
+                </div>
 
-              <div class="warning">
-                <strong>⚠️ Security Notice:</strong> This invitation link is for your account only. Do not share it with anyone.
-              </div>
+                <div class="warning">
+                  <strong>Security Notice:</strong> This invitation link is for your account only. Do not share it with anyone.
+                </div>
 
-              <div class="section">
-                <p>If you have any questions, please contact your administrator. If the button does not open correctly, you can visit <a href="https://${appDomain}">${appDomain}</a>.</p>
+                <p class="support">If you have any questions, please contact your administrator. If the button does not open correctly, you can visit <a href="https://${appDomain}">${appDomain}</a>.</p>
               </div>
 
               <div class="footer">
