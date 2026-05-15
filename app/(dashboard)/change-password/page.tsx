@@ -1,4 +1,5 @@
-import { getCurrentUser, checkFirstLoginRequired } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/permissions";
+import { checkFirstLoginRequired } from "@/app/actions/authActions";
 import { redirect } from "next/navigation";
 import ChangePasswordClient from "./ChangePasswordClient";
 
@@ -15,9 +16,9 @@ export default async function ChangePasswordPage() {
   }
 
   // Check if user is required to change password
-  const needsPasswordChange = checkFirstLoginRequired(user);
+  const needsPasswordChange = await checkFirstLoginRequired(user.id);
 
-  if (!needsPasswordChange && user.firstLoginAt !== null) {
+  if (!needsPasswordChange) {
     // User has already set their password, redirect to dashboard
     redirect("/dashboard");
   }

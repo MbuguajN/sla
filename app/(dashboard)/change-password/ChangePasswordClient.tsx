@@ -48,7 +48,8 @@ export default function ChangePasswordClient({ userName, userEmail }: ChangePass
 
     startTransition(async () => {
       try {
-        const result = await changeFirstLoginPassword(session.user.id as number, newPassword);
+        const userId = typeof session.user.id === 'string' ? parseInt(session.user.id, 10) : session.user.id;
+        const result = await changeFirstLoginPassword(userId as number, newPassword);
 
         if (result.success) {
           setSuccess(true);
