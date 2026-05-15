@@ -54,23 +54,26 @@ export async function sendInviteEmail(
           <meta charset="UTF-8">
           <style>
             body { margin: 0; padding: 24px 0; background: #eceef2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #202938; }
-            .container { max-width: 620px; margin: 0 auto; padding: 0 18px; }
+            .container { max-width: 540px; margin: 0 auto; padding: 0 14px; }
             .card { background: #f9fafb; border: 1px solid #dfe3e8; border-radius: 12px; box-shadow: 0 8px 24px rgba(18, 24, 40, 0.08); overflow: hidden; }
-            .header { background: #c91f41; color: #ffffff; padding: 24px 28px 22px; text-align: center; }
-            .title { margin: 0; font-size: 36px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
-            .subtitle { margin: 8px 0 0; font-size: 14px; font-weight: 600; color: #f6ced8; }
-            .content { padding: 26px 28px 18px; }
-            .greeting { margin: 0 0 10px; font-size: 24px; font-weight: 800; color: #2c3446; }
-            .muted { margin: 0; color: #6d7585; font-size: 16px; line-height: 1.55; font-weight: 600; }
-            .panel { background: #eef1f5; border: 1px solid #d8dde5; border-radius: 8px; padding: 14px 16px; margin: 18px 0; }
-            .panel p { margin: 0; font-size: 15px; color: #4f596a; font-weight: 700; }
+            .header { background: #c91f41; color: #ffffff; padding: 22px 24px 20px; text-align: center; }
+            .title { margin: 0; font-size: 30px; font-weight: 800; line-height: 1.12; letter-spacing: -0.02em; }
+            .subtitle { margin: 7px 0 0; font-size: 12px; font-weight: 700; color: #f7d6de; }
+            .content { padding: 22px 24px 16px; }
+            .greeting { margin: 0 0 8px; font-size: 20px; font-weight: 800; color: #2c3446; }
+            .muted { margin: 0; color: #6d7585; font-size: 14px; line-height: 1.5; font-weight: 600; }
+            .panel { background: #eef1f5; border: 1px solid #d8dde5; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
+            .panel p { margin: 0; font-size: 13px; color: #4f596a; font-weight: 700; }
             .panel p + p { margin-top: 8px; }
-            .button-wrap { margin: 18px 0 16px; }
-            .button { display: inline-block; background: #c91f41; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 800; padding: 11px 20px; border-radius: 6px; box-shadow: 0 6px 14px rgba(201, 31, 65, 0.24); }
-            .warning { background: #fff0f2; border: 1px solid #f7c9d2; color: #b22345; border-radius: 8px; padding: 12px 13px; margin: 14px 0 10px; font-size: 13px; line-height: 1.45; font-weight: 700; }
-            .support { margin: 12px 0 0; color: #848c99; font-size: 12px; line-height: 1.45; font-weight: 600; }
+            .button-wrap { margin: 16px 0 14px; }
+            .button,
+            .button:visited,
+            .button:hover,
+            .button:active { display: inline-block; background: #c91f41; color: #ffffff !important; -webkit-text-fill-color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 800; padding: 10px 18px; border-radius: 6px; box-shadow: 0 6px 14px rgba(201, 31, 65, 0.24); }
+            .warning { background: #fff0f2; border: 1px solid #f7c9d2; color: #b22345; border-radius: 8px; padding: 11px 12px; margin: 12px 0 10px; font-size: 12px; line-height: 1.45; font-weight: 700; }
+            .support { margin: 10px 0 0; color: #848c99; font-size: 11px; line-height: 1.45; font-weight: 600; }
             .support a { color: #7a8392; text-decoration: underline; }
-            .footer { text-align: center; color: #a0a7b3; font-size: 11px; font-weight: 700; padding: 8px 0 14px; }
+            .footer { text-align: center; color: #a0a7b3; font-size: 10px; font-weight: 700; padding: 8px 0 14px; }
           </style>
         </head>
         <body>
