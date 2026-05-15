@@ -3,18 +3,17 @@
 import { useState } from "react";
 import { changeFirstLoginPassword } from "@/app/actions/authActions";
 import { useTransition } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getPasswordRequirementsText } from "@/lib/validators";
 
 interface ChangePasswordClientProps {
+  userId: number;
   userName: string;
   userEmail: string;
 }
 
-export default function ChangePasswordClient({ userName, userEmail }: ChangePasswordClientProps) {
+export default function ChangePasswordClient({ userId, userName, userEmail }: ChangePasswordClientProps) {
   const router = useRouter();
-  const { data: session } = useSession();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
@@ -41,15 +40,14 @@ export default function ChangePasswordClient({ userName, userEmail }: ChangePass
       return;
     }
 
-    if (!session?.user?.id) {
+    if (!userId) {
       setErrors(["Session error. Please log in again."]);
       return;
     }
 
     startTransition(async () => {
       try {
-        const userId = typeof session.user.id === 'string' ? parseInt(session.user.id, 10) : session.user.id;
-        const result = await changeFirstLoginPassword(userId as number, newPassword);
+        const result = await changeFirstLoginPassword(userId, newPassword);
 
         if (result.success) {
           setSuccess(true);

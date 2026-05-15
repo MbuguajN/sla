@@ -25,7 +25,7 @@ export default async function ChangePasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 p-4">
-      <ChangePasswordClient userName={user.name} userEmail={user.email} />
+      <ChangePasswordClient userId={user.id} userName={user.name} userEmail={user.email} />
     </div>
   );
 }
