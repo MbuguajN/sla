@@ -88,7 +88,7 @@ export async function createUser(data: {
   // Send invitation email
   try {
     const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
-    await sendInviteEmail(data.email, finalPassword, appDomain);
+    await sendInviteEmail(data.email, finalPassword, data.name, appDomain);
   } catch (error) {
     console.error("Failed to send invitation email:", error);
     // We don't throw here to avoid rolling back user creation, 

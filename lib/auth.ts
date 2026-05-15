@@ -284,8 +284,6 @@ export const authOptions: NextAuthOptions = {
           sessionId: sessionId,
           authVersion: user.authVersion || 0,
           firstLoginAt: user.firstLoginAt,
-          firstLoginAt: user.firstLoginAt,
-          firstLoginAt: user.firstLoginAt,
         };
       },
     }),
@@ -299,8 +297,6 @@ export const authOptions: NextAuthOptions = {
         token.departmentSlug = user.departmentSlug;
         token.sessionId = user.sessionId;
         token.authVersion = user.authVersion;
-        token.firstLoginAt = user.firstLoginAt;
-        token.firstLoginAt = user.firstLoginAt;
         token.firstLoginAt = user.firstLoginAt;
       }
 

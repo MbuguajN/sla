@@ -19,6 +19,7 @@ declare module "next-auth" {
     departmentSlug: string | null;
     sessionId?: string;
     authVersion?: number;
+    firstLoginAt?: Date | null;
   }
 }
 
@@ -30,6 +31,7 @@ declare module "next-auth/jwt" {
     departmentSlug: string | null;
     sessionId?: string;
     authVersion?: number;
+    firstLoginAt?: Date | null;
   }
 }
 
