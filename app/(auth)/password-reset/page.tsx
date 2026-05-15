@@ -23,20 +23,12 @@ export default function PasswordResetPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 p-4">
-      <div className="w-full max-w-md">
-        {step === "request" ? (
-          <RequestReset onSuccess={handleResetRequested} />
-        ) : (
-          <ResetForm email={email} token={token} onSuccess={handleResetComplete} />
-        )}
-
-        <div className="mt-6 text-center text-sm text-white/90">
-          <Link href="/login" className="hover:text-white underline">
-            Back to Login
-          </Link>
-        </div>
-      </div>
+    <div className="w-full max-w-[380px] px-4 py-6">
+      {step === "request" ? (
+        <RequestReset onSuccess={handleResetRequested} />
+      ) : (
+        <ResetForm email={email} token={token} onSuccess={handleResetComplete} />
+      )}
     </div>
   );
 }

@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { resetPassword } from "@/app/actions/authActions";
 import { useTransition } from "react";
 import Link from "next/link";
-import { getPasswordRequirementsText } from "@/lib/validators";
+import { Loader2, Shield, Lock, ArrowLeft, CheckCircle } from "lucide-react";
 
 interface ResetFormProps {
   email: string;
@@ -24,20 +24,10 @@ export default function ResetForm({ email, token, onSuccess }: ResetFormProps) {
     e.preventDefault();
     setErrors([]);
 
-    // Validation
     const validationErrors: string[] = [];
-
-    if (!resetCode) {
-      validationErrors.push("Reset code is required");
-    }
-
-    if (!newPassword) {
-      validationErrors.push("New password is required");
-    }
-
-    if (newPassword !== confirmPassword) {
-      validationErrors.push("Passwords do not match");
-    }
+    if (!resetCode) validationErrors.push("Reset code is required");
+    if (!newPassword) validationErrors.push("New password is required");
+    if (newPassword !== confirmPassword) validationErrors.push("Passwords do not match");
 
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -47,10 +37,8 @@ export default function ResetForm({ email, token, onSuccess }: ResetFormProps) {
     startTransition(async () => {
       try {
         const result = await resetPassword(email, resetCode, newPassword);
-
         if (result.success) {
           setSuccess(true);
-          // Redirect to login after 2 seconds
           setTimeout(() => {
             onSuccess();
             window.location.href = "/login";
@@ -67,120 +55,100 @@ export default function ResetForm({ email, token, onSuccess }: ResetFormProps) {
 
   if (success) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
-            <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
+      <div className="rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm text-center">
+        <div className="flex justify-center mb-6">
+          <div className="h-16 w-16 rounded-full bg-[#f0fdf4] flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-[#16a34a]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Password Reset</h1>
-          <p className="text-gray-600 mt-3">Your password has been successfully reset</p>
-          <p className="text-sm text-gray-500 mt-2">You will be redirected to login in a moment...</p>
+        </div>
+        <h1 className="text-2xl leading-tight font-black tracking-tight text-[#1b2536] dark:text-white">Reset Success</h1>
+        <p className="mt-2 text-xs font-semibold text-[#75666f] dark:text-slate-400">Your password has been securely updated.</p>
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <p className="text-[11px] font-bold text-[#75666f] uppercase tracking-widest">Redirecting to login portal...</p>
+          <Loader2 className="h-5 w-5 animate-spin text-[#c91f41]" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Set New Password</h1>
-        <p className="text-gray-600 mt-2">Enter your reset code and new password</p>
+    <div className="rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm">
+      <div className="flex justify-center mb-6">
+        <div className="h-16 w-16 rounded-full bg-[#fff1f4] flex items-center justify-center">
+          <Shield className="h-8 w-8 text-[#c91f41]" />
+        </div>
+      </div>
+
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl leading-tight font-black tracking-tight text-[#1b2536] dark:text-white">New Password</h1>
+        <p className="mt-2 text-xs font-semibold text-[#75666f] dark:text-slate-400">Enter your code and set a new password</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {errors.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-1">
-            {errors.map((error, idx) => (
-              <p key={idx} className="text-sm text-red-700">
-                • {error}
-              </p>
-            ))}
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 uppercase tracking-tight">
+            {errors.map((error, idx) => <div key={idx}>• {error}</div>)}
           </div>
         )}
 
-        {/* Reset Code Input */}
-        <div>
-          <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
-            Reset Code
-          </label>
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">Reset Code</label>
           <input
-            id="code"
             type="text"
             value={resetCode}
             onChange={(e) => setResetCode(e.target.value.toUpperCase())}
-            placeholder="Enter code from email"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-            disabled={isLoading}
+            placeholder="ABCD"
             required
+            disabled={isLoading}
+            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-bold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35 tracking-[0.3em] text-center"
           />
-          <p className="text-xs text-gray-500 mt-1">Found in your reset email (15 minute expiry)</p>
         </div>
 
-        {/* New Password */}
-        <div className="pt-2">
-          <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
-            New Password
-          </label>
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">New Password</label>
           <input
-            id="newPassword"
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="Enter new password"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
+            placeholder="••••••••"
             required
+            disabled={isLoading}
+            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
           />
         </div>
 
-        {/* Confirm Password */}
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-            Confirm Password
-          </label>
+        <div className="space-y-1.5">
+          <label className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">Confirm Password</label>
           <input
-            id="confirmPassword"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm new password"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
+            placeholder="••••••••"
             required
+            disabled={isLoading}
+            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
           />
-        </div>
-
-        {/* Password Requirements */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-xs text-blue-700 whitespace-pre-line">
-            {getPasswordRequirementsText()}
-          </p>
         </div>
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition mt-6"
+          className="mt-1 w-full h-12 rounded-xl bg-[#c91f41] text-white text-base font-black tracking-tight shadow-[0_8px_16px_-8px_rgba(201,31,65,0.55)] hover:bg-[#b71b3a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isLoading ? "Resetting Password..." : "Reset Password"}
+          {isLoading ? (
+            <><Loader2 className="h-4 w-4 animate-spin" />Updating...</>
+          ) : (
+            "Complete Reset"
+          )}
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
-        <p>
-          Didn't receive the code?{" "}
-          <button
-            onClick={() => {
-              window.history.back();
-            }}
-            className="text-blue-600 hover:underline font-medium"
-          >
-            Request new code
-          </button>
-        </p>
+      <div className="mt-6 flex items-center justify-center">
+        <Link href="/login" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#d54b6b] hover:text-[#c91f41]">
+          <ArrowLeft className="h-3.5 w-3.5" />Back to Login
+        </Link>
       </div>
     </div>
   );
 }
+

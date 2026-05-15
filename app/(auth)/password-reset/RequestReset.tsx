@@ -1,8 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { requestPasswordReset } from "@/app/actions/authActions";
 import { useTransition } from "react";
+import { Loader2, Shield, Lock, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 interface RequestResetProps {
   onSuccess: (email: string, token: string) => void;
@@ -30,9 +32,8 @@ export default function RequestReset({ onSuccess }: RequestResetProps) {
         
         if (result.success) {
           setResetSent(true);
-          setResendCountdown(60); // 60 second countdown
+          setResendCountdown(60);
           
-          // Start countdown
           const interval = setInterval(() => {
             setResendCountdown((prev) => {
               if (prev <= 1) {
@@ -54,61 +55,67 @@ export default function RequestReset({ onSuccess }: RequestResetProps) {
 
   if (resetSent) {
     return (
-      <div className="bg-white rounded-lg shadow-lg p-8">
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-4">
-            <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
+      <div className="rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm">
+        <div className="flex justify-center mb-6">
+          <div className="h-16 w-16 rounded-full bg-[#f0f9ff] flex items-center justify-center">
+            <Lock className="h-8 w-8 text-[#0ea5e9]" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Check your email</h1>
         </div>
 
-        <div className="space-y-4 mb-6">
-          <p className="text-gray-600 text-center">
-            We've sent a password reset code to <strong>{email}</strong>
-          </p>
-          <p className="text-sm text-gray-500 text-center">
-            The code will expire in 15 minutes. If you don't see the email, check your spam folder.
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl leading-tight font-black tracking-tight text-[#1b2536] dark:text-white">Check Email</h1>
+          <p className="mt-2 text-xs font-semibold text-[#75666f] dark:text-slate-400">
+            Reset code sent to <strong className="text-[#1b2536] dark:text-white">{email}</strong>
           </p>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-700">
-            <strong>👉 Next step:</strong> Copy the code from the email or click the link to reset your password.
+        <div className="space-y-4 mb-6 text-center">
+          <p className="text-[11px] font-bold text-[#75666f] dark:text-slate-400 leading-relaxed uppercase tracking-wider">
+            Copy the code from your email (expires in 15 mins). Check spam if it is missing.
           </p>
         </div>
 
         <button
-          onClick={() => {
-            setResetSent(false);
-            setEmail("");
-          }}
+          onClick={() => setResetSent(false)}
           disabled={resendCountdown > 0}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-medium rounded-lg transition"
+          type="button"
+          className="w-full h-12 rounded-xl bg-[#c91f41] text-white text-base font-black tracking-tight shadow-[0_8px_16px_-8px_rgba(201,31,65,0.55)] hover:bg-[#b71b3a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : "Resend Code"}
+          {resendCountdown > 0 ? `Resend Code (${resendCountdown}s)` : "Resend Reset Code"}
         </button>
+
+        <div className="mt-6 flex items-center justify-center">
+          <Link href="/login" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#d54b6b] hover:text-[#c91f41]">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to Login
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
-        <p className="text-gray-600 mt-2">Enter your email to receive a reset code</p>
+    <div className="rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm">
+      <div className="flex justify-center mb-6">
+        <div className="h-16 w-16 rounded-full bg-[#fff1f4] flex items-center justify-center">
+          <Shield className="h-8 w-8 text-[#c91f41]" />
+        </div>
+      </div>
+
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl leading-tight font-black tracking-tight text-[#1b2536] dark:text-white">Reset Password</h1>
+        <p className="mt-2 text-xs font-semibold text-[#75666f] dark:text-slate-400">Receive a secure reset code</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {error}
           </div>
         )}
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="space-y-1.5">
+          <label htmlFor="email" className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">
             Email Address
           </label>
           <input
@@ -116,27 +123,41 @@ export default function RequestReset({ onSuccess }: RequestResetProps) {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@5dm.africa"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={isLoading}
+            placeholder="name@5dm.africa"
             required
+            disabled={isLoading}
+            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
           />
         </div>
 
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-lg transition mt-6"
+          className="mt-1 w-full h-12 rounded-xl bg-[#c91f41] text-white text-base font-black tracking-tight shadow-[0_8px_16px_-8px_rgba(201,31,65,0.55)] hover:bg-[#b71b3a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isLoading ? "Sending..." : "Send Reset Code"}
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            "Request Reset Code"
+          )}
         </button>
       </form>
 
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <p className="text-xs text-gray-600 text-center">
-          💡 <strong>Tip:</strong> Make sure your email domain is @5dm.africa or @myhappyhour.co.ke
-        </p>
+      <div className="mt-6 flex items-center justify-center">
+        <Link href="/login" className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[#d54b6b] hover:text-[#c91f41]">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Login
+        </Link>
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-1.5 text-[#6d6169] dark:text-slate-400">
+        <Lock className="h-3.5 w-3.5" />
+        <span className="text-[11px] font-black uppercase tracking-[0.15em]">Secure Auth System</span>
       </div>
     </div>
   );
 }
+
