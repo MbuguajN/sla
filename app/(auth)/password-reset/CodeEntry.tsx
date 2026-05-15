@@ -9,11 +9,12 @@ import { Loader2, Shield, Lock, ArrowLeft } from "lucide-react";
 interface CodeEntryProps {
   email: string;
   onBack: () => void;
+  initialCode?: string;
 }
 
-export default function CodeEntry({ email, onBack }: CodeEntryProps) {
+export default function CodeEntry({ email, onBack, initialCode = "" }: CodeEntryProps) {
   const router = useRouter();
-  const [resetCode, setResetCode] = useState("");
+  const [resetCode, setResetCode] = useState(initialCode);
   const [errors, setErrors] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [codeExpiry, setCodeExpiry] = useState(15 * 60); // 15 minutes in seconds
@@ -105,11 +106,11 @@ export default function CodeEntry({ email, onBack }: CodeEntryProps) {
           <input
             type="text"
             value={resetCode}
-            onChange={(e) => setResetCode(e.target.value.toUpperCase())}
+            onChange={(e) => setResetCode(e.target.value)}
             placeholder="Paste code here"
             required
             disabled={isLoading}
-            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-bold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35 tracking-[0.15em] text-center"
+            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-mono text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35 text-center"
           />
         </div>
 

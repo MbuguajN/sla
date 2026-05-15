@@ -195,10 +195,6 @@ export async function sendPasswordResetEmail(
                 </div>
               </div>
 
-              <div class="section">
-                <a href="${resetUrl}" class="button">Reset Password</a>
-              </div>
-
               <div class="expiry">
                 <strong>⏱️ Important:</strong> This reset code will expire in 15 minutes. You must complete the password reset within this time.
               </div>
@@ -206,7 +202,8 @@ export async function sendPasswordResetEmail(
               <div class="section">
                 <p><strong>To reset your password:</strong></p>
                 <ol>
-                  <li>Copy the code above or click the link</li>
+                  <li>Copy the reset code displayed above</li>
+                  <li>Go to the password reset page and paste the code</li>
                   <li>Enter your new password</li>
                   <li>Log in with your new password</li>
                 </ol>
@@ -237,9 +234,10 @@ Or visit this link:
 ${resetUrl}
 
 To reset your password:
-1. Copy the code above
-2. Enter your new password
-3. Log in with your new password
+1. Copy the reset code displayed above
+2. Go to the password reset page and paste the code
+3. Enter your new password
+4. Log in with your new password
 
 SECURITY WARNING: Do not share this code with anyone. Never give your password or reset code to another person.
     `;

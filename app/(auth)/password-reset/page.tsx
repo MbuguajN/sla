@@ -1,31 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import RequestReset from "./RequestReset";
-import CodeEntry from "./CodeEntry";
+import { Suspense } from "react";
+import ResetPageContent from "./ResetPageContent";
 
 export default function PasswordResetPage() {
-  const [step, setStep] = useState<"request" | "code-entry">("request");
-  const [email, setEmail] = useState("");
-
-  const handleResetRequested = (resetEmail: string) => {
-    setEmail(resetEmail);
-    setStep("code-entry");
-  };
-
-  const handleResetComplete = () => {
-    setStep("request");
-    setEmail("");
-  };
-
   return (
     <div className="w-full max-w-[380px] px-4 py-6">
-      {step === "request" ? (
-        <RequestReset onSuccess={handleResetRequested} />
-      ) : (
-        <CodeEntry email={email} onBack={() => setStep("request")} />
-      )}
+      <Suspense
+        fallback={
+          <div className="rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm">
+            <div className="text-center">
+              <p className="text-sm text-[#75666f] dark:text-slate-400">Loading...</p>
+            </div>
+          </div>
+        }
+      >
+        <ResetPageContent />
+      </Suspense>
     </div>
   );
 }
