@@ -1,8 +1,13 @@
 -- CreateEnum
-CREATE TYPE "Privilege" AS ENUM ('CAN_CREATE_CLIENTS', 'CAN_CREATE_PROJECTS', 'CAN_CREATE_TASKS');
+DO $$
+BEGIN
+    CREATE TYPE "Privilege" AS ENUM ('CAN_CREATE_CLIENTS', 'CAN_CREATE_PROJECTS', 'CAN_CREATE_TASKS');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "passwordSetupRequired" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetupRequired" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
 CREATE TABLE "UserPrivilege" (
