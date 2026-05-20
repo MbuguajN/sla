@@ -10,7 +10,7 @@ END $$;
 ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordSetupRequired" BOOLEAN NOT NULL DEFAULT false;
 
 -- CreateTable
-CREATE TABLE "UserPrivilege" (
+CREATE TABLE IF NOT EXISTS "UserPrivilege" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "privilege" "Privilege" NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE "UserPrivilege" (
 );
 
 -- CreateTable
-CREATE TABLE "UserInviteToken" (
+CREATE TABLE IF NOT EXISTS "UserInviteToken" (
     "id" SERIAL NOT NULL,
     "userId" INTEGER NOT NULL,
     "email" TEXT NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE "UserInviteToken" (
 );
 
 -- CreateTable
-CREATE TABLE "ProjectLink" (
+CREATE TABLE IF NOT EXISTS "ProjectLink" (
     "id" SERIAL NOT NULL,
     "projectId" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
@@ -45,37 +45,57 @@ CREATE TABLE "ProjectLink" (
 );
 
 -- CreateIndex
-CREATE INDEX "UserPrivilege_userId_idx" ON "UserPrivilege"("userId");
+CREATE INDEX IF NOT EXISTS "UserPrivilege_userId_idx" ON "UserPrivilege"("userId");
 
 -- CreateIndex
-CREATE INDEX "UserPrivilege_grantedById_idx" ON "UserPrivilege"("grantedById");
+CREATE INDEX IF NOT EXISTS "UserPrivilege_grantedById_idx" ON "UserPrivilege"("grantedById");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserPrivilege_userId_privilege_key" ON "UserPrivilege"("userId", "privilege");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserPrivilege_userId_privilege_key" ON "UserPrivilege"("userId", "privilege");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserInviteToken_userId_key" ON "UserInviteToken"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserInviteToken_userId_key" ON "UserInviteToken"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "UserInviteToken_token_key" ON "UserInviteToken"("token");
+CREATE UNIQUE INDEX IF NOT EXISTS "UserInviteToken_token_key" ON "UserInviteToken"("token");
 
 -- CreateIndex
-CREATE INDEX "UserInviteToken_email_idx" ON "UserInviteToken"("email");
+CREATE INDEX IF NOT EXISTS "UserInviteToken_email_idx" ON "UserInviteToken"("email");
 
 -- CreateIndex
-CREATE INDEX "UserInviteToken_expiresAt_idx" ON "UserInviteToken"("expiresAt");
+CREATE INDEX IF NOT EXISTS "UserInviteToken_expiresAt_idx" ON "UserInviteToken"("expiresAt");
 
 -- CreateIndex
-CREATE INDEX "ProjectLink_projectId_idx" ON "ProjectLink"("projectId");
+CREATE INDEX IF NOT EXISTS "ProjectLink_projectId_idx" ON "ProjectLink"("projectId");
 
 -- AddForeignKey
-ALTER TABLE "UserPrivilege" ADD CONSTRAINT "UserPrivilege_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    ALTER TABLE "UserPrivilege" ADD CONSTRAINT "UserPrivilege_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "UserPrivilege" ADD CONSTRAINT "UserPrivilege_grantedById_fkey" FOREIGN KEY ("grantedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    ALTER TABLE "UserPrivilege" ADD CONSTRAINT "UserPrivilege_grantedById_fkey" FOREIGN KEY ("grantedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "UserInviteToken" ADD CONSTRAINT "UserInviteToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    ALTER TABLE "UserInviteToken" ADD CONSTRAINT "UserInviteToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
 -- AddForeignKey
-ALTER TABLE "ProjectLink" ADD CONSTRAINT "ProjectLink_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    ALTER TABLE "ProjectLink" ADD CONSTRAINT "ProjectLink_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
