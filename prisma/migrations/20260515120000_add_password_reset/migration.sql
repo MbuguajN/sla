@@ -1,8 +1,8 @@
 -- Add firstLoginAt field to User table
-ALTER TABLE "User" ADD COLUMN "firstLoginAt" TIMESTAMP(3);
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMP(3);
 
 -- Create PasswordResetToken table
-CREATE TABLE "PasswordResetToken" (
+CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
     "id" SERIAL NOT NULL PRIMARY KEY,
     "email" TEXT NOT NULL,
     "token" TEXT NOT NULL,
@@ -12,5 +12,5 @@ CREATE TABLE "PasswordResetToken" (
 );
 
 -- Create indexes for efficient queries
-CREATE INDEX "PasswordResetToken_email_idx" ON "PasswordResetToken"("email");
-CREATE INDEX "PasswordResetToken_expiresAt_idx" ON "PasswordResetToken"("expiresAt");
+CREATE INDEX IF NOT EXISTS "PasswordResetToken_email_idx" ON "PasswordResetToken"("email");
+CREATE INDEX IF NOT EXISTS "PasswordResetToken_expiresAt_idx" ON "PasswordResetToken"("expiresAt");
