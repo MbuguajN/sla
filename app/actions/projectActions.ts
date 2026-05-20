@@ -68,6 +68,7 @@ export async function getProject(projectId: number) {
     where: { id: projectId },
     include: {
       client: true,
+      briefLinks: true,
       departments: { include: { department: true } },
       tasks: {
         include: {
@@ -90,7 +91,8 @@ export async function createProject(data: {
   clientId: number;
   title: string;
   description?: string;
-  briefLink?: string;
+  briefLinkName?: string;
+  briefLinkUrl?: string;
   departmentIds: number[];
   slaHours?: number;
 }) {
@@ -117,7 +119,19 @@ export async function createProject(data: {
       clientId: data.clientId,
       title: data.title,
       description: data.description || null,
-      briefLink: data.briefLink || null,
+      briefLink: null,
+      ...(data.briefLinkName?.trim() && data.briefLinkUrl?.trim()
+        ? {
+            briefLinks: {
+              create: {
+                name: data.briefLinkName.trim(),
+                url: /^https?:\/\//i.test(data.briefLinkUrl.trim())
+                  ? data.briefLinkUrl.trim()
+                  : `https://${data.briefLinkUrl.trim()}`,
+              },
+            },
+          }
+        : {}),
       createdBy: user.id,
       departments: {
         create: data.departmentIds.map((deptId) => ({
@@ -152,7 +166,6 @@ export async function updateProject(
   data: {
     title?: string;
     description?: string;
-    briefLink?: string;
     status?: "ACTIVE" | "ON_HOLD" | "COMPLETED" | "CANCELLED";
   }
 ) {
@@ -166,7 +179,6 @@ export async function updateProject(
     data: {
       title: data.title,
       description: data.description,
-      briefLink: data.briefLink,
       status: data.status,
     },
   });
@@ -186,44 +198,39 @@ export async function updateProject(
   return project;
 }
 
-export async function addProjectBriefLink(projectId: number, inputLink: string) {
+export async function addProjectBriefLink(projectId: number, name: string, url: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const canManageBriefLinks =
-    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
-    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE;
+  const canManageBriefLinks = canCreateProject(user);
 
   if (!canManageBriefLinks) {
     throw new Error("Unauthorized - Only Business Development and Client Service can add brief links");
   }
 
-  const trimmed = inputLink.trim();
-  if (!trimmed) throw new Error("Link is required");
+  const trimmedName = name.trim();
+  const trimmedUrl = url.trim();
+  if (!trimmedName) throw new Error("Link name is required");
+  if (!trimmedUrl) throw new Error("Link URL is required");
 
-  const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  const normalized = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
 
   const parsed = new URL(normalized);
   if (!parsed.hostname) throw new Error("Invalid URL");
 
   const project = await db.project.findUnique({
     where: { id: projectId },
-    select: { id: true, title: true, briefLink: true },
+    select: { id: true, title: true },
   });
 
   if (!project) throw new Error("Project not found");
 
-  const existing = (project.briefLink || "").trim();
-  const links = existing
-    ? existing.split(/[\n,]+/).map((value) => value.trim()).filter(Boolean)
-    : [];
-
-  const deduped = new Set(links.map((value) => value.toLowerCase()));
-  if (!deduped.has(normalized.toLowerCase())) links.push(normalized);
-
-  await db.project.update({
-    where: { id: projectId },
-    data: { briefLink: links.length > 0 ? links.join("\n") : null },
+  await db.projectLink.create({
+    data: {
+      projectId,
+      name: trimmedName,
+      url: normalized,
+    },
   });
 
   await db.activityLog.create({
@@ -232,7 +239,42 @@ export async function addProjectBriefLink(projectId: number, inputLink: string) 
       description: "Project brief link added",
       projectId,
       userId: user.id,
-      metadata: JSON.stringify({ link: normalized }),
+      metadata: JSON.stringify({ name: trimmedName, url: normalized }),
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  return { ok: true };
+}
+
+export async function deleteProjectBriefLink(projectId: number, linkId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const canManageBriefLinks = canCreateProject(user);
+
+  if (!canManageBriefLinks) {
+    throw new Error("Unauthorized - Only Business Development and Client Service can delete brief links");
+  }
+
+  const link = await db.projectLink.findUnique({
+    where: { id: linkId },
+    select: { id: true, projectId: true, name: true, url: true },
+  });
+
+  if (!link || link.projectId !== projectId) {
+    throw new Error("Brief link not found");
+  }
+
+  await db.projectLink.delete({ where: { id: linkId } });
+
+  await db.activityLog.create({
+    data: {
+      type: "STATUS_CHANGED",
+      description: "Project brief link removed",
+      projectId,
+      userId: user.id,
+      metadata: JSON.stringify({ name: link.name, url: link.url }),
     },
   });
 

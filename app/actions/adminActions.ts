@@ -9,6 +9,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { sendInviteEmail } from "@/lib/email";
 import { validateEmailDomain } from "@/lib/validators";
+import { Privilege } from "@prisma/client";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -176,6 +177,73 @@ export async function deleteUser(userId: number) {
 
   await db.user.delete({ where: { id: userId } });
   revalidatePath("/admin/users");
+}
+
+export async function getUserPrivileges(userId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canManageUsers(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const privileges = await db.userPrivilege.findMany({
+    where: { userId },
+    select: { privilege: true },
+  });
+
+  return privileges.map((entry) => entry.privilege);
+}
+
+export async function grantUserPrivilege(userId: number, privilege: Privilege) {
+  const user = await getCurrentUser();
+  if (!user || !canManageUsers(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  if (userId === user.id) {
+    throw new Error("You cannot modify your own privilege grants");
+  }
+
+  await db.userPrivilege.upsert({
+    where: {
+      userId_privilege: {
+        userId,
+        privilege,
+      },
+    },
+    update: {
+      grantedById: user.id,
+      grantedAt: new Date(),
+    },
+    create: {
+      userId,
+      privilege,
+      grantedById: user.id,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+export async function revokeUserPrivilege(userId: number, privilege: Privilege) {
+  const user = await getCurrentUser();
+  if (!user || !canManageUsers(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  if (userId === user.id) {
+    throw new Error("You cannot modify your own privilege grants");
+  }
+
+  await db.userPrivilege.deleteMany({
+    where: {
+      userId,
+      privilege,
+    },
+  });
+
+  revalidatePath("/admin/users");
+  return { ok: true };
 }
 
 // ============== DEPARTMENT MANAGEMENT ==============

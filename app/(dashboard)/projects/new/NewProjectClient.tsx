@@ -41,7 +41,8 @@ export default function NewProjectClient({ clients, departments, preselectedClie
     clientId: preselectedClientId?.toString() || "",
     title: "",
     description: "",
-    briefLink: "",
+    briefLinkName: "",
+    briefLinkUrl: "",
     departmentIds: [] as number[],
   });
 
@@ -55,6 +56,12 @@ export default function NewProjectClient({ clients, departments, preselectedClie
     if (currentStep === 2) {
       if (!formData.description.trim()) {
         setError("Please provide a project description.");
+        return;
+      }
+      const hasBriefName = Boolean(formData.briefLinkName.trim());
+      const hasBriefUrl = Boolean(formData.briefLinkUrl.trim());
+      if (hasBriefName !== hasBriefUrl) {
+        setError("Provide both brief link name and URL, or leave both empty.");
         return;
       }
     }
@@ -90,7 +97,8 @@ export default function NewProjectClient({ clients, departments, preselectedClie
         clientId: parseInt(formData.clientId),
         title: formData.title,
         description: formData.description,
-        briefLink: formData.briefLink || undefined,
+        briefLinkName: formData.briefLinkName || undefined,
+        briefLinkUrl: formData.briefLinkUrl || undefined,
         departmentIds: formData.departmentIds,
       });
 
@@ -220,15 +228,28 @@ export default function NewProjectClient({ clients, departments, preselectedClie
                 <div className="space-y-6">
                   <div className="form-control w-full">
                     <label className="label mb-1">
-                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Brief Link (Optional)</span>
+                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Brief Link Name (Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Creative Brief"
+                      className="input input-bordered w-full h-12 rounded-2xl bg-gray-50 dark:bg-black border-gray-200 dark:border-white/10 focus:border-[#c91f41] focus:ring-1 focus:ring-[#c91f41] text-sm px-4 dark:text-white"
+                      value={formData.briefLinkName}
+                      onChange={(e) => setFormData({ ...formData, briefLinkName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-control w-full">
+                    <label className="label mb-1">
+                      <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Brief Link URL (Optional)</span>
                     </label>
                     <div className="relative">
-                      <input 
-                        type="url" 
-                        placeholder="https://google.drive/..." 
+                      <input
+                        type="url"
+                        placeholder="https://google.drive/..."
                         className="input input-bordered w-full h-12 rounded-2xl bg-gray-50 dark:bg-black border-gray-200 dark:border-white/10 focus:border-[#c91f41] focus:ring-1 focus:ring-[#c91f41] pl-10 text-sm dark:text-white"
-                        value={formData.briefLink}
-                        onChange={(e) => setFormData({ ...formData, briefLink: e.target.value })}
+                        value={formData.briefLinkUrl}
+                        onChange={(e) => setFormData({ ...formData, briefLinkUrl: e.target.value })}
                       />
                       <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-600" />
                     </div>

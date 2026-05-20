@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createUser, updateUser, deleteUser } from "@/app/actions/adminActions";
+import { createUser, updateUser, deleteUser, grantUserPrivilege, revokeUserPrivilege } from "@/app/actions/adminActions";
 import {
   Users,
   Plus,
@@ -40,9 +40,18 @@ type UserItem = {
   role: string;
   departmentId: number | null;
   departmentName: string | null;
+  privileges: string[];
   isActive: boolean;
   createdAt: string;
 };
+
+const PRIVILEGE_OPTIONS = [
+  { key: "CAN_CREATE_CLIENTS", label: "Can Create Clients" },
+  { key: "CAN_CREATE_PROJECTS", label: "Can Create Projects" },
+  { key: "CAN_CREATE_TASKS", label: "Can Create Tasks" },
+] as const;
+
+type PrivilegeKey = (typeof PRIVILEGE_OPTIONS)[number]["key"];
 
 type Department = {
   id: number;
@@ -62,6 +71,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedPrivileges, setSelectedPrivileges] = useState<PrivilegeKey[]>([]);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -89,6 +99,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       role: "EMPLOYEE",
       departmentId: "",
     });
+    setSelectedPrivileges([]);
     setError("");
     setShowModal(true);
   };
@@ -102,6 +113,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       role: user.role,
       departmentId: user.departmentId?.toString() || "",
     });
+    setSelectedPrivileges((user.privileges || []) as PrivilegeKey[]);
     setError("");
     setShowModal(true);
   };
@@ -122,6 +134,15 @@ export default function UsersClient({ initialUsers, departments }: Props) {
           ...(formData.password ? { password: formData.password } : {}),
         });
 
+        const existingPrivileges = (editingUser.privileges || []) as PrivilegeKey[];
+        const toGrant = selectedPrivileges.filter((value) => !existingPrivileges.includes(value));
+        const toRevoke = existingPrivileges.filter((value) => !selectedPrivileges.includes(value));
+
+        await Promise.all([
+          ...toGrant.map((privilege) => grantUserPrivilege(editingUser.id, privilege)),
+          ...toRevoke.map((privilege) => revokeUserPrivilege(editingUser.id, privilege)),
+        ]);
+
         setUsers((prev) =>
           prev.map((u) =>
             u.id === editingUser.id
@@ -134,6 +155,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                   departmentName:
                     departments.find((d) => d.id.toString() === formData.departmentId)?.name ||
                     null,
+                  privileges: selectedPrivileges,
                 }
               : u
           )
@@ -193,6 +215,12 @@ export default function UsersClient({ initialUsers, departments }: Props) {
     CEO: "info",
     MANAGER: "success",
     EMPLOYEE: "secondary",
+  };
+
+  const togglePrivilege = (value: PrivilegeKey) => {
+    setSelectedPrivileges((prev) =>
+      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value]
+    );
   };
 
   const stats = [
@@ -432,6 +460,34 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                     </select>
                   </div>
                 </div>
+
+                {editingUser && (
+                  <div>
+                    <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">
+                      Extra Privileges
+                    </label>
+                    <div className="space-y-2">
+                      {PRIVILEGE_OPTIONS.map((option) => {
+                        const active = selectedPrivileges.includes(option.key);
+                        return (
+                          <button
+                            key={option.key}
+                            type="button"
+                            onClick={() => togglePrivilege(option.key)}
+                            className={cn(
+                              "w-full h-11 px-4 rounded-xl border-2 text-left text-[11px] font-black uppercase tracking-wide transition-all",
+                              active
+                                ? "bg-[#c91f41]/10 border-[#c91f41] text-[#c91f41]"
+                                : "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-600 dark:text-zinc-400"
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-4 pt-4">
                   <button

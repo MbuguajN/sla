@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addDepartmentToProject, addProjectBriefLink, closeProject, pauseProject, resumeProject } from "@/app/actions/projectActions";
+import { addDepartmentToProject, addProjectBriefLink, closeProject, deleteProjectBriefLink, pauseProject, resumeProject } from "@/app/actions/projectActions";
 import { cn } from "@/lib/utils";
-import { Download, Filter, Plus, Search, X, CheckCircle, PauseCircle, PlayCircle, Link2 } from "lucide-react";
+import { Download, Filter, Plus, Search, X, CheckCircle, PauseCircle, PlayCircle, Link2, ExternalLink, Trash2 } from "lucide-react";
 
 type ProjectDepartment = {
   id: number;
@@ -41,6 +41,7 @@ type ProjectDetail = {
   status: string;
   departments: ProjectDepartment[];
   tasks: ProjectTask[];
+  briefLinks: { id: number; name: string; url: string }[];
 };
 
 type DepartmentOption = {
@@ -145,6 +146,13 @@ function monthLabel(key: string) {
     year: "numeric",
   });
 }
+function calculateDueDate(task: ProjectTask): Date | null {
+  if (!task.slaHours || !task.slaStartedAt) return null;
+  const started = new Date(task.slaStartedAt).getTime();
+  const totalMs = task.slaHours * 60 * 60 * 1000;
+  const pausedMs = (task.slaPausedDuration || 0) * 1000;
+  return new Date(started + totalMs - pausedMs);
+}
 
 export default function ProjectDetailClient({
   project,
@@ -159,11 +167,17 @@ export default function ProjectDetailClient({
   const [showDepartmentModal, setShowDepartmentModal] = useState(false);
   const [showBriefLinkModal, setShowBriefLinkModal] = useState(false);
   const [showTimesheetModal, setShowTimesheetModal] = useState(false);
+  const [showTaskSearch, setShowTaskSearch] = useState(false);
+  const [showTaskFilters, setShowTaskFilters] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
-  const [briefLinkInput, setBriefLinkInput] = useState("");
+  const [briefLinkNameInput, setBriefLinkNameInput] = useState("");
+  const [briefLinkUrlInput, setBriefLinkUrlInput] = useState("");
   const [briefLinkError, setBriefLinkError] = useState("");
   const [departmentError, setDepartmentError] = useState("");
   const [timesheetSearch, setTimesheetSearch] = useState("");
+  const [taskSearch, setTaskSearch] = useState("");
+  const [taskDueFilter, setTaskDueFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH">("ALL");
+  const [taskStatusFilter, setTaskStatusFilter] = useState("ALL");
   const [isPending, startTransition] = useTransition();
   const [statusError, setStatusError] = useState("");
 
@@ -225,18 +239,56 @@ export default function ProjectDetailClient({
     return departments.filter((department) => !existingIds.has(department.id));
   }, [departments, project.departments]);
 
-  const briefLinks = useMemo(() => {
-    const raw = (project.briefLink || "").trim();
-    if (!raw) return [];
+  const briefLinks = useMemo(
+    () =>
+      (project.briefLinks || []).map((entry) => ({
+        ...entry,
+        url: /^https?:\/\//i.test(entry.url) ? entry.url : `https://${entry.url}`,
+      })),
+    [project.briefLinks]
+  );
 
-    const placeholders = new Set(["none", "n/a", "na", "null", "undefined", "-"]);
+  const taskStatuses = useMemo(
+    () => ["ALL", ...Array.from(new Set(project.tasks.map((task) => task.status)))],
+    [project.tasks]
+  );
 
-    return raw
-      .split(/[\n,]+/)
-      .map((link) => link.trim())
-      .filter((link) => Boolean(link) && !placeholders.has(link.toLowerCase()))
-      .map((link) => (/^https?:\/\//i.test(link) ? link : `https://${link}`));
-  }, [project.briefLink]);
+  const filteredTasks = useMemo(() => {
+    const query = taskSearch.trim().toLowerCase();
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+
+    const dayOfWeek = now.getDay();
+    const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+    const endOfWeek = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate() + 7);
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    return project.tasks.filter((task) => {
+      const matchesSearch =
+        !query ||
+        task.title.toLowerCase().includes(query) ||
+        (task.assignedTo?.name || "").toLowerCase().includes(query) ||
+        (task.assignedDepartment?.name || "").toLowerCase().includes(query);
+
+      const matchesStatus = taskStatusFilter === "ALL" || task.status === taskStatusFilter;
+
+      const matchesDueDate = (() => {
+        if (taskDueFilter === "ALL") return true;
+        const dueDate = calculateDueDate(task);
+        if (!dueDate) return true;
+        if (taskDueFilter === "TODAY") return dueDate >= startOfToday && dueDate < endOfToday;
+        if (taskDueFilter === "THIS_WEEK") return dueDate >= startOfWeek && dueDate < endOfWeek;
+        if (taskDueFilter === "THIS_MONTH") return dueDate >= startOfMonth && dueDate < endOfMonth;
+        return true;
+      })();
+
+      return matchesSearch && matchesStatus && matchesDueDate;
+    });
+  }, [project.tasks, taskSearch, taskStatusFilter, taskDueFilter]);
 
   const monthOptions = useMemo(() => {
     return Array.from(
@@ -322,21 +374,38 @@ export default function ProjectDetailClient({
   };
 
   const handleAddBriefLink = () => {
-    const value = briefLinkInput.trim();
-    if (!value) {
-      setBriefLinkError("Link is required.");
+    const name = briefLinkNameInput.trim();
+    const url = briefLinkUrlInput.trim();
+
+    if (!name || !url) {
+      setBriefLinkError("Link name and URL are required.");
       return;
     }
 
     setBriefLinkError("");
     startTransition(async () => {
       try {
-        await addProjectBriefLink(project.id, value);
+        await addProjectBriefLink(project.id, name, url);
         setShowBriefLinkModal(false);
-        setBriefLinkInput("");
+        setBriefLinkNameInput("");
+        setBriefLinkUrlInput("");
         router.refresh();
       } catch (error) {
         setBriefLinkError(error instanceof Error ? error.message : "Failed to add brief link.");
+      }
+    });
+  };
+
+  const handleDeleteBriefLink = (linkId: number) => {
+    if (!confirm("Delete this brief link?")) return;
+
+    setBriefLinkError("");
+    startTransition(async () => {
+      try {
+        await deleteProjectBriefLink(project.id, linkId);
+        router.refresh();
+      } catch (error) {
+        setBriefLinkError(error instanceof Error ? error.message : "Failed to delete brief link.");
       }
     });
   };
@@ -447,6 +516,8 @@ export default function ProjectDetailClient({
                         type="button"
                         onClick={() => {
                           setBriefLinkError("");
+                          setBriefLinkNameInput("");
+                          setBriefLinkUrlInput("");
                           setShowBriefLinkModal(true);
                         }}
                         className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#dfe5f2] dark:bg-white/10 text-[#44506a] dark:text-zinc-300 hover:text-[#c91f41]"
@@ -457,17 +528,35 @@ export default function ProjectDetailClient({
                     )}
                   </div>
                   {briefLinks.length > 0 ? (
-                    <div className="flex flex-col gap-1.5">
-                      {briefLinks.map((link, index) => (
-                        <a
-                          key={`${link}-${index}`}
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-semibold text-[#c91f41] hover:text-[#aa1a37] dark:text-rose-300 dark:hover:text-rose-200 underline underline-offset-2 break-all"
+                    <div className="grid grid-cols-1 gap-2">
+                      {briefLinks.map((link) => (
+                        <div
+                          key={link.id}
+                          className="flex items-center justify-between rounded-xl border border-[#d8deeb] dark:border-white/10 bg-white/70 dark:bg-white/5 px-3 py-2"
                         >
-                          {link}
-                        </a>
+                          <p className="text-xs font-black text-[#1f2b40] dark:text-zinc-200 truncate pr-3">{link.name}</p>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-[#e1e6f1] dark:bg-white/10 text-[#51607a] dark:text-zinc-300 hover:text-[#c91f41]"
+                              aria-label={`Open ${link.name}`}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                            {canManageBriefLinks && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBriefLink(link.id)}
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/25"
+                                aria-label={`Delete ${link.name}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   ) : (
@@ -516,16 +605,70 @@ export default function ProjectDetailClient({
 
             <div className="xl:col-span-8 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-[42px] leading-none font-black tracking-tight text-[#1b2942] dark:text-white">Tasks ({project.tasks.length})</h2>
+                <h2 className="text-[42px] leading-none font-black tracking-tight text-[#1b2942] dark:text-white">Tasks ({filteredTasks.length})</h2>
                 <div className="flex items-center gap-2">
-                  <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] dark:bg-white/10 text-[#6f7a8e] dark:text-zinc-400 hover:text-[#c91f41]">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskFilters((prev) => !prev)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] dark:bg-white/10 text-[#6f7a8e] dark:text-zinc-400 hover:text-[#c91f41]"
+                  >
                     <Filter className="h-3.5 w-3.5" />
                   </button>
-                  <button className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] dark:bg-white/10 text-[#6f7a8e] dark:text-zinc-400 hover:text-[#c91f41]">
+                  <button
+                    type="button"
+                    onClick={() => setShowTaskSearch((prev) => !prev)}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#e1e6f1] dark:bg-white/10 text-[#6f7a8e] dark:text-zinc-400 hover:text-[#c91f41]"
+                  >
                     <Search className="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
+
+              {showTaskSearch && (
+                <div className="relative max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6f7a8e] dark:text-zinc-500" />
+                  <input
+                    type="text"
+                    value={taskSearch}
+                    onChange={(event) => setTaskSearch(event.target.value)}
+                    placeholder="Search task, assignee, or department"
+                    className="w-full h-10 rounded-xl border border-[#d8deeb] dark:border-white/10 bg-white dark:bg-white/5 pl-10 pr-3 text-xs font-semibold text-[#1d2940] dark:text-zinc-200 outline-none"
+                  />
+                </div>
+              )}
+
+              {showTaskFilters && (
+                <div className="flex flex-col md:flex-row md:items-center gap-3 rounded-xl border border-[#d8deeb] dark:border-white/10 bg-white/70 dark:bg-white/5 px-3 py-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {(["ALL", "TODAY", "THIS_WEEK", "THIS_MONTH"] as const).map((filterKey) => (
+                      <button
+                        key={filterKey}
+                        type="button"
+                        onClick={() => setTaskDueFilter(filterKey)}
+                        className={cn(
+                          "h-8 rounded-lg px-3 text-[10px] font-black uppercase tracking-[0.15em]",
+                          taskDueFilter === filterKey
+                            ? "bg-[#c91f41] text-white"
+                            : "bg-[#e1e6f1] dark:bg-white/10 text-[#51607a] dark:text-zinc-300"
+                        )}
+                      >
+                        {filterKey.replace("_", " ")}
+                      </button>
+                    ))}
+                  </div>
+                  <select
+                    value={taskStatusFilter}
+                    onChange={(event) => setTaskStatusFilter(event.target.value)}
+                    className="h-8 rounded-lg border border-[#d8deeb] dark:border-white/10 bg-white dark:bg-black px-3 text-[10px] font-black uppercase tracking-[0.15em] text-[#2a354d] dark:text-zinc-300 outline-none"
+                  >
+                    {taskStatuses.map((status) => (
+                      <option key={status} value={status}>
+                        {status.replaceAll("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="overflow-hidden rounded-2xl bg-transparent">
                 <table className="w-full min-w-[760px]">
@@ -538,7 +681,7 @@ export default function ProjectDetailClient({
                     </tr>
                   </thead>
                   <tbody>
-                    {project.tasks.map((task) => (
+                    {filteredTasks.map((task) => (
                       <tr key={task.id} className="border-b border-[#dde1ea] dark:border-white/10 last:border-b-0 hover:bg-white/30 dark:hover:bg-white/5">
                         <td className="px-4 py-4">
                           <Link href={`/tasks/${task.id}`} className="block">
@@ -564,10 +707,10 @@ export default function ProjectDetailClient({
                         </td>
                       </tr>
                     ))}
-                    {project.tasks.length === 0 && (
+                    {filteredTasks.length === 0 && (
                       <tr>
                         <td colSpan={4} className="px-4 py-10 text-center text-sm font-semibold text-[#7f8798] dark:text-zinc-500">
-                          No tasks on this project yet.
+                          No tasks match this filter.
                         </td>
                       </tr>
                     )}
@@ -660,12 +803,21 @@ export default function ProjectDetailClient({
             </div>
 
             <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Link Name (e.g. Creative Brief)"
+                value={briefLinkNameInput}
+                onChange={(event) => setBriefLinkNameInput(event.target.value)}
+                className="w-full h-12 rounded-2xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 px-4 text-sm font-medium text-gray-900 dark:text-white outline-none"
+              />
+
               <div className="relative">
                 <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-zinc-600" />
                 <input
                   type="url"
-                  value={briefLinkInput}
-                  onChange={(event) => setBriefLinkInput(event.target.value)}
+                  placeholder="https://..."
+                  value={briefLinkUrlInput}
+                  onChange={(event) => setBriefLinkUrlInput(event.target.value)}
                   className="w-full h-12 rounded-2xl bg-gray-50 dark:bg-black border border-gray-200 dark:border-white/10 pl-11 pr-4 text-sm font-medium text-gray-900 dark:text-white outline-none"
                 />
               </div>

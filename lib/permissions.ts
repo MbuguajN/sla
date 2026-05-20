@@ -23,7 +23,18 @@ export type UserWithDepartment = {
   departmentId: number | null;
   departmentSlug: string | null;
   isActive: boolean;
+  privileges: string[];
 };
+
+type PermissionContext = {
+  role: string;
+  departmentSlug: string | null;
+  privileges?: string[];
+};
+
+function hasPrivilege(user: { privileges?: string[] }, privilege: string) {
+  return Boolean(user.privileges?.includes(privilege));
+}
 
 // Get current user from session
 export async function getCurrentUser(): Promise<UserWithDepartment | null> {
@@ -32,7 +43,7 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
 
   const user = await db.user.findUnique({
     where: { id: parseInt(session.user.id) },
-    include: { department: true },
+    include: { department: true, heldPrivileges: true },
   });
 
   if (!user || !user.isActive) return null;
@@ -45,14 +56,20 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
     departmentId: user.departmentId,
     departmentSlug: user.department?.slug || null,
     isActive: user.isActive,
+    privileges: user.heldPrivileges.map((entry) => entry.privilege),
   };
 }
 
 // ============== CLIENT PERMISSIONS ==============
 // Only Business Development can onboard (create) clients
-export function canOnboardClient(user: { role: string; departmentSlug: string | null }): boolean {
+export function canOnboardClient(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (hasPrivilege(user, "CAN_CREATE_CLIENTS")) return true;
   return user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
+}
+
+export function canCreateClient(user: PermissionContext): boolean {
+  return canOnboardClient(user);
 }
 
 // Only Business Development can close clients
@@ -83,8 +100,9 @@ export function canViewOtherBoards(user: { role: string; departmentSlug: string 
 
 // ============== PROJECT PERMISSIONS ==============
 // Only Client Service and Business Development can create projects
-export function canCreateProject(user: { role: string; departmentSlug: string | null }): boolean {
+export function canCreateProject(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (hasPrivilege(user, "CAN_CREATE_PROJECTS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
@@ -93,7 +111,7 @@ export function canCreateProject(user: { role: string; departmentSlug: string | 
 
 // Only departments involved in project can access it
 export async function canAccessProject(
-  user: { role: string; departmentId: number | null; departmentSlug: string | null },
+  user: { id: number; role: string; departmentId: number | null; departmentSlug: string | null },
   projectId: number
 ): Promise<boolean> {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
@@ -104,17 +122,18 @@ export async function canAccessProject(
     return true;
   }
 
-  // Check if user's department is involved in the project
-  if (!user.departmentId) return false;
-
-  const projectDept = await db.projectDepartment.findFirst({
+  const project = await db.project.findFirst({
     where: {
-      projectId,
-      departmentId: user.departmentId,
+      id: projectId,
+      OR: [
+        { createdBy: user.id },
+        ...(user.departmentId ? [{ departments: { some: { departmentId: user.departmentId } } }] : []),
+      ],
     },
+    select: { id: true },
   });
 
-  return !!projectDept;
+  return Boolean(project);
 }
 
 export function canViewAllProjects(user: { role: string; departmentSlug?: string | null }): boolean {
@@ -136,8 +155,9 @@ export function canManageProjectStatus(user: { role: string; departmentSlug: str
 
 // ============== TASK PERMISSIONS ==============
 // Only Client Service and Business Development can create/initiate tasks
-export function canCreateTask(user: { role: string; departmentSlug: string | null }): boolean {
+export function canCreateTask(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (hasPrivilege(user, "CAN_CREATE_TASKS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV

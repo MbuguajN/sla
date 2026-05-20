@@ -45,6 +45,8 @@ model User {
   boardColumns             PersonalBoardColumn[]
   boardCardsOwned          PersonalBoardCard[]   @relation("BoardCardOwner")
   boardCardsAssignedBy     PersonalBoardCard[]   @relation("BoardCardAssignedBy")
+  heldPrivileges           UserPrivilege[]       @relation("HeldPrivileges")
+  grantedPrivileges        UserPrivilege[]       @relation("GrantedPrivileges")
   UserInviteToken          UserInviteToken?
 }
 
@@ -53,6 +55,26 @@ enum Role {
   CEO
   MANAGER
   EMPLOYEE
+}
+
+enum Privilege {
+  CAN_CREATE_CLIENTS
+  CAN_CREATE_PROJECTS
+  CAN_CREATE_TASKS
+}
+
+model UserPrivilege {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation("HeldPrivileges", fields: [userId], references: [id], onDelete: Cascade)
+  userId      Int
+  privilege   Privilege
+  grantedBy   User      @relation("GrantedPrivileges", fields: [grantedById], references: [id], onDelete: Cascade)
+  grantedById Int
+  grantedAt   DateTime  @default(now())
+
+  @@unique([userId, privilege])
+  @@index([userId])
+  @@index([grantedById])
 }
 
 model LoginAttempt {
@@ -146,6 +168,7 @@ model Project {
   title       String
   description String?
   briefLink   String?
+  briefLinks  ProjectLink[]
   status      ProjectStatus       @default(ACTIVE)
   createdBy   Int?
   departments ProjectDepartment[]
@@ -154,6 +177,17 @@ model Project {
   activityLog ActivityLog[]
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+}
+
+model ProjectLink {
+  id        Int      @id @default(autoincrement())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId Int
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
 }
 
 enum ProjectStatus {
