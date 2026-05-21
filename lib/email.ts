@@ -13,16 +13,18 @@ function getTransporter(): Transporter {
   const port = parseInt(process.env.MAIL_PORT || "587");
   const user = process.env.MAIL_USERNAME;
   const pass = process.env.MAIL_PASSWORD;
-  const secure = process.env.MAIL_ENCRYPTION === "ssl"; // true for 465, false for 587
+  const encryption = (process.env.MAIL_ENCRYPTION || "tls").toLowerCase();
+  const secure = encryption === "ssl" || encryption === "true" || port === 465;
 
   if (!host || !user || !pass) {
-    throw new Error("Email configuration missing. Check MAIL_* environment variables.");
+    throw new Error("Email configuration missing. Check MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, and MAIL_FROM_ADDRESS.");
   }
 
   transporter = nodemailer.createTransport({
     host,
     port,
     secure,
+    requireTLS: !secure,
     auth: {
       user,
       pass,
