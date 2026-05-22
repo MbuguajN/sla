@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { checkFirstLoginRequired, validateInviteToken, validatePasswordResetToken } from "@/app/actions/authActions";
+import { getCompanyLogos } from "@/app/actions/adminActions";
 import { getCurrentUser } from "@/lib/permissions";
 import ChangePasswordClient from "./ChangePasswordClient";
 
@@ -32,6 +33,8 @@ export default async function ChangePasswordPage({
     ? searchParams?.email[0]
     : searchParams?.email;
 
+  const logos = await getCompanyLogos();
+
   // Handle reset flow
   if (resetCode && resetEmail) {
     const resetValidation = await validatePasswordResetToken(resetEmail, resetCode);
@@ -43,6 +46,7 @@ export default async function ChangePasswordPage({
             mode="reset"
             resetToken={resetCode}
             userEmail={resetEmail}
+            logos={logos}
           />
         ) : (
           <div className="w-full max-w-md rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm text-center">
@@ -77,6 +81,7 @@ export default async function ChangePasswordPage({
             mode="invite"
             inviteToken={inviteToken}
             userEmail={inviteValidation.email}
+            logos={logos}
           />
         ) : (
           <div className="w-full max-w-md rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm text-center">
@@ -116,7 +121,7 @@ export default async function ChangePasswordPage({
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#edeef3] dark:bg-black p-4">
-      <ChangePasswordClient mode="authenticated" userId={user.id} userEmail={user.email} />
+      <ChangePasswordClient mode="authenticated" userId={user.id} userEmail={user.email} logos={logos} />
     </div>
   );
 }

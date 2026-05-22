@@ -9,6 +9,7 @@ import Link from "next/link";
 
 interface BaseProps {
   userEmail: string;
+  logos?: { light: string | null; dark: string | null } | null;
 }
 
 interface AuthenticatedProps extends BaseProps {
@@ -112,9 +113,28 @@ export default function ChangePasswordClient(props: ChangePasswordClientProps) {
   return (
     <div className="w-full max-w-md rounded-xl bg-[#fbfbfc] dark:bg-[#121827] border border-[#e9ebf0] dark:border-white/10 px-8 py-8 shadow-sm">
       <div className="flex justify-center mb-6">
-        <div className="h-16 w-16 rounded-full bg-[#fff1f4] flex items-center justify-center">
-          <Shield className="h-8 w-8 text-[#c91f41]" />
-        </div>
+        {props.logos?.light || props.logos?.dark ? (
+          <div className="h-20 flex items-center justify-center">
+            {props.logos?.light && (
+              <img
+                src={props.logos.light}
+                alt="System logo"
+                className="h-20 w-auto object-contain dark:hidden"
+              />
+            )}
+            {props.logos?.dark && (
+              <img
+                src={props.logos.dark}
+                alt="System logo"
+                className="h-20 w-auto object-contain hidden dark:block"
+              />
+            )}
+          </div>
+        ) : (
+          <div className="h-16 w-16 rounded-full bg-[#fff1f4] flex items-center justify-center">
+            <Shield className="h-8 w-8 text-[#c91f41]" />
+          </div>
+        )}
       </div>
 
       <div className="mb-6 text-center">
