@@ -9,7 +9,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { sendInviteEmail } from "@/lib/email";
 import { validateEmailDomain } from "@/lib/validators";
-import { Privilege } from "@prisma/client";
+import { Privilege, Prisma } from "@prisma/client";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -56,67 +56,92 @@ export async function createUser(data: {
 }) {
   const user = await getCurrentUser();
   if (!user || !canManageUsers(user)) {
-    throw new Error("Unauthorized");
+    return { success: false, message: "Unauthorized" };
   }
 
-  // Check if email already exists
-  const existing = await db.user.findUnique({ where: { email: data.email } });
-  if (existing) {
-    throw new Error("Email already exists");
-  }
-
-  // Validate domain
-  const domainValidation = validateEmailDomain(data.email);
-  if (!domainValidation.isValid) {
-    throw new Error(domainValidation.error || "Invalid email domain");
-  }
-
-  // Generate a placeholder password; the invite link is the real onboarding path.
-  const finalPassword = data.password || crypto.randomBytes(24).toString("hex");
-  const hashedPassword = await bcrypt.hash(finalPassword, 10);
-  const plainInviteToken = crypto.randomBytes(32).toString("hex");
-  const hashedInviteToken = crypto.createHash("sha256").update(plainInviteToken).digest("hex");
-
-  const newUser = await db.user.create({
-    data: {
-      email: data.email,
-      password: hashedPassword,
-      name: data.name,
-      role: data.role,
-      departmentId: data.departmentId || null,
-      passwordSetupRequired: true,
-      firstLoginAt: null,
-    },
-  });
-
-  await db.userInviteToken.upsert({
-    where: { userId: newUser.id },
-    update: {
-      email: data.email,
-      token: hashedInviteToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      usedAt: null,
-    },
-    create: {
-      userId: newUser.id,
-      email: data.email,
-      token: hashedInviteToken,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-    },
-  });
-
-  // Send invitation email
   try {
-    const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
-    await sendInviteEmail(data.email, plainInviteToken, data.name, appDomain);
-  } catch (error) {
-    console.error("Failed to send invitation email:", error);
-    // We don't throw here to avoid rolling back user creation, 
-    // but the admin should be notified in a real app.
-  }
+    // Check if email already exists
+    const existing = await db.user.findUnique({ where: { email: data.email } });
+    if (existing) {
+      return { success: false, message: "Email already exists" };
+    }
 
-  revalidatePath("/admin/users");
-  return newUser;
+    // Validate domain
+    const domainValidation = validateEmailDomain(data.email);
+    if (!domainValidation.isValid) {
+      return { success: false, message: domainValidation.error || "Invalid email domain" };
+    }
+
+    // Generate a placeholder password; the invite link is the real onboarding path.
+    const finalPassword = data.password || crypto.randomBytes(24).toString("hex");
+    const hashedPassword = await bcrypt.hash(finalPassword, 10);
+    const plainInviteToken = crypto.randomBytes(32).toString("hex");
+    const hashedInviteToken = crypto.createHash("sha256").update(plainInviteToken).digest("hex");
+
+    const newUser = await db.$transaction(async (tx) => {
+      const createdUser = await tx.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          name: data.name,
+          role: data.role,
+          departmentId: data.departmentId || null,
+          passwordSetupRequired: true,
+          firstLoginAt: null,
+        },
+      });
+
+      await tx.userInviteToken.upsert({
+        where: { userId: createdUser.id },
+        update: {
+          email: data.email,
+          token: hashedInviteToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          usedAt: null,
+        },
+        create: {
+          userId: createdUser.id,
+          email: data.email,
+          token: hashedInviteToken,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return createdUser;
+    });
+
+    // Send invitation email
+    try {
+      const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
+      await sendInviteEmail(data.email, plainInviteToken, data.name, appDomain);
+    } catch (error) {
+      console.error("Failed to send invitation email:", error);
+    }
+
+    revalidatePath("/admin/users");
+    return { success: true, message: "User created", userId: newUser.id };
+  } catch (error) {
+    console.error("CREATE_USER_ERROR:", error);
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return { success: false, message: "Email already exists" };
+      }
+
+      if (error.code === "P2021" || error.code === "P2022") {
+        return {
+          success: false,
+          message:
+            "Production database schema is not up to date for user onboarding. Please run the latest Prisma migrations on the live server.",
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: "Unable to create user right now. Please try again or contact support.",
+    };
+  }
 }
 
 export async function updateUser(

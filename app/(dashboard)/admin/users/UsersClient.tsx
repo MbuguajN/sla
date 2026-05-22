@@ -173,13 +173,19 @@ export default function UsersClient({ initialUsers, departments }: Props) {
           return;
         }
 
-        await createUser({
+        const result = await createUser({
           name: formData.name,
           email: formData.email,
           password: formData.password,
           role: formData.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE",
           departmentId: formData.departmentId ? parseInt(formData.departmentId) : undefined,
         });
+
+        if (!result.success) {
+          setError(result.message);
+          setLoading(false);
+          return;
+        }
 
         // Refresh page to get the new user
         window.location.reload();
