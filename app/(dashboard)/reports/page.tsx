@@ -505,13 +505,13 @@ export default async function ReportsPage({
     {
       label: "Active & Healthy",
       value: healthyClients,
-      color: "#c91f41",
+      color: "#16a34a",
       href: buildClientQuery(range.startInput, range.endInput, "healthy"),
     },
     {
       label: "Monitoring Required",
       value: monitoringClients,
-      color: "#116b5f",
+      color: "#eab308",
       href: buildClientQuery(range.startInput, range.endInput, "monitoring"),
     },
     {

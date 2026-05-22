@@ -22,6 +22,7 @@ export default async function FinanceRefundsPage() {
           id: r.id,
           amount: r.amount,
           reason: r.reason,
+          receiptUrls: r.receiptUrls,
           status: r.status,
           userName: r.user.name,
           userDepartment: r.user.department?.name || null,

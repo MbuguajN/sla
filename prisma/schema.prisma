@@ -561,6 +561,7 @@ model Refund {
   userId      Int
   amount      Float
   reason      String
+  receiptUrls String[]     @default([])
   status      RefundStatus @default(PENDING_FINANCE)
   financeNote String?
   ceoNote     String?

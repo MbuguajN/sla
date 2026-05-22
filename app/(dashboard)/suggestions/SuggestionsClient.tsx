@@ -256,8 +256,8 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 border border-gray-100 dark:border-white/10 overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
+          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-4">
                   {STEPS.map(step => (
                      <div key={step.id} className={cn(
@@ -271,7 +271,7 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
                </button>
             </div>
 
-            <div className="min-h-[300px] flex flex-col justify-center">
+            <div className="min-h-[200px] flex flex-col justify-center">
                {currentStep === 1 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Select Category</h2>
@@ -323,11 +323,11 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
                )}
             </div>
 
-            <div className="mt-10 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-8">
+            <div className="mt-5 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-4">
                <button onClick={() => currentStep > 1 && setCurrentStep(prev => prev -1)} className="text-xs font-black uppercase text-gray-400 hover:text-gray-900">Back</button>
                <button 
                   onClick={currentStep === 3 ? handleSubmit : nextStep} disabled={loading}
-                  className="bg-[#111827] dark:bg-white text-white dark:text-black px-10 h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
+                  className="bg-[#111827] dark:bg-white text-white dark:text-black px-8 h-11 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
                >
                   {loading ? "..." : currentStep === 3 ? "Submit Hub" : "Next"}
                </button>

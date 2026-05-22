@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createRefund } from "@/app/actions/financeActions";
+import { createRefundWithReceipts } from "@/app/actions/financeActions";
 import { 
   Money01Icon, 
   Add01Icon, 
@@ -23,6 +23,7 @@ type RefundRequest = {
   reason: string;
   status: string;
   createdAt: string;
+  receiptUrls?: string[];
 };
 
 interface Props {
@@ -47,18 +48,23 @@ export default function RefundsClient({ initialRefunds }: Props) {
   const [formData, setFormData] = useState({
     amount: "",
     reason: "",
-    category: "EXPENSE",
   });
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
 
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      await createRefund({
-        amount: parseFloat(formData.amount),
-        reason: formData.reason,
-      });
+      const payload = new FormData();
+      payload.append("amount", formData.amount);
+      payload.append("reason", formData.reason);
+      for (const file of receiptFiles) {
+        payload.append("receipts", file);
+      }
+
+      await createRefundWithReceipts(payload);
       setShowModal(false);
-      setFormData({ amount: "", reason: "", category: "EXPENSE" });
+      setFormData({ amount: "", reason: "" });
+      setReceiptFiles([]);
       setCurrentStep(1);
       router.refresh();
     } catch (err) {
@@ -174,10 +180,17 @@ export default function RefundsClient({ initialRefunds }: Props) {
                 </div>
                 <div className="pt-4 flex items-center justify-between border-t border-gray-100/50 dark:border-white/5">
                   <span className="text-[10px] font-black uppercase text-gray-400">{new Date(item.createdAt).toLocaleDateString()}</span>
-                  <div className={cn(
-                    "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 text-emerald-600 bg-emerald-50/20"
-                  )}>
-                    {item.status}
+                  <div className="flex items-center gap-2">
+                    {(item.receiptUrls?.length || 0) > 0 ? (
+                      <span className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border border-emerald-100 text-emerald-700 bg-emerald-50/40">
+                        {item.receiptUrls?.length} receipt{item.receiptUrls?.length === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
+                    <div className={cn(
+                      "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100 text-emerald-600 bg-emerald-50/20"
+                    )}>
+                      {item.status}
+                    </div>
                   </div>
                 </div>
             </div>
@@ -199,8 +212,8 @@ export default function RefundsClient({ initialRefunds }: Props) {
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 border border-gray-100 dark:border-white/10 overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
+           <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-4">
                   {STEPS.map(step => (
                      <div key={step.id} className={cn(
@@ -214,9 +227,9 @@ export default function RefundsClient({ initialRefunds }: Props) {
                </button>
             </div>
 
-            <div className="min-h-[300px] flex flex-col justify-center">
+            <div className="min-h-[250px] flex flex-col justify-center">
                {currentStep === 1 && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Refund Amount</h2>
                      <div className="relative group/input">
                         <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -231,27 +244,55 @@ export default function RefundsClient({ initialRefunds }: Props) {
                )}
 
                {currentStep === 2 && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Justification Basis</h2>
                      <textarea 
-                        rows={6} placeholder="Detailed explanation for the reimbursement..." value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}
-                        className="w-full bg-gray-50 dark:bg-white/5 rounded-[2rem] p-8 font-bold text-sm outline-none border-4 border-transparent focus:border-emerald-600 transition-all resize-none dark:text-white"
+                    rows={5} placeholder="Detailed explanation for the reimbursement..." value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}
+                    className="w-full bg-gray-50 dark:bg-white/5 rounded-[2rem] p-6 font-bold text-sm outline-none border-4 border-transparent focus:border-emerald-600 transition-all resize-none dark:text-white"
                      />
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">Upload Receipts</p>
+                    <label className="block rounded-2xl border-2 border-dashed border-gray-200 dark:border-white/10 bg-gray-50/70 dark:bg-white/5 px-4 py-4 cursor-pointer hover:border-emerald-500/50 transition-colors">
+                      <input
+                       type="file"
+                       accept=".png,.jpg,.jpeg,.pdf,.webp"
+                       multiple
+                       className="hidden"
+                       onChange={(e) => {
+                        const nextFiles = Array.from(e.target.files || []).slice(0, 6);
+                        setReceiptFiles(nextFiles);
+                       }}
+                      />
+                      <p className="text-xs font-bold text-gray-600 dark:text-zinc-300">
+                       Click to add receipts (PNG, JPG, WEBP, PDF). Up to 6 files.
+                      </p>
+                    </label>
+                    {receiptFiles.length > 0 ? (
+                      <ul className="space-y-1">
+                       {receiptFiles.map((file) => (
+                        <li key={file.name + file.size} className="text-[11px] font-semibold text-gray-500 dark:text-zinc-400 truncate">
+                          {file.name}
+                        </li>
+                       ))}
+                      </ul>
+                    ) : null}
+                  </div>
                   </div>
                )}
 
                {currentStep === 3 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-4 text-center px-10">
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 text-center px-6">
                      <div className="mx-auto w-24 h-24 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
                         <Money01Icon className="w-12 h-12 text-emerald-600" />
                      </div>
                   <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Confirm Refund</h2>
                   <p className="text-sm font-bold text-gray-400">Total Refund: <span className="text-emerald-600">KES {parseFloat(formData.amount || "0").toLocaleString()}</span>. Ready for submission.</p>
+                <p className="text-[11px] font-bold text-gray-500 dark:text-zinc-400">Receipts attached: {receiptFiles.length}</p>
                   </div>
                )}
             </div>
 
-            <div className="mt-10 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-8">
+            <div className="mt-6 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-5">
                <button onClick={() => currentStep > 1 && setCurrentStep(prev => prev -1)} className="text-xs font-black uppercase text-gray-400 hover:text-gray-900">Back</button>
                <button 
                   onClick={currentStep === 3 ? handleSubmit : nextStep} disabled={loading}

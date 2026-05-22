@@ -110,22 +110,22 @@ export default function NewProjectClient({ clients, departments, preselectedClie
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-6">
       {/* breadcrumbs/back */}
       <Link
         href="/projects"
-        className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 hover:text-[#c91f41] transition-colors mb-8"
+        className="inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-500 hover:text-[#c91f41] transition-colors mb-6"
       >
         <ArrowLeft className="h-3 w-3" />
         Back to Projects
       </Link>
 
-      <div className="flex flex-col lg:flex-row gap-8">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Left Side: Progress & Info */}
         <div className="w-full lg:w-1/3">
-          <div className="bg-white dark:bg-[#111111] rounded-3xl p-8 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-none sticky top-8">
+          <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-none sticky top-8">
             <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-2 leading-tight">Create Project</h1>
-            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-8">Set up the foundations for a new engagement.</p>
+            <p className="text-sm text-gray-500 dark:text-zinc-500 mb-6">Set up the foundations for a new engagement.</p>
 
             <ul className="steps steps-vertical w-full">
               {STEPS.map((step) => {
@@ -172,16 +172,16 @@ export default function NewProjectClient({ clients, departments, preselectedClie
 
         {/* Right Side: Step Forms */}
         <div className="flex-1">
-          <div className="bg-white dark:bg-[#111111] rounded-3xl p-8 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-none min-h-[500px]">
+          <div className="bg-white dark:bg-[#111111] rounded-3xl p-6 border border-gray-100 dark:border-white/10 shadow-sm dark:shadow-none min-h-[440px]">
             {/* Step 1: The Foundation */}
             {currentStep === 1 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="border-b border-gray-100 dark:border-white/10 pb-6">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-none">The Foundation</h2>
                   <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2 font-medium">Identify the client and project name.</p>
                 </div>
 
-                <div className="space-y-6 text-left">
+                <div className="space-y-5 text-left">
                   <div className="form-control w-full">
                     <label className="label mb-1">
                       <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Client Partner</span>
@@ -219,13 +219,13 @@ export default function NewProjectClient({ clients, departments, preselectedClie
 
             {/* Step 2: Project Details */}
             {currentStep === 2 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="border-b border-gray-100 dark:border-white/10 pb-6">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-none">Project Details</h2>
                   <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2 font-medium">Define the objective and reference materials.</p>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div className="form-control w-full">
                     <label className="label mb-1">
                       <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Brief Link Name (Optional)</span>
@@ -272,7 +272,7 @@ export default function NewProjectClient({ clients, departments, preselectedClie
 
             {/* Step 3: Departments Configuration */}
             {currentStep === 3 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="border-b border-gray-100 dark:border-white/10 pb-6">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white leading-none">Departments Configuration</h2>
                   <p className="text-xs text-gray-400 dark:text-zinc-500 mt-2 font-medium">Select the teams that will be part of this project.</p>
@@ -314,7 +314,7 @@ export default function NewProjectClient({ clients, departments, preselectedClie
             )}
 
             {/* Navigation Buttons */}
-            <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-white/10 pt-6">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 dark:border-white/10 pt-5">
               <button
                 type="button"
                 onClick={prevStep}

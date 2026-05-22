@@ -1,0 +1,2 @@
+ALTER TABLE "Refund"
+ADD COLUMN "receiptUrls" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

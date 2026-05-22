@@ -50,7 +50,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Slightly increase contrast for default muted text across the app */

@@ -15,6 +15,7 @@ type Refund = {
   id: number;
   amount: number;
   reason: string;
+  receiptUrls: string[];
   status: string;
   userName: string;
   userDepartment: string | null;
@@ -198,6 +199,11 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 bg-zinc-100 dark:bg-white/5 rounded text-[8px] font-black text-zinc-500 uppercase tracking-widest">{refund.userDepartment || 'Ops'}</span>
                     <span className="text-[10px] font-bold text-zinc-500">{new Date(refund.createdAt).toLocaleDateString()}</span>
+                    {(refund.receiptUrls?.length || 0) > 0 ? (
+                      <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-500/10 rounded text-[8px] font-black text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
+                        {refund.receiptUrls.length} Receipt{refund.receiptUrls.length === 1 ? "" : "s"}
+                      </span>
+                    ) : null}
                   </div>
                   <h3 className="text-xl font-black text-[#111827] dark:text-white tracking-tight">{refund.reason}</h3>
                   <p className="text-sm font-bold text-zinc-500 italic lowercase tracking-tight">Requested by {refund.userName}</p>
@@ -237,6 +243,24 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                     <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 italic text-sm text-zinc-500 leading-relaxed font-medium">
                       {refund.reason}
                     </div>
+                    {refund.receiptUrls?.length ? (
+                      <div className="p-4 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 space-y-2">
+                        <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Receipts</h4>
+                        <div className="space-y-1">
+                          {refund.receiptUrls.map((url, idx) => (
+                            <a
+                              key={`${refund.id}-${idx}`}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-xs font-bold text-rose-600 hover:text-rose-700 underline break-all"
+                            >
+                              {url.split("/").pop()}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Approval Console — Finance acting on PENDING_FINANCE */}

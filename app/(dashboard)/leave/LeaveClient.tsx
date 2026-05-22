@@ -554,8 +554,8 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
       {showModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={closeModal} />
-          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-8 border border-gray-100 dark:border-white/10 overflow-hidden">
-            <div className="flex items-center justify-between mb-8">
+          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 {STEPS.map((step) => (
                   <div
@@ -572,9 +572,9 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               </button>
             </div>
 
-            <div className="min-h-[300px] flex flex-col justify-center">
+            <div className="min-h-[250px] flex flex-col justify-center">
               {currentStep === 1 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Select Nature</h2>
                   {availableLeaveTypes.length > 0 ? (
                     <div className="grid grid-cols-2 gap-4">
@@ -611,7 +611,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               )}
 
               {currentStep === 2 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Duration</h2>
                   <div className="rounded-2xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-5 py-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Selected Leave Balance</p>
@@ -650,7 +650,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                       })()}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Start Date</span>
                       <input
@@ -679,7 +679,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               )}
 
               {currentStep === 3 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Core Reason</h2>
                   <textarea
                     rows={6}
@@ -692,7 +692,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               )}
 
               {currentStep === 4 && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Task Handover</h2>
                     <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
@@ -768,9 +768,9 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               )}
             </div>
 
-            {wizardError ? <p className="mt-5 text-sm font-bold text-rose-500">{wizardError}</p> : null}
+            {wizardError ? <p className="mt-4 text-sm font-bold text-rose-500">{wizardError}</p> : null}
 
-            <div className="mt-10 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-8">
+            <div className="mt-6 flex items-center justify-between border-t border-gray-100 dark:border-white/5 pt-5">
               {currentStep > 1 ? (
                 <button
                   onClick={() => setCurrentStep((prev) => prev - 1)}

@@ -23,6 +23,7 @@ export default async function RefundsPage() {
         reason: r.reason,
         status: r.status,
         financeNote: r.financeNote,
+        receiptUrls: r.receiptUrls,
         createdAt: r.createdAt.toISOString(),
       }))}
     />

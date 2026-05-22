@@ -11,6 +11,50 @@ import {
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
+import { mkdir, writeFile } from "fs/promises";
+import { extname, join } from "path";
+
+const MAX_REFUND_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_REFUND_RECEIPT_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".pdf", ".webp"]);
+const ALLOWED_REFUND_RECEIPT_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "application/pdf",
+  "image/webp",
+]);
+
+async function persistRefundReceipt(file: File, userId: number) {
+  if (file.size <= 0) {
+    throw new Error("Receipt file is empty");
+  }
+
+  if (file.size > MAX_REFUND_RECEIPT_SIZE_BYTES) {
+    throw new Error("Each receipt must be 10MB or less");
+  }
+
+  const rawExtension = extname(file.name).toLowerCase();
+  if (!ALLOWED_REFUND_RECEIPT_EXTENSIONS.has(rawExtension)) {
+    throw new Error("Only PNG, JPG, WEBP, or PDF receipts are allowed");
+  }
+
+  if (file.type && !ALLOWED_REFUND_RECEIPT_MIME_TYPES.has(file.type)) {
+    throw new Error("Unsupported receipt file type");
+  }
+
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  const uploadsDir = join(process.cwd(), "public", "uploads", "refund-receipts");
+  await mkdir(uploadsDir, { recursive: true });
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80) || "receipt.bin";
+  const filename = `${Date.now()}-${userId}-${safeName}`;
+  const filepath = join(uploadsDir, filename);
+
+  await writeFile(filepath, buffer);
+
+  return `/uploads/refund-receipts/${filename}`;
+}
 
 // Helper: Notify all Finance department users
 async function notifyFinanceDepartment(title: string, message: string, link?: string) {
@@ -327,7 +371,7 @@ export async function getPendingRefundsForCEO() {
   });
 }
 
-export async function createRefund(data: { amount: number; reason: string }) {
+export async function createRefund(data: { amount: number; reason: string; receiptUrls?: string[] }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -336,6 +380,7 @@ export async function createRefund(data: { amount: number; reason: string }) {
       userId: user.id,
       amount: data.amount,
       reason: data.reason,
+      receiptUrls: data.receiptUrls ?? [],
       status: "PENDING_FINANCE",
     },
     include: { user: { include: { department: true } } },
@@ -351,6 +396,43 @@ export async function createRefund(data: { amount: number; reason: string }) {
   revalidatePath("/refunds");
   revalidatePath("/finance/refunds");
   return refund;
+}
+
+export async function createRefundWithReceipts(formData: FormData) {
+  const amountRaw = String(formData.get("amount") || "").trim();
+  const reason = String(formData.get("reason") || "").trim();
+
+  const amount = Number.parseFloat(amountRaw);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Please provide a valid refund amount");
+  }
+
+  if (!reason) {
+    throw new Error("Please provide a refund justification");
+  }
+
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const files = formData
+    .getAll("receipts")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+
+  if (files.length > 6) {
+    throw new Error("You can upload up to 6 receipt files per refund request");
+  }
+
+  const receiptUrls: string[] = [];
+  for (const file of files) {
+    const receiptUrl = await persistRefundReceipt(file, user.id);
+    receiptUrls.push(receiptUrl);
+  }
+
+  return createRefund({
+    amount,
+    reason,
+    receiptUrls,
+  });
 }
 
 // Finance submits refund for CEO approval

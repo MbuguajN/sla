@@ -59,7 +59,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
   const defaultSlaHours = Math.max(48, minSlaHours).toString();
   const labelClassName = "mb-3 block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400";
   const fieldClassName = "w-full rounded-2xl border-2 border-zinc-200/80 bg-zinc-50 text-sm font-bold text-zinc-950 outline-none transition-all placeholder:text-zinc-400 focus:border-[var(--primary)] focus:bg-white dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950";
-  const panelClassName = "rounded-[32px] border border-zinc-200/80 bg-white/95 p-6 shadow-[10px_10px_0px_0px_rgba(24,24,27,0.12)] backdrop-blur-sm transition-all dark:border-zinc-800 dark:bg-zinc-900/90 dark:shadow-[10px_10px_0px_0px_rgba(0,0,0,0.45)] md:p-8";
+  const panelClassName = "rounded-[32px] border border-zinc-200/80 bg-white/95 p-5 shadow-[10px_10px_0px_0px_rgba(24,24,27,0.12)] backdrop-blur-sm transition-all dark:border-zinc-800 dark:bg-zinc-900/90 dark:shadow-[10px_10px_0px_0px_rgba(0,0,0,0.45)] md:p-6";
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -172,7 +172,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-12">
+      <div className="mb-8">
         <Link
           href="/tasks"
           className="mb-6 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 transition-colors hover:text-[var(--primary)] dark:text-zinc-400 dark:hover:text-[var(--primary)]"
@@ -182,11 +182,11 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         <div className="lg:col-span-4">
           <div className="sticky top-8">
             <h1 className="mb-2 text-3xl font-black leading-tight text-zinc-950 dark:text-zinc-50">New Assignment</h1>
-            <p className="mb-8 text-sm text-zinc-600 dark:text-zinc-400">Define the requirements and allocate resources.</p>
+            <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-400">Define the requirements and allocate resources.</p>
 
             <ul className="steps steps-vertical w-full">
               {STEPS.map((step) => {
@@ -238,8 +238,8 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
         <div className="lg:col-span-8">
           <div className={cn(panelClassName, "relative overflow-hidden")}>
             {currentStep === 1 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-5">
                   <div>
                     <label className={labelClassName}>Parent Project</label>
                     <div className="relative group">
@@ -269,7 +269,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                     />
                   </div>
 
-                  <div className="pt-4">
+                  <div className="pt-2">
                     <label className={labelClassName}>Priority Level</label>
                     <div className="grid grid-cols-4 gap-2">
                        {(["LOW", "MEDIUM", "HIGH", "URGENT"] as const).map((p) => (
@@ -294,8 +294,8 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
             )}
 
             {currentStep === 2 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-6">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-5">
                   <div>
                     <label className={labelClassName}>Technical Instruction</label>
                     <textarea
@@ -350,8 +350,8 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
             )}
 
             {currentStep === 3 && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-8">
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-6">
                   <div>
                     <label className="mb-4 block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Assigned Department</label>
                     <div className="grid grid-cols-2 gap-3">
@@ -416,7 +416,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
               </div>
             )}
 
-            <div className="mt-8 flex items-center justify-between border-t border-zinc-200/80 pt-6 dark:border-zinc-800">
+            <div className="mt-6 flex items-center justify-between border-t border-zinc-200/80 pt-5 dark:border-zinc-800">
               {currentStep > 1 ? (
                 <button
                   type="button"
