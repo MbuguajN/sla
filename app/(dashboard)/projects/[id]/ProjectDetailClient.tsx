@@ -422,7 +422,7 @@ export default function ProjectDetailClient({
                 </span>
                 <span className="text-[#7f8798] dark:text-zinc-500">Project ID: CP-{project.id}</span>
               </div>
-              <h1 className="text-[42px] md:text-[48px] leading-[0.95] font-black tracking-tight text-[#122038] dark:text-white max-w-[760px]">
+              <h1 className="text-[29px] md:text-[34px] leading-[0.95] font-black tracking-tight text-[#122038] dark:text-white max-w-[760px]">
                 {project.title}
               </h1>
             </div>
@@ -605,7 +605,7 @@ export default function ProjectDetailClient({
 
             <div className="xl:col-span-8 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-[42px] leading-none font-black tracking-tight text-[#1b2942] dark:text-white">Tasks ({filteredTasks.length})</h2>
+                <h2 className="text-[29px] leading-none font-black tracking-tight text-[#1b2942] dark:text-white">Tasks ({filteredTasks.length})</h2>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -685,7 +685,7 @@ export default function ProjectDetailClient({
                       <tr key={task.id} className="border-b border-[#dde1ea] dark:border-white/10 last:border-b-0 hover:bg-white/30 dark:hover:bg-white/5">
                         <td className="px-4 py-4">
                           <Link href={`/tasks/${task.id}`} className="block">
-                            <p className="text-[20px] leading-tight font-black tracking-tight text-[#122038] dark:text-white hover:text-[#c91f41]">
+                            <p className="text-[14px] leading-tight font-black tracking-tight text-[#122038] dark:text-white hover:text-[#c91f41]">
                               {task.title}
                             </p>
                             <p className="mt-1 text-[11px] font-medium text-[#7f8798] dark:text-zinc-500">

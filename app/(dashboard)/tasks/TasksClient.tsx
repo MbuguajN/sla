@@ -14,6 +14,7 @@ import {
 
 type TaskItem = {
   id: number;
+  routeTaskId: number;
   title: string;
   status: string;
   priority: string;
@@ -28,6 +29,7 @@ type TaskItem = {
   slaPausedAt: string | null;
   slaPausedDuration: number | null;
   createdAt: string;
+  isSubtaskCompletion: boolean;
 };
 
 interface Props {
@@ -376,14 +378,19 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                   return (
                     <tr key={task.id} className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 align-top">
-                        <Link href={`/tasks/${task.id}`} className="group">
+                        <Link href={`/tasks/${task.routeTaskId}`} className="group">
                           <div>
                             <div>
                               <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#c91f41] transition-colors leading-tight">
                                 {task.title}
                               </p>
+                              {task.isSubtaskCompletion ? (
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-300 font-bold uppercase tracking-wider mt-1">
+                                  Completed Subtask
+                                </p>
+                              ) : null}
                               <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold uppercase tracking-wider mt-1">
-                                ID: OPS-{task.id}
+                                {task.isSubtaskCompletion ? `ID: ST-${Math.abs(task.id)}` : `ID: OPS-${task.id}`}
                               </p>
                             </div>
                           </div>

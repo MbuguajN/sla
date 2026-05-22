@@ -11,7 +11,10 @@ type DailyLogMetadata = {
   note?: string;
   markCompleted?: boolean;
   taskTitle?: string;
+  parentTaskTitle?: string;
   projectTitle?: string;
+  subtaskId?: number;
+  source?: string;
 };
 
 function parseDailyLogMetadata(raw: string | null): DailyLogMetadata | null {
@@ -111,6 +114,7 @@ export default async function DailyLogPage() {
         projectTitle: metadata.projectTitle || log.project?.title || "Unknown Project",
         taskId: log.taskId,
         taskTitle: metadata.taskTitle || log.task?.title || "Unknown Task",
+        parentTaskTitle: metadata.parentTaskTitle || log.task?.title || "",
         note: metadata.note || "",
         markCompleted: Boolean(metadata.markCompleted),
       };

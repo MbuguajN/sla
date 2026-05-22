@@ -26,6 +26,7 @@ type DailyLogRow = {
   projectTitle: string;
   taskId: number | null;
   taskTitle: string;
+  parentTaskTitle?: string;
   note: string;
   markCompleted: boolean;
 };
@@ -289,7 +290,14 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                       {new Date(row.loggedAt).toLocaleString()}
                     </td>
                     <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{row.projectTitle}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">{row.taskTitle}</td>
+                    <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
+                      <p>{row.taskTitle}</p>
+                      {row.parentTaskTitle && row.parentTaskTitle !== row.taskTitle ? (
+                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
+                          Parent: {row.parentTaskTitle}
+                        </p>
+                      ) : null}
+                    </td>
                     <td className="px-5 py-3 text-sm text-gray-600 dark:text-zinc-300">{row.note}</td>
                     <td className="px-5 py-3">
                       <span

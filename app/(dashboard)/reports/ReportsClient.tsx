@@ -226,6 +226,35 @@ export default function ReportsClient({
   const totalClientsForDonut = clientHealth.reduce((sum, s) => sum + s.value, 0);
   const healthySlice = clientHealth.find((s) => s.label === "Active & Healthy");
   const healthyPct = totalClientsForDonut > 0 ? Math.round(((healthySlice?.value || 0) / totalClientsForDonut) * 100) : 0;
+  const healthSignal = useMemo(() => {
+    if (healthyPct <= 50) {
+      return {
+        label: "Critical",
+        ringClass: "bg-rose-500/30",
+        textClass: "text-rose-600 dark:text-rose-300",
+        pulseClass: "animate-pulse",
+        pulseDuration: "1.4s",
+      };
+    }
+
+    if (healthyPct >= 60) {
+      return {
+        label: "Healthy",
+        ringClass: "bg-emerald-500/25",
+        textClass: "text-emerald-600 dark:text-emerald-300",
+        pulseClass: "",
+        pulseDuration: "0s",
+      };
+    }
+
+    return {
+      label: "Caution",
+      ringClass: "bg-amber-400/30",
+      textClass: "text-amber-600 dark:text-amber-300",
+      pulseClass: "animate-pulse",
+      pulseDuration: "3.6s",
+    };
+  }, [healthyPct]);
 
   const lineWidth = 760;
   const lineHeight = 260;
@@ -425,7 +454,7 @@ export default function ReportsClient({
   return (
     <div className="space-y-8 bg-[#f5f7fc] dark:bg-black -mx-8 -mt-8 px-8 py-8 lg:px-10 min-h-screen">
       <section className="space-y-2 max-w-3xl">
-        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#495f85] dark:text-white">Reports</h1>
+        <h1 className="text-[31px] leading-none font-black tracking-tight text-[#495f85] dark:text-white">Reports</h1>
       </section>
 
       <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
@@ -547,15 +576,19 @@ export default function ReportsClient({
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <div className="xl:col-span-4 rounded-[28px] bg-[#eef2fb] dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Clients Health</h2>
+            <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Clients Health</h2>
           </div>
 
           <div className="mt-8 flex flex-col items-start gap-7">
             <div className="relative mx-auto h-56 w-56 rounded-full" style={{ background: donutBackground }}>
+              <div
+                className={cn("absolute -inset-2 rounded-full blur-xl", healthSignal.ringClass, healthSignal.pulseClass)}
+                style={healthSignal.pulseClass ? { animationDuration: healthSignal.pulseDuration } : undefined}
+              />
               <div className="absolute inset-[28px] rounded-full bg-white dark:bg-[#0f0f10] flex items-center justify-center text-center shadow-inner">
                 <div>
-                  <p className="text-[40px] leading-none font-black text-[#152747] dark:text-white">{healthyPct}%</p>
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#909ab0]">Healthy</p>
+                  <p className={cn("text-[40px] leading-none font-black", healthSignal.textClass)}>{healthyPct}%</p>
+                  <p className={cn("mt-2 text-[10px] font-black uppercase tracking-[0.18em]", healthSignal.textClass)}>{healthSignal.label}</p>
                 </div>
               </div>
             </div>
@@ -577,7 +610,7 @@ export default function ReportsClient({
         <div className="xl:col-span-8 rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm overflow-hidden">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">SLA Trend</h2>
+              <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">SLA Trend</h2>
               <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">Performance trajectory over the last 6 months</p>
             </div>
             <div className="inline-flex rounded-full bg-[#f6e9ed] dark:bg-[#2a1a20] p-1 text-[10px] font-black uppercase tracking-[0.12em]">
@@ -632,7 +665,7 @@ export default function ReportsClient({
           <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
-            <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Department Performance</h2>
+            <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Department Performance</h2>
             <p className="mt-2 text-xs text-[#c91f41] dark:text-rose-300">Detailed metric breakdown by functional unit</p>
           </div>
           <button
@@ -760,7 +793,7 @@ export default function ReportsClient({
             <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-[30px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">
+                  <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">
                     {selectedEmployee.name}
                   </h2>
                   <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">

@@ -854,7 +854,13 @@ export async function updateSubtaskStatus(
 
   const subtask = await db.subtask.findUnique({
     where: { id: subtaskId },
-    include: { task: true },
+    include: {
+      task: {
+        include: {
+          project: { select: { title: true } },
+        },
+      },
+    },
   });
 
   if (!subtask) throw new Error("Subtask not found");
@@ -865,13 +871,38 @@ export async function updateSubtaskStatus(
   }
 
   const normalizedStatus = status === "DONE" ? "DONE" : "PENDING";
+  const statusChangedToDone = subtask.status !== "DONE" && normalizedStatus === "DONE";
 
   const updated = await db.subtask.update({
     where: { id: subtaskId },
     data: { status: normalizedStatus },
   });
 
+  if (statusChangedToDone) {
+    await db.activityLog.create({
+      data: {
+        type: "COMMENTED",
+        description: "completed subtask",
+        taskId: subtask.taskId,
+        projectId: subtask.task.projectId,
+        userId: user.id,
+        metadata: JSON.stringify({
+          kind: "DAILY_LOG",
+          note: subtask.description?.trim() || subtask.title,
+          markCompleted: true,
+          taskTitle: subtask.title,
+          parentTaskTitle: subtask.task.title,
+          projectTitle: subtask.task.project.title,
+          subtaskId: subtask.id,
+          source: "SUBTASK_COMPLETION",
+        }),
+      },
+    });
+  }
+
   revalidatePath(`/tasks/${subtask.taskId}`);
+  revalidatePath("/daily-log");
+  revalidatePath("/reports");
   return updated;
 }
 

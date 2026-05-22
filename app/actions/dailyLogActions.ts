@@ -17,6 +17,18 @@ type DailyLogPayload = {
 
 const MAX_DAILY_LOG_ENTRIES = 25;
 const MAX_NOTE_LENGTH = 4000;
+const MAX_SUBTASK_TITLE_LENGTH = 120;
+
+function deriveSubtaskTitle(note: string) {
+  const normalized = note.replace(/\s+/g, " ").trim();
+  if (!normalized) return "Daily log task";
+
+  if (normalized.length <= MAX_SUBTASK_TITLE_LENGTH) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, MAX_SUBTASK_TITLE_LENGTH - 3)}...`;
+}
 
 export async function createDailyLogs(payload: DailyLogPayload) {
   const user = await getCurrentUser();
@@ -89,6 +101,15 @@ export async function createDailyLogs(payload: DailyLogPayload) {
       const task = taskMap.get(entry.taskId)!;
       const cleanNote = entry.note.trim();
 
+      const subtask = await tx.subtask.create({
+        data: {
+          taskId: task.id,
+          title: deriveSubtaskTitle(cleanNote),
+          description: cleanNote,
+          status: entry.markCompleted ? "DONE" : "PENDING",
+        },
+      });
+
       const created = await tx.activityLog.create({
         data: {
           type: "COMMENTED",
@@ -101,7 +122,10 @@ export async function createDailyLogs(payload: DailyLogPayload) {
             note: cleanNote,
             markCompleted: entry.markCompleted,
             projectTitle: task.project.title,
-            taskTitle: task.title,
+            taskTitle: subtask.title,
+            parentTaskTitle: task.title,
+            subtaskId: subtask.id,
+            source: "PERSONAL_LOG",
           }),
         },
       });

@@ -92,6 +92,7 @@ export default async function TaskDetailPage({
         subtasks: task.subtasks.map((s) => ({
           id: s.id,
           title: s.title,
+          description: s.description,
           status: s.status,
         })),
         links: task.links.map((l) => ({

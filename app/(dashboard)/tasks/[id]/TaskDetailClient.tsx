@@ -300,7 +300,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
              <span className="text-gray-300 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-wider">•</span>
              <span className="text-gray-400 dark:text-zinc-500 text-[10px] font-bold uppercase tracking-wider">TASK #{task.id}</span>
           </div>
-          <h1 className="text-[32px] md:text-[42px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+          <h1 className="text-[22px] md:text-[29px] font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             {task.title}
           </h1>
         </div>
@@ -309,7 +309,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <div className="w-full bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">TASK PROGRESS</span>
-              <span className="text-[20px] font-black text-slate-900 dark:text-white leading-none">{Math.round(progress.percentage)}%</span>
+              <span className="text-[14px] font-black text-slate-900 dark:text-white leading-none">{Math.round(progress.percentage)}%</span>
             </div>
             <div className="h-1.5 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
               <div 
