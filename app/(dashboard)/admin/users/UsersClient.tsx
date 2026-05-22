@@ -12,6 +12,8 @@ import {
   Check,
   AlertCircle,
   ShieldAlert,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -72,6 +74,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPrivileges, setSelectedPrivileges] = useState<PrivilegeKey[]>([]);
+  const [showFormPassword, setShowFormPassword] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -100,6 +103,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       departmentId: "",
     });
     setSelectedPrivileges([]);
+    setShowFormPassword(false);
     setError("");
     setShowModal(true);
   };
@@ -114,6 +118,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       departmentId: user.departmentId?.toString() || "",
     });
     setSelectedPrivileges((user.privileges || []) as PrivilegeKey[]);
+    setShowFormPassword(false);
     setError("");
     setShowModal(true);
   };
@@ -424,13 +429,23 @@ export default function UsersClient({ initialUsers, departments }: Props) {
 
                 <div>
                   <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Access Cipher {editingUser && "(optional)"}</label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full h-14 px-6 text-[13px] font-bold bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none dark:text-white"
-                    {...(!editingUser && { required: true })}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showFormPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full h-14 px-6 pr-14 text-[13px] font-bold bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none dark:text-white"
+                      {...(!editingUser && { required: true })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowFormPassword((prev) => !prev)}
+                      aria-label={showFormPassword ? "Hide password" : "Show password"}
+                      className="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:text-[#c91f41]"
+                    >
+                      {showFormPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

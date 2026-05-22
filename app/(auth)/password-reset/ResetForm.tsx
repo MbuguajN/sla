@@ -4,7 +4,7 @@ import { useState } from "react";
 import { resetPassword } from "@/app/actions/authActions";
 import { useTransition } from "react";
 import Link from "next/link";
-import { Loader2, Shield, Lock, ArrowLeft, CheckCircle } from "lucide-react";
+import { Loader2, Shield, Lock, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
 
 interface ResetFormProps {
   email: string;
@@ -16,6 +16,8 @@ export default function ResetForm({ email, token, onSuccess }: ResetFormProps) {
   const [resetCode, setResetCode] = useState(token);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
   const [isLoading, startTransition] = useTransition();
@@ -106,28 +108,48 @@ export default function ResetForm({ email, token, onSuccess }: ResetFormProps) {
 
         <div className="space-y-1.5">
           <label className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">New Password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            disabled={isLoading}
-            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
-          />
+          <div className="relative">
+            <input
+              type={showNewPassword ? "text" : "password"}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={isLoading}
+              className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 pr-11 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword((prev) => !prev)}
+              aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+              className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-[#75666f] dark:text-slate-400 hover:text-[#c91f41]"
+            >
+              {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         <div className="space-y-1.5">
           <label className="block text-[11px] font-black uppercase tracking-[0.1em] text-[#75666f] dark:text-slate-300">Confirm Password</label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            disabled={isLoading}
-            className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
-          />
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              disabled={isLoading}
+              className="w-full h-11 rounded-xl border border-transparent bg-[#dfe7f8] dark:bg-slate-800/80 px-4 pr-11 text-sm font-semibold text-[#25314a] dark:text-slate-100 placeholder:text-[#9ba7c0] focus:outline-none focus:ring-2 focus:ring-[#c91f41]/35"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              className="absolute inset-y-0 right-0 w-11 flex items-center justify-center text-[#75666f] dark:text-slate-400 hover:text-[#c91f41]"
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         <button

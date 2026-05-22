@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import MobileAccessGuard from "@/components/MobileAccessGuard";
 
 export const metadata: Metadata = {
   title: "Operations Control",
@@ -32,7 +33,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300">
-        {children}
+        <MobileAccessGuard>{children}</MobileAccessGuard>
       </body>
     </html>
   );

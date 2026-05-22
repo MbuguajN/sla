@@ -3,7 +3,7 @@
 import { useState, type ComponentType } from "react";
 import { useEffect } from "react";
 import { changePassword } from "@/app/actions/profileActions";
-import { LogOut, Shield, UserRound, Mail, Briefcase, Building2 } from "lucide-react";
+import { LogOut, Shield, UserRound, Mail, Briefcase, Building2, Eye, EyeOff } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 interface User {
@@ -29,6 +29,9 @@ export default function ProfileClient({ user, equipmentItems }: Props) {
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changing, setChanging] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
@@ -102,32 +105,62 @@ export default function ProfileClient({ user, equipmentItems }: Props) {
             {showPasswordForm && (
               <form onSubmit={handleChangePassword} className="space-y-3 pt-2">
                 <label className="block text-xs font-black uppercase tracking-[0.12em] text-gray-500 dark:text-zinc-500">Current Password</label>
-                <input
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-                />
+                <div className="relative">
+                  <input
+                    type={showOldPassword ? "text" : "password"}
+                    value={oldPassword}
+                    onChange={(e) => setOldPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowOldPassword((prev) => !prev)}
+                    aria-label={showOldPassword ? "Hide current password" : "Show current password"}
+                    className="absolute inset-y-0 right-0 w-10 flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:text-[#c91f41]"
+                  >
+                    {showOldPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
 
                 <label className="block text-xs font-black uppercase tracking-[0.12em] text-gray-500 dark:text-zinc-500">New Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                    className="absolute inset-y-0 right-0 w-10 flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:text-[#c91f41]"
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
 
                 <label className="block text-xs font-black uppercase tracking-[0.12em] text-gray-500 dark:text-zinc-500">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 pr-10 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    className="absolute inset-y-0 right-0 w-10 flex items-center justify-center text-gray-500 dark:text-zinc-400 hover:text-[#c91f41]"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
 
                 <div className="flex gap-3 pt-2">
                   <button

@@ -1,7 +1,7 @@
 "use client";
 
-import { Bell, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Bell } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getUnreadNotifications, getUnreadCount, markNotificationAsRead, markAllNotificationsAsRead } from "@/app/actions/notificationActions";
 
@@ -21,8 +21,69 @@ export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
+  const lastUnreadCountRef = useRef(0);
+  const hasLoadedOnceRef = useRef(false);
+
+  const syncPermissionState = () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    setNotificationPermission(Notification.permission);
+  };
+
+  const requestBrowserPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    if (Notification.permission !== "default") {
+      setNotificationPermission(Notification.permission);
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    } catch (error) {
+      console.error("Failed to request notification permission:", error);
+    }
+  };
+
+  const maybeShowBrowserNotification = (
+    latestNotification: Notification | undefined,
+    previousUnreadCount: number,
+    currentUnreadCount: number
+  ) => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    if (document.visibilityState === "visible") {
+      return;
+    }
+
+    if (notificationPermission !== "granted") {
+      return;
+    }
+
+    if (currentUnreadCount <= previousUnreadCount || !latestNotification) {
+      return;
+    }
+
+    try {
+      new Notification(latestNotification.title, {
+        body: latestNotification.message,
+        tag: `sla-notification-${latestNotification.id}`,
+      });
+    } catch (error) {
+      console.error("Failed to show browser notification:", error);
+    }
+  };
 
   useEffect(() => {
+    syncPermissionState();
     loadNotifications();
     // Poll for new notifications every 30 seconds
     const interval = setInterval(loadNotifications, 30000);
@@ -37,10 +98,19 @@ export default function NotificationDropdown() {
 
   const loadNotifications = async () => {
     try {
+      const previousUnreadCount = lastUnreadCountRef.current;
       const [unread, count] = await Promise.all([
         getUnreadNotifications(),
         getUnreadCount(),
       ]);
+
+      if (hasLoadedOnceRef.current) {
+        maybeShowBrowserNotification(unread[0], previousUnreadCount, count);
+      } else {
+        hasLoadedOnceRef.current = true;
+      }
+
+      lastUnreadCountRef.current = count;
       setNotifications(unread);
       setUnreadCount(count);
     } catch (error) {
@@ -48,6 +118,11 @@ export default function NotificationDropdown() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBellClick = async () => {
+    await requestBrowserPermission();
+    setIsOpen((prev) => !prev);
   };
 
   const handleNotificationClick = async (notification: Notification) => {
@@ -78,24 +153,6 @@ export default function NotificationDropdown() {
     }
   };
 
-  const getNotificationColor = (type: string) => {
-    switch (type) {
-      case "TASK_ASSIGNED":
-      case "TASK_CONFIRMED":
-        return "bg-blue-100 text-blue-700";
-      case "TASK_COMPLETED":
-      case "LEAVE_APPROVED":
-      case "REQUISITION_APPROVED":
-      case "IT_TICKET_RESOLVED":
-        return "bg-green-100 text-green-700";
-      case "LEAVE_DENIED":
-      case "REQUISITION_DENIED":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
   const formatTime = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - new Date(date).getTime();
@@ -114,7 +171,7 @@ export default function NotificationDropdown() {
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleBellClick}
         className="p-2 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-600 dark:hover:text-white transition-colors relative"
       >
         <Bell className="h-5 w-5" />
@@ -133,6 +190,9 @@ export default function NotificationDropdown() {
                 <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
                 {unreadCount > 0 && (
                   <p className="text-xs text-gray-400 dark:text-zinc-600">{unreadCount} unread</p>
+                )}
+                {notificationPermission !== "granted" && (
+                  <p className="text-[10px] text-gray-400 dark:text-zinc-600">Desktop alerts are currently disabled</p>
                 )}
               </div>
               {unreadCount > 0 && (
