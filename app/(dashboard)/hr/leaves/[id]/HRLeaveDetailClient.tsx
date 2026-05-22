@@ -11,6 +11,7 @@ import {
   CardBody,
   Textarea,
 } from "@/components/daisy-components";
+import { getLeaveDurationLabel, getLeaveTypeLabel } from "@/lib/leave";
 
 type LeaveDetail = {
   id: number;
@@ -20,6 +21,7 @@ type LeaveDetail = {
   userRole: string;
   userDepartment: string | null;
   type: string;
+  duration: string;
   startDate: string;
   endDate: string;
   totalDays: number;
@@ -94,7 +96,7 @@ export default function HRLeaveDetailClient({ leave }: { leave: LeaveDetail }) {
         <div className="xl:col-span-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-[#ffe8ec] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#cc1f45]">
-              {leave.type}
+              {getLeaveTypeLabel(leave.type)} ({getLeaveDurationLabel(leave.duration)})
             </span>
             <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 border border-slate-200">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

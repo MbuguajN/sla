@@ -307,6 +307,7 @@ export default async function ReportsPage({
   let employeeCompletedTasks: EmployeeCompletedTask[] = [];
   let leavePolicies: { role: "MANAGER" | "EMPLOYEE"; leaveType: string; daysAllowed: number }[] = [];
   let employeeLeaves: { userId: number; type: string; totalDays: number }[] = [];
+  let equipmentOwnership: { ownerUserId: number; _count: { _all: number } }[] = [];
   let dailyLogActivities: {
     id: number;
     userId: number;
@@ -333,7 +334,7 @@ export default async function ReportsPage({
 
     const employeeIds = employees.map((employee) => employee.id);
 
-    const [rawEmployeeTasks, rawLeavePolicies, rawEmployeeLeaves, rawDailyLogActivities] = await Promise.all([
+    const [rawEmployeeTasks, rawLeavePolicies, rawEmployeeLeaves, rawDailyLogActivities, rawEquipmentOwnership] = await Promise.all([
       db.task.findMany({
         where: {
           status: "DONE",
@@ -391,12 +392,20 @@ export default async function ReportsPage({
         },
         orderBy: { createdAt: "desc" },
       }),
+      db.equipmentItem.groupBy({
+        by: ["ownerUserId"],
+        where: {
+          ownerUserId: { in: employeeIds },
+        },
+        _count: { _all: true },
+      }),
     ]);
 
     employeeCompletedTasks = rawEmployeeTasks as EmployeeCompletedTask[];
     leavePolicies = rawLeavePolicies as { role: "MANAGER" | "EMPLOYEE"; leaveType: string; daysAllowed: number }[];
     employeeLeaves = rawEmployeeLeaves as { userId: number; type: string; totalDays: number }[];
     dailyLogActivities = rawDailyLogActivities;
+    equipmentOwnership = rawEquipmentOwnership as { ownerUserId: number; _count: { _all: number } }[];
   }
 
   const evaluated = tasks
@@ -566,6 +575,13 @@ export default async function ReportsPage({
     }
   }
 
+  const equipmentOwnershipByUser = new Map<number, number>();
+  for (const row of equipmentOwnership) {
+    if (typeof row.ownerUserId === "number") {
+      equipmentOwnershipByUser.set(row.ownerUserId, row._count._all);
+    }
+  }
+
   const CS_BD_SLUGS = new Set(["client-service", "business-development"]);
   const csBdEmployeeIds = new Set(
     employees
@@ -650,6 +666,7 @@ export default async function ReportsPage({
       role: employee.role,
       departmentName: employee.department?.name || "No Department",
       leaveBalances,
+      companyItemsOwned: equipmentOwnershipByUser.get(employee.id) || 0,
       dailyLogs: dailyLogsByUser.get(employee.id) || [],
       tasks: rawTasks.map((task) => ({
         id: task.id,

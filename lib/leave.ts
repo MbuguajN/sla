@@ -1,10 +1,6 @@
 export const MODERN_LEAVE_TYPES = [
-  "LEAVE_FULL_DAY",
-  "LEAVE_MORNING",
-  "LEAVE_AFTERNOON",
-  "SICKNESS_LEAVE_FULL_DAY",
-  "SICKNESS_LEAVE_MORNING",
-  "SICKNESS_LEAVE_AFTERNOON",
+  "ANNUAL_LEAVE",
+  "SICKNESS_LEAVE",
   "MATERNITY",
   "PATERNITY",
   "COMPASSIONATE_LEAVE",
@@ -12,32 +8,26 @@ export const MODERN_LEAVE_TYPES = [
   "WORK_FROM_HOME",
 ] as const;
 
+export const LEAVE_DURATIONS = ["FULL_DAY", "HALF_DAY_MORNING", "HALF_DAY_AFTERNOON"] as const;
+
 export type ModernLeaveType = (typeof MODERN_LEAVE_TYPES)[number];
+export type LeaveDuration = (typeof LEAVE_DURATIONS)[number];
 
-export const ANNUAL_LEAVE_TYPES: ModernLeaveType[] = [
-  "LEAVE_FULL_DAY",
-  "LEAVE_MORNING",
-  "LEAVE_AFTERNOON",
-];
-
-export const SICKNESS_LEAVE_TYPES: ModernLeaveType[] = [
-  "SICKNESS_LEAVE_FULL_DAY",
-  "SICKNESS_LEAVE_MORNING",
-  "SICKNESS_LEAVE_AFTERNOON",
-];
+export const ANNUAL_LEAVE_TYPES: ModernLeaveType[] = ["ANNUAL_LEAVE"];
+export const SICKNESS_LEAVE_TYPES: ModernLeaveType[] = ["SICKNESS_LEAVE"];
 
 export function isModernLeaveType(value: string): value is ModernLeaveType {
   return (MODERN_LEAVE_TYPES as readonly string[]).includes(value);
 }
 
+export function isLeaveDuration(value: string): value is LeaveDuration {
+  return (LEAVE_DURATIONS as readonly string[]).includes(value);
+}
+
 export function getLeaveTypeLabel(value: string): string {
   const labels: Record<string, string> = {
-    LEAVE_FULL_DAY: "Leave (Full Day)",
-    LEAVE_MORNING: "Leave (Morning)",
-    LEAVE_AFTERNOON: "Leave (Afternoon)",
-    SICKNESS_LEAVE_FULL_DAY: "Sickness Leave (Full Day)",
-    SICKNESS_LEAVE_MORNING: "Sickness Leave (Morning)",
-    SICKNESS_LEAVE_AFTERNOON: "Sickness Leave (Afternoon)",
+    ANNUAL_LEAVE: "Annual Leave",
+    SICKNESS_LEAVE: "Sickness Leave",
     MATERNITY: "Maternity",
     PATERNITY: "Paternity",
     COMPASSIONATE_LEAVE: "Compassionate Leave",
@@ -53,9 +43,19 @@ export function getLeaveTypeLabel(value: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+export function getLeaveDurationLabel(value: string): string {
+  const labels: Record<string, string> = {
+    FULL_DAY: "Full Day",
+    HALF_DAY_MORNING: "Half Day (Morning)",
+    HALF_DAY_AFTERNOON: "Half Day (Afternoon)",
+  };
+
+  return labels[value] || value;
+}
+
 export function getLeaveFamily(value: string): "ANNUAL" | "SICKNESS" | "OTHER" {
-  if (ANNUAL_LEAVE_TYPES.includes(value as ModernLeaveType)) return "ANNUAL";
-  if (SICKNESS_LEAVE_TYPES.includes(value as ModernLeaveType)) return "SICKNESS";
+  if (value === "ANNUAL_LEAVE") return "ANNUAL";
+  if (value === "SICKNESS_LEAVE") return "SICKNESS";
   return "OTHER";
 }
 
@@ -64,26 +64,23 @@ export function getLeaveFamilyLabel(value: "ANNUAL" | "SICKNESS"): string {
 }
 
 export function getLeaveTypesForBalance(value: string): string[] {
-  const family = getLeaveFamily(value);
-  if (family === "ANNUAL") return [...ANNUAL_LEAVE_TYPES];
-  if (family === "SICKNESS") return [...SICKNESS_LEAVE_TYPES];
   return [value];
 }
 
-export function getLeaveDayFactor(leaveType: string): number {
-  if (leaveType.endsWith("_MORNING") || leaveType.endsWith("_AFTERNOON")) {
+export function getLeaveDayFactor(duration: string): number {
+  if (duration === "HALF_DAY_MORNING" || duration === "HALF_DAY_AFTERNOON") {
     return 0.5;
   }
 
   return 1;
 }
 
-export function getLeaveTimeWindow(leaveType: string): { startHour: number; endHour: number } {
-  if (leaveType.endsWith("_MORNING")) {
+export function getLeaveTimeWindow(duration: string): { startHour: number; endHour: number } {
+  if (duration === "HALF_DAY_MORNING") {
     return { startHour: 9, endHour: 12 };
   }
 
-  if (leaveType.endsWith("_AFTERNOON")) {
+  if (duration === "HALF_DAY_AFTERNOON") {
     return { startHour: 12, endHour: 17 };
   }
 

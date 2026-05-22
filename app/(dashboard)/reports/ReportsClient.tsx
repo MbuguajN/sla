@@ -89,6 +89,7 @@ export type EmployeeReportCard = {
   role: string;
   departmentName: string;
   leaveBalances: LeaveBalance[];
+  companyItemsOwned: number;
   dailyLogs: {
     id: number;
     note: string;
@@ -409,7 +410,7 @@ export default function ReportsClient({
     );
   }, [filteredSelectedEmployeeTasks, filteredSelectedEmployeeLogs]);
 
-  const totalCompletedTaskCount = filteredSelectedEmployeeTasks.length;
+  const totalCompletedTaskCount = filteredSelectedEmployeeTasks.length + selectedEmployeeCompletedLogCount;
 
   const selectedEmployeeAnnualLeave = useMemo(() => {
     if (!selectedEmployee) return null;
@@ -746,6 +747,9 @@ export default function ReportsClient({
                         </div>
                       ))
                     )}
+                  </div>
+                  <div className="mt-2 rounded-xl bg-[#eef3ff] dark:bg-[#151b2b] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2f436f] dark:text-blue-200">
+                    Company Items Owned: {employee.companyItemsOwned}
                   </div>
                 </button>
               );

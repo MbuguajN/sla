@@ -24,6 +24,7 @@ export default async function HRLeavesPage() {
           userName: l.user.name,
           userDepartment: l.user.department?.name || null,
           type: l.type,
+          duration: l.duration,
           startDate: l.startDate.toISOString(),
           endDate: l.endDate.toISOString(),
           totalDays: l.totalDays,

@@ -396,6 +396,7 @@ model Leave {
   user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
   type       LeaveType
+  duration   LeaveDuration       @default(FULL_DAY)
   startDate  DateTime
   endDate    DateTime
   totalDays  Float
@@ -411,17 +412,19 @@ model Leave {
 }
 
 enum LeaveType {
-  LEAVE_FULL_DAY
-  LEAVE_MORNING
-  LEAVE_AFTERNOON
-  SICKNESS_LEAVE_FULL_DAY
-  SICKNESS_LEAVE_MORNING
-  SICKNESS_LEAVE_AFTERNOON
+  ANNUAL_LEAVE
+  SICKNESS_LEAVE
   MATERNITY
   PATERNITY
   COMPASSIONATE_LEAVE
   TOIL
   WORK_FROM_HOME
+}
+
+enum LeaveDuration {
+  FULL_DAY
+  HALF_DAY_MORNING
+  HALF_DAY_AFTERNOON
 }
 
 enum LeaveStatus {

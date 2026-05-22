@@ -36,6 +36,7 @@ export default async function HRLeaveDetailPage({
         userRole: leave.user.role,
         userDepartment: leave.user.department?.name || null,
         type: leave.type,
+        duration: leave.duration,
         startDate: leave.startDate.toISOString(),
         endDate: leave.endDate.toISOString(),
         totalDays: leave.totalDays,

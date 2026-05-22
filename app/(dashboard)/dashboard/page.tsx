@@ -23,6 +23,7 @@ import {
 import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
 import DeadlineCalendarClient from "./DeadlineCalendarClient";
+import { getLeaveDurationLabel, getLeaveTypeLabel } from "@/lib/leave";
 
 export const dynamic = "force-dynamic";
 
@@ -469,12 +470,13 @@ async function HRDashboardSection() {
                     </td>
                     <td className="px-4 py-4">
                       <Link href={`/hr/leaves/${leave.id}`} className="text-xs font-semibold text-slate-700 capitalize whitespace-nowrap block">
-                        {leave.type.charAt(0) + leave.type.slice(1).toLowerCase()}
+                        {getLeaveTypeLabel(leave.type)}
                       </Link>
                     </td>
                     <td className="px-4 py-4">
                       <Link href={`/hr/leaves/${leave.id}`} className="block whitespace-nowrap">
-                        <p className="text-xs font-semibold text-slate-700">
+                        <p className="text-xs font-semibold text-slate-700">{getLeaveDurationLabel(leave.duration)}</p>
+                        <p className="text-[10px] text-slate-500">
                           {formatCompactDate(leave.startDate)} - {formatCompactDate(leave.endDate)}
                         </p>
                       </Link>

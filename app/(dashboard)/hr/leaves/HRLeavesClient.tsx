@@ -17,6 +17,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/daisy-components";
+import { getLeaveDurationLabel, getLeaveTypeLabel } from "@/lib/leave";
 
 type LeaveItem = {
   id: number;
@@ -24,6 +25,7 @@ type LeaveItem = {
   userName: string;
   userDepartment: string | null;
   type: string;
+  duration: string;
   startDate: string;
   endDate: string;
   totalDays: number;
@@ -140,7 +142,9 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
                         <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{leave.userDepartment || "Unassigned"}</p>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">{leave.type}</span>
+                        <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">
+                          {getLeaveTypeLabel(leave.type)} ({getLeaveDurationLabel(leave.duration)})
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-gray-600 dark:text-zinc-300">

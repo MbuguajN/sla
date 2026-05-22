@@ -13,10 +13,12 @@ import {
 } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import { getLeaveDayFactor, getLeaveTimeWindow, getLeaveTypeLabel } from "@/lib/leave";
+import { getLeaveDurationLabel } from "@/lib/leave";
 
 type LeaveRequest = {
   id: number;
   type: string;
+  duration: string;
   startDate: string;
   endDate: string;
   totalDays: number;
@@ -67,6 +69,9 @@ const STEPS = [
 ];
 
 const formatTypeLabel = (value: string) => getLeaveTypeLabel(value);
+const formatDurationLabel = (value: string) => getLeaveDurationLabel(value);
+const formatLeaveRequestLabel = (type: string, duration: string) => `${getLeaveTypeLabel(type)} (${getLeaveDurationLabel(duration)})`;
+const supportsHalfDayType = (type: string) => type === "ANNUAL_LEAVE" || type === "SICKNESS_LEAVE";
 
 const formatLeaveDays = (value: number) => {
   if (Number.isInteger(value)) return `${value}`;
@@ -87,6 +92,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
 
   const [formData, setFormData] = useState({
     type: defaultType,
+    duration: "FULL_DAY",
     startDate: "",
     endDate: "",
     reason: "",
@@ -127,7 +133,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
     }
 
     let totalDays = 0;
-    const factor = getLeaveDayFactor(formData.type);
+    const factor = getLeaveDayFactor(formData.duration);
     const cursor = new Date(start);
 
     while (cursor <= end) {
@@ -140,7 +146,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
     }
 
     return totalDays;
-  }, [formData.startDate, formData.endDate, holidaySet]);
+  }, [formData.startDate, formData.endDate, formData.duration, holidaySet]);
 
   const exceedsBalance =
     selectedBalance != null && selectedRangeDays > 0 && selectedRangeDays > selectedBalance.remainingDays;
@@ -175,6 +181,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
   const resetForm = () => {
     setFormData({
       type: defaultType,
+      duration: "FULL_DAY",
       startDate: "",
       endDate: "",
       reason: "",
@@ -202,6 +209,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
     try {
       await createLeave({
         type: formData.type as any,
+        duration: formData.duration as any,
         startDate: formData.startDate,
         endDate: formData.endDate,
         reason: formData.reason,
@@ -462,7 +470,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                     >
                       <td className="px-6 py-4">
                         <span className="text-xs font-black uppercase tracking-widest text-pink-600 dark:text-pink-300 bg-pink-50 dark:bg-pink-500/10 px-2.5 py-1 rounded-lg">
-                          {formatTypeLabel(item.type)}
+                          {formatLeaveRequestLabel(item.type, item.duration)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-zinc-200">{start.toLocaleDateString()}</td>
@@ -576,7 +584,11 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                           <button
                             key={type}
                             onClick={() => {
-                              setFormData((prev) => ({ ...prev, type }));
+                              setFormData((prev) => ({
+                                ...prev,
+                                type,
+                                duration: supportsHalfDayType(type) ? prev.duration : "FULL_DAY",
+                              }));
                               setCurrentStep(2);
                             }}
                             className={cn(
@@ -606,12 +618,34 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                     <p className="mt-2 text-sm font-extrabold text-gray-800 dark:text-zinc-200">
                       {formatTypeLabel(formData.type)}: {formatLeaveDays(selectedBalance?.remainingDays ?? 0)} day(s) remaining
                     </p>
+                    <div className="mt-3">
+                      <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Duration Type</label>
+                      <select
+                        value={formData.duration}
+                        onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
+                        disabled={!supportsHalfDayType(formData.type)}
+                        className="mt-1 h-11 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-bold text-gray-700 dark:text-zinc-300"
+                      >
+                        <option value="FULL_DAY">{formatDurationLabel("FULL_DAY")}</option>
+                        {supportsHalfDayType(formData.type) ? (
+                          <>
+                            <option value="HALF_DAY_MORNING">{formatDurationLabel("HALF_DAY_MORNING")}</option>
+                            <option value="HALF_DAY_AFTERNOON">{formatDurationLabel("HALF_DAY_AFTERNOON")}</option>
+                          </>
+                        ) : null}
+                      </select>
+                      {!supportsHalfDayType(formData.type) ? (
+                        <p className="mt-1 text-[11px] font-semibold text-gray-500 dark:text-zinc-400">
+                          Half-day selection is available only for annual and sickness leave.
+                        </p>
+                      ) : null}
+                    </div>
                     <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
                       Used {formatLeaveDays(selectedBalance?.usedDays ?? 0)} of {formatLeaveDays(selectedBalance?.daysAllowed ?? 0)} days this year
                     </p>
                     <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-zinc-400">
                       Time window: {(() => {
-                        const window = getLeaveTimeWindow(formData.type);
+                        const window = getLeaveTimeWindow(formData.duration);
                         return `${window.startHour}:00 - ${window.endHour}:00`;
                       })()}
                     </p>

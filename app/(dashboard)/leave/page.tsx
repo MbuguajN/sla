@@ -21,6 +21,7 @@ export default async function LeavePage() {
       select: {
         id: true,
         type: true,
+        duration: true,
         startDate: true,
         endDate: true,
         totalDays: true,
@@ -94,6 +95,7 @@ export default async function LeavePage() {
         initialLeaves={leaves.map((l) => ({
           id: l.id,
           type: l.type,
+          duration: l.duration,
           startDate: l.startDate.toISOString(),
           endDate: l.endDate.toISOString(),
           totalDays: l.totalDays,

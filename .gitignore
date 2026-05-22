@@ -33,6 +33,8 @@ migrate.log
 # Prisma
 prisma/dev.db
 prisma/dev.db-journal
+prisma/seed.stress.js
+prisma/seed.active-testdata.js
 
 # IDE
 .idea

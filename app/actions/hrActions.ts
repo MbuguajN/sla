@@ -7,13 +7,15 @@ import { createNotification } from "./notificationActions";
 import { hasApprovedLeaveOverlap, processLeaveTaskHandovers } from "./leaveHandoverActions";
 import {
   MODERN_LEAVE_TYPES,
+  LEAVE_DURATIONS,
   getLeaveDayFactor,
   getLeaveTimeWindow,
-  getLeaveTypesForBalance,
+  getLeaveTypeLabel,
   toUtcDateTime,
 } from "@/lib/leave";
 
 type LeavePolicyType = (typeof MODERN_LEAVE_TYPES)[number];
+type LeaveDuration = (typeof LEAVE_DURATIONS)[number];
 
 type LeaveHandoverInput = {
   taskId: number;
@@ -137,6 +139,7 @@ export async function getAllLeaves() {
 
 export async function createLeave(data: {
   type: LeavePolicyType;
+  duration: LeaveDuration;
   startDate: string;
   endDate: string;
   reason: string;
@@ -160,6 +163,14 @@ export async function createLeave(data: {
     throw new Error("Unsupported leave type");
   }
 
+  if (!LEAVE_DURATIONS.includes(data.duration)) {
+    throw new Error("Unsupported leave duration");
+  }
+
+  if (!["ANNUAL_LEAVE", "SICKNESS_LEAVE"].includes(data.type) && data.duration !== "FULL_DAY") {
+    throw new Error("Half-day requests are only supported for annual and sickness leave");
+  }
+
   // Fetch public holidays for exclusion
   const publicHolidays = await db.publicHoliday.findMany();
   const holidaySet = new Set(
@@ -170,7 +181,7 @@ export async function createLeave(data: {
   );
 
   // Count working days only (Mon-Fri, excluding public holidays), with half-day support.
-  const dayFactor = getLeaveDayFactor(data.type);
+  const dayFactor = getLeaveDayFactor(data.duration);
   const cursor = new Date(start);
   let totalDays = 0;
   while (cursor <= end) {
@@ -188,18 +199,15 @@ export async function createLeave(data: {
 
   const userRole = user.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
 
-  const balanceTypes = getLeaveTypesForBalance(data.type);
-
   const policyCandidates = await db.leavePolicy.findMany({
     where: {
       role: userRole,
-      leaveType: { in: balanceTypes as LeavePolicyType[] },
+      leaveType: data.type,
     },
     orderBy: { leaveType: "asc" },
   });
 
-  const leavePolicy =
-    policyCandidates.find((policy) => policy.leaveType === data.type) ?? policyCandidates[0] ?? null;
+  const leavePolicy = policyCandidates.find((policy) => policy.leaveType === data.type) ?? null;
 
   if (!leavePolicy) {
     throw new Error("This leave type is not configured for your role");
@@ -212,7 +220,7 @@ export async function createLeave(data: {
   const consumed = await db.leave.aggregate({
     where: {
       userId: user.id,
-      type: { in: balanceTypes as LeavePolicyType[] },
+      type: data.type,
       status: { in: ["PENDING", "APPROVED"] },
       startDate: {
         gte: yearStart,
@@ -229,18 +237,18 @@ export async function createLeave(data: {
 
   if (totalDays > remainingDays) {
     throw new Error(
-      `Requested ${totalDays} day(s), but only ${remainingDays} day(s) remain for ${data.type}`
+      `Requested ${totalDays} day(s), but only ${remainingDays} day(s) remain for ${getLeaveTypeLabel(data.type)}`
     );
   }
 
   const validatedHandovers = await validateLeaveHandoversForUser(
     user,
     data.handovers,
-    toUtcDateTime(start, getLeaveTimeWindow(data.type).startHour),
-    toUtcDateTime(end, getLeaveTimeWindow(data.type).endHour)
+    toUtcDateTime(start, getLeaveTimeWindow(data.duration).startHour),
+    toUtcDateTime(end, getLeaveTimeWindow(data.duration).endHour)
   );
 
-  const { startHour, endHour } = getLeaveTimeWindow(data.type);
+  const { startHour, endHour } = getLeaveTimeWindow(data.duration);
   const leaveStartDateTime = toUtcDateTime(start, startHour);
   const leaveEndDateTime = toUtcDateTime(end, endHour);
 
@@ -248,6 +256,7 @@ export async function createLeave(data: {
     data: {
       userId: user.id,
       type: data.type,
+      duration: data.duration,
       startDate: leaveStartDateTime,
       endDate: leaveEndDateTime,
       totalDays,
