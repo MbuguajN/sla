@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, canViewFinanceData } from "@/lib/permissions";
+import { DEPARTMENTS, getCurrentUser, canApproveRequisitionAsCEO, canApproveRequisitionAsFinance } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import FinanceRequisitionsClient from "./FinanceRequisitionsClient";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
@@ -7,9 +7,19 @@ import RealtimeRefresh from "@/components/RealtimeRefresh";
 export default async function FinanceRequisitionsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (!canViewFinanceData(user)) redirect("/dashboard");
+
+  const canViewAsManager = user.role === "MANAGER" && user.departmentSlug !== DEPARTMENTS.FINANCE;
+  const canViewAsDirector = canApproveRequisitionAsCEO(user);
+  const canViewAsFinance = canApproveRequisitionAsFinance(user);
+
+  if (!canViewAsManager && !canViewAsDirector && !canViewAsFinance) redirect("/dashboard");
+
+  const where = canViewAsManager
+    ? { user: { departmentId: user.departmentId } }
+    : undefined;
 
   const requisitions = await db.requisition.findMany({
+    where,
     include: {
       user: { include: { department: true } },
       items: true,
@@ -41,7 +51,9 @@ export default async function FinanceRequisitionsPage() {
         })),
         createdAt: r.createdAt.toISOString(),
       }))}
-      currentUserRole={user.role}
+      canReviewAsManager={canViewAsManager}
+      canReviewAsDirector={canViewAsDirector}
+      canReviewAsFinance={canViewAsFinance}
     />
     </>
   );

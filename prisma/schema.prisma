@@ -548,6 +548,7 @@ model RequisitionItem {
 }
 
 enum RequisitionStatus {
+  PENDING_MANAGER
   PENDING_FINANCE
   PENDING_CEO
   APPROVED

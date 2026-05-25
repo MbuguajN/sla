@@ -49,21 +49,21 @@ async function main() {
   });
   console.log(`Created admin user: ${admin.email}`);
 
-  // Create CEO
+  // Create Director
   const ceo = await prisma.user.upsert({
     where: { email: "ceo@5dm.africa" },
     update: { isActive: true, passwordSetupRequired: false, firstLoginAt: setupCompleteAt },
     create: {
       email: "ceo@5dm.africa",
       password: hashedPassword,
-      name: "John CEO",
+      name: "John Director",
       role: "CEO",
       isActive: true,
       passwordSetupRequired: false,
       firstLoginAt: setupCompleteAt,
     },
   });
-  console.log(`Created CEO user: ${ceo.email}`);
+  console.log(`Created Director user: ${ceo.email}`);
 
   // Create department managers
   const techDept = await prisma.department.findUnique({ where: { slug: "technology" } });
@@ -264,7 +264,7 @@ async function main() {
   console.log("\nSeeding complete!");
   console.log("\nTest accounts (password for all: admin123):");
   console.log("- admin@5dm.africa (Admin, normal login)");
-  console.log("- ceo@5dm.africa (CEO, normal login)");
+  console.log("- ceo@5dm.africa (Director, normal login)");
   console.log("- tech.manager@5dm.africa (Tech Manager, normal login)");
   console.log("- bd.manager@5dm.africa (BD Manager, normal login)");
   console.log("- finance.manager@5dm.africa (Finance Manager, normal login)");

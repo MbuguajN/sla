@@ -57,6 +57,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
   const isHROnly = user.departmentSlug === "human-resources" && user.role === "EMPLOYEE" || user.departmentSlug === "human-resources" && user.role === "MANAGER";
   const canAccessFinance =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "finance";
+  const canAccessRequisitionReview = canAccessFinance || user.role === "MANAGER";
   const isFinanceOnly = user.departmentSlug === "finance" && (user.role === "EMPLOYEE" || user.role === "MANAGER");
   const canAccessAdmin = user.role === "ADMIN";
   const canSeeClients =
@@ -102,10 +103,10 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     {
       id: "finance",
       title: "Finance",
-      visible: canAccessFinance,
+      visible: canAccessRequisitionReview,
       items: [
-        { label: "Requisitions", href: "/finance/requisitions", icon: Invoice01Icon },
-        { label: "Refunds", href: "/finance/refunds", icon: CreditCardIcon },
+        ...(canAccessRequisitionReview ? [{ label: "Requisitions", href: "/finance/requisitions", icon: Invoice01Icon }] : []),
+        ...(canAccessFinance ? [{ label: "Refunds", href: "/finance/refunds", icon: CreditCardIcon }] : []),
       ]
     },
     {
@@ -132,7 +133,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
 
   const roleLabel: Record<string, string> = {
     ADMIN: "Administrator",
-    CEO: "CEO",
+    CEO: "Director",
     MANAGER: "Manager",
     EMPLOYEE: "Employee",
   };

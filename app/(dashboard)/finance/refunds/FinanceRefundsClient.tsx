@@ -29,6 +29,11 @@ interface Props {
   currentUserRole: string;
 }
 
+function formatStatusLabel(status: string) {
+  if (status === "PENDING_CEO") return "PENDING DIRECTOR";
+  return status.split("_").join(" ");
+}
+
 export default function FinanceRefundsClient({ initialRefunds, currentUserRole }: Props) {
   const router = useRouter();
   const [refunds, setRefunds] = useState(initialRefunds);
@@ -179,7 +184,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
               )}
             >
-              {status.split('_').join(' ')}
+              {formatStatusLabel(status)}
             </button>
           ))}
         </div>
@@ -222,7 +227,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   refund.status === 'DENIED' ? "bg-rose-500/10 border-rose-500/20 text-rose-500" :
                   "bg-zinc-500/10 border-zinc-500/20 text-zinc-500"
                 )}>
-                  {refund.status.split('_').join(' ')}
+                  {formatStatusLabel(refund.status)}
                 </div>
 
                 <button 
@@ -278,7 +283,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                           disabled={loading}
                           className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                         >
-                          <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for CEO
+                          <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Director
                         </button>
                         <button 
                           onClick={() => handleDeny(refund.id)}
@@ -291,15 +296,15 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                     </div>
                   )}
 
-                  {/* Finance: waiting badge when already forwarded to CEO */}
+                  {/* Finance: waiting badge when already forwarded to Director */}
                   {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_CEO' && (
                     <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
                       <ArrowDown01Icon className="w-4 h-4 text-amber-500 flex-shrink-0 -rotate-90" />
-                      <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting CEO Review</span>
+                      <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting Director Review</span>
                     </div>
                   )}
 
-                  {/* CEO acting on PENDING_CEO */}
+                  {/* Director acting on PENDING_CEO */}
                   {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_CEO' && (
                     <div className="space-y-4">
                       <textarea
@@ -327,7 +332,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                     </div>
                   )}
 
-                  {/* CEO: pending-finance info badge */}
+                  {/* Director: pending-finance info badge */}
                   {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_FINANCE' && (
                     <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
                       <ArrowDown01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />

@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  submitRequisitionForApproval,
-  approveRequisitionAsCEO,
-  rejectRequisitionAsFinance,
-  rejectRequisitionAsCEO,
+  advanceRequisition,
+  rejectRequisition,
 } from "@/app/actions/financeActions";
 import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Cancel01Icon, Clock01Icon, ShoppingBasket01Icon, BitcoinIcon, SquareLock02Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
@@ -29,10 +27,22 @@ type Requisition = {
 
 interface Props {
   initialRequisitions: Requisition[];
-  currentUserRole: string;
+  canReviewAsManager: boolean;
+  canReviewAsDirector: boolean;
+  canReviewAsFinance: boolean;
 }
 
-export default function FinanceRequisitionsClient({ initialRequisitions, currentUserRole }: Props) {
+function formatStatusLabel(status: string) {
+  if (status === "PENDING_CEO") return "PENDING DIRECTOR";
+  return status.split("_").join(" ");
+}
+
+export default function FinanceRequisitionsClient({
+  initialRequisitions,
+  canReviewAsManager,
+  canReviewAsDirector,
+  canReviewAsFinance,
+}: Props) {
   const router = useRouter();
   const [requisitions, setRequisitions] = useState(initialRequisitions);
   useEffect(() => { setRequisitions(initialRequisitions); }, [initialRequisitions]);
@@ -44,18 +54,22 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [actionNote, setActionNote] = useState("");
   const [loading, setLoading] = useState(false);
-  const isViewOnly = currentUserRole === "ADMIN";
+  const isManagerReviewer = canReviewAsManager;
+  const isDirectorReviewer = canReviewAsDirector;
+  const isFinanceReviewer = canReviewAsFinance;
 
   const handleApprove = async (reqId: number) => {
     setLoading(true);
     try {
-      if (currentUserRole === "CEO") {
-        await approveRequisitionAsCEO(reqId, actionNote || undefined);
-        setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "APPROVED" } : r));
-      } else {
-        await submitRequisitionForApproval(reqId, actionNote || undefined);
-        setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "PENDING_CEO" } : r));
-      }
+      await advanceRequisition(reqId, actionNote || undefined);
+
+      const nextStatus = isManagerReviewer
+        ? "PENDING_CEO"
+        : isDirectorReviewer
+          ? "PENDING_FINANCE"
+          : "APPROVED";
+
+      setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: nextStatus } : r));
       setActionNote("");
       setExpandedId(null);
       router.refresh();
@@ -69,11 +83,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
   const handleDeny = async (reqId: number) => {
     setLoading(true);
     try {
-      if (currentUserRole === "CEO") {
-        await rejectRequisitionAsCEO(reqId, actionNote || "Denied");
-      } else {
-        await rejectRequisitionAsFinance(reqId, actionNote || "Denied");
-      }
+      await rejectRequisition(reqId, actionNote || "Denied");
       setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: "DENIED" } : r));
       setActionNote("");
       setExpandedId(null);
@@ -107,7 +117,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
   const displayedItems = filtered.slice(0, itemsDisplayed);
   const hasMore = itemsDisplayed < filtered.length;
 
-  const statuses = ["ALL", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING_MANAGER", "PENDING_CEO", "PENDING_FINANCE", "APPROVED", "DENIED"];
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20 space-y-10">
@@ -179,7 +189,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                   : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
               )}
             >
-              {status.split('_').join(' ')}
+              {formatStatusLabel(status)}
             </button>
           ))}
         </div>
@@ -217,7 +227,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                     req.status === 'DENIED' ? "bg-rose-500/10 border-rose-500/20 text-rose-500" :
                     "bg-zinc-500/10 border-zinc-500/20 text-zinc-500"
                   )}>
-                    {req.status.split('_').join(' ')}
+                      {formatStatusLabel(req.status)}
                   </div>
 
                   <button 
@@ -281,8 +291,46 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                         </div>
                       </div>
 
-                      {/* Approval Console — Finance acting on PENDING_FINANCE */}
-                      {!isViewOnly && currentUserRole !== 'CEO' && req.status === 'PENDING_FINANCE' && (
+                      {/* Manager approval console */}
+                      {isManagerReviewer && req.status === 'PENDING_MANAGER' && (
+                        <div className="space-y-4 pt-4">
+                           <textarea
+                            placeholder="Manager review notes or rejection reason..."
+                            className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
+                            value={actionNote}
+                            onChange={(e) => setActionNote(e.target.value)}
+                           />
+                           <div className="grid grid-cols-2 gap-3">
+                              <button
+                                onClick={() => handleApprove(req.id)}
+                                disabled={loading}
+                                className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                              >
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Directors
+                              </button>
+                              <button
+                                onClick={() => handleDeny(req.id)}
+                                disabled={loading}
+                                className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                              >
+                                <Cancel01Icon className="w-4 h-4" /> Reject
+                              </button>
+                           </div>
+                        </div>
+                      )}
+
+                      {/* Manager waiting badge */}
+                      {isManagerReviewer && req.status !== 'PENDING_MANAGER' && (
+                        <div className="pt-4">
+                          <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
+                            <Clock01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
+                            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Under {req.status.replaceAll('_', ' ')} Stage</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Finance approval console */}
+                      {isFinanceReviewer && req.status === 'PENDING_FINANCE' && (
                         <div className="space-y-4 pt-4">
                            <textarea
                             placeholder="Audit notes or rejection reason..."
@@ -296,7 +344,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                                 disabled={loading}
                                 className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                               >
-                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for CEO
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Final Approve
                               </button>
                               <button 
                                 onClick={() => handleDeny(req.id)}
@@ -309,21 +357,21 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                         </div>
                       )}
 
-                      {/* Finance: waiting badge when already forwarded to CEO */}
-                      {!isViewOnly && currentUserRole !== 'CEO' && req.status === 'PENDING_CEO' && (
+                      {/* Finance waiting badge */}
+                      {isFinanceReviewer && req.status !== 'PENDING_FINANCE' && (
                         <div className="pt-4">
                           <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
                             <Clock01Icon className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                            <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting CEO Review</span>
+                            <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Awaiting Earlier Approval Stage</span>
                           </div>
                         </div>
                       )}
 
-                      {/* CEO acting on PENDING_CEO */}
-                      {!isViewOnly && currentUserRole === 'CEO' && req.status === 'PENDING_CEO' && (
+                      {/* Directors acting on PENDING_CEO */}
+                      {isDirectorReviewer && req.status === 'PENDING_CEO' && (
                         <div className="space-y-4 pt-4">
                            <textarea
-                            placeholder="Approval notes or rejection reason..."
+                            placeholder="Directors notes or rejection reason..."
                             className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
                             value={actionNote}
                             onChange={(e) => setActionNote(e.target.value)}
@@ -334,7 +382,7 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                                 disabled={loading}
                                 className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                               >
-                                <CheckmarkCircle01Icon className="w-4 h-4" /> Approve
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Finance
                               </button>
                               <button 
                                 onClick={() => handleDeny(req.id)}
@@ -347,12 +395,12 @@ export default function FinanceRequisitionsClient({ initialRequisitions, current
                         </div>
                       )}
 
-                      {/* CEO: pending-finance info badge */}
-                      {!isViewOnly && currentUserRole === 'CEO' && req.status === 'PENDING_FINANCE' && (
+                      {/* Directors waiting badge */}
+                      {isDirectorReviewer && req.status !== 'PENDING_CEO' && (
                         <div className="pt-4">
                           <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
                             <Clock01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Pending Finance Review</span>
+                            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Waiting For Manager Stage</span>
                           </div>
                         </div>
                       )}

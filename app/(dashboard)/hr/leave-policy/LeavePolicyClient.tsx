@@ -16,6 +16,12 @@ interface Props {
 }
 
 const roles: RoleOption[] = ["ADMIN", "CEO", "MANAGER", "EMPLOYEE"];
+const roleLabels: Record<RoleOption, string> = {
+  ADMIN: "ADMIN",
+  CEO: "DIRECTOR",
+  MANAGER: "MANAGER",
+  EMPLOYEE: "EMPLOYEE",
+};
 const leaveTypes = [...MODERN_LEAVE_TYPES];
 
 export default function LeavePolicyClient({ initialPolicies, initialHolidays }: Props) {
@@ -193,7 +199,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
               {roles.map((role) => (
                 <tr key={role} className="border-b border-gray-100 dark:border-white/10 last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                   <td className="px-6 py-3">
-                    <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">{role}</span>
+                    <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">{roleLabels[role]}</span>
                   </td>
                   {leaveTypes.map((type) => (
                     <td key={type} className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-zinc-200">
@@ -300,7 +306,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Leave Type</label>
                 <select
-                  value={policyForm.leaveType}
+                  {roles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
                   onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value as (typeof MODERN_LEAVE_TYPES)[number] })}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] dark:text-zinc-100"
                 >

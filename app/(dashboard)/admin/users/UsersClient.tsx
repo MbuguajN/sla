@@ -86,6 +86,12 @@ export default function UsersClient({ initialUsers, departments }: Props) {
   });
 
   const roles = ["ADMIN", "CEO", "MANAGER", "EMPLOYEE"];
+  const roleLabels: Record<string, string> = {
+    ADMIN: "ADMIN",
+    CEO: "DIRECTOR",
+    MANAGER: "MANAGER",
+    EMPLOYEE: "EMPLOYEE",
+  };
 
   const filteredUsers = users.filter(
     (u) =>
@@ -326,7 +332,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                         user.role === 'CEO' ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10' :
                         'text-gray-600 bg-gray-50 dark:bg-white/10'
                       )}>
-                        {user.role}
+                        {user.role === "CEO" ? "DIRECTOR" : user.role}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -460,10 +466,10 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full h-14 px-4 text-[13px] font-black uppercase bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none dark:text-white"
+                      className="register-user-select w-full h-14 px-4 text-[13px] font-black uppercase bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none text-gray-900 dark:text-white"
                     >
                       {roles.map((role) => (
-                        <option key={role} value={role}>{role}</option>
+                        <option key={role} value={role}>{roleLabels[role] ?? role}</option>
                       ))}
                     </select>
                   </div>
@@ -472,7 +478,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                     <select
                       value={formData.departmentId}
                       onChange={(e) => setFormData({ ...formData, departmentId: e.target.value })}
-                      className="w-full h-14 px-4 text-[13px] font-black uppercase bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none dark:text-white"
+                      className="register-user-select w-full h-14 px-4 text-[13px] font-black uppercase bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none text-gray-900 dark:text-white"
                     >
                       <option value="">No Dept</option>
                       {departments.map((dept) => (

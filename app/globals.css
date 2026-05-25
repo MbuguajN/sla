@@ -89,6 +89,25 @@ body {
   background-size: 200% 100%;
 }
 
+/* Keep native register-form select menus readable in both themes */
+.register-user-select {
+  color-scheme: light;
+}
+
+.dark .register-user-select {
+  color-scheme: dark;
+}
+
+.register-user-select option {
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.dark .register-user-select option {
+  background-color: #111111;
+  color: #f1f5f9;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
