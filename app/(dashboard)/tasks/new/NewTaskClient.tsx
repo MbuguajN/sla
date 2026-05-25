@@ -56,7 +56,8 @@ const STEPS = [
 
 export default function NewTaskClient({ projects, allDepartments, minSlaHours, preselectedProjectId }: Props) {
   const router = useRouter();
-  const defaultSlaHours = Math.max(48, minSlaHours).toString();
+  const minSlaDays = Math.max(1, Math.ceil(minSlaHours / 24));
+  const defaultSlaDays = Math.max(2, minSlaDays).toString();
   const labelClassName = "mb-3 block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400";
   const fieldClassName = "w-full rounded-2xl border-2 border-zinc-200/80 bg-zinc-50 text-sm font-bold text-zinc-950 outline-none transition-all placeholder:text-zinc-400 focus:border-[var(--primary)] focus:bg-white dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-50 dark:placeholder:text-zinc-500 dark:focus:bg-zinc-950";
   const panelClassName = "rounded-[32px] border border-zinc-200/80 bg-white/95 p-5 shadow-[10px_10px_0px_0px_rgba(24,24,27,0.12)] backdrop-blur-sm transition-all dark:border-zinc-800 dark:bg-zinc-900/90 dark:shadow-[10px_10px_0px_0px_rgba(0,0,0,0.45)] md:p-6";
@@ -70,7 +71,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
     description: "",
     priority: "MEDIUM" as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
     deptId: "",
-    slaHours: defaultSlaHours,
+    slaDays: defaultSlaDays,
     briefReceivedAt: "",
     links: [] as { name: string; url: string }[],
   });
@@ -141,11 +142,13 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
       return;
     }
 
-    const parsedSlaHours = Number.parseInt(formData.slaHours, 10);
-    if (Number.isNaN(parsedSlaHours) || parsedSlaHours < minSlaHours) {
-      setError(`SLA commitment cannot be below ${minSlaHours} hours.`);
+    const parsedSlaDays = Number(formData.slaDays);
+    if (!Number.isInteger(parsedSlaDays) || parsedSlaDays < minSlaDays) {
+      setError(`SLA commitment cannot be below ${minSlaDays} days.`);
       return;
     }
+
+    const parsedSlaHours = parsedSlaDays * 24;
 
     setLoading(true);
     setError("");
@@ -386,19 +389,23 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClassName}>SLA Commitment (Hours)</label>
+                      <label className={labelClassName}>SLA Commitment (Days)</label>
                       <div className="relative w-full">
                         <Clock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500 dark:text-zinc-400" />
                         <input
                           type="number"
-                          min={minSlaHours}
-                          value={formData.slaHours}
-                          onChange={(e) => setFormData({ ...formData, slaHours: e.target.value })}
+                          min={minSlaDays}
+                          step="1"
+                          value={formData.slaDays}
+                          onChange={(e) => setFormData({ ...formData, slaDays: e.target.value })}
                           className={cn(fieldClassName, "h-14 pl-12 pr-4")}
                         />
                       </div>
                       <p className="mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                        Minimum allowed: {minSlaHours} hours
+                        Minimum allowed: {minSlaDays} days ({minSlaDays * 24} hours)
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        System calculated: {Number(formData.slaDays || 0) * 24 || 0} hours
                       </p>
                     </div>
 
