@@ -306,7 +306,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Leave Type</label>
                 <select
-                  {roles.map((r) => <option key={r} value={r}>{roleLabels[r]}</option>)}
+                  value={policyForm.leaveType}
                   onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value as (typeof MODERN_LEAVE_TYPES)[number] })}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/10 bg-white dark:bg-black rounded-lg focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41] dark:text-zinc-100"
                 >
