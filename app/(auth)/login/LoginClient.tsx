@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -8,9 +8,45 @@ import { Loader2, Lock, Shield, Eye, EyeOff } from "lucide-react";
 
 interface Props {
   logos?: { light: string | null; dark: string | null } | null;
+  googleClientId?: string | null;
+  enableGoogleSignin?: boolean;
 }
 
-export default function LoginClient({ logos }: Props) {
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: GoogleCredentialResponse) => void;
+          }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: {
+              theme?: "outline" | "filled_black" | "filled_blue";
+              size?: "large" | "medium" | "small";
+              type?: "standard" | "icon";
+              shape?: "pill" | "rectangular" | "square" | "circle";
+              text?: "signin_with" | "signup_with" | "continue_with" | "signin";
+              width?: string | number;
+            }
+          ) => void;
+        };
+      };
+    };
+  }
+}
+
+export default function LoginClient({
+  logos,
+  googleClientId,
+  enableGoogleSignin = false,
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -20,6 +56,89 @@ export default function LoginClient({ logos }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!enableGoogleSignin || !googleClientId) return;
+
+    const initializeGoogleButton = () => {
+      const container = googleButtonRef.current;
+      const google = window.google;
+
+      if (!container || !google?.accounts?.id) return;
+
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async ({ credential }) => {
+          if (!credential) {
+            setError("Google sign-in failed. Please try again.");
+            return;
+          }
+
+          setError("");
+          setGoogleLoading(true);
+
+          try {
+            const result = await signIn("google-id-token", {
+              idToken: credential,
+              redirect: false,
+            });
+
+            if (result?.error) {
+              setError(result.error);
+              return;
+            }
+
+            router.push(callbackUrl);
+            router.refresh();
+          } catch {
+            setError("Google sign-in failed. Please try again.");
+          } finally {
+            setGoogleLoading(false);
+          }
+        },
+      });
+
+      container.innerHTML = "";
+      google.accounts.id.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        shape: "pill",
+        text: "signin_with",
+        width: "320",
+      });
+      setGoogleReady(true);
+    };
+
+    if (window.google?.accounts?.id) {
+      initializeGoogleButton();
+      return;
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[src="https://accounts.google.com/gsi/client"]'
+    );
+
+    if (existingScript) {
+      existingScript.addEventListener("load", initializeGoogleButton, { once: true });
+      return () => {
+        existingScript.removeEventListener("load", initializeGoogleButton);
+      };
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = initializeGoogleButton;
+    document.head.appendChild(script);
+
+    return () => {
+      script.onload = null;
+    };
+  }, [enableGoogleSignin, googleClientId, callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,7 +255,7 @@ export default function LoginClient({ logos }: Props) {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || googleLoading}
             className="mt-1 w-full h-12 rounded-xl bg-[#c91f41] text-white text-base font-black tracking-tight shadow-[0_8px_16px_-8px_rgba(201,31,65,0.55)] hover:bg-[#b71b3a] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
@@ -148,6 +267,26 @@ export default function LoginClient({ logos }: Props) {
               "Secure Login"
             )}
           </button>
+
+          {enableGoogleSignin ? (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-[10px] uppercase tracking-[0.18em] font-black text-[#8d7f88]">
+                <span className="h-px flex-1 bg-[#e3dfe4]" />
+                or
+                <span className="h-px flex-1 bg-[#e3dfe4]" />
+              </div>
+
+              <div className="flex justify-center">
+                <div ref={googleButtonRef} className="min-h-[44px]" />
+              </div>
+
+              {!googleReady ? (
+                <p className="text-[11px] text-center font-semibold text-[#8d7f88]">
+                  Preparing Google sign-in...
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </form>
 
         <div className="mt-6 flex items-center justify-center gap-1.5 text-[#6d6169] dark:text-slate-300">

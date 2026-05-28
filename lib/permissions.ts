@@ -94,6 +94,14 @@ export function canViewOtherBoards(user: { role: string; departmentSlug: string 
   return user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
 }
 
+export function canAccessCollectionBoards(user: { role: string; departmentSlug: string | null }): boolean {
+  return user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug !== DEPARTMENTS.HR;
+}
+
+export function canCreateCollectionBoard(user: { role: string; departmentSlug: string | null }): boolean {
+  return canAccessCollectionBoards(user);
+}
+
 // ============== PROJECT PERMISSIONS ==============
 // Only Client Service and Business Development can create projects
 export function canCreateProject(user: PermissionContext): boolean {

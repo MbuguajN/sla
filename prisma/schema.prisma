@@ -45,6 +45,10 @@ model User {
   boardColumns             PersonalBoardColumn[]
   boardCardsOwned          PersonalBoardCard[]   @relation("BoardCardOwner")
   boardCardsAssignedBy     PersonalBoardCard[]   @relation("BoardCardAssignedBy")
+  collectionBoardsOwned    CollectionBoard[]     @relation("CollectionBoardOwner")
+  collectionBoardMembers   CollectionBoardMember[]
+  collectionCardsAssignedBy CollectionBoardCard[] @relation("CollectionCardAssignedBy")
+  collectionBoardAccesses  CollectionBoardAccess[]
   heldPrivileges           UserPrivilege[]       @relation("HeldPrivileges")
   grantedPrivileges        UserPrivilege[]       @relation("GrantedPrivileges")
   UserInviteToken          UserInviteToken?
@@ -240,6 +244,7 @@ model Task {
   activityLog        ActivityLog[]
   leaveHandovers     LeaveTaskHandover[]
   boardCard          PersonalBoardCard?
+  collectionCards    CollectionBoardCard[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -252,6 +257,7 @@ model Task {
 enum TaskSource {
   STANDARD
   SELF_BOARD
+  COLLECTION_BOARD
 }
 
 enum TaskStatus {
@@ -336,6 +342,98 @@ model PersonalBoardCard {
   updatedAt       DateTime            @updatedAt
 
   @@index([ownerId, columnId, position])
+}
+
+model CollectionBoard {
+  id          Int                     @id @default(autoincrement())
+  name        String
+  description String?
+  owner       User                    @relation("CollectionBoardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId     Int
+  columns     CollectionBoardColumn[]
+  cards       CollectionBoardCard[]
+  members     CollectionBoardMember[]
+  accesses    CollectionBoardAccess[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([ownerId])
+  @@index([updatedAt])
+}
+
+model CollectionBoardMember {
+  id         Int                  @id @default(autoincrement())
+  board      CollectionBoard      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId    Int
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     Int
+  role       CollectionMemberRole @default(MEMBER)
+  invitedAt  DateTime             @default(now())
+  acceptedAt DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@unique([boardId, userId])
+  @@index([userId])
+  @@index([boardId, role])
+}
+
+enum CollectionMemberRole {
+  OWNER
+  MEMBER
+}
+
+model CollectionBoardColumn {
+  id               Int                   @id @default(autoincrement())
+  board            CollectionBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId          Int
+  title            String
+  code             String
+  kind             BoardColumnKind
+  mappedTaskStatus TaskStatus
+  position         Int                   @default(0)
+  cards            CollectionBoardCard[]
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@unique([boardId, code])
+  @@index([boardId, position])
+}
+
+model CollectionBoardCard {
+  id              Int                   @id @default(autoincrement())
+  board           CollectionBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId         Int
+  column          CollectionBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId        Int
+  task            Task                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId          Int
+  assignedBy      User?                 @relation("CollectionCardAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  assignedById    Int?
+  title           String
+  description     String?
+  position        Int                   @default(0)
+  enteredColumnAt DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([boardId, taskId])
+  @@index([boardId, columnId, position])
+  @@index([taskId])
+}
+
+model CollectionBoardAccess {
+  id             Int             @id @default(autoincrement())
+  board          CollectionBoard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId        Int
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         Int
+  lastAccessedAt DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([boardId, userId])
+  @@index([userId, lastAccessedAt])
 }
 
 // ============== SUBTASKS ==============

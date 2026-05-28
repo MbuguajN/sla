@@ -2,16 +2,53 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import crypto from "crypto";
+import { OAuth2Client } from "google-auth-library";
 import db from "./db";
 
 const LOGIN_ATTEMPT_RETENTION_HOURS = 48;
 const LOGIN_RATE_LIMIT_WINDOW_MINUTES = 15;
 const LOGIN_MAX_FAILED_ATTEMPTS_PER_EMAIL = 5;
 const LOGIN_MAX_FAILED_ATTEMPTS_PER_IP = 20;
+const DEFAULT_ALLOWED_GOOGLE_DOMAINS = ["5dm.africa", "myhappyhour.co.ke"];
+
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || "";
+const googleOauthClient = googleClientId ? new OAuth2Client(googleClientId) : null;
 
 type AuthRequestLike = {
   headers?: Headers | Record<string, string | string[] | undefined>;
 };
+
+function getAllowedGoogleDomains() {
+  const configured = process.env.ALLOWED_GOOGLE_DOMAINS?.split(",")
+    .map((domain) => domain.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (configured && configured.length > 0) {
+    return configured;
+  }
+
+  return DEFAULT_ALLOWED_GOOGLE_DOMAINS;
+}
+
+function isGoogleDomainAllowed(email: string) {
+  const domain = email.split("@").pop()?.toLowerCase() || "";
+  return getAllowedGoogleDomains().includes(domain);
+}
+
+async function createNewSessionIdForUser(userId: number) {
+  const sessionId = crypto.randomUUID();
+
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { currentSessionId: sessionId },
+    });
+  } catch (error) {
+    console.error("Failed to update currentSessionId:", error);
+  }
+
+  return sessionId;
+}
 
 function readHeader(
   headers: AuthRequestLike["headers"],
@@ -253,19 +290,7 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid email or password");
         }
 
-        // Single Session Enforcement: Generate new session ID
-        const sessionId = crypto.randomUUID();
-        
-        // Update database with new session ID
-        try {
-          await db.user.update({
-            where: { id: user.id },
-            data: { currentSessionId: sessionId },
-          });
-        } catch (error) {
-          console.error("Failed to update currentSessionId:", error);
-          // If the update fails (e.g. column missing), we continue login but without single-session enforcement for now
-        }
+        const sessionId = await createNewSessionIdForUser(user.id);
 
         await createLoginAttemptLog({
           email: normalizedEmail,
@@ -286,6 +311,137 @@ export const authOptions: NextAuthOptions = {
           firstLoginAt: user.firstLoginAt,
           passwordSetupRequired: user.passwordSetupRequired,
         };
+      },
+    }),
+    CredentialsProvider({
+      id: "google-id-token",
+      name: "Google",
+      credentials: {
+        idToken: { label: "ID Token", type: "text" },
+      },
+      async authorize(credentials, req) {
+        const rawToken = credentials?.idToken?.trim();
+        if (!rawToken) {
+          throw new Error("Google ID token is required");
+        }
+
+        if (!googleOauthClient || !googleClientId) {
+          throw new Error("Google sign-in is not configured on the server");
+        }
+
+        let email = "unknown-google-user";
+
+        const handledErrors = new Set([
+          "Your Google account email is not verified",
+          "This Google account domain is not allowed",
+          "No account exists for this Google email",
+          "Your account has been deactivated",
+          "Complete your initial password setup first, then use Google sign-in",
+        ]);
+
+        try {
+          const ticket = await googleOauthClient.verifyIdToken({
+            idToken: rawToken,
+            audience: googleClientId,
+          });
+
+          const payload = ticket.getPayload();
+          const verifiedEmail = payload?.email?.toLowerCase();
+          email = verifiedEmail || email;
+
+          if (!verifiedEmail || !payload?.email_verified) {
+            await createLoginAttemptLog({
+              email,
+              status: "FAILED",
+              req,
+              failureReason: "Google account email not verified",
+            });
+            throw new Error("Your Google account email is not verified");
+          }
+
+          if (!isGoogleDomainAllowed(verifiedEmail)) {
+            await createLoginAttemptLog({
+              email,
+              status: "FAILED",
+              req,
+              failureReason: "Google domain not allowed",
+            });
+            throw new Error("This Google account domain is not allowed");
+          }
+
+          const user = await db.user.findUnique({
+            where: { email: verifiedEmail },
+            include: { department: true },
+          });
+
+          if (!user) {
+            await createLoginAttemptLog({
+              email: verifiedEmail,
+              status: "FAILED",
+              req,
+              failureReason: "Account not found",
+            });
+            throw new Error("No account exists for this Google email");
+          }
+
+          if (!user.isActive) {
+            await createLoginAttemptLog({
+              email: verifiedEmail,
+              userId: user.id,
+              status: "FAILED",
+              req,
+              failureReason: "Account deactivated",
+            });
+            throw new Error("Your account has been deactivated");
+          }
+
+          if (user.passwordSetupRequired || !user.firstLoginAt) {
+            await createLoginAttemptLog({
+              email: verifiedEmail,
+              userId: user.id,
+              status: "FAILED",
+              req,
+              failureReason: "Password setup not completed",
+            });
+            throw new Error("Complete your initial password setup first, then use Google sign-in");
+          }
+
+          const sessionId = await createNewSessionIdForUser(user.id);
+
+          await createLoginAttemptLog({
+            email: verifiedEmail,
+            userId: user.id,
+            status: "SUCCESS",
+            req,
+          });
+
+          return {
+            id: String(user.id),
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            departmentId: user.departmentId,
+            departmentSlug: user.department?.slug || null,
+            sessionId,
+            authVersion: user.authVersion || 0,
+            firstLoginAt: user.firstLoginAt,
+            passwordSetupRequired: user.passwordSetupRequired,
+          };
+        } catch (error) {
+          if (error instanceof Error && handledErrors.has(error.message)) {
+            throw error;
+          }
+
+          await createLoginAttemptLog({
+            email,
+            status: "FAILED",
+            req,
+            failureReason: "Invalid Google token",
+          });
+
+          console.error("Google sign-in verification failed:", error);
+          throw new Error("Google sign-in failed");
+        }
       },
     }),
   ],

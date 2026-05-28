@@ -42,7 +42,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, canAccessEquipment = false, logos }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "finance", "it", "admin"]);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["boards", "personal", "hr", "finance", "it", "admin"]);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -78,12 +78,20 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
-    ...(!isHROnly ? [{ label: "Board", href: "/board", icon: BoardMathIcon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 
   // Sections (collapsible)
   const Sections = [
+    {
+      id: "boards",
+      title: "Boards",
+      visible: !isHROnly,
+      items: [
+        { label: "Personal Board", href: "/board", icon: BoardMathIcon },
+        { label: "Collections", href: "/board/collections", icon: BoardMathIcon },
+      ]
+    },
     {
       id: "personal",
       title: "Personal",
