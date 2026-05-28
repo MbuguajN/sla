@@ -58,17 +58,17 @@ export default function LoginClient({
   const [loading, setLoading] = useState(false);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleError, setGoogleError] = useState("");
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleLoadTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    if (!enableGoogleSignin || !googleClientId) return;
+  const loadGoogleButton = () => {
+    const container = googleButtonRef.current;
+    const google = window.google;
 
-    const initializeGoogleButton = () => {
-      const container = googleButtonRef.current;
-      const google = window.google;
+    if (!container || !google?.accounts?.id || !googleClientId) return false;
 
-      if (!container || !google?.accounts?.id) return;
-
+    try {
       google.accounts.id.initialize({
         client_id: googleClientId,
         callback: async ({ credential }) => {
@@ -78,6 +78,7 @@ export default function LoginClient({
           }
 
           setError("");
+          setGoogleError("");
           setGoogleLoading(true);
 
           try {
@@ -109,11 +110,25 @@ export default function LoginClient({
         text: "signin_with",
         width: "320",
       });
+
       setGoogleReady(true);
-    };
+      setGoogleError("");
+      return true;
+    } catch {
+      setGoogleError("Google sign-in failed to initialize.");
+      setGoogleReady(false);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (!enableGoogleSignin || !googleClientId) return;
+
+    setGoogleReady(false);
+    setGoogleError("");
 
     if (window.google?.accounts?.id) {
-      initializeGoogleButton();
+      loadGoogleButton();
       return;
     }
 
@@ -122,9 +137,12 @@ export default function LoginClient({
     );
 
     if (existingScript) {
-      existingScript.addEventListener("load", initializeGoogleButton, { once: true });
+      existingScript.addEventListener("load", loadGoogleButton, { once: true });
+      existingScript.addEventListener("error", () => {
+        setGoogleError("Unable to load Google sign-in.");
+      }, { once: true });
       return () => {
-        existingScript.removeEventListener("load", initializeGoogleButton);
+        existingScript.removeEventListener("load", loadGoogleButton);
       };
     }
 
@@ -132,13 +150,24 @@ export default function LoginClient({
     script.src = "https://accounts.google.com/gsi/client";
     script.async = true;
     script.defer = true;
-    script.onload = initializeGoogleButton;
+    script.onload = loadGoogleButton;
+    script.onerror = () => setGoogleError("Unable to load Google sign-in.");
     document.head.appendChild(script);
+
+    googleLoadTimeoutRef.current = window.setTimeout(() => {
+      if (!googleReady) {
+        setGoogleError("Google sign-in is taking too long to load. Check your network or ad blocker.");
+      }
+    }, 8000);
 
     return () => {
       script.onload = null;
+      script.onerror = null;
+      if (googleLoadTimeoutRef.current) {
+        window.clearTimeout(googleLoadTimeoutRef.current);
+      }
     };
-  }, [enableGoogleSignin, googleClientId, callbackUrl, router]);
+  }, [enableGoogleSignin, googleClientId, callbackUrl, router, googleReady]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,9 +310,20 @@ export default function LoginClient({
               </div>
 
               {!googleReady ? (
-                <p className="text-[11px] text-center font-semibold text-[#8d7f88]">
-                  Preparing Google sign-in...
-                </p>
+                <div className="text-center space-y-2">
+                  <p className="text-[11px] text-center font-semibold text-[#8d7f88]">
+                    {googleError || "Preparing Google sign-in..."}
+                  </p>
+                  {googleError ? (
+                    <button
+                      type="button"
+                      onClick={() => loadGoogleButton()}
+                      className="text-[11px] font-black uppercase tracking-[0.12em] text-[#c91f41]"
+                    >
+                      Retry
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}

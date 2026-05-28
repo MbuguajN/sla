@@ -89,7 +89,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
       visible: !isHROnly,
       items: [
         { label: "Personal Board", href: "/board", icon: BoardMathIcon },
-        { label: "Collections", href: "/board/collections", icon: BoardMathIcon },
+        { label: "Collections", href: "/board/collections", icon: UserGroupIcon },
       ]
     },
     {
