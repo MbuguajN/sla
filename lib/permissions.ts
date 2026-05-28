@@ -79,7 +79,7 @@ export function canCloseClient(user: { role: string; departmentSlug: string | nu
 }
 
 export function canViewClients(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.role === "ADMIN" || user.role === "CEO" || user.role === "MANAGER" || user.departmentSlug === DEPARTMENTS.FINANCE) return true;
   return (
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE
@@ -91,11 +91,7 @@ export function canViewReports(user: { role: string }): boolean {
 }
 
 export function canViewOtherBoards(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
-  return (
-    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
-    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE
-  );
+  return user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
 }
 
 // ============== PROJECT PERMISSIONS ==============
@@ -114,7 +110,12 @@ export async function canAccessProject(
   user: { id: number; role: string; departmentId: number | null; departmentSlug: string | null },
   projectId: number
 ): Promise<boolean> {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    user.role === "MANAGER" ||
+    user.departmentSlug === DEPARTMENTS.FINANCE
+  ) return true;
   if (
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE
@@ -137,7 +138,12 @@ export async function canAccessProject(
 }
 
 export function canViewAllProjects(user: { role: string; departmentSlug?: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    user.role === "MANAGER" ||
+    user.departmentSlug === DEPARTMENTS.FINANCE
+  ) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
@@ -157,6 +163,7 @@ export function canManageProjectStatus(user: { role: string; departmentSlug: str
 // Only Client Service and Business Development can create/initiate tasks
 export function canCreateTask(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (user.role === "MANAGER") return true;
   if (hasPrivilege(user, "CAN_CREATE_TASKS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||

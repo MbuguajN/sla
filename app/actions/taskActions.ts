@@ -195,6 +195,7 @@ export async function getTask(taskId: number) {
   const canAccess =
     user.role === "ADMIN" ||
     user.role === "CEO" ||
+    user.role === "MANAGER" ||
     task.createdById === user.id ||
     task.assignedUserId === user.id ||
     task.deptId === user.departmentId;
@@ -264,10 +265,11 @@ export async function createTask(data: {
   briefReceivedAt: string;
   slaHours?: number;
   links?: { name: string; url: string }[];
+  includedDeptSubtasks?: { deptId: number; title: string; description?: string }[];
 }) {
   const user = await getCurrentUser();
   if (!user || !canCreateTask(user)) {
-    throw new Error("Unauthorized - Only Client Service and Business Development can create tasks");
+    throw new Error("Unauthorized - You do not have permission to create tasks");
   }
 
   // Check if project and client exist and are valid
@@ -306,9 +308,36 @@ export async function createTask(data: {
     throw new Error("Assigned department not found");
   }
 
-  const blockedAssignmentSlugs = new Set(["client-service", "finance", "human-resources"]);
+  const blockedAssignmentSlugs = new Set(["human-resources"]);
   if (blockedAssignmentSlugs.has(assignedDepartment.slug)) {
     throw new Error("This department cannot be assigned tasks from this workflow");
+  }
+
+  const routedSubtasks = (data.includedDeptSubtasks || [])
+    .map((entry) => ({
+      deptId: entry.deptId,
+      title: entry.title.trim(),
+      description: entry.description?.trim() || "",
+    }))
+    .filter((entry) => entry.deptId && entry.title.length > 0);
+
+  const routedDeptIds = [...new Set(routedSubtasks.map((entry) => entry.deptId))];
+  const routedDepartments = routedDeptIds.length
+    ? await db.department.findMany({
+        where: { id: { in: routedDeptIds } },
+        select: { id: true, name: true, slug: true },
+      })
+    : [];
+  const routedDepartmentById = new Map(routedDepartments.map((dept) => [dept.id, dept]));
+
+  for (const routed of routedSubtasks) {
+    const dept = routedDepartmentById.get(routed.deptId);
+    if (!dept) {
+      throw new Error("One or more included departments were not found");
+    }
+    if (blockedAssignmentSlugs.has(dept.slug)) {
+      throw new Error(`${dept.name} cannot receive routed subtasks from this workflow`);
+    }
   }
 
   const now = new Date();
@@ -390,6 +419,39 @@ export async function createTask(data: {
         `A new task has been created for your department: ${task.title}`,
         `/tasks/${task.id}`
       );
+    }
+  }
+
+  if (routedSubtasks.length > 0) {
+    for (const routed of routedSubtasks) {
+      const targetDepartment = routedDepartmentById.get(routed.deptId);
+      if (!targetDepartment) continue;
+
+      await db.subtask.create({
+        data: {
+          taskId: task.id,
+          title: `[${targetDepartment.name}] ${routed.title}`,
+          description: routed.description || null,
+          status: "PENDING",
+        },
+      });
+
+      const managers = await db.user.findMany({
+        where: {
+          departmentId: targetDepartment.id,
+          role: "MANAGER",
+        },
+      });
+
+      for (const manager of managers) {
+        await createNotification(
+          manager.id,
+          "TASK_ASSIGNED",
+          "Subtask Routed To Your Department",
+          `${user.name} routed \"${routed.title}\" under task \"${task.title}\" to ${targetDepartment.name}. Please assign it to your team.`,
+          `/tasks/${task.id}`
+        );
+      }
     }
   }
 

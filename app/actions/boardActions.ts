@@ -189,8 +189,24 @@ export async function getPersonalBoardData(viewUserId?: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const canSwitchBoards = canViewOtherBoards(user);
-  const targetUserId = canSwitchBoards && viewUserId ? viewUserId : user.id;
+  const canSwitchGlobalBoards = canViewOtherBoards(user);
+  const canSwitchDepartmentBoards = user.role === "MANAGER" && user.departmentId !== null;
+
+  let targetUserId = user.id;
+  if (viewUserId) {
+    if (canSwitchGlobalBoards) {
+      targetUserId = viewUserId;
+    } else if (canSwitchDepartmentBoards) {
+      const requestedUser = await db.user.findUnique({
+        where: { id: viewUserId },
+        select: { id: true, departmentId: true },
+      });
+
+      if (requestedUser && requestedUser.departmentId === user.departmentId) {
+        targetUserId = requestedUser.id;
+      }
+    }
+  }
   const canEditBoard = targetUserId === user.id;
 
   if (canEditBoard) {
@@ -224,7 +240,14 @@ export async function getPersonalBoardData(viewUserId?: number) {
       orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     }),
     db.user.findMany({
-      where: { isActive: true },
+      where: {
+        isActive: true,
+        ...(canSwitchGlobalBoards
+          ? {}
+          : canSwitchDepartmentBoards
+            ? { departmentId: user.departmentId }
+            : { id: user.id }),
+      },
       select: buildBoardUserSelect(),
       orderBy: { name: "asc" },
     }),
@@ -252,7 +275,7 @@ export async function getPersonalBoardData(viewUserId?: number) {
     columns,
     users,
     projects,
-    canSwitchBoards: canSwitchBoards,
+    canSwitchBoards: canSwitchGlobalBoards || canSwitchDepartmentBoards,
     canEditBoard,
     selectedUser: selectedUser || {
       id: user.id,

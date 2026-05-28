@@ -60,8 +60,14 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
   const canAccessRequisitionReview = canAccessFinance || user.role === "MANAGER";
   const isFinanceOnly = user.departmentSlug === "finance" && (user.role === "EMPLOYEE" || user.role === "MANAGER");
   const canAccessAdmin = user.role === "ADMIN";
+  const canSeeProjectsAndTasks = !isHROnly;
   const canSeeClients =
-    user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "business-development" || user.departmentSlug === "client-service";
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    user.role === "MANAGER" ||
+    user.departmentSlug === "finance" ||
+    user.departmentSlug === "business-development" ||
+    user.departmentSlug === "client-service";
 
   // Main nav items
   const mainNav: NavItem[] = [
@@ -70,9 +76,9 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
       ? [{ label: "Reports", href: "/reports", icon: Book01Icon }]
       : []),
     ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
-    ...(!isHROnly && !isFinanceOnly ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
-    ...(!isHROnly && !isFinanceOnly ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
-    ...(!isHROnly && !isFinanceOnly ? [{ label: "Board", href: "/board", icon: BoardMathIcon }] : []),
+    ...(canSeeProjectsAndTasks ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
+    ...(canSeeProjectsAndTasks ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
+    ...(!isHROnly ? [{ label: "Board", href: "/board", icon: BoardMathIcon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 

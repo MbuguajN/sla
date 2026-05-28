@@ -67,11 +67,16 @@ export default async function BoardPage({
   const requestedUserId = params.userId ? Number(params.userId) : user.id;
   const selectedUserId = Number.isFinite(requestedUserId) ? requestedUserId : user.id;
   const allowedToSwitch = canViewOtherBoards(user);
-  const targetUserId = allowedToSwitch ? selectedUserId : user.id;
+  const canSwitchDepartmentBoards = user.role === "MANAGER" && user.departmentId !== null;
+  const targetUserId = allowedToSwitch || canSwitchDepartmentBoards ? selectedUserId : user.id;
 
   const data = (await getPersonalBoardData(targetUserId)) as BoardPageData;
 
-  const boardUsers = data.users.filter((candidate) => allowedToSwitch || candidate.id === user.id);
+  const boardUsers = data.users.filter((candidate) => {
+    if (allowedToSwitch) return true;
+    if (canSwitchDepartmentBoards) return candidate.departmentId === user.departmentId;
+    return candidate.id === user.id;
+  });
 
   return (
     <BoardClient
@@ -110,7 +115,7 @@ export default async function BoardPage({
         clientId: project.clientId,
         client: project.client,
       }))}
-      canSwitchBoards={data.canSwitchBoards}
+      canSwitchBoards={allowedToSwitch || canSwitchDepartmentBoards}
       canEditBoard={data.canEditBoard}
       selectedUser={data.selectedUser}
       me={data.me}

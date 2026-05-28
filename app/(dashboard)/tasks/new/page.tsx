@@ -38,7 +38,7 @@ export default async function NewTaskPage({
   const parsedMinSla = Number.parseInt(minSlaSetting?.value || "1", 10);
   const minSlaHours = Number.isNaN(parsedMinSla) ? 1 : Math.max(1, parsedMinSla);
 
-  const excludedAssignmentSlugs = new Set(["client-service", "finance", "human-resources"]);
+  const excludedAssignmentSlugs = new Set(["human-resources"]);
   const assignableDepartments = departments.filter((d) => !excludedAssignmentSlugs.has(d.slug));
 
   return (

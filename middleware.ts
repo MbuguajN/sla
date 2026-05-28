@@ -24,16 +24,14 @@ export default withAuth(
       return NextResponse.redirect(new URL("/admin", req.url));
     }
 
-    if (!isCEO && (isHR || isFinance)) {
+    if (!isCEO && isHR) {
       const blocksOperationalRoutes =
         path.startsWith("/clients") ||
         path.startsWith("/projects") ||
         path.startsWith("/tasks");
 
       if (blocksOperationalRoutes) {
-        return NextResponse.redirect(
-          new URL(isFinance ? "/dashboard" : "/hr/leaves", req.url)
-        );
+        return NextResponse.redirect(new URL("/hr/leaves", req.url));
       }
     }
 

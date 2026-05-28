@@ -41,6 +41,12 @@ type Department = {
   name: string;
 };
 
+type IncludedDeptSubtask = {
+  deptId: string;
+  title: string;
+  description: string;
+};
+
 interface Props {
   projects: Project[];
   allDepartments: Department[];
@@ -74,6 +80,7 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
     slaDays: defaultSlaDays,
     briefReceivedAt: "",
     links: [] as { name: string; url: string }[],
+    includedDeptSubtasks: [] as IncludedDeptSubtask[],
   });
 
   const [projectSearch, setProjectSearch] = useState("");
@@ -106,6 +113,33 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
     setFormData(prev => ({
       ...prev,
       links: prev.links.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addIncludedDeptSubtask = () => {
+    setFormData((prev) => ({
+      ...prev,
+      includedDeptSubtasks: [...prev.includedDeptSubtasks, { deptId: "", title: "", description: "" }],
+    }));
+  };
+
+  const updateIncludedDeptSubtask = (
+    index: number,
+    field: keyof IncludedDeptSubtask,
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      includedDeptSubtasks: prev.includedDeptSubtasks.map((entry, idx) =>
+        idx === index ? { ...entry, [field]: value } : entry
+      ),
+    }));
+  };
+
+  const removeIncludedDeptSubtask = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      includedDeptSubtasks: prev.includedDeptSubtasks.filter((_, idx) => idx !== index),
     }));
   };
 
@@ -163,6 +197,13 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
         briefReceivedAt: formData.briefReceivedAt,
         slaHours: parsedSlaHours,
         links: formData.links.filter(l => l.name.trim() && l.url.trim()),
+        includedDeptSubtasks: formData.includedDeptSubtasks
+          .filter((entry) => entry.deptId && entry.title.trim())
+          .map((entry) => ({
+            deptId: parseInt(entry.deptId, 10),
+            title: entry.title.trim(),
+            description: entry.description.trim() || undefined,
+          })),
       });
 
       router.push("/tasks/" + task.id);
@@ -384,6 +425,81 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                          Include Departments (Optional)
+                        </label>
+                        <p className="mt-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                          Add routed subtasks for other departments to pick and assign.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addIncludedDeptSubtask}
+                        className="inline-flex h-10 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 text-[10px] font-black uppercase tracking-widest text-zinc-700 transition-colors hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:border-zinc-600"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Add Dept Subtask
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {formData.includedDeptSubtasks.length === 0 && (
+                        <p className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                          No routed department subtasks yet.
+                        </p>
+                      )}
+
+                      {formData.includedDeptSubtasks.map((entry, index) => (
+                        <div
+                          key={`dept-subtask-${index}`}
+                          className="rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                            <select
+                              value={entry.deptId}
+                              onChange={(e) => updateIncludedDeptSubtask(index, "deptId", e.target.value)}
+                              className={cn(fieldClassName, "h-11 px-3 text-[11px]")}
+                            >
+                              <option value="">Select Department</option>
+                              {allDepartments.map((dept) => (
+                                <option key={dept.id} value={dept.id}>
+                                  {dept.name}
+                                </option>
+                              ))}
+                            </select>
+
+                            <input
+                              value={entry.title}
+                              onChange={(e) => updateIncludedDeptSubtask(index, "title", e.target.value)}
+                              placeholder="Subtask title"
+                              className={cn(fieldClassName, "h-11 px-3 text-[11px] md:col-span-2")}
+                            />
+                          </div>
+
+                          <div className="mt-2 flex items-center gap-2">
+                            <input
+                              value={entry.description}
+                              onChange={(e) => updateIncludedDeptSubtask(index, "description", e.target.value)}
+                              placeholder="Optional delivery notes"
+                              className={cn(fieldClassName, "h-11 flex-1 px-3 text-[11px]")}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeIncludedDeptSubtask(index)}
+                              className="flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-600 transition-colors hover:border-rose-300 hover:text-rose-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-rose-700 dark:hover:text-rose-400"
+                              aria-label="Remove department subtask"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
