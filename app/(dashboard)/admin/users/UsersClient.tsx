@@ -76,6 +76,11 @@ export default function UsersClient({ initialUsers, departments }: Props) {
   const [selectedPrivileges, setSelectedPrivileges] = useState<PrivilegeKey[]>([]);
   const [showFormPassword, setShowFormPassword] = useState(false);
 
+  // Deletion state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
+  const [successorId, setSuccessorId] = useState("");
+
   // Form state
   const [formData, setFormData] = useState({
     name: "",
@@ -205,14 +210,26 @@ export default function UsersClient({ initialUsers, departments }: Props) {
     }
   };
 
-  const handleDelete = async (userId: number) => {
-    if (!confirm("Are you sure you want to deactivate this user?")) return;
+  const openDeleteModal = (user: UserItem) => {
+    setUserToDelete(user);
+    setSuccessorId("");
+    setShowDeleteModal(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    setLoading(true);
     try {
-      await deleteUser(userId);
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      // successorId is string, need to pass number to deleteUser
+      await deleteUser(userToDelete.id, successorId ? parseInt(successorId) : undefined);
+      setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      setSuccessorId("");
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete user");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -362,7 +379,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => openDeleteModal(user)}
                           className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 hover:bg-red-600 hover:text-white border-2 border-transparent hover:border-red-600 transition-all"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -533,6 +550,85 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+          <div className="relative bg-white dark:bg-[#0a0a0a] rounded-[32px] border-4 border-red-600 dark:border-red-500/50 shadow-[20px_20px_0px_0px_rgba(220,38,38,0.2)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 border-b-2 border-red-600/10 flex items-center justify-between bg-red-50/50 dark:bg-red-500/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                   <Trash2 className="h-5 w-5 text-white" strokeWidth={3} />
+                </div>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase italic">
+                  Terminate Access
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all"
+              >
+                <X className="h-6 w-6" strokeWidth={3} />
+              </button>
+            </div>
+
+            <div className="p-8">
+              <div className="mb-8 p-4 bg-red-50 dark:bg-red-500/10 border-2 border-red-600/20 rounded-2xl">
+                <div className="flex items-center gap-3 mb-2">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                  <p className="text-[12px] font-black text-red-600 uppercase tracking-widest">Permanent Deletion</p>
+                </div>
+                <p className="text-[13px] font-bold text-gray-600 dark:text-gray-400 leading-relaxed">
+                  You are about to remove <span className="text-gray-900 dark:text-white underline decoration-red-500 decoration-2">{userToDelete?.name}</span> from the system. This action cannot be reversed.
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-red-600 uppercase tracking-[0.2em] mb-3 px-1">
+                    Handover Recipient (Optional)
+                  </label>
+                  <select
+                    value={successorId}
+                    onChange={(e) => setSuccessorId(e.target.value)}
+                    className="w-full h-14 px-4 text-[13px] font-black uppercase bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-red-600 transition-all outline-none text-gray-900 dark:text-white"
+                  >
+                    <option value="">No Handover</option>
+                    {users
+                      .filter((u) => u.id !== userToDelete?.id && u.isActive)
+                      .map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} ({u.role})
+                        </option>
+                      ))}
+                  </select>
+                  <p className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-tight px-1 italic">
+                    All tasks, projects, and clients will be reassigned to the selected recipient.
+                  </p>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteModal(false)}
+                    className="flex-1 h-14 text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-gray-900 dark:hover:text-white transition-all underline underline-offset-4 decoration-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    disabled={loading}
+                    className="flex-[2] h-14 bg-red-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-x-1 hover:translate-y-1 hover:shadow-none transition-all disabled:opacity-50"
+                  >
+                    {loading ? "Processing..." : "Confirm Deletion"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

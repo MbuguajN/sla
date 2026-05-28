@@ -201,7 +201,7 @@ export function canSubmitTask(userId: number, taskAssigneeId: number | null): bo
 // Only task initiator (creator) can mark task as done
 export function canMarkTaskDone(
   user: { id: number; role: string },
-  taskCreatorId: number
+  taskCreatorId: number | null
 ): boolean {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
   return user.id === taskCreatorId;
@@ -210,7 +210,7 @@ export function canMarkTaskDone(
 // Only task initiator can request revision
 export function canRequestRevision(
   user: { id: number; role: string },
-  taskCreatorId: number
+  taskCreatorId: number | null
 ): boolean {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
   return user.id === taskCreatorId;

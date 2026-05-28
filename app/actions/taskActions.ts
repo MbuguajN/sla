@@ -1033,7 +1033,7 @@ export async function addTaskComment(taskId: number, comment: string) {
     id: activity.id,
     type: activity.type,
     description: activity.description,
-    userName: activity.user.name,
+    userName: activity.user?.name || "Deleted User",
     createdAt: activity.createdAt.toISOString(),
     metadata: activity.metadata,
   };
@@ -1117,7 +1117,7 @@ export async function addTaskResource(taskId: number, formData: FormData) {
     id: activity.id,
     type: activity.type,
     description: activity.description,
-    userName: activity.user.name,
+    userName: activity.user?.name || "Deleted User",
     createdAt: activity.createdAt.toISOString(),
     metadata: activity.metadata,
   };

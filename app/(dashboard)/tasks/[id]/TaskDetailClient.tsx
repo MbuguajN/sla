@@ -87,7 +87,7 @@ type Task = {
   departmentName: string | null;
   assignedUserId: number | null;
   assigneeName: string | null;
-  createdById: number;
+  createdById: number | null;
   creatorName: string;
   slaHours: number | null;
   slaStartedAt: string | null;

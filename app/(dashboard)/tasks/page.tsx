@@ -57,7 +57,7 @@ export default async function TasksPage({
       project: { title: string; client: { name: string } };
       assignedTo: { name: string } | null;
       assignedDepartment: { name: string } | null;
-      createdBy: { name: string };
+      createdBy: { name: string } | null;
     };
   }> = [];
   const hasGlobalTaskAccess =
@@ -187,7 +187,7 @@ export default async function TasksPage({
     clientName: subtask.task.project.client.name,
     departmentName: subtask.task.assignedDepartment?.name || null,
     assigneeName: subtask.task.assignedTo?.name || null,
-    creatorName: subtask.task.createdBy.name,
+    creatorName: subtask.task.createdBy?.name || "Deleted User",
     slaHours: null,
     slaStartedAt: null,
     slaPausedAt: null,
@@ -207,7 +207,7 @@ export default async function TasksPage({
     clientName: t.project.client.name,
     departmentName: t.assignedDepartment?.name || null,
     assigneeName: t.assignedTo?.name || null,
-    creatorName: t.createdBy.name,
+    creatorName: t.createdBy?.name || "Deleted User",
     slaHours: t.slaHours,
     slaStartedAt: t.slaStartedAt?.toISOString() || null,
     slaPausedAt: t.slaPausedAt?.toISOString() || null,

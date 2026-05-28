@@ -988,7 +988,7 @@ async function ActivitySection({ user }: { user: any }) {
                 <div key={activity.id} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#c91f41] before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
                   <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{formatActivityDescription(activity)}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{activity.user.name}</span>
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{activity.user?.name ?? "Deleted User"}</span>
                     <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
                     <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(activity.createdAt)}</span>
                   </div>

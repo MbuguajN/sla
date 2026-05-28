@@ -310,7 +310,7 @@ export default async function ReportsPage({
   let equipmentOwnership: { ownerUserId: number; _count: { _all: number } }[] = [];
   let dailyLogActivities: {
     id: number;
-    userId: number;
+    userId: number | null;
     createdAt: Date;
     metadata: string | null;
     task: { title: string } | null;
@@ -560,6 +560,7 @@ export default async function ReportsPage({
 
       if (parsed.kind !== "DAILY_LOG") continue;
 
+      if (log.userId === null) continue;
       const list = dailyLogsByUser.get(log.userId) || [];
       list.push({
         id: log.id,

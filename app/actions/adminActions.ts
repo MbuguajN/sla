@@ -189,7 +189,7 @@ export async function updateUser(
   return updatedUser;
 }
 
-export async function deleteUser(userId: number) {
+export async function deleteUser(userId: number, handoverUserId?: number) {
   const user = await getCurrentUser();
   if (!user || !canManageUsers(user)) {
     throw new Error("Unauthorized");
@@ -200,7 +200,41 @@ export async function deleteUser(userId: number) {
     throw new Error("Cannot delete yourself");
   }
 
-  await db.user.delete({ where: { id: userId } });
+  await db.$transaction(async (tx) => {
+    if (handoverUserId) {
+      // Reassign everything to the successor
+      await tx.task.updateMany({
+        where: { assignedUserId: userId },
+        data: { assignedUserId: handoverUserId },
+      });
+      await tx.task.updateMany({
+        where: { createdById: userId },
+        data: { createdById: handoverUserId },
+      });
+      await tx.project.updateMany({
+        where: { createdBy: userId },
+        data: { createdBy: handoverUserId },
+      });
+      await tx.client.updateMany({
+        where: { createdBy: userId },
+        data: { createdBy: handoverUserId },
+      });
+      await tx.iTTicket.updateMany({
+        where: { assignedUserId: userId },
+        data: { assignedUserId: handoverUserId },
+      });
+      await tx.iTTicket.updateMany({
+        where: { userId: userId },
+        data: { userId: handoverUserId },
+      });
+      await tx.department.updateMany({
+        where: { headId: userId },
+        data: { headId: handoverUserId },
+      });
+    }
+
+    await tx.user.delete({ where: { id: userId } });
+  });
 
   revalidatePath("/admin/users");
 }
