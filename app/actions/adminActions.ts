@@ -200,17 +200,7 @@ export async function deleteUser(userId: number) {
     throw new Error("Cannot delete yourself");
   }
 
-  await db.$transaction(async (tx) => {
-    await tx.userPrivilege.deleteMany({ where: { userId } });
-    await tx.user.update({
-      where: { id: userId },
-      data: {
-        isActive: false,
-        currentSessionId: null,
-        authVersion: { increment: 1 },
-      },
-    });
-  });
+  await db.user.delete({ where: { id: userId } });
 
   revalidatePath("/admin/users");
 }
