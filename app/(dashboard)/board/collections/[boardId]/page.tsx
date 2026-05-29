@@ -35,6 +35,7 @@ export default async function CollectionBoardPage({ params }: PageProps) {
       title: String(formData.get("title") || ""),
       description: String(formData.get("description") || ""),
       projectId: Number(formData.get("projectId")),
+      assignedUserId: Number(formData.get("assignedUserId")),
     });
   };
 
@@ -112,7 +113,7 @@ export default async function CollectionBoardPage({ params }: PageProps) {
             </div>
           </div>
 
-          {data.canEdit ? (
+          {data.canCreateCards ? (
             <form action={addCardAction} className="rounded-xl border border-gray-100 dark:border-white/10 p-3 space-y-3">
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-500 mb-2">
@@ -154,6 +155,23 @@ export default async function CollectionBoardPage({ params }: PageProps) {
                   {board.columns.map((column) => (
                     <option key={column.id} value={column.id}>
                       {column.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 dark:text-zinc-500 mb-2">
+                  Assign to
+                </label>
+                <select
+                  name="assignedUserId"
+                  className="w-full h-10 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-sm font-semibold text-gray-900 dark:text-white"
+                  defaultValue={user.id}
+                >
+                  {board.members.map((member) => (
+                    <option key={member.user.id} value={member.user.id}>
+                      {member.user.name} ({member.role})
                     </option>
                   ))}
                 </select>
@@ -212,7 +230,7 @@ export default async function CollectionBoardPage({ params }: PageProps) {
                         <div className="flex items-start gap-3 min-w-0">
                           <div className="h-8 w-8 rounded-full bg-[#fff1f2] border border-[#f5c1cb] flex items-center justify-center shrink-0">
                             <span className="text-[11px] font-black text-[#c91f41]">
-                              {(card.task.createdBy?.name || card.assignedBy?.name || "U").slice(0, 1).toUpperCase()}
+                              {(card.task.assignedTo?.name || card.task.createdBy?.name || card.assignedBy?.name || "U").slice(0, 1).toUpperCase()}
                             </span>
                           </div>
                           <div className="min-w-0">
@@ -230,7 +248,7 @@ export default async function CollectionBoardPage({ params }: PageProps) {
                         <p className="mt-2 text-xs font-medium text-gray-600 dark:text-zinc-400">{card.description}</p>
                       ) : null}
                       <p className="mt-2 text-[11px] font-semibold text-gray-500 dark:text-zinc-500">
-                        Assigned by {card.assignedBy?.name || "Unknown"}
+                        Assigned to {card.task.assignedTo?.name || "Unassigned"} · by {card.assignedBy?.name || "Unknown"}
                       </p>
                     </article>
                   ))}

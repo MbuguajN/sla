@@ -49,14 +49,21 @@ export default async function TaskDetailPage({
   }
 
   // Get department members for assignment (if manager)
-  let departmentMembers: { id: number; name: string }[] = [];
+  let departmentMembers: { id: number; name: string; role: string }[] = [];
   if (user.role === "MANAGER" && user.departmentId === task.deptId && task.deptId) {
     const members = await db.user.findMany({
       where: {
         departmentId: task.deptId,
         isActive: true,
       },
-      select: { id: true, name: true },
+      select: { id: true, name: true, role: true },
+      orderBy: { name: "asc" },
+    });
+    departmentMembers = members;
+  } else if (user.role === "CEO" || user.role === "ADMIN") {
+    const members = await db.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, role: true },
       orderBy: { name: "asc" },
     });
     departmentMembers = members;

@@ -106,7 +106,17 @@ export function canCreateCollectionBoard(user: { role: string; departmentSlug: s
 // Only Client Service and Business Development can create projects
 export function canCreateProject(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (user.role === "CEO") return true;
+  if (user.role === "MANAGER") return true;
   if (hasPrivilege(user, "CAN_CREATE_PROJECTS")) return true;
+  return (
+    user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
+  );
+}
+
+export function canManageCollectionCards(user: PermissionContext): boolean {
+  if (user.role === "ADMIN" || user.role === "CEO" || user.role === "MANAGER") return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
@@ -171,6 +181,7 @@ export function canManageProjectStatus(user: { role: string; departmentSlug: str
 // Only Client Service and Business Development can create/initiate tasks
 export function canCreateTask(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
+  if (user.role === "CEO") return true;
   if (user.role === "MANAGER") return true;
   if (hasPrivilege(user, "CAN_CREATE_TASKS")) return true;
   return (
@@ -184,8 +195,13 @@ export function canAssignTaskToEmployee(
   user: { role: string; departmentSlug: string | null },
   taskDepartmentSlug: string | null
 ): boolean {
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
   if (user.role !== "MANAGER") return false;
   return user.departmentSlug === taskDepartmentSlug;
+}
+
+export function canAssignTasks(user: { role: string; departmentSlug: string | null }): boolean {
+  return user.role === "ADMIN" || user.role === "CEO" || user.role === "MANAGER";
 }
 
 // Only assignee can confirm task receipt

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import {
   getCurrentUser,
   canCreateTask,
+  canAssignTasks,
   canConfirmTask,
   canPauseTask,
   canSubmitTask,
@@ -475,8 +476,9 @@ export async function assignTask(taskId: number, assignedUserId: number) {
 
   if (!task) throw new Error("Task not found");
 
-  if (user.role !== "MANAGER" || !user.departmentId || user.departmentId !== task.deptId) {
-    throw new Error("Unauthorized - Only the manager of this department can assign tasks");
+  const isManagerOfTaskDept = user.role === "MANAGER" && !!user.departmentId && user.departmentId === task.deptId;
+  if (!canAssignTasks(user) && !isManagerOfTaskDept) {
+    throw new Error("Unauthorized - Only the CEO, managers, or admins can assign tasks");
   }
 
   if (task.status !== "UNASSIGNED" && task.status !== "ASSIGNED") {
@@ -488,7 +490,11 @@ export async function assignTask(taskId: number, assignedUserId: number) {
     where: { id: assignedUserId },
   });
 
-  if (!assignee || assignee.departmentId !== task.deptId) {
+  if (!assignee || !assignee.isActive) {
+    throw new Error("Assignee must be an active user");
+  }
+
+  if (user.role === "MANAGER" && assignee.departmentId !== task.deptId) {
     throw new Error("Assignee must be in the task's department");
   }
 

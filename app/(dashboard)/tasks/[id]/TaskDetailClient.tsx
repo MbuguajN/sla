@@ -112,7 +112,7 @@ type CurrentUser = {
 interface Props {
   task: Task;
   currentUser: CurrentUser;
-  departmentMembers: { id: number; name: string }[];
+  departmentMembers: { id: number; name: string; role: string }[];
 }
 
 function calculateTaskProgress(task: Task) {
@@ -182,8 +182,8 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   const canDeleteSubtask = (isInitiatorInAllowedDept || isAdmin || isManager) && !isTaskClosed;
   const canPostUpdate = !isTaskClosed;
 
-  const canAssign = isManager && task.status === "UNASSIGNED";
-  const canReassign = isManager && task.status === "ASSIGNED";
+  const canAssign = (isManager || isAdmin) && task.status === "UNASSIGNED";
+  const canReassign = (isManager || isAdmin) && task.status === "ASSIGNED";
   const canConfirm = isAssignee && task.status === "ASSIGNED";
   const canStart = isAssignee && (task.status === "CONFIRMED" || task.status === "REVISION");
   const canPause = isAssignee && task.status === "IN_PROGRESS";
@@ -606,7 +606,10 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                   className="w-full h-16 px-6 rounded-2xl border border-slate-100 dark:border-white/10 hover:border-indigo-100 dark:hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-all text-left flex items-center gap-4 group"
                 >
                   <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-white/10 flex items-center justify-center font-black text-slate-500 dark:text-zinc-300 text-[11px] group-hover:bg-indigo-600 group-hover:text-white transition-all ring-1 ring-black/5 dark:ring-white/10">{m.name[0]}</div>
-                  <span className="text-[15px] font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">{m.name}</span>
+                  <div className="min-w-0">
+                    <span className="block text-[15px] font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors truncate">{m.name}</span>
+                    <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 truncate">{m.role.replaceAll("_", " ")}</span>
+                  </div>
                 </button>
               ))}
             </div>

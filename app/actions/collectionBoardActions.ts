@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Prisma, TaskStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { canManageCollectionCards, getCurrentUser } from "@/lib/permissions";
+import { createNotification } from "./notificationActions";
 
 type CollectionColumnSeed = {
   title: string;
@@ -110,6 +111,62 @@ async function assertBoardAccess(boardId: number, userId: number) {
   }
 
   return access;
+}
+
+async function assertBoardCardMutationAccess(
+  boardId: number,
+  user: { id: number; role: string; departmentSlug: string | null }
+) {
+  const board = await db.collectionBoard.findUnique({
+    where: { id: boardId },
+    select: { ownerId: true },
+  });
+
+  if (!board) {
+    throw new Error("Collection board not found");
+  }
+
+  if (board.ownerId === user.id || canManageCollectionCards(user)) {
+    return board;
+  }
+
+  throw new Error("You do not have permission to edit cards on this board");
+}
+
+async function notifyCollectionBoardMembers(args: {
+  boardId: number;
+  actorId: number;
+  type: string;
+  title: string;
+  message: string;
+  link?: string;
+}) {
+  const board = await db.collectionBoard.findUnique({
+    where: { id: args.boardId },
+    select: {
+      members: {
+        where: { acceptedAt: { not: null } },
+        select: { userId: true },
+      },
+    },
+  });
+
+  if (!board) return;
+
+  const recipientIds = new Set(board.members.map((member) => member.userId));
+  recipientIds.delete(args.actorId);
+
+  if (recipientIds.size === 0) return;
+
+  await db.notification.createMany({
+    data: [...recipientIds].map((userId) => ({
+      userId,
+      type: args.type as any,
+      title: args.title,
+      message: args.message,
+      link: args.link,
+    })),
+  });
 }
 
 async function getPersonalBoardTodoColumn(userId: number) {
@@ -428,12 +485,14 @@ export async function getCollectionBoard(boardId: number) {
                   select: {
                     id: true,
                     createdById: true,
+                    assignedUserId: true,
                     status: true,
                     priority: true,
                     source: true,
                     createdAt: true,
                     updatedAt: true,
                     createdBy: { select: { id: true, name: true } },
+                    assignedTo: { select: { id: true, name: true, role: true } },
                     project: {
                       select: {
                         id: true,
@@ -472,11 +531,14 @@ export async function getCollectionBoard(boardId: number) {
     throw new Error("Collection board not found");
   }
 
+  const canCreateCards = board.ownerId === user.id || canManageCollectionCards(user);
+
   return {
     board,
     boards,
     projects,
     canEdit: board.ownerId === user.id,
+    canCreateCards,
   };
 }
 
@@ -517,6 +579,15 @@ export async function createCollectionBoardColumn(input: {
     },
   });
 
+  await notifyCollectionBoardMembers({
+    boardId: input.boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Collection board updated",
+    message: `${user.name} added a new column called "${column.title}"`,
+    link: `/board/collections/${input.boardId}`,
+  });
+
   revalidatePath(`/board/collections/${input.boardId}`);
   return column;
 }
@@ -527,14 +598,17 @@ export async function createCollectionBoardCard(input: {
   title: string;
   description?: string;
   projectId: number;
-  assignedById?: number | null;
+  assignedUserId?: number | null;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
+  await assertBoardCardMutationAccess(input.boardId, user);
   await assertBoardAccess(input.boardId, user.id);
 
-  const [column, project, assignedBy] = await Promise.all([
+  const assignedUserId = input.assignedUserId ?? user.id;
+
+  const [column, project, assignedUser] = await Promise.all([
     db.collectionBoardColumn.findUnique({
       where: { id: input.columnId },
       select: { id: true, boardId: true, mappedTaskStatus: true },
@@ -549,12 +623,10 @@ export async function createCollectionBoardCard(input: {
         client: { select: { id: true, status: true } },
       },
     }),
-    input.assignedById
-      ? db.user.findUnique({
-          where: { id: input.assignedById },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
+    db.user.findUnique({
+      where: { id: assignedUserId },
+      select: { id: true, name: true, isActive: true },
+    }),
   ]);
 
   if (!column || column.boardId !== input.boardId) {
@@ -565,8 +637,17 @@ export async function createCollectionBoardCard(input: {
     throw new Error("Project or client is not active");
   }
 
-  if (input.assignedById && !assignedBy) {
-    throw new Error("Selected assigner was not found");
+  if (!assignedUser || !assignedUser.isActive) {
+    throw new Error("Selected assignee was not found");
+  }
+
+  const boardMembership = await db.collectionBoardMember.findUnique({
+    where: { boardId_userId: { boardId: input.boardId, userId: assignedUser.id } },
+    select: { acceptedAt: true },
+  });
+
+  if (!boardMembership?.acceptedAt) {
+    throw new Error("Selected assignee must be an accepted member of the board");
   }
 
   const title = input.title.trim();
@@ -586,7 +667,7 @@ export async function createCollectionBoardCard(input: {
         description: input.description?.trim() || null,
         projectId: project.id,
         createdById: user.id,
-        assignedUserId: user.id,
+        assignedUserId: assignedUser.id,
         deptId: user.departmentId,
         status: column.mappedTaskStatus,
         priority: "MEDIUM",
@@ -611,7 +692,7 @@ export async function createCollectionBoardCard(input: {
         boardId: input.boardId,
         columnId: column.id,
         taskId: task.id,
-        assignedById: input.assignedById || user.id,
+        assignedById: user.id,
         title,
         description: input.description?.trim() || null,
         position: (positionAggregate._max.position ?? -1) + 1,
@@ -622,12 +703,14 @@ export async function createCollectionBoardCard(input: {
           select: {
             id: true,
             createdById: true,
+            assignedUserId: true,
             status: true,
             priority: true,
             source: true,
             createdAt: true,
             updatedAt: true,
             createdBy: { select: { id: true, name: true } },
+            assignedTo: { select: { id: true, name: true, role: true } },
             project: {
               select: {
                 id: true,
@@ -655,8 +738,8 @@ export async function createCollectionBoardCard(input: {
     await syncPersonalBoardCardForTask({
       tx,
       taskId: task.id,
-      ownerId: user.id,
-      assignedById: input.assignedById || user.id,
+      ownerId: assignedUser.id,
+      assignedById: user.id,
       title,
       description: input.description?.trim() || null,
       projectId: project.id,
@@ -666,6 +749,15 @@ export async function createCollectionBoardCard(input: {
     });
 
     return created;
+  });
+
+  await notifyCollectionBoardMembers({
+    boardId: input.boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Collection board updated",
+    message: `${user.name} assigned "${card.title}" to ${card.task.assignedTo?.name || assignedUser?.name || "a team member"}`,
+    link: `/board/collections/${input.boardId}`,
   });
 
   revalidatePath(`/board/collections/${input.boardId}`);
@@ -698,6 +790,7 @@ export async function moveCollectionBoardCard(input: {
             slaStartedAt: true,
             projectId: true,
             createdById: true,
+            assignedUserId: true,
             project: {
               select: {
                 title: true,
@@ -720,6 +813,7 @@ export async function moveCollectionBoardCard(input: {
   }
 
   await assertBoardAccess(card.boardId, user.id);
+  await assertBoardCardMutationAccess(card.boardId, user);
 
   await db.$transaction(async (tx) => {
     const destinationCardsRaw = await tx.collectionBoardCard.findMany({
@@ -790,9 +884,18 @@ export async function moveCollectionBoardCard(input: {
     await syncPersonalBoardCardStatus({
       tx,
       taskId: card.task.id,
-      ownerId: card.task.createdById || user.id,
+      ownerId: card.task.assignedUserId || card.task.createdById || user.id,
       nextStatus: targetColumn.mappedTaskStatus,
     });
+  });
+
+  await notifyCollectionBoardMembers({
+    boardId: card.boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Collection board updated",
+    message: `${user.name} moved "${card.task.title}" to ${targetColumn.mappedTaskStatus.replaceAll("_", " ")}`,
+    link: `/board/collections/${card.boardId}`,
   });
 
   revalidatePath(`/board/collections/${card.boardId}`);
@@ -837,6 +940,14 @@ export async function inviteCollectionBoardMember(input: { boardId: number; emai
     },
   });
 
+  await createNotification(
+    invitedUser.id,
+    "BOARD_UPDATED",
+    "Board Invitation",
+    `${user.name} invited you to a collection board.`,
+    `/board/collections/${input.boardId}/join`
+  );
+
   revalidatePath(`/board/collections/${input.boardId}`);
   revalidatePath("/board/collections");
   return { success: true };
@@ -868,6 +979,15 @@ export async function acceptCollectionBoardInvite(boardId: number) {
     create: { boardId, userId: user.id, lastAccessedAt: new Date() },
   });
 
+  await notifyCollectionBoardMembers({
+    boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Board member joined",
+    message: `${user.name} accepted the board invitation.`,
+    link: `/board/collections/${boardId}`,
+  });
+
   revalidatePath(`/board/collections/${boardId}`);
   revalidatePath("/board/collections");
   return { success: true };
@@ -889,6 +1009,15 @@ export async function updateCollectionBoardMemberRole(input: {
   await db.collectionBoardMember.update({
     where: { boardId_userId: { boardId: input.boardId, userId: input.userId } },
     data: { role: input.role },
+  });
+
+  await notifyCollectionBoardMembers({
+    boardId: input.boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Board member role updated",
+    message: `A member role was changed on the board.`,
+    link: `/board/collections/${input.boardId}`,
   });
 
   revalidatePath(`/board/collections/${input.boardId}`);
@@ -914,6 +1043,15 @@ export async function removeCollectionBoardMember(input: { boardId: number; user
 
   await db.collectionBoardAccess.deleteMany({
     where: { boardId: input.boardId, userId: input.userId },
+  });
+
+  await notifyCollectionBoardMembers({
+    boardId: input.boardId,
+    actorId: user.id,
+    type: "BOARD_UPDATED",
+    title: "Board member removed",
+    message: `A member was removed from the board.`,
+    link: `/board/collections/${input.boardId}`,
   });
 
   revalidatePath(`/board/collections/${input.boardId}`);

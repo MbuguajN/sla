@@ -1,12 +1,11 @@
 "use server";
 
 import db from "@/lib/db";
-import { NotificationType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/permissions";
 
 export async function createNotification(
   userId: number,
-  type: NotificationType,
+  type: string,
   title: string,
   message: string,
   link?: string
@@ -14,7 +13,7 @@ export async function createNotification(
   return db.notification.create({
     data: {
       userId,
-      type,
+      type: type as any,
       title,
       message,
       link,
