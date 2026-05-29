@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser, canCreateTask } from "@/lib/permissions";
+import { getCurrentUser, canCreateTask, canAssignTasksToDepartment } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import NewTaskClient from "./NewTaskClient";
 
@@ -38,8 +38,7 @@ export default async function NewTaskPage({
   const parsedMinSla = Number.parseInt(minSlaSetting?.value || "1", 10);
   const minSlaHours = Number.isNaN(parsedMinSla) ? 1 : Math.max(1, parsedMinSla);
 
-  const excludedAssignmentSlugs = new Set(["human-resources"]);
-  const assignableDepartments = departments.filter((d) => !excludedAssignmentSlugs.has(d.slug));
+  const assignableDepartments = departments.filter((d) => canAssignTasksToDepartment(d.slug));
 
   return (
     <NewTaskClient

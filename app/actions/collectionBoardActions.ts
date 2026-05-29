@@ -582,7 +582,7 @@ export async function createCollectionBoardColumn(input: {
   await notifyCollectionBoardMembers({
     boardId: input.boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Collection board updated",
     message: `${user.name} added a new column called "${column.title}"`,
     link: `/board/collections/${input.boardId}`,
@@ -754,7 +754,7 @@ export async function createCollectionBoardCard(input: {
   await notifyCollectionBoardMembers({
     boardId: input.boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Collection board updated",
     message: `${user.name} assigned "${card.title}" to ${card.task.assignedTo?.name || assignedUser?.name || "a team member"}`,
     link: `/board/collections/${input.boardId}`,
@@ -892,7 +892,7 @@ export async function moveCollectionBoardCard(input: {
   await notifyCollectionBoardMembers({
     boardId: card.boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Collection board updated",
     message: `${user.name} moved "${card.task.title}" to ${targetColumn.mappedTaskStatus.replaceAll("_", " ")}`,
     link: `/board/collections/${card.boardId}`,
@@ -917,22 +917,34 @@ export async function inviteCollectionBoardMember(input: { boardId: number; emai
   const email = input.email.trim().toLowerCase();
   if (!email) throw new Error("Email is required");
 
+  if (email === user.email.toLowerCase()) {
+    throw new Error("You are already on this board");
+  }
+
   const invitedUser = await db.user.findUnique({
     where: { email },
-    select: { id: true, isActive: true },
+    select: { id: true, name: true, isActive: true },
   });
 
   if (!invitedUser || !invitedUser.isActive) {
     throw new Error("User not found or inactive");
   }
 
-  await db.collectionBoardMember.upsert({
+  const existingMembership = await db.collectionBoardMember.findUnique({
     where: { boardId_userId: { boardId: input.boardId, userId: invitedUser.id } },
-    update: {
-      role: "MEMBER",
-      invitedAt: new Date(),
-    },
-    create: {
+    select: { acceptedAt: true },
+  });
+
+  if (existingMembership?.acceptedAt) {
+    throw new Error(`${invitedUser.name} is already a member of this board`);
+  }
+
+  if (existingMembership && !existingMembership.acceptedAt) {
+    throw new Error(`Invite already pending for ${invitedUser.name}`);
+  }
+
+  await db.collectionBoardMember.create({
+    data: {
       boardId: input.boardId,
       userId: invitedUser.id,
       role: "MEMBER",
@@ -942,7 +954,7 @@ export async function inviteCollectionBoardMember(input: { boardId: number; emai
 
   await createNotification(
     invitedUser.id,
-    "BOARD_UPDATED",
+    "TASK_ASSIGNED",
     "Board Invitation",
     `${user.name} invited you to a collection board.`,
     `/board/collections/${input.boardId}/join`
@@ -950,7 +962,11 @@ export async function inviteCollectionBoardMember(input: { boardId: number; emai
 
   revalidatePath(`/board/collections/${input.boardId}`);
   revalidatePath("/board/collections");
-  return { success: true };
+  return {
+    success: true,
+    status: "invited" as const,
+    message: `Invite sent to ${invitedUser.name}.`,
+  };
 }
 
 export async function acceptCollectionBoardInvite(boardId: number) {
@@ -982,7 +998,7 @@ export async function acceptCollectionBoardInvite(boardId: number) {
   await notifyCollectionBoardMembers({
     boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Board member joined",
     message: `${user.name} accepted the board invitation.`,
     link: `/board/collections/${boardId}`,
@@ -1014,7 +1030,7 @@ export async function updateCollectionBoardMemberRole(input: {
   await notifyCollectionBoardMembers({
     boardId: input.boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Board member role updated",
     message: `A member role was changed on the board.`,
     link: `/board/collections/${input.boardId}`,
@@ -1048,7 +1064,7 @@ export async function removeCollectionBoardMember(input: { boardId: number; user
   await notifyCollectionBoardMembers({
     boardId: input.boardId,
     actorId: user.id,
-    type: "BOARD_UPDATED",
+    type: "TASK_ASSIGNED",
     title: "Board member removed",
     message: `A member was removed from the board.`,
     link: `/board/collections/${input.boardId}`,

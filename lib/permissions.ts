@@ -314,6 +314,12 @@ export function canAssignITTicket(user: { role: string; departmentSlug: string |
   return user.departmentSlug === DEPARTMENTS.TECHNOLOGY;
 }
 
+export function canAssignTasksToDepartment(departmentSlug: string | null): boolean {
+  if (!departmentSlug) return false;
+  // Keep HR excluded from this workflow; all other departments (including BD and Client Service) are assignable.
+  return departmentSlug !== DEPARTMENTS.HR;
+}
+
 // ============== ADMIN PERMISSIONS ==============
 export function canManageUsers(user: { role: string }): boolean {
   return user.role === "ADMIN";

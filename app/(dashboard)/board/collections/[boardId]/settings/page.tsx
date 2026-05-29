@@ -2,7 +2,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCollectionBoard, inviteCollectionBoardMember, createCollectionBoardColumn, removeCollectionBoardMember, updateCollectionBoardMemberRole } from "@/app/actions/collectionBoardActions";
 import { canAccessCollectionBoards, getCurrentUser } from "@/lib/permissions";
+import { db } from "@/lib/db";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
+import InviteMemberForm from "./InviteMemberForm";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +31,45 @@ export default async function CollectionBoardSettingsPage({ params }: PageProps)
     redirect(`/board/collections/${parsedBoardId}`);
   }
 
-  const inviteAction = async (formData: FormData) => {
-    "use server";
-    await inviteCollectionBoardMember({
+  const pendingInvites = await db.collectionBoardMember.findMany({
+    where: {
       boardId: parsedBoardId,
-      email: String(formData.get("email") || ""),
-    });
-    revalidatePath(`/board/collections/${parsedBoardId}/settings`);
-  };
+      acceptedAt: null,
+    },
+    select: {
+      id: true,
+      invitedAt: true,
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      },
+    },
+    orderBy: { invitedAt: "desc" },
+  });
+
+  const existingMemberIds = new Set<number>([
+    ...data.board.members.map((member) => member.userId),
+    ...pendingInvites.map((entry) => entry.user.id),
+  ]);
+
+  const inviteSuggestions = await db.user.findMany({
+    where: {
+      isActive: true,
+      id: { notIn: [...existingMemberIds] },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
+    orderBy: { name: "asc" },
+    take: 50,
+  });
 
   const columnAction = async (formData: FormData) => {
     "use server";
@@ -99,21 +132,7 @@ export default async function CollectionBoardSettingsPage({ params }: PageProps)
             </p>
           </div>
 
-          <form action={inviteAction} className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-black uppercase tracking-[0.12em] text-gray-500 dark:text-zinc-400 mb-2">
-                Email
-              </label>
-              <input
-                name="email"
-                placeholder="person@5dm.africa"
-                className="w-full h-11 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-4 text-sm font-semibold text-gray-900 dark:text-white"
-              />
-            </div>
-            <button type="submit" className="h-11 px-5 rounded-xl bg-[#c91f41] text-white text-sm font-black tracking-wide">
-              Invite Member
-            </button>
-          </form>
+          <InviteMemberForm boardId={parsedBoardId} suggestions={inviteSuggestions} />
         </section>
 
         <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black p-5 space-y-4">
@@ -202,6 +221,35 @@ export default async function CollectionBoardSettingsPage({ params }: PageProps)
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black p-5 space-y-4">
+        <div>
+          <h2 className="text-lg font-black tracking-tight text-gray-900 dark:text-white">Pending Invites</h2>
+          <p className="text-sm font-medium text-gray-600 dark:text-zinc-400 mt-1">
+            These users have been invited but have not accepted yet.
+          </p>
+        </div>
+
+        {pendingInvites.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 dark:border-white/10 px-4 py-5 text-sm font-semibold text-gray-500 dark:text-zinc-500">
+            No pending invites.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingInvites.map((invite) => (
+              <div key={invite.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-4 py-3">
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{invite.user.name}</p>
+                  <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-500">{invite.user.email}</p>
+                </div>
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-zinc-500">
+                  Invited {new Date(invite.invitedAt).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <div className="flex gap-3">

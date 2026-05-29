@@ -5,6 +5,7 @@ import {
   getCurrentUser,
   canCreateTask,
   canAssignTasks,
+  canAssignTasksToDepartment,
   canConfirmTask,
   canPauseTask,
   canSubmitTask,
@@ -309,8 +310,7 @@ export async function createTask(data: {
     throw new Error("Assigned department not found");
   }
 
-  const blockedAssignmentSlugs = new Set(["human-resources"]);
-  if (blockedAssignmentSlugs.has(assignedDepartment.slug)) {
+  if (!canAssignTasksToDepartment(assignedDepartment.slug)) {
     throw new Error("This department cannot be assigned tasks from this workflow");
   }
 
@@ -336,7 +336,7 @@ export async function createTask(data: {
     if (!dept) {
       throw new Error("One or more included departments were not found");
     }
-    if (blockedAssignmentSlugs.has(dept.slug)) {
+    if (!canAssignTasksToDepartment(dept.slug)) {
       throw new Error(`${dept.name} cannot receive routed subtasks from this workflow`);
     }
   }
