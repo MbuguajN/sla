@@ -1,596 +1,760 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-import type { Prisma, TaskStatus } from "@prisma/client";
 import { db } from "@/lib/db";
-import { canViewOtherBoards, getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/permissions";
+import { revalidatePath } from "next/cache";
+import { BoardVisibility } from "@prisma/client";
 
-type DefaultColumnDef = {
-  title: string;
-  code: string;
-  kind: "TODO" | "IN_PROGRESS" | "DONE";
-  mappedTaskStatus: TaskStatus;
-  position: number;
-};
+/**
+ * FETCHING
+ */
 
-const DEFAULT_COLUMNS: DefaultColumnDef[] = [
-  { title: "To Do", code: "todo", kind: "TODO", mappedTaskStatus: "ASSIGNED", position: 0 },
-  {
-    title: "In Progress",
-    code: "in-progress",
-    kind: "IN_PROGRESS",
-    mappedTaskStatus: "IN_PROGRESS",
-    position: 1,
-  },
-  { title: "Done", code: "done", kind: "DONE", mappedTaskStatus: "DONE", position: 2 },
-];
-
-const ALLOWED_CUSTOM_TASK_STATUSES: TaskStatus[] = [
-  "ASSIGNED",
-  "CONFIRMED",
-  "IN_PROGRESS",
-  "PAUSED",
-  "SUBMITTED",
-  "REVISION",
-  "DONE",
-];
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function sanitizeColumnCode(input: string) {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-async function ensureDefaultColumns(userId: number) {
-  const existing = await db.personalBoardColumn.findMany({
-    where: { userId },
-    select: { code: true },
-  });
-
-  const existingCodes = new Set(existing.map((item) => item.code));
-  const missing = DEFAULT_COLUMNS.filter((column) => !existingCodes.has(column.code));
-
-  if (missing.length > 0) {
-    await db.personalBoardColumn.createMany({
-      data: missing.map((column) => ({
-        userId,
-        title: column.title,
-        code: column.code,
-        kind: column.kind,
-        mappedTaskStatus: column.mappedTaskStatus,
-        position: column.position,
-      })),
-    });
-  }
-}
-
-function buildBoardUserSelect() {
-  return {
-    id: true,
-    name: true,
-    email: true,
-    role: true,
-    departmentId: true,
-    department: { select: { id: true, name: true, slug: true } },
-  } satisfies Prisma.UserSelect;
-}
-
-function buildAutoDailyLogPayload(task: { id: number; title: string; projectId: number; projectTitle: string }) {
-  const note = `Completed from personal board: ${task.title}`;
-  return {
-    type: "COMMENTED" as const,
-    description: "logged daily progress (completed)",
-    taskId: task.id,
-    projectId: task.projectId,
-    metadata: JSON.stringify({
-      kind: "DAILY_LOG",
-      note,
-      markCompleted: true,
-      taskTitle: task.title,
-      projectTitle: task.projectTitle,
-      source: "SELF_BOARD",
-    }),
-  };
-}
-
-async function syncTaskStatusForColumn(args: {
-  tx: Prisma.TransactionClient;
-  task: {
-    id: number;
-    title: string;
-    status: TaskStatus;
-    projectId: number;
-    project: { title: string };
-    startedAt: Date | null;
-    slaStartedAt: Date | null;
-  };
-  nextStatus: TaskStatus;
-  userId: number;
-}) {
-  const { tx, task, nextStatus, userId } = args;
-
-  if (task.status === nextStatus) return;
-
-  const now = new Date();
-  const updateData: Prisma.TaskUpdateInput = {
-    status: nextStatus,
-  };
-
-  if (nextStatus === "IN_PROGRESS") {
-    if (!task.startedAt) updateData.startedAt = now;
-    if (!task.slaStartedAt) updateData.slaStartedAt = now;
-    updateData.completedAt = null;
-  }
-
-  if (nextStatus === "DONE") {
-    if (!task.startedAt) updateData.startedAt = now;
-    if (!task.slaStartedAt) updateData.slaStartedAt = now;
-    updateData.completedAt = now;
-  }
-
-  if (nextStatus !== "DONE") {
-    updateData.completedAt = null;
-  }
-
-  if (nextStatus !== "SUBMITTED") {
-    updateData.submittedAt = null;
-  }
-
-  await tx.task.update({
-    where: { id: task.id },
-    data: updateData,
-  });
-
-  await tx.activityLog.create({
-    data: {
-      type: "STATUS_CHANGED",
-      description: `Personal board moved task from ${task.status} to ${nextStatus}`,
-      taskId: task.id,
-      projectId: task.projectId,
-      userId,
-      metadata: JSON.stringify({ source: "SELF_BOARD", previousStatus: task.status, nextStatus }),
-    },
-  });
-
-  if (nextStatus === "DONE") {
-    await tx.activityLog.create({
-      data: {
-        type: "COMPLETED",
-        description: "Task marked as complete from personal board",
-        taskId: task.id,
-        projectId: task.projectId,
-        userId,
-      },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        ...buildAutoDailyLogPayload({
-          id: task.id,
-          title: task.title,
-          projectId: task.projectId,
-          projectTitle: task.project.title,
-        }),
-        userId,
-      },
-    });
-  }
-}
-
-export async function getPersonalBoardData(viewUserId?: number) {
+export async function getWorkspaces() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const canSwitchGlobalBoards = canViewOtherBoards(user);
-  const canSwitchDepartmentBoards = user.role === "MANAGER" && user.departmentId !== null;
-
-  let targetUserId = user.id;
-  if (viewUserId) {
-    if (canSwitchGlobalBoards) {
-      targetUserId = viewUserId;
-    } else if (canSwitchDepartmentBoards) {
-      const requestedUser = await db.user.findUnique({
-        where: { id: viewUserId },
-        select: { id: true, departmentId: true },
-      });
-
-      if (requestedUser && requestedUser.departmentId === user.departmentId) {
-        targetUserId = requestedUser.id;
+  const workspaces = await db.workspace.findMany({
+    where: {
+      OR: [
+        { ownerId: user.id },
+        { members: { some: { userId: user.id } } },
+        { boards: { some: { members: { some: { userId: user.id } } } } }
+      ]
+    },
+    include: {
+      boards: {
+        orderBy: { updatedAt: "desc" },
+        where: {
+          OR: [
+            { workspace: { ownerId: user.id } },
+            { members: { some: { userId: user.id } } },
+            { visibility: "WORKSPACE", workspace: { members: { some: { userId: user.id } } } },
+            { visibility: "PUBLIC" }
+          ]
+        }
+      },
+      members: {
+        include: { user: true }
       }
-    }
-  }
-  const canEditBoard = targetUserId === user.id;
-
-  if (canEditBoard) {
-    await ensureDefaultColumns(targetUserId);
-  }
-
-  const [columns, users, projects] = await Promise.all([
-    db.personalBoardColumn.findMany({
-      where: { userId: targetUserId },
-      include: {
-        cards: {
-          include: {
-            task: {
-              select: {
-                id: true,
-                status: true,
-                priority: true,
-                source: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            },
-            project: { select: { id: true, title: true } },
-            client: { select: { id: true, name: true } },
-            owner: { select: { id: true, name: true, role: true } },
-            assignedBy: { select: { id: true, name: true, role: true } },
-          },
-          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-        },
-      },
-      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-    }),
-    db.user.findMany({
-      where: {
-        isActive: true,
-        ...(canSwitchGlobalBoards
-          ? {}
-          : canSwitchDepartmentBoards
-            ? { departmentId: user.departmentId }
-            : { id: user.id }),
-      },
-      select: buildBoardUserSelect(),
-      orderBy: { name: "asc" },
-    }),
-    db.project.findMany({
-      where: {
-        status: "ACTIVE",
-        client: { status: "ACTIVE" },
-      },
-      select: {
-        id: true,
-        title: true,
-        clientId: true,
-        client: { select: { id: true, name: true } },
-      },
-      orderBy: { title: "asc" },
-    }),
-  ]);
-
-  const selectedUser = await db.user.findUnique({
-    where: { id: targetUserId },
-    select: buildBoardUserSelect(),
+    },
+    orderBy: { createdAt: "desc" }
   });
 
-  return {
-    columns,
-    users,
-    projects,
-    canSwitchBoards: canSwitchGlobalBoards || canSwitchDepartmentBoards,
-    canEditBoard,
-    selectedUser: selectedUser || {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      departmentId: user.departmentId,
-      department: null,
-    },
-    me: {
-      id: user.id,
-      name: user.name,
-      role: user.role,
-    },
-  };
+  return workspaces;
 }
 
-export async function createPersonalBoardColumn(input: {
-  title: string;
-  mappedTaskStatus: TaskStatus;
-}) {
+export async function getBoard(boardId: number) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const title = input.title.trim();
-  if (!title) throw new Error("Column title is required");
-
-  if (!ALLOWED_CUSTOM_TASK_STATUSES.includes(input.mappedTaskStatus)) {
-    throw new Error("Invalid status mapping for custom column");
-  }
-
-  await ensureDefaultColumns(user.id);
-
-  const maxPosition = await db.personalBoardColumn.aggregate({
-    where: { userId: user.id },
-    _max: { position: true },
-  });
-
-  const baseCode = sanitizeColumnCode(title) || "custom-column";
-  const code = `${baseCode}-${Date.now()}`;
-
-  const created = await db.personalBoardColumn.create({
-    data: {
-      userId: user.id,
-      title,
-      code,
-      kind: "CUSTOM",
-      mappedTaskStatus: input.mappedTaskStatus,
-      position: (maxPosition._max.position ?? -1) + 1,
-    },
-  });
-
-  revalidatePath("/board");
-  return created;
-}
-
-export async function createPersonalBoardCard(input: {
-  title: string;
-  description?: string;
-  projectId: number;
-  clientId: number;
-  assignedById?: number | null;
-  columnId: number;
-}) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const title = input.title.trim();
-  if (!title) throw new Error("Card title is required");
-
-  const [column, project, assignedBy] = await Promise.all([
-    db.personalBoardColumn.findUnique({
-      where: { id: input.columnId },
-      select: { id: true, userId: true, mappedTaskStatus: true },
-    }),
-    db.project.findUnique({
-      where: { id: input.projectId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        clientId: true,
-        client: { select: { id: true, status: true } },
+  // Check board exists and user has access via workspace
+  const board = await db.board.findUnique({
+    where: { id: boardId },
+    include: {
+      workspace: {
+        include: {
+          members: { where: { userId: user.id } }
+        }
       },
-    }),
-    input.assignedById
-      ? db.user.findUnique({
-          where: { id: input.assignedById },
-          select: { id: true },
-        })
-      : Promise.resolve(null),
-  ]);
-
-  if (!column || column.userId !== user.id) {
-    throw new Error("Invalid target column");
-  }
-
-  if (!project || project.status !== "ACTIVE" || project.client.status !== "ACTIVE") {
-    throw new Error("Project or client is not active");
-  }
-
-  if (project.clientId !== input.clientId) {
-    throw new Error("Selected client does not match project");
-  }
-
-  if (input.assignedById && !assignedBy) {
-    throw new Error("Selected assigner was not found");
-  }
-
-  const created = await db.$transaction(async (tx) => {
-    const positionAggregate = await tx.personalBoardCard.aggregate({
-      where: { columnId: column.id },
-      _max: { position: true },
-    });
-
-    const now = new Date();
-    const task = await tx.task.create({
-      data: {
-        source: "SELF_BOARD",
-        title,
-        description: input.description?.trim() || null,
-        projectId: project.id,
-        createdById: user.id,
-        assignedUserId: user.id,
-        deptId: user.departmentId,
-        status: column.mappedTaskStatus,
-        priority: "MEDIUM",
-        ...(column.mappedTaskStatus === "IN_PROGRESS" || column.mappedTaskStatus === "DONE"
-          ? { startedAt: now, slaStartedAt: now }
-          : {}),
-        ...(column.mappedTaskStatus === "DONE" ? { completedAt: now } : {}),
-      },
-      include: {
-        project: { select: { title: true } },
-      },
-    });
-
-    const card = await tx.personalBoardCard.create({
-      data: {
-        ownerId: user.id,
-        assignedById: input.assignedById || null,
-        columnId: column.id,
-        taskId: task.id,
-        projectId: project.id,
-        clientId: input.clientId,
-        title,
-        description: input.description?.trim() || null,
-        position: (positionAggregate._max.position ?? -1) + 1,
-        enteredColumnAt: now,
-      },
-      include: {
-        task: {
-          select: {
-            id: true,
-            status: true,
-            priority: true,
-            source: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        },
-        project: { select: { id: true, title: true } },
-        client: { select: { id: true, name: true } },
-        owner: { select: { id: true, name: true, role: true } },
-        assignedBy: { select: { id: true, name: true, role: true } },
-      },
-    });
-
-    await tx.activityLog.create({
-      data: {
-        type: "CREATED",
-        description: "Self-board task created",
-        taskId: task.id,
-        projectId: project.id,
-        userId: user.id,
-        metadata: JSON.stringify({ source: "SELF_BOARD", assignedById: input.assignedById || null }),
-      },
-    });
-
-    if (column.mappedTaskStatus === "DONE") {
-      await tx.activityLog.create({
-        data: {
-          ...buildAutoDailyLogPayload({
-            id: task.id,
-            title: task.title,
-            projectId: project.id,
-            projectTitle: task.project.title,
-          }),
-          userId: user.id,
-        },
-      });
-    }
-
-    return card;
-  });
-
-  revalidatePath("/board");
-  revalidatePath("/tasks");
-  revalidatePath("/daily-log");
-  revalidatePath("/reports");
-  revalidatePath("/dashboard");
-
-  return created;
-}
-
-export async function movePersonalBoardCard(input: {
-  cardId: number;
-  targetColumnId: number;
-  targetPosition?: number;
-}) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const [card, targetColumn] = await Promise.all([
-    db.personalBoardCard.findUnique({
-      where: { id: input.cardId },
-      include: {
-        task: {
-          include: {
-            project: { select: { title: true } },
-          },
-        },
-      },
-    }),
-    db.personalBoardColumn.findUnique({
-      where: { id: input.targetColumnId },
-      select: { id: true, userId: true, mappedTaskStatus: true },
-    }),
-  ]);
-
-  if (!card || card.ownerId !== user.id) {
-    throw new Error("Card not found or access denied");
-  }
-
-  if (!targetColumn || targetColumn.userId !== user.id) {
-    throw new Error("Target column is invalid");
-  }
-
-  // Once a card reaches DONE, it can only stay in DONE-mapped columns.
-  if (card.task.status === "DONE" && targetColumn.mappedTaskStatus !== "DONE") {
-    throw new Error("Done cards cannot be moved back to other columns");
-  }
-
-  await db.$transaction(async (tx) => {
-    const destinationCardsRaw = await tx.personalBoardCard.findMany({
-      where: { columnId: targetColumn.id },
-      orderBy: [{ position: "asc" }, { id: "asc" }],
-    });
-
-    const destinationCards =
-      card.columnId === targetColumn.id
-        ? destinationCardsRaw.filter((item) => item.id !== card.id)
-        : destinationCardsRaw;
-
-    const insertAt = clamp(input.targetPosition ?? destinationCards.length, 0, destinationCards.length);
-
-    if (card.columnId !== targetColumn.id) {
-      const sourceCards = await tx.personalBoardCard.findMany({
-        where: { columnId: card.columnId },
-        orderBy: [{ position: "asc" }, { id: "asc" }],
-      });
-
-      const sourceReordered = sourceCards.filter((item) => item.id !== card.id);
-      for (let i = 0; i < sourceReordered.length; i += 1) {
-        const sourceCard = sourceReordered[i];
-        if (sourceCard.position !== i) {
-          await tx.personalBoardCard.update({
-            where: { id: sourceCard.id },
-            data: { position: i },
-          });
+      lists: {
+        orderBy: { position: "asc" },
+        include: {
+          cards: {
+            orderBy: { position: "asc" },
+            include: {
+              labels: true,
+              members: true
+            }
+          }
         }
       }
     }
+  });
 
-    for (let i = 0; i < destinationCards.length; i += 1) {
-      const destinationCard = destinationCards[i];
-      const nextPosition = i >= insertAt ? i + 1 : i;
-      if (destinationCard.position !== nextPosition) {
-        await tx.personalBoardCard.update({
-          where: { id: destinationCard.id },
-          data: { position: nextPosition },
-        });
+  if (!board) return null;
+
+  const isOwner = board.workspace.ownerId === user.id;
+  const isMember = board.workspace.members.length > 0;
+
+  if (!isOwner && !isMember) throw new Error("Unauthorized");
+
+  return board;
+}
+
+/**
+ * MUTATIONS
+ */
+
+export async function createWorkspace(data: { name: string; description?: string }) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const workspace = await db.workspace.create({
+    data: {
+      name: data.name,
+      description: data.description,
+      ownerId: user.id,
+      members: {
+        create: {
+          userId: user.id,
+          role: "OWNER"
+        }
       }
     }
-
-    await tx.personalBoardCard.update({
-      where: { id: card.id },
-      data: {
-        columnId: targetColumn.id,
-        position: insertAt,
-        ...(card.columnId !== targetColumn.id ? { enteredColumnAt: new Date() } : {}),
-      },
-    });
-
-    await syncTaskStatusForColumn({
-      tx,
-      task: {
-        id: card.task.id,
-        title: card.task.title,
-        status: card.task.status,
-        projectId: card.task.projectId,
-        project: card.task.project,
-        startedAt: card.task.startedAt,
-        slaStartedAt: card.task.slaStartedAt,
-      },
-      nextStatus: targetColumn.mappedTaskStatus,
-      userId: user.id,
-    });
   });
 
   revalidatePath("/board");
-  revalidatePath("/tasks");
+  return workspace;
+}
+
+export async function deleteWorkspace(workspaceId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const ws = await db.workspace.findUnique({ where: { id: workspaceId } });
+  if (!ws) throw new Error("Workspace not found");
+  if (ws.ownerId !== user.id) throw new Error("Only the owner can delete a workspace");
+
+  await db.workspace.delete({ where: { id: workspaceId } });
+  revalidatePath("/board");
+}
+
+export async function createBoard(data: {
+  workspaceId: number; 
+  title: string; 
+  background?: string; 
+  visibility?: BoardVisibility 
+}) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Verify access to workspace
+  const ws = await db.workspace.findFirst({
+    where: {
+      id: data.workspaceId,
+      OR: [
+        { ownerId: user.id },
+        { members: { some: { userId: user.id } } }
+      ]
+    }
+  });
+
+  if (!ws) throw new Error("Unauthorized");
+
+  const board = await db.board.create({
+    data: {
+      workspaceId: data.workspaceId,
+      title: data.title,
+      background: data.background || "bg-sky-600",
+      visibility: data.visibility || BoardVisibility.WORKSPACE
+    }
+  });
+
+  revalidatePath("/board");
+  return board;
+}
+
+/**
+ * BOARD MEMBERS
+ */
+
+export async function getBoardMembers(boardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const members = await db.boardMember.findMany({
+    where: { boardId },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  return members;
+}
+
+export async function inviteToBoard(boardId: number, userId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
+  if (!board) throw new Error("Board not found");
+
+  const isWsOwner = board.workspace.ownerId === user.id;
+  const isWsMember = await db.workspaceMember.findFirst({ where: { workspaceId: board.workspaceId, userId: user.id } });
+  if (!isWsOwner && !isWsMember) throw new Error("Unauthorized");
+
+  const existing = await db.boardMember.findUnique({ where: { boardId_userId: { boardId, userId } } });
+  if (existing) return existing;
+
+  const member = await db.boardMember.create({
+    data: { boardId, userId },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  revalidatePath("/board");
+  return member;
+}
+
+export async function removeBoardMember(boardId: number, userId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
+  if (!board) throw new Error("Board not found");
+
+  if (board.workspace.ownerId !== user.id) throw new Error("Unauthorized");
+
+  await db.boardMember.delete({ where: { boardId_userId: { boardId, userId } } });
+  revalidatePath("/board");
+}
+
+/**
+ * FULL BOARD DATA (lists + cards with all relations)
+ */
+
+export async function getBoardData(boardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({
+    where: { id: boardId },
+    include: {
+      workspace: {
+        include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } }
+      },
+      members: {
+        include: { user: { select: { id: true, name: true, email: true } } }
+      },
+      lists: {
+        orderBy: { position: "asc" },
+        include: {
+          cards: {
+            orderBy: { position: "asc" },
+            include: {
+              labels: true,
+              members: { include: { user: { select: { id: true, name: true, email: true } } } },
+              checklists: {
+                orderBy: { position: "asc" },
+                include: {
+                  items: { orderBy: { position: "asc" } }
+                }
+              },
+              attachments: true,
+              activity: { orderBy: { createdAt: "desc" } },
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!board) return null;
+
+  const isOwner = board.workspace.ownerId === user.id;
+  const isWsMember = board.workspace.members.some((m: any) => m.userId === user.id);
+  const isBoardMember = board.members.some((m: any) => m.userId === user.id);
+
+  // Workspace owner always has access
+  if (isOwner) return board;
+
+  // Board members always have access
+  if (isBoardMember) return board;
+
+  // PUBLIC visibility: any workspace member can view
+  if (board.visibility === "PUBLIC" && isWsMember) return board;
+
+  // WORKSPACE visibility: workspace members can view
+  if (board.visibility === "WORKSPACE" && isWsMember) return board;
+
+  // Otherwise: no access
+  throw new Error("Unauthorized");
+}
+
+/**
+ * TOGGLE BOARD STAR
+ */
+
+export async function toggleBoardStar(boardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({ where: { id: boardId } });
+  if (!board) throw new Error("Board not found");
+
+  await db.board.update({ where: { id: boardId }, data: { isStarred: !board.isStarred } });
+  revalidatePath("/board");
+  return { isStarred: !board.isStarred };
+}
+
+export async function deleteBoard(boardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
+  if (!board) throw new Error("Board not found");
+  if (board.workspace.ownerId !== user.id) throw new Error("Only the workspace owner can delete a board");
+
+  await db.board.delete({ where: { id: boardId } });
+  revalidatePath("/board");
+}
+
+export async function updateBoardVisibility(boardId: number, visibility: BoardVisibility) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
+  if (!board) throw new Error("Board not found");
+  if (board.workspace.ownerId !== user.id) throw new Error("Only the workspace owner can change board visibility");
+
+  await db.board.update({ where: { id: boardId }, data: { visibility } });
+  revalidatePath("/board");
+}
+
+/**
+ * LIST MUTATIONS
+ */
+
+export async function createList(boardId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const maxPos = await db.boardList.aggregate({ where: { boardId }, _max: { position: true } });
+  const nextPos = (maxPos._max.position ?? -1) + 1;
+
+  const list = await db.boardList.create({
+    data: { boardId, title, position: nextPos, createdById: user.id },
+  });
+
+  revalidatePath("/board");
+  return list;
+}
+
+export async function renameList(listId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const list = await db.boardList.findUnique({ where: { id: listId } });
+  if (!list) throw new Error("List not found");
+  if (list.isRestricted) throw new Error("This list is restricted");
+
+  const isCreator = list.createdById === user.id;
+  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
+  const isWsOwner = board?.workspace.ownerId === user.id;
+  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+
+  await db.boardList.update({ where: { id: listId }, data: { title } });
+  revalidatePath("/board");
+}
+
+export async function deleteList(listId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const list = await db.boardList.findUnique({ where: { id: listId } });
+  if (!list) throw new Error("List not found");
+
+  const isCreator = list.createdById === user.id;
+  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
+  const isWsOwner = board?.workspace.ownerId === user.id;
+  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+
+  await db.boardList.delete({ where: { id: listId } });
+  revalidatePath("/board");
+}
+
+export async function toggleListRestrict(listId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const list = await db.boardList.findUnique({ where: { id: listId } });
+  if (!list) throw new Error("List not found");
+
+  const isCreator = list.createdById === user.id;
+  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
+  const isWsOwner = board?.workspace.ownerId === user.id;
+  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+
+  await db.boardList.update({ where: { id: listId }, data: { isRestricted: !list.isRestricted } });
+  revalidatePath("/board");
+  return { isRestricted: !list.isRestricted };
+}
+
+export async function moveList(listId: number, newPosition: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const list = await db.boardList.findUnique({ where: { id: listId } });
+  if (!list) throw new Error("List not found");
+
+  const allLists = await db.boardList.findMany({
+    where: { boardId: list.boardId },
+    orderBy: { position: "asc" },
+    select: { id: true },
+  });
+
+  const ids = allLists.map(l => l.id).filter(id => id !== listId);
+  ids.splice(newPosition, 0, listId);
+
+  for (let idx = 0; idx < ids.length; idx++) {
+    await db.boardList.update({ where: { id: ids[idx] }, data: { position: idx } });
+  }
+
+  revalidatePath("/board");
+}
+
+/**
+ * CARD MUTATIONS
+ */
+
+export async function createCard(listId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const list = await db.boardList.findUnique({ where: { id: listId } });
+  if (!list) throw new Error("List not found");
+  if (list.isRestricted) throw new Error("This list is restricted");
+
+  const maxPos = await db.boardCard.aggregate({ where: { listId }, _max: { position: true } });
+  const nextPos = (maxPos._max.position ?? -1) + 1;
+
+  const card = await db.boardCard.create({
+    data: { listId, title, position: nextPos },
+  });
+
+  await db.boardCardActivity.create({
+    data: { cardId: card.id, type: "SYSTEM", actorName: "System", message: "Card created" },
+  });
+
+  revalidatePath("/board");
+  return card;
+}
+
+export async function updateCardTitle(cardId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.update({ where: { id: cardId }, data: { title } });
+  revalidatePath("/board");
+}
+
+export async function updateCardDescription(cardId: number, description: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.update({ where: { id: cardId }, data: { description } });
+  revalidatePath("/board");
+}
+
+export async function toggleCardComplete(cardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const card = await db.boardCard.findUnique({
+    where: { id: cardId },
+    include: {
+      checklists: { include: { items: true } },
+      list: { include: { board: { include: { workspace: true } } } }
+    }
+  });
+  if (!card) throw new Error("Card not found");
+
+  const newCompleted = !card.isCompleted;
+
+  if (newCompleted) {
+    if (!card.assignedToUserId) throw new Error("Card must be assigned before marking as done");
+    if (card.assignedToUserId !== user.id) throw new Error("Only the assigned member can mark this card as done");
+
+    const allItems = card.checklists.flatMap(cl => cl.items);
+    if (allItems.length > 0 && !allItems.every(i => i.isDone)) {
+      throw new Error("All checklist items must be completed before marking this card as done");
+    }
+
+    await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: true } });
+
+    if (card.includeInLogs) {
+      const boardTitle = card.list.board.title;
+      const workspaceName = card.list.board.workspace?.name || boardTitle;
+      await db.activityLog.create({
+        data: {
+          type: "COMMENTED",
+          description: "Board card completed",
+          userId: card.assignedToUserId,
+          metadata: JSON.stringify({
+            kind: "DAILY_LOG",
+            note: `Completed board task: ${card.title}`,
+            markCompleted: true,
+            taskTitle: card.title,
+            parentTaskTitle: boardTitle,
+            projectTitle: workspaceName,
+            source: "BOARD_CARD",
+          }),
+        }
+      });
+    }
+  } else {
+    await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: false } });
+  }
+
+  revalidatePath("/board");
   revalidatePath("/daily-log");
   revalidatePath("/reports");
-  revalidatePath("/dashboard");
+  return { isCompleted: newCompleted };
+}
 
-  return { success: true };
+export async function setIncludeInLogs(cardId: number, include: boolean) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.update({ where: { id: cardId }, data: { includeInLogs: include } });
+  revalidatePath("/board");
+  return { includeInLogs: include };
+}
+
+export async function setCardAssignee(cardId: number, userId: number | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.update({ where: { id: cardId }, data: { assignedToUserId: userId } });
+  revalidatePath("/board");
+  return { assignedToUserId: userId };
+}
+
+export async function setCardDueDate(cardId: number, dueDate: string | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.update({
+    where: { id: cardId },
+    data: { dueDate: dueDate ? new Date(dueDate) : null },
+  });
+  revalidatePath("/board");
+}
+
+export async function deleteCard(cardId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCard.delete({ where: { id: cardId } });
+  revalidatePath("/board");
+}
+
+export async function moveCard(cardId: number, targetListId: number, newPosition: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const targetList = await db.boardList.findUnique({ where: { id: targetListId } });
+  if (!targetList) throw new Error("Target list is restricted");
+
+  const card = await db.boardCard.findUnique({ where: { id: cardId } });
+  if (!card) throw new Error("Card not found");
+
+  const sourceListId = card.listId;
+
+  // Move the card
+  await db.boardCard.update({ where: { id: cardId }, data: { listId: targetListId, position: newPosition } });
+
+  // Reindex source list (if different)
+  if (sourceListId !== targetListId) {
+    const sourceCards = await db.boardCard.findMany({
+      where: { listId: sourceListId },
+      orderBy: { position: "asc" },
+      select: { id: true },
+    });
+    for (let idx = 0; idx < sourceCards.length; idx++) {
+      await db.boardCard.update({ where: { id: sourceCards[idx].id }, data: { position: idx } });
+    }
+  }
+
+  // Reindex target list
+  const targetCards = await db.boardCard.findMany({
+    where: { listId: targetListId },
+    orderBy: { position: "asc" },
+    select: { id: true },
+  });
+  const targetIds = targetCards.map(c => c.id).filter(id => id !== cardId);
+  targetIds.splice(newPosition, 0, cardId);
+  for (let idx = 0; idx < targetIds.length; idx++) {
+    await db.boardCard.update({ where: { id: targetIds[idx] }, data: { position: idx } });
+  }
+
+  revalidatePath("/board");
+}
+
+/**
+ * CARD LABELS
+ */
+
+export async function addCardLabel(cardId: number, name: string, color: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const label = await db.boardCardLabel.create({ data: { cardId, name, color } });
+  revalidatePath("/board");
+  return label;
+}
+
+export async function removeCardLabel(labelId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCardLabel.delete({ where: { id: labelId } });
+  revalidatePath("/board");
+}
+
+/**
+ * CARD MEMBERS
+ */
+
+export async function addCardMember(cardId: number, userId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const existing = await db.boardCardMember.findUnique({ where: { cardId_userId: { cardId, userId } } });
+  if (existing) return existing;
+
+  const member = await db.boardCardMember.create({ data: { cardId, userId } });
+  revalidatePath("/board");
+  return member;
+}
+
+export async function removeCardMember(cardId: number, userId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCardMember.delete({ where: { cardId_userId: { cardId, userId } } });
+  revalidatePath("/board");
+}
+
+/**
+ * CARD CHECKLISTS
+ */
+
+export async function addChecklist(cardId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const maxPos = await db.boardChecklist.aggregate({ where: { cardId }, _max: { position: true } });
+  const nextPos = (maxPos._max.position ?? -1) + 1;
+
+  const checklist = await db.boardChecklist.create({
+    data: { cardId, title, position: nextPos },
+  });
+
+  revalidatePath("/board");
+  return checklist;
+}
+
+export async function deleteChecklist(checklistId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardChecklist.delete({ where: { id: checklistId } });
+  revalidatePath("/board");
+}
+
+export async function addChecklistItem(checklistId: number, title: string, assignedUserId?: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  if (!assignedUserId) throw new Error("Checklist items must be assigned to a member");
+
+  const maxPos = await db.boardChecklistItem.aggregate({ where: { checklistId }, _max: { position: true } });
+  const nextPos = (maxPos._max.position ?? -1) + 1;
+
+  const item = await db.boardChecklistItem.create({
+    data: { checklistId, title, position: nextPos, assignedUserId },
+  });
+
+  revalidatePath("/board");
+  return item;
+}
+
+export async function toggleChecklistItem(itemId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const item = await db.boardChecklistItem.findUnique({
+    where: { id: itemId },
+    include: { checklist: { include: { card: { include: { list: { include: { board: { include: { workspace: true } } } } } } } } }
+  });
+  if (!item) throw new Error("Item not found");
+
+  if (item.assignedUserId && item.assignedUserId !== user.id) {
+    throw new Error("Only the assigned person can mark this item as done");
+  }
+
+  const newDone = !item.isDone;
+  await db.boardChecklistItem.update({ where: { id: itemId }, data: { isDone: newDone } });
+
+  if (newDone) {
+    const card = item.checklist.card;
+    if (card.includeInLogs && card.assignedToUserId) {
+      const boardTitle = card.list.board.title;
+      const workspaceName = card.list.board.workspace?.name || boardTitle;
+      await db.activityLog.create({
+        data: {
+          type: "COMMENTED",
+          description: "Board checklist item completed",
+          userId: card.assignedToUserId,
+          metadata: JSON.stringify({
+            kind: "DAILY_LOG",
+            note: `Completed: ${card.title} > ${item.title}`,
+            markCompleted: true,
+            taskTitle: `${card.title} > ${item.title}`,
+            parentTaskTitle: boardTitle,
+            projectTitle: workspaceName,
+            source: "BOARD_CHECKLIST",
+          }),
+        }
+      });
+    }
+  }
+
+  revalidatePath("/board");
+  revalidatePath("/daily-log");
+  revalidatePath("/reports");
+  return { isDone: newDone };
+}
+
+export async function deleteChecklistItem(itemId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardChecklistItem.delete({ where: { id: itemId } });
+  revalidatePath("/board");
+}
+
+/**
+ * CARD ATTACHMENTS
+ */
+
+export async function addCardAttachment(cardId: number, name: string, url: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const attachment = await db.boardCardAttachment.create({ data: { cardId, name, url } });
+  revalidatePath("/board");
+  return attachment;
+}
+
+export async function deleteCardAttachment(attachmentId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardCardAttachment.delete({ where: { id: attachmentId } });
+  revalidatePath("/board");
+}
+
+/**
+ * CARD ACTIVITY
+ */
+
+export async function addCardActivity(cardId: number, message: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const activity = await db.boardCardActivity.create({
+    data: { cardId, type: "COMMENT", actorName: user.name, message },
+  });
+
+  revalidatePath("/board");
+  return activity;
 }

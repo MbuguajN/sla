@@ -10,7 +10,7 @@ export async function createNotification(
   message: string,
   link?: string
 ) {
-  return db.notification.create({
+  const result = await db.notification.create({
     data: {
       userId,
       type: type as any,
@@ -19,6 +19,16 @@ export async function createNotification(
       link,
     },
   });
+  return {
+    id: result.id,
+    userId: result.userId,
+    type: result.type,
+    title: result.title,
+    message: result.message,
+    link: result.link,
+    isRead: result.isRead,
+    createdAt: result.createdAt.toISOString()
+  };
 }
 
 export async function getUnreadNotifications() {

@@ -25,6 +25,11 @@ export default async function ProfilePage() {
         model: item.model,
         serialNumber: item.serialNumber || "",
       }))}
+      personalDocuments={profile.personalDocuments.map((doc) => ({
+        id: doc.id,
+        name: doc.name,
+        url: doc.url,
+      }))}
     />
   );
 }

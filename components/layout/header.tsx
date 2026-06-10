@@ -2,6 +2,7 @@
 
 import { signOut } from "next-auth/react";
 import { Moon02Icon, Sun01Icon, Logout01Icon } from "@hugeicons/react";
+import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import NotificationDropdown from "./NotificationDropdown";
 
@@ -99,6 +100,24 @@ function WeatherWidget() {
   );
 }
 
+function getUserColor(userId: number, name: string) {
+  if (!name) return "bg-zinc-500 text-white";
+  if (name.toLowerCase().includes("admin") || userId === 1 || userId === 9999) {
+    return "bg-[#c91f41] text-white";
+  }
+  const colors = [
+    "bg-sky-500 text-white",
+    "bg-emerald-500 text-white",
+    "bg-amber-500 text-white",
+    "bg-indigo-500 text-white",
+    "bg-fuchsia-500 text-white",
+    "bg-cyan-500 text-white",
+    "bg-rose-500 text-white",
+    "bg-teal-500 text-white"
+  ];
+  return colors[userId % colors.length];
+}
+
 export default function Header({ user }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isDark, setIsDark] = useState(false);
@@ -158,9 +177,12 @@ export default function Header({ user }: HeaderProps) {
         <div className="relative border-l border-gray-100 dark:border-white/10 pl-4 ml-2">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
-            className="w-10 h-10 rounded-2xl bg-[#fff1f2] flex items-center justify-center hover:bg-[#ffe4e6] transition-all duration-300 border border-white shadow-sm ring-1 ring-[#c91f41]/5 overflow-hidden"
+            className={cn(
+              "w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 border border-white shadow-sm ring-1 ring-[#c91f41]/5 overflow-hidden",
+              getUserColor(user.id, user.name)
+            )}
           >
-            <span className="text-[#c91f41] text-sm font-black">
+            <span className="text-sm font-black text-inherit">
               {user?.name?.[0]?.toUpperCase() || "U"}
             </span>
           </button>

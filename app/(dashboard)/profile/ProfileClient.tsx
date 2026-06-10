@@ -3,8 +3,10 @@
 import { useState, type ComponentType } from "react";
 import { useEffect } from "react";
 import { changePassword } from "@/app/actions/profileActions";
-import { LogOut, Shield, UserRound, Mail, Briefcase, Building2, Eye, EyeOff } from "lucide-react";
+import { LogOut, Shield, UserRound, Mail, Briefcase, Building2, Eye, EyeOff, Plus, X, ExternalLink, FileText } from "lucide-react";
 import { signOut } from "next-auth/react";
+
+import { addPersonalDocument, deletePersonalDocument } from "@/app/actions/profileActions";
 
 interface User {
   id: number;
@@ -22,9 +24,14 @@ interface Props {
     model: string;
     serialNumber: string;
   }[];
+  personalDocuments: {
+    id: number;
+    name: string;
+    url: string;
+  }[];
 }
 
-export default function ProfileClient({ user, equipmentItems }: Props) {
+export default function ProfileClient({ user, equipmentItems, personalDocuments }: Props) {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -33,6 +40,10 @@ export default function ProfileClient({ user, equipmentItems }: Props) {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changing, setChanging] = useState(false);
+  const [docs, setDocs] = useState(personalDocuments);
+  const [docName, setDocName] = useState("");
+  const [docUrl, setDocUrl] = useState("");
+  const [addingDoc, setAddingDoc] = useState(false);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +68,31 @@ export default function ProfileClient({ user, equipmentItems }: Props) {
       alert(err instanceof Error ? err.message : "Failed to change password");
     } finally {
       setChanging(false);
+    }
+  };
+
+  const handleAddDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docName.trim() || !docUrl.trim()) return;
+    setAddingDoc(true);
+    try {
+      const doc = await addPersonalDocument(docName.trim(), docUrl.trim());
+      setDocs(prev => [{ id: doc.id, name: doc.name, url: doc.url }, ...prev]);
+      setDocName("");
+      setDocUrl("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add document");
+    } finally {
+      setAddingDoc(false);
+    }
+  };
+
+  const handleDeleteDoc = async (docId: number) => {
+    try {
+      await deletePersonalDocument(docId);
+      setDocs(prev => prev.filter(d => d.id !== docId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete document");
     }
   };
 
@@ -188,6 +224,69 @@ export default function ProfileClient({ user, equipmentItems }: Props) {
               <LogOut className="h-4 w-4" />
               Sign Out
             </button>
+
+            <div className="pt-4 border-t border-gray-100 dark:border-white/10 mt-4">
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="h-5 w-5 text-[#c91f41]" />
+                <h2 className="text-lg font-black text-gray-900 dark:text-white">Personal Documents</h2>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-zinc-400 mb-3">Quick links to your Google Drive documents.</p>
+
+              <form onSubmit={handleAddDoc} className="flex gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="Link name"
+                  value={docName}
+                  onChange={(e) => setDocName(e.target.value)}
+                  required
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+                />
+                <input
+                  type="url"
+                  placeholder="Google Drive URL"
+                  value={docUrl}
+                  onChange={(e) => setDocUrl(e.target.value)}
+                  required
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-200 dark:border-white/10 rounded-xl bg-white dark:bg-black text-gray-900 dark:text-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#c91f41]/20 focus:border-[#c91f41]"
+                />
+                <button
+                  type="submit"
+                  disabled={addingDoc}
+                  className="px-3 py-2 bg-[#c91f41] text-white rounded-xl font-bold hover:bg-[#a61835] transition-colors disabled:opacity-50 shrink-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </form>
+
+              {docs.length > 0 ? (
+                <div className="space-y-1.5">
+                  {docs.map(doc => (
+                    <div
+                      key={doc.id}
+                      className="group flex items-center justify-between px-3 py-2 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                      <a
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm font-bold text-gray-900 dark:text-white hover:text-[#c91f41] dark:hover:text-[#c91f41] transition-colors min-w-0"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-zinc-500" />
+                        <span className="truncate">{doc.name}</span>
+                      </a>
+                      <button
+                        onClick={() => handleDeleteDoc(doc.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-100 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 dark:text-zinc-500 text-center py-3">No documents added yet.</p>
+              )}
+            </div>
           </div>
         </div>
       </section>

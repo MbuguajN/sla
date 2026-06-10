@@ -308,6 +308,7 @@ export default async function ReportsPage({
   let leavePolicies: { role: "MANAGER" | "EMPLOYEE"; leaveType: string; daysAllowed: number }[] = [];
   let employeeLeaves: { userId: number; type: string; totalDays: number }[] = [];
   let equipmentOwnership: { ownerUserId: number; _count: { _all: number } }[] = [];
+  let personalDocuments: { id: number; userId: number; name: string; url: string }[] = [];
   let dailyLogActivities: {
     id: number;
     userId: number | null;
@@ -334,7 +335,7 @@ export default async function ReportsPage({
 
     const employeeIds = employees.map((employee) => employee.id);
 
-    const [rawEmployeeTasks, rawLeavePolicies, rawEmployeeLeaves, rawDailyLogActivities, rawEquipmentOwnership] = await Promise.all([
+    const [rawEmployeeTasks, rawLeavePolicies, rawEmployeeLeaves, rawDailyLogActivities, rawEquipmentOwnership, rawPersonalDocuments] = await Promise.all([
       db.task.findMany({
         where: {
           status: "DONE",
@@ -399,6 +400,11 @@ export default async function ReportsPage({
         },
         _count: { _all: true },
       }),
+      db.personalDocument.findMany({
+        where: { userId: { in: employeeIds } },
+        select: { id: true, userId: true, name: true, url: true },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     employeeCompletedTasks = rawEmployeeTasks as EmployeeCompletedTask[];
@@ -406,6 +412,7 @@ export default async function ReportsPage({
     employeeLeaves = rawEmployeeLeaves as { userId: number; type: string; totalDays: number }[];
     dailyLogActivities = rawDailyLogActivities;
     equipmentOwnership = rawEquipmentOwnership as { ownerUserId: number; _count: { _all: number } }[];
+    personalDocuments = rawPersonalDocuments as { id: number; userId: number; name: string; url: string }[];
   }
 
   const evaluated = tasks
@@ -668,6 +675,7 @@ export default async function ReportsPage({
       departmentName: employee.department?.name || "No Department",
       leaveBalances,
       companyItemsOwned: equipmentOwnershipByUser.get(employee.id) || 0,
+      personalDocuments: personalDocuments.filter(d => d.userId === employee.id).map(d => ({ id: d.id, name: d.name, url: d.url })),
       dailyLogs: dailyLogsByUser.get(employee.id) || [],
       tasks: rawTasks.map((task) => ({
         id: task.id,

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   DashboardSquare01Icon,
-  BoardMathIcon,
   Book01Icon,
   Briefcase02Icon,
   TaskDone01Icon,
@@ -42,7 +41,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, canAccessEquipment = false, logos }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(["boards", "personal", "hr", "finance", "it", "admin"]);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "finance", "it", "admin"]);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -76,6 +75,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
       ? [{ label: "Reports", href: "/reports", icon: Book01Icon }]
       : []),
     ...(canSeeClients ? [{ label: "Clients", href: "/clients", icon: UserGroupIcon }] : []),
+    ...(canSeeProjectsAndTasks ? [{ label: "Board", href: "/board", icon: UserGroupIcon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
     ...(!isHROnly && !isFinanceOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
@@ -83,15 +83,6 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
 
   // Sections (collapsible)
   const Sections = [
-    {
-      id: "boards",
-      title: "Boards",
-      visible: !isHROnly,
-      items: [
-        { label: "Personal Board", href: "/board", icon: BoardMathIcon },
-        { label: "Collections", href: "/board/collections", icon: UserGroupIcon },
-      ]
-    },
     {
       id: "personal",
       title: "Personal",

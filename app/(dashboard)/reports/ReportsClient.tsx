@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { FileText, X, ExternalLink } from "lucide-react";
 import {
   CheckmarkCircle01Icon,
   TaskDone01Icon,
@@ -90,6 +91,7 @@ export type EmployeeReportCard = {
   departmentName: string;
   leaveBalances: LeaveBalance[];
   companyItemsOwned: number;
+  personalDocuments: { id: number; name: string; url: string }[];
   dailyLogs: {
     id: number;
     note: string;
@@ -217,6 +219,7 @@ export default function ReportsClient({
   const [trendMode, setTrendMode] = useState<"monthly" | "quarterly">("monthly");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
+  const [docsEmployee, setDocsEmployee] = useState<{ name: string; docs: { id: number; name: string; url: string }[] } | null>(null);
   const [employeeDateRange, setEmployeeDateRange] = useState<"today" | "week" | "month" | "custom">("today");
   const [employeeCustomStart, setEmployeeCustomStart] = useState("");
   const [employeeCustomEnd, setEmployeeCustomEnd] = useState("");
@@ -784,6 +787,15 @@ export default function ReportsClient({
                   <div className="mt-2 rounded-xl bg-[#eef3ff] dark:bg-[#151b2b] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2f436f] dark:text-blue-200">
                     Company Items Owned: {employee.companyItemsOwned}
                   </div>
+                  {employee.personalDocuments.length > 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDocsEmployee({ name: employee.name, docs: employee.personalDocuments }); }}
+                      className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#fef5f7] dark:bg-[#2b1a20] border border-[#f3d8de] dark:border-[#cf2145]/20 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#cf2145] hover:bg-[#fde8ed] dark:hover:bg-[#3b1f2a] transition-colors cursor-pointer"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Documents
+                    </button>
+                  )}
                 </button>
               );
             })}
@@ -1022,6 +1034,39 @@ export default function ReportsClient({
             </section>
           ) : null}
         </>
+      )}
+
+      {docsEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setDocsEmployee(null)}>
+          <div className="bg-white dark:bg-[#111111] rounded-3xl border border-gray-200 dark:border-white/10 shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#cf2145]">Documents</p>
+                <h3 className="text-lg font-black text-gray-900 dark:text-white">{docsEmployee.name}</h3>
+              </div>
+              <button onClick={() => setDocsEmployee(null)} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                <X className="h-5 w-5 text-gray-400 dark:text-zinc-500" />
+              </button>
+            </div>
+            <div className="px-6 py-4 max-h-[320px] overflow-y-auto space-y-2">
+              {docsEmployee.docs.map(doc => (
+                <a
+                  key={doc.id}
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-[#fef5f7] dark:hover:bg-[#2b1a20] hover:border-[#f3d8de] dark:hover:border-[#cf2145]/20 transition-all"
+                >
+                  <div className="h-9 w-9 rounded-xl bg-[#fef5f7] dark:bg-[#2b1a20] flex items-center justify-center shrink-0 group-hover:bg-[#fde8ed] dark:group-hover:bg-[#3b1f2a] transition-colors">
+                    <FileText className="h-4 w-4 text-[#cf2145]" />
+                  </div>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#cf2145] dark:group-hover:text-[#cf2145] transition-colors truncate">{doc.name}</span>
+                  <ExternalLink className="h-3.5 w-3.5 ml-auto text-gray-300 dark:text-zinc-600 group-hover:text-[#cf2145] dark:group-hover:text-[#cf2145] transition-colors shrink-0" />
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

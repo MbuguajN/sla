@@ -22,6 +22,9 @@ export async function getUserProfile() {
         },
         orderBy: { createdAt: "desc" },
       },
+      personalDocuments: {
+        orderBy: { createdAt: "desc" },
+      },
     },
   });
 }
@@ -117,4 +120,27 @@ export async function updateClientDescription(
   revalidatePath("/clients");
   revalidatePath(`/clients/${clientId}`);
   return client_updated;
+}
+
+export async function addPersonalDocument(name: string, url: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const doc = await db.personalDocument.create({
+    data: { userId: user.id, name, url },
+  });
+
+  revalidatePath("/profile");
+  return doc;
+}
+
+export async function deletePersonalDocument(docId: number) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const doc = await db.personalDocument.findUnique({ where: { id: docId } });
+  if (!doc || doc.userId !== user.id) throw new Error("Not found");
+
+  await db.personalDocument.delete({ where: { id: docId } });
+  revalidatePath("/profile");
 }

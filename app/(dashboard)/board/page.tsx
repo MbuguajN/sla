@@ -1,124 +1,41 @@
 import { redirect } from "next/navigation";
-import { canViewOtherBoards, getCurrentUser } from "@/lib/permissions";
-import { getPersonalBoardData } from "@/app/actions/boardActions";
-import BoardClient from "./board-client";
+import { getCurrentUser } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import BoardWorkbenchClient from "./BoardWorkbenchClient";
+import { getWorkspaces } from "@/app/actions/boardActions";
 
-type SearchParams = {
-  userId?: string;
-};
+export const dynamic = "force-dynamic";
 
-type BoardPageData = {
-  columns: Array<{
-    id: number;
-    title: string;
-    code: string;
-    kind: "TODO" | "IN_PROGRESS" | "DONE" | "CUSTOM";
-    mappedTaskStatus: string;
-    position: number;
-    cards: Array<{
-      id: number;
-      title: string;
-      description: string | null;
-      position: number;
-      enteredColumnAt?: string | Date;
-      task: { id: number; status: string; priority: string; source: string; createdAt?: string | Date };
-      project: { id: number; title: string };
-      client: { id: number; name: string };
-      owner: { id: number; name: string; role: string };
-      assignedBy: { id: number; name: string; role: string } | null;
-    }>;
-  }>;
-  users: Array<{
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    departmentId: number | null;
-    department: { id: number; name: string; slug: string } | null;
-  }>;
-  projects: Array<{
-    id: number;
-    title: string;
-    clientId: number;
-    client: { id: number; name: string };
-  }>;
-  canSwitchBoards: boolean;
-  canEditBoard: boolean;
-  selectedUser: {
-    id: number;
-    name: string;
-    email: string;
-    role: string;
-    departmentId: number | null;
-    department: { id: number; name: string; slug: string } | null;
-  };
-  me: { id: number; name: string; role: string };
-};
-
-export default async function BoardPage({
-  searchParams,
-}: {
-  searchParams: Promise<SearchParams>;
-}) {
+export default async function BoardPage({ searchParams }: { searchParams?: { active?: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const params = await searchParams;
-  const requestedUserId = params.userId ? Number(params.userId) : user.id;
-  const selectedUserId = Number.isFinite(requestedUserId) ? requestedUserId : user.id;
-  const allowedToSwitch = canViewOtherBoards(user);
-  const canSwitchDepartmentBoards = user.role === "MANAGER" && user.departmentId !== null;
-  const targetUserId = allowedToSwitch || canSwitchDepartmentBoards ? selectedUserId : user.id;
+  const activeBoardId = searchParams?.active || undefined;
 
-  const data = (await getPersonalBoardData(targetUserId)) as BoardPageData;
-
-  const boardUsers = data.users.filter((candidate) => {
-    if (allowedToSwitch) return true;
-    if (canSwitchDepartmentBoards) return candidate.departmentId === user.departmentId;
-    return candidate.id === user.id;
-  });
+  const [workspaces, systemUsers] = await Promise.all([
+    getWorkspaces(),
+    db.user.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+      orderBy: { name: "asc" },
+    })
+  ]);
 
   return (
-    <BoardClient
-      key={data.selectedUser.id}
-      boardUsers={boardUsers}
-      initialColumns={data.columns.map((column) => ({
-        id: column.id,
-        title: column.title,
-        code: column.code,
-        kind: column.kind,
-        mappedTaskStatus: column.mappedTaskStatus,
-        position: column.position,
-        cards: column.cards.map((card) => ({
-          id: card.id,
-          title: card.title,
-          description: card.description,
-          position: card.position,
-          enteredColumnAt: "enteredColumnAt" in card && card.enteredColumnAt ? String(card.enteredColumnAt) : undefined,
-          task: {
-            id: card.task.id,
-            status: card.task.status,
-            priority: card.task.priority,
-            source: card.task.source,
-            createdAt: "createdAt" in card.task && card.task.createdAt ? String(card.task.createdAt) : undefined,
-          },
-          project: card.project,
-          client: card.client,
-          owner: card.owner,
-          assignedBy: card.assignedBy,
-        })),
-      }))}
-      users={data.users}
-      projects={data.projects.map((project) => ({
-        id: project.id,
-        title: project.title,
-        clientId: project.clientId,
-        client: project.client,
-      }))}
-      canSwitchBoards={allowedToSwitch || canSwitchDepartmentBoards}
-      canEditBoard={data.canEditBoard}
-      selectedUser={data.selectedUser}
-      me={data.me}
+    <BoardWorkbenchClient
+      currentUser={{
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: (user as any).role,
+      }}
+      systemUsers={systemUsers}
+      initialWorkspaces={JSON.parse(JSON.stringify(workspaces))}
+      initialActiveBoardId={activeBoardId}
     />
   );
 }
