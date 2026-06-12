@@ -713,14 +713,15 @@ export async function toggleChecklistItem(itemId: number) {
 
   if (newDone) {
     const card = item.checklist.card;
-    if (card.includeInLogs && card.assignedToUserId) {
+    const logUserId = item.assignedUserId || card.assignedToUserId;
+    if (card.includeInLogs && logUserId) {
       const boardTitle = card.list.board.title;
       const workspaceName = card.list.board.workspace?.name || boardTitle;
       await db.activityLog.create({
         data: {
           type: "COMMENTED",
           description: "Board checklist item completed",
-          userId: card.assignedToUserId,
+          userId: logUserId,
           metadata: JSON.stringify({
             kind: "DAILY_LOG",
             note: `Completed: ${card.title} > ${item.title}`,
