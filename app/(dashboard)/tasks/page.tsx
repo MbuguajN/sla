@@ -194,6 +194,10 @@ export default async function TasksPage({
     slaPausedDuration: 0,
     createdAt: subtask.updatedAt.toISOString(),
     isSubtaskCompletion: true,
+    type: "TASK" as const,
+    dueDate: null as string | null,
+    boardName: null as string | null,
+    checklistName: null as string | null,
   }));
 
   const taskRows = tasks.map((t) => ({
@@ -214,13 +218,91 @@ export default async function TasksPage({
     slaPausedDuration: t.slaPausedDuration,
     createdAt: t.createdAt.toISOString(),
     isSubtaskCompletion: false,
+    type: "TASK" as const,
+    dueDate: null as string | null,
+    boardName: null as string | null,
+    checklistName: null as string | null,
+  }));
+
+  const [boardCards, checklistItems] = await Promise.all([
+    db.boardCard.findMany({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } }
+        ],
+      },
+      include: {
+        list: { include: { board: true } },
+        assignedUser: true,
+        checklists: { include: { items: true } }
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.boardChecklistItem.findMany({
+      where: {
+        assignedUserId: user.id,
+      },
+      include: {
+        checklist: { include: { card: { include: { list: { include: { board: true } }, assignedUser: true } } } }
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
+
+  const cardRows = boardCards.map((c) => ({
+    id: 1000000 + c.id,
+    routeTaskId: -(c.id),
+    title: c.title,
+    status: c.isCompleted ? "DONE" : "IN_PROGRESS",
+    priority: "MEDIUM",
+    projectId: 0,
+    projectTitle: c.list.board.title,
+    clientName: c.list.board.title,
+    departmentName: null,
+    assigneeName: c.assignedUser?.name || null,
+    creatorName: c.assignedUser?.name || "Unknown",
+    slaHours: null,
+    slaStartedAt: null,
+    slaPausedAt: null,
+    slaPausedDuration: 0,
+    createdAt: c.createdAt.toISOString(),
+    isSubtaskCompletion: false,
+    type: "BOARD_CARD" as const,
+    dueDate: c.dueDate?.toISOString() || null,
+    boardName: c.list.board.title,
+    checklistName: null,
+  }));
+
+  const checklistRows = checklistItems.map((item) => ({
+    id: 2000000 + item.id,
+    routeTaskId: -(item.checklist.card.id),
+    title: item.title,
+    status: item.isDone ? "DONE" : "IN_PROGRESS",
+    priority: "MEDIUM",
+    projectId: 0,
+    projectTitle: item.checklist.card.list.board.title,
+    clientName: item.checklist.card.list.board.title,
+    departmentName: null,
+    assigneeName: null,
+    creatorName: item.checklist.card.assignedUser?.name || "Unknown",
+    slaHours: null,
+    slaStartedAt: null,
+    slaPausedAt: null,
+    slaPausedDuration: 0,
+    createdAt: item.createdAt.toISOString(),
+    isSubtaskCompletion: false,
+    type: "CHECKLIST_ITEM" as const,
+    dueDate: null,
+    boardName: item.checklist.card.list.board.title,
+    checklistName: item.checklist.title,
   }));
 
   return (
     <>
       <RealtimeRefresh intervalMs={5000} />
       <TasksClient
-        initialTasks={[...taskRows, ...subtaskRows]}
+        initialTasks={[...taskRows, ...subtaskRows, ...cardRows, ...checklistRows]}
         canCreate={canCreateTask(user)}
         userRole={user.role}
         userDepartmentSlug={user.departmentSlug}

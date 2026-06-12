@@ -30,6 +30,10 @@ type TaskItem = {
   slaPausedDuration: number | null;
   createdAt: string;
   isSubtaskCompletion: boolean;
+  type: "TASK" | "BOARD_CARD" | "CHECKLIST_ITEM";
+  dueDate: string | null;
+  boardName: string | null;
+  checklistName: string | null;
 };
 
 interface Props {
@@ -159,7 +163,9 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
       const matchesSearch =
         t.title.toLowerCase().includes(search.toLowerCase()) ||
         t.projectTitle.toLowerCase().includes(search.toLowerCase()) ||
-        t.clientName.toLowerCase().includes(search.toLowerCase());
+        t.clientName.toLowerCase().includes(search.toLowerCase()) ||
+        (t.boardName && t.boardName.toLowerCase().includes(search.toLowerCase())) ||
+        (t.checklistName && t.checklistName.toLowerCase().includes(search.toLowerCase()));
       const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
       const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter;
       const isArchived = t.status === "DONE" || t.status === "CANCELLED";
@@ -169,7 +175,11 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
 
       const matchesDueDate = (() => {
         if (dueFilter === "ALL") return true;
-        const dueDate = calculateDueDate(t);
+        
+        const dueDate = (() => {
+          if (t.dueDate) return new Date(t.dueDate);
+          return calculateDueDate(t);
+        })();
         if (!dueDate) return true;
         
         if (dueFilter === "TODAY") {
@@ -187,8 +197,8 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
         return matchesSearch && matchesStatus && matchesPriority && matchesTab && matchesDepartment && matchesDueDate;
       })
       .sort((left, right) => {
-        const leftDue = calculateDueDate(left)?.getTime() ?? Number.POSITIVE_INFINITY;
-        const rightDue = calculateDueDate(right)?.getTime() ?? Number.POSITIVE_INFINITY;
+        const leftDue = left.dueDate ? new Date(left.dueDate).getTime() : (calculateDueDate(left)?.getTime() ?? Number.POSITIVE_INFINITY);
+        const rightDue = right.dueDate ? new Date(right.dueDate).getTime() : (calculateDueDate(right)?.getTime() ?? Number.POSITIVE_INFINITY);
         if (leftDue !== rightDue) return leftDue - rightDue;
         return left.id - right.id;
       });
@@ -226,7 +236,7 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
   };
 
   const pendingCount = tasks.filter((t) => !["DONE", "CANCELLED"].includes(t.status)).length;
-  const inProgressCount = tasks.filter((t) => ["CONFIRMED", "IN_PROGRESS", "PAUSED"].includes(t.status)).length;
+  const inProgressCount = tasks.filter((t) => ["CONFIRMED", "IN_PROGRESS", "PAUSED"].includes(t.status) && t.type === "TASK").length;
   const completedCount = tasks.filter((t) => t.status === "DONE").length;
 
   return (
@@ -378,7 +388,7 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                   return (
                     <tr key={task.id} className="border-b border-gray-100 dark:border-white/10 hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 align-top">
-                        <Link href={`/tasks/${task.routeTaskId}`} className="group">
+                        <Link href={task.type === "BOARD_CARD" || task.type === "CHECKLIST_ITEM" ? `/board?active=b-${Math.abs(task.routeTaskId)}` : `/tasks/${task.routeTaskId}`} className="group">
                           <div>
                             <div>
                               <p className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#c91f41] transition-colors leading-tight">
@@ -388,22 +398,43 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                                 <p className="text-[10px] text-emerald-600 dark:text-emerald-300 font-bold uppercase tracking-wider mt-1">
                                   Completed Subtask
                                 </p>
+                              ) : task.type === "BOARD_CARD" ? (
+                                <p className="text-[10px] text-blue-600 dark:text-blue-300 font-bold uppercase tracking-wider mt-1">
+                                  Board Card · {task.boardName}
+                                </p>
+                              ) : task.type === "CHECKLIST_ITEM" ? (
+                                <p className="text-[10px] text-amber-600 dark:text-amber-300 font-bold uppercase tracking-wider mt-1">
+                                  Checklist · {task.checklistName}
+                                </p>
                               ) : null}
                               <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold uppercase tracking-wider mt-1">
-                                {task.isSubtaskCompletion ? `ID: ST-${Math.abs(task.id)}` : `ID: OPS-${task.id}`}
+                                {task.isSubtaskCompletion ? `ID: ST-${Math.abs(task.id)}` : task.type === "BOARD_CARD" ? `ID: BC-${task.id - 1000000}` : task.type === "CHECKLIST_ITEM" ? `ID: CI-${task.id - 2000000}` : `ID: OPS-${task.id}`}
                               </p>
                             </div>
                           </div>
                         </Link>
                       </td>
                       <td className="px-6 py-4 align-top">
-                        <Link
-                          href={`/projects/${task.projectId}`}
-                          className="inline-block text-xs font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-white/10 rounded-lg px-2 py-1 hover:text-[#c91f41] transition-colors"
-                        >
-                          {task.projectTitle}
-                        </Link>
-                        <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold mt-1">{task.clientName}</p>
+                        {task.type === "BOARD_CARD" || task.type === "CHECKLIST_ITEM" ? (
+                          <div>
+                            <span className="inline-block text-xs font-bold text-slate-600 dark:text-zinc-300 bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 rounded-lg px-2 py-1">
+                              {task.boardName}
+                            </span>
+                            {task.dueDate && (
+                              <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold mt-1">Due {new Date(task.dueDate).toLocaleDateString()}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <Link
+                            href={`/projects/${task.projectId}`}
+                            className="inline-block text-xs font-bold text-slate-600 dark:text-zinc-300 bg-slate-100 dark:bg-white/10 rounded-lg px-2 py-1 hover:text-[#c91f41] transition-colors"
+                          >
+                            {task.projectTitle}
+                          </Link>
+                        )}
+                        {task.type !== "BOARD_CARD" && task.type !== "CHECKLIST_ITEM" && (
+                          <p className="text-[10px] text-gray-400 dark:text-zinc-600 font-semibold mt-1">{task.clientName}</p>
+                        )}
                       </td>
                       <td className="px-6 py-4 align-top">
                         {task.assigneeName ? (
@@ -423,28 +454,44 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                         </span>
                       </td>
                       <td className="px-6 py-4 align-top">
-                        {sla.status === "not_started" ? (
-                          <p className="text-xs font-bold text-gray-400 dark:text-zinc-600">Not started</p>
-                        ) : sla.status === "completed" ? (
-                          <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
-                            <Tick01Icon className="h-4 w-4 flex-shrink-0" />
-                            Complete
-                          </span>
-                        ) : sla.status === "breached" ? (
-                          <span className="flex items-center gap-2 text-xs text-red-600 font-bold">
-                            <CancelCircleIcon className="h-4 w-4 flex-shrink-0" />
-                            Breached
-                          </span>
-                        ) : sla.status === "warning" ? (
-                          <span className="flex items-center gap-2 text-xs text-orange-600 font-bold">
-                            <Clock01Icon className="h-4 w-4 flex-shrink-0" />
-                            {formatRemaining(sla.remaining)}
-                          </span>
+                        {task.type === "BOARD_CARD" || task.type === "CHECKLIST_ITEM" ? (
+                          <div>
+                            {task.dueDate ? (
+                              <span className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 font-bold">
+                                <Clock01Icon className="h-4 w-4 flex-shrink-0" />
+                                Due {new Date(task.dueDate).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <p className="text-xs font-bold text-gray-400 dark:text-zinc-600">No due date</p>
+                            )}
+                            <p className="text-[10px] font-bold text-blue-600 dark:text-blue-300 mt-1">Board Card</p>
+                          </div>
                         ) : (
-                          <span className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 font-bold">
-                            <Clock01Icon className="h-4 w-4 flex-shrink-0" />
-                            {formatRemaining(sla.remaining)}
-                          </span>
+                          <>
+                            {sla.status === "not_started" ? (
+                              <p className="text-xs font-bold text-gray-400 dark:text-zinc-600">Not started</p>
+                            ) : sla.status === "completed" ? (
+                              <span className="flex items-center gap-2 text-xs text-emerald-600 font-bold">
+                                <Tick01Icon className="h-4 w-4 flex-shrink-0" />
+                                Complete
+                              </span>
+                            ) : sla.status === "breached" ? (
+                              <span className="flex items-center gap-2 text-xs text-red-600 font-bold">
+                                <CancelCircleIcon className="h-4 w-4 flex-shrink-0" />
+                                Breached
+                              </span>
+                            ) : sla.status === "warning" ? (
+                              <span className="flex items-center gap-2 text-xs text-orange-600 font-bold">
+                                <Clock01Icon className="h-4 w-4 flex-shrink-0" />
+                                {formatRemaining(sla.remaining)}
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400 font-bold">
+                                <Clock01Icon className="h-4 w-4 flex-shrink-0" />
+                                {formatRemaining(sla.remaining)}
+                              </span>
+                            )}
+                          </>
                         )}
 
                         <p className={`text-[10px] font-bold mt-1 ${priorityText[task.priority] || "text-gray-500"}`}>

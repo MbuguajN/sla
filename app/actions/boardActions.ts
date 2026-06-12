@@ -31,6 +31,14 @@ export async function getWorkspaces() {
             { visibility: "WORKSPACE", workspace: { members: { some: { userId: user.id } } } },
             { visibility: "PUBLIC" }
           ]
+        },
+        include: {
+          visits: {
+            where: { userId: user.id },
+            take: 1,
+            orderBy: { visitedAt: "desc" },
+            select: { visitedAt: true }
+          }
         }
       },
       members: {
@@ -269,6 +277,21 @@ export async function getBoardData(boardId: number) {
 }
 
 /**
+ * RECORD BOARD VISIT
+ */
+
+export async function recordBoardVisit(boardId: number) {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  await db.boardVisit.upsert({
+    where: { boardId_userId: { boardId, userId: user.id } },
+    update: { visitedAt: new Date() },
+    create: { boardId, userId: user.id },
+  });
+}
+
+/**
  * TOGGLE BOARD STAR
  */
 
@@ -417,6 +440,10 @@ export async function createCard(listId: number, title: string) {
 
   const card = await db.boardCard.create({
     data: { listId, title, position: nextPos },
+  });
+
+  await db.boardCardMember.create({
+    data: { cardId: card.id, userId: user.id },
   });
 
   await db.boardCardActivity.create({
@@ -654,13 +681,13 @@ export async function addChecklistItem(checklistId: number, title: string, assig
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  if (!assignedUserId) throw new Error("Checklist items must be assigned to a member");
+  const assignee = assignedUserId || user.id;
 
   const maxPos = await db.boardChecklistItem.aggregate({ where: { checklistId }, _max: { position: true } });
   const nextPos = (maxPos._max.position ?? -1) + 1;
 
   const item = await db.boardChecklistItem.create({
-    data: { checklistId, title, position: nextPos, assignedUserId },
+    data: { checklistId, title, position: nextPos, assignedUserId: assignee },
   });
 
   revalidatePath("/board");

@@ -55,8 +55,10 @@ model User {
   boardListsCreated         BoardList[]
   boardChecklistAssignments BoardChecklistItem[]
   boardCardMembers          BoardCardMember[]
+  boardCardsAssigned        BoardCard[]         @relation("BoardCardAssignee")
   dailyLogs                 DailyLog[]
   personalDocuments         PersonalDocument[]
+  boardVisits               BoardVisit[]
 }
 
 model Workspace {
@@ -98,8 +100,21 @@ model Board {
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   lists       BoardList[]
   members     BoardMember[]
+  visits      BoardVisit[]
 
   @@index([workspaceId])
+}
+
+model BoardVisit {
+  id        Int      @id @default(autoincrement())
+  boardId   Int
+  userId    Int
+  visitedAt DateTime @default(now())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([userId, visitedAt(sort: Desc)])
 }
 
 model BoardMember {
@@ -139,11 +154,12 @@ model BoardCard {
   position      Int                   @default(0)
   dueDate       DateTime?
   isCompleted   Boolean               @default(false)
-  includeInLogs Boolean               @default(false)
+  includeInLogs Boolean               @default(true)
   assignedToUserId Int?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   list        BoardList             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  assignedUser User?                 @relation("BoardCardAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
   labels      BoardCardLabel[]
   members     BoardCardMember[]
   checklists  BoardChecklist[]

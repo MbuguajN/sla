@@ -9,6 +9,7 @@ type DeadlineTask = {
   title: string;
   slaStartedAt: string | null;
   slaHours: number | null;
+  deadlineDate?: string | null;
 };
 
 type HolidayItem = {
@@ -44,8 +45,13 @@ export default function DeadlineCalendarClient({ tasks, holidays }: Props) {
   // Build a map: day → tasks with deadline on that day in the viewed month
   const deadlineMap = new Map<number, DeadlineTask[]>();
   tasks.forEach((task) => {
-    if (!task.slaStartedAt || !task.slaHours) return;
-    const deadline = new Date(new Date(task.slaStartedAt).getTime() + task.slaHours * 3600000);
+    let deadline: Date | null = null;
+    if (task.deadlineDate) {
+      deadline = new Date(task.deadlineDate);
+    } else if (task.slaStartedAt && task.slaHours) {
+      deadline = new Date(new Date(task.slaStartedAt).getTime() + task.slaHours * 3600000);
+    }
+    if (!deadline) return;
     if (deadline.getMonth() === viewMonth && deadline.getFullYear() === viewYear) {
       const d = deadline.getDate();
       if (!deadlineMap.has(d)) deadlineMap.set(d, []);
@@ -188,7 +194,7 @@ export default function DeadlineCalendarClient({ tasks, holidays }: Props) {
               {tooltipTasks.slice(0, MAX_SHOWN).map((t) => (
                 <li key={t.id} className="flex items-start gap-2">
                   <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#c91f41] flex-shrink-0" />
-                  <span className="text-[12px] font-bold leading-tight">Deadline: {t.title}</span>
+                  <span className="text-[12px] font-bold leading-tight">{t.deadlineDate ? "Due" : "Deadline"}: {t.title}</span>
                 </li>
               ))}
               {tooltipTasks.length > MAX_SHOWN && (

@@ -1,9 +1,9 @@
 ﻿"use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee } from "@/app/actions/boardActions";
+import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
 
@@ -101,6 +101,7 @@ type BoardData = {
   memberIds: string[];
   workspaceName: string;
   updatedAt: number;
+  lastVisitedAt: number;
 };
 
 type CardPointer = {
@@ -196,7 +197,7 @@ export default function BoardWorkbenchClient({
   const selfMemberId = `u-${currentUser.id}`;
 
   const [workspaces, setWorkspaces] = useState<WorkspaceData[]>(initialWorkspaces);
-  const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+  const [activeBoardId, setActiveBoardId] = useState<string | null>(initialActiveBoardId || null);
   
   const [boards, setBoards] = useState<BoardData[]>([]);
   const [listsByBoard, setListsByBoard] = useState<Record<string, ListData[]>>({});
@@ -207,6 +208,9 @@ export default function BoardWorkbenchClient({
   const [switcherSearch, setSwitcherSearch] = useState("");
   const [switcherTab, setSwitcherTab] = useState<"BOARDS" | "WORKSPACES">("BOARDS");
   const [selectedWsId, setSelectedWsId] = useState<number | null>(null);
+  const [boardsPage, setBoardsPage] = useState(1);
+  const [wsBoardsPage, setWsBoardsPage] = useState(1);
+  const boardsScrollRef = useRef<HTMLDivElement>(null);
 
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showCreateWs, setShowCreateWs] = useState(false);
@@ -284,6 +288,7 @@ export default function BoardWorkbenchClient({
       const defaultMembers = wsMemberIds.length > 0 ? wsMemberIds : [selfMemberId];
       const savedMembers = boardMembers[bId] || b.memberIds || defaultMembers;
       const uniqueMembers = Array.from(new Set([...savedMembers, selfMemberId]));
+      const lastVisited = b.visits?.[0]?.visitedAt ? new Date(b.visits[0].visitedAt).getTime() : 0;
       return {
         id: bId,
         title: b.title,
@@ -292,7 +297,8 @@ export default function BoardWorkbenchClient({
         starred: b.isStarred || false,
         memberIds: uniqueMembers,
         workspaceName: ws.name,
-        updatedAt: new Date(b.updatedAt).getTime()
+        updatedAt: new Date(b.updatedAt).getTime(),
+        lastVisitedAt: lastVisited
       };
     }));
 
@@ -336,7 +342,7 @@ export default function BoardWorkbenchClient({
           position: c.position,
           dueDate: c.dueDate ? new Date(c.dueDate).toISOString() : undefined,
           isCompleted: c.isCompleted,
-          includeInLogs: c.includeInLogs || false,
+          includeInLogs: c.includeInLogs ?? true,
           assignedToUserId: c.assignedToUserId || null,
           labels: c.labels.map((lb: any) => ({ id: `lb-${lb.id}`, name: lb.name, color: lb.color })),
           memberIds: c.members.map((m: any) => `u-${m.user.id}`),
@@ -395,6 +401,26 @@ export default function BoardWorkbenchClient({
     return () => clearInterval(interval);
   }, [activeBoardId]);
 
+  // Reset switcher pagination when tab/search/selection changes
+  useEffect(() => {
+    setBoardsPage(1);
+    setWsBoardsPage(1);
+  }, [switcherTab, switcherSearch, selectedWsId]);
+
+  // Infinite scroll for switcher
+  useEffect(() => {
+    const el = boardsScrollRef.current;
+    if (!el) return;
+    const handler = () => {
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+        if (switcherTab === "BOARDS") setBoardsPage(p => p + 1);
+        if (switcherTab === "WORKSPACES" && selectedWsId) setWsBoardsPage(p => p + 1);
+      }
+    };
+    el.addEventListener("scroll", handler);
+    return () => el.removeEventListener("scroll", handler);
+  }, [switcherTab, selectedWsId]);
+
   const filteredLists = useMemo(() => {
     const sortedLists = currentLists.map(list => {
       const sortedCards = [...list.cards].sort((a, b) => {
@@ -421,6 +447,8 @@ export default function BoardWorkbenchClient({
   const handleBoardSelect = (id: string) => {
     setActiveBoardId(id);
     setShowSwitcher(false);
+    const dbId = Number(id.replace("b-", ""));
+    if (dbId) recordBoardVisit(dbId).catch(() => {});
   };
 
   const handleCreateWorkspace = async () => {
@@ -431,23 +459,27 @@ export default function BoardWorkbenchClient({
       setWorkspaces(prev => [...prev, { ...ws, boards: [], members: [] }]);
       setNewWsName("");
       setShowCreateWs(false);
+      setNewBoardWsId(ws.id);
+      setShowCreateBoard(true);
     } catch (e) { console.error(e); } finally { setIsSubmitting(false); }
   };
 
   const handleCreateBoard = async () => {
-    if (!newBoardTitle.trim() || !newBoardWsId) return;
+    if (!newBoardTitle.trim()) return;
+    const wsId = Number(newBoardWsId);
+    if (!wsId || isNaN(wsId)) { alert("Please select a workspace."); return; }
     setIsSubmitting(true);
     try {
       const board = await createBoard({ 
-        workspaceId: Number(newBoardWsId), 
+        workspaceId: wsId, 
         title: newBoardTitle.trim(),
         visibility: newBoardVisibility as any
       });
-      setWorkspaces(prev => prev.map(ws => ws.id === Number(newBoardWsId) ? { ...ws, boards: [...ws.boards, board] } : ws));
+      setWorkspaces(prev => prev.map(ws => ws.id === wsId ? { ...ws, boards: [...ws.boards, board] } : ws));
       setNewBoardTitle("");
       setShowCreateBoard(false);
       setActiveBoardId(`b-${board.id}`);
-    } catch (e) { console.error(e); } finally { setIsSubmitting(false); }
+    } catch (e: any) { console.error(e); alert(e?.message || "Failed to create board. Please try again."); } finally { setIsSubmitting(false); }
   };
 
   const handleAddList = async () => {
@@ -990,6 +1022,33 @@ export default function BoardWorkbenchClient({
         </div>
       )}
 
+      {!activeBoardId ? (
+        <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-zinc-200 via-zinc-100 to-zinc-200 dark:from-zinc-800 dark:via-zinc-850 dark:to-zinc-800">
+          <div className="text-center max-w-sm">
+            <div className="h-16 w-16 rounded-3xl bg-[#fce4ec] flex items-center justify-center text-[#c91f41] mx-auto mb-6">
+              <Layout className="h-8 w-8" />
+            </div>
+            <h2 className="text-xl font-black text-zinc-900 dark:text-white mb-2">Welcome to Boards</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 font-medium">Create a workspace and board to start organizing tasks with your team.</p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowCreateWs(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-700 dark:text-zinc-300 text-xs font-black uppercase tracking-widest hover:bg-zinc-200 dark:hover:bg-white/10 transition-colors"
+              >
+                <Users className="h-4 w-4" />
+                Create Workspace
+              </button>
+              <button
+                onClick={() => setShowCreateBoard(true)}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-[#c91f41] text-white text-xs font-black uppercase tracking-widest hover:bg-[#a01832] shadow-[0_6px_15px_-3px_rgba(0,0,0,0.4)] transition-colors"
+              >
+                <Layout className="h-4 w-4" />
+                Create Board
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="flex-1 overflow-x-auto p-5 bg-gradient-to-br from-zinc-200 via-zinc-100 to-zinc-200 dark:from-zinc-800 dark:via-zinc-850 dark:to-zinc-800">
         <div className="flex gap-4 items-start min-w-max h-full">
           {filteredLists.map((list, lIdx) => (
@@ -1205,250 +1264,300 @@ export default function BoardWorkbenchClient({
           </div>
         </div>
       </div>
+      )}
 
-      {showSwitcher && (
-        <div className="fixed inset-0 z-[400] bg-black/40 backdrop-blur-md flex items-center justify-center p-6" onClick={() => { setShowSwitcher(false); setSelectedWsId(null); }}>
-          <div 
-            className="w-full max-w-2xl h-[560px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+      {showSwitcher && (() => {
+        const BOARDS_PER_PAGE = 12;
+        const recentBoards = [...boards]
+          .filter(b => b.lastVisitedAt > 0)
+          .sort((a, b) => b.lastVisitedAt - a.lastVisitedAt)
+          .slice(0, 10);
+
+        const filteredBoardsAll = boards.filter(b => b.title.toLowerCase().includes(switcherSearch.toLowerCase()));
+        const visibleBoards = filteredBoardsAll.slice(0, boardsPage * BOARDS_PER_PAGE);
+        const hasMoreBoards = visibleBoards.length < filteredBoardsAll.length;
+
+        const filteredWs = workspaces.filter(ws => ws.name.toLowerCase().includes(switcherSearch.toLowerCase()));
+        const selectedWs = selectedWsId ? workspaces.find(ws => ws.id === selectedWsId) : null;
+        const wsBoardsAll = selectedWs ? selectedWs.boards : [];
+        const visibleWsBoards = wsBoardsAll.slice(0, wsBoardsPage * BOARDS_PER_PAGE);
+        const hasMoreWsBoards = visibleWsBoards.length < wsBoardsAll.length;
+
+        return (
+        <div className="fixed inset-0 z-[400] bg-black/40 backdrop-blur-md flex items-center justify-center" onClick={() => { setShowSwitcher(false); setSelectedWsId(null); }}>
+          <div
+            className="w-full h-full max-w-6xl max-h-[95vh] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 m-4"
             onClick={e => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex-none px-8 pt-8 pb-4">
-               <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                     <div>
-                        <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white">Workspace Switcher</h2>
-                        <div className="text-[9px] tracking-[0.25em] font-bold text-neutral-400 dark:text-zinc-500 uppercase mt-1">Quickly navigate between boards</div>
-                     </div>
-                  </div>
-                  <button 
-                    onClick={() => { setShowSwitcher(false); setSelectedWsId(null); }} 
-                    className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/15 flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-all shadow-sm"
-                  >
-                     <X className="h-5 w-5" />
-                  </button>
-               </div>
+            <div className="flex-none px-10 pt-8 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-neutral-800 dark:text-white">Workspace Switcher</h2>
+                  <div className="text-[9px] tracking-[0.25em] font-bold text-neutral-400 dark:text-zinc-500 uppercase mt-1">Quickly navigate between boards</div>
+                </div>
+                <button
+                  onClick={() => { setShowSwitcher(false); setSelectedWsId(null); }}
+                  className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/15 flex items-center justify-center text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-white transition-all shadow-sm"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
 
-               <div className="flex justify-center my-6">
-                  <div className="bg-zinc-105 dark:bg-neutral-800 p-0.5 rounded-full flex w-fit border border-zinc-200 dark:border-white/10">
-                    {(["BOARDS", "WORKSPACES"] as const).map(tab => (
-                      <button
-                        key={tab}
-                        onClick={() => { setSwitcherTab(tab); setSelectedWsId(null); }}
-                        className={cn(
-                          "px-8 py-2 rounded-full font-bold text-xs transition-all duration-300",
-                          switcherTab === tab 
-                            ? "bg-white dark:bg-zinc-700 text-[#c91f41] dark:text-white shadow-sm" 
-                            : "text-[#5b4041] dark:text-zinc-400 hover:text-[#c91f41]"
-                        )}
-                      >
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-               </div>
+              <div className="flex justify-center my-6">
+                <div className="bg-zinc-100 dark:bg-neutral-800 p-0.5 rounded-full flex w-fit border border-zinc-200 dark:border-white/10">
+                  {(["BOARDS", "WORKSPACES"] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => { setSwitcherTab(tab); setSelectedWsId(null); }}
+                      className={cn(
+                        "px-8 py-2 rounded-full font-bold text-xs transition-all duration-300",
+                        switcherTab === tab
+                          ? "bg-white dark:bg-zinc-700 text-[#c91f41] dark:text-white shadow-sm"
+                          : "text-[#5b4041] dark:text-zinc-400 hover:text-[#c91f41]"
+                      )}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-               <div className="relative group mb-8">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78001f] dark:text-zinc-400 h-5 w-5" />
-                  <input 
-                    autoFocus
-                    placeholder={switcherTab === "BOARDS" ? "Search for boards across all workspaces..." : "Find a workspace..."}
-                    className="w-full py-5 pl-14 pr-6 bg-white dark:bg-zinc-800 border border-[#e2bebe] dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-[#78001f]/20 dark:focus:ring-white/15 focus:border-[#78001f] dark:focus:border-white/20 transition-all outline-none text-lg font-medium text-[#0d1c2f] dark:text-white placeholder:text-[#8e7070] dark:placeholder:text-zinc-500"
-                    value={switcherSearch}
-                    onChange={e => setSwitcherSearch(e.target.value)}
-                  />
-               </div>
+              <div className="relative group mb-4">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-[#78001f] dark:text-zinc-400 h-5 w-5" />
+                <input
+                  autoFocus
+                  placeholder={switcherTab === "BOARDS" ? "Search for boards across all workspaces..." : "Find a workspace..."}
+                  className="w-full py-4 pl-14 pr-6 bg-white dark:bg-zinc-800 border border-[#e2bebe] dark:border-white/10 rounded-2xl focus:ring-2 focus:ring-[#78001f]/20 dark:focus:ring-white/15 focus:border-[#78001f] dark:focus:border-white/20 transition-all outline-none text-lg font-medium text-[#0d1c2f] dark:text-white placeholder:text-[#8e7070] dark:placeholder:text-zinc-500"
+                  value={switcherSearch}
+                  onChange={e => setSwitcherSearch(e.target.value)}
+                />
+              </div>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar">
-               {switcherTab === "BOARDS" ? (
-                 <div className="space-y-10">
-                   {["Starred", "Recent", "All Boards"].map(sect => {
-                      let boardsToSect = [];
-                      const filtered = boards.filter(b => b.title.toLowerCase().includes(switcherSearch.toLowerCase()));
-                      
-                      if (sect === "Starred") boardsToSect = filtered.filter(b => b.starred);
-                      else if (sect === "Recent") boardsToSect = filtered.sort((a,b) => (b.updatedAt as any) - (a.updatedAt as any)).slice(0, 4);
-                      else boardsToSect = filtered;
-
-                      if (boardsToSect.length === 0) return null;
-
-                      return (
-                            <section key={sect}>
-                               <div className="flex items-center gap-4 mb-6">
-                                  <span className="text-[10px] font-black tracking-[0.2em] text-[#5a4041] dark:text-zinc-400 uppercase">{sect}</span>
-                                  <div className="h-[1px] flex-1 bg-[#e2bebe]/30 dark:bg-white/10" />
-                           </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {boardsToSect.map(b => (
-                                <button 
-                                  key={b.id} 
-                                  onClick={() => handleBoardSelect(b.id)}
-                                  className="flex flex-col items-start p-6 rounded-2xl border border-[#e2bebe] dark:border-white/10 hover:border-[#78001f] dark:hover:border-sky-500/50 hover:bg-[#eff4ff]/30 dark:hover:bg-white/5 text-left transition-all group shadow-sm bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-red-950/20 dark:via-zinc-900 dark:to-zinc-900 shadow-md"
-                                >
-                                  <div className="relative z-10 w-full">
-                                     <div className="flex justify-between items-center w-full">
-                                        <span className="text-xl font-black text-[#0d1c2f] group-hover:text-[#78001f] transition-colors">{b.title}</span>
-                                        <ChevronRight className="h-5 w-5 text-[#c91f41] opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                                     </div>
-                                     <span className="text-[10px] font-black tracking-widest text-[#5a4041] uppercase mt-1 block">{b.workspaceName}</span>
-                                  </div>
-                                </button>
-                              ))}
-                           </div>
-                        </section>
-                      );
-                   })}
-                 </div>
-               ) : (
-                 <div className="grid grid-cols-1 gap-4">
-                    {selectedWsId ? (
-                      <div className="animate-in slide-in-from-right-4 duration-300">
-                         <button 
-                           onClick={() => setSelectedWsId(null)}
-                           className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#c91f41] mb-6 group"
-                         >
-                            <ChevronRight className="h-4 w-4 rotate-180 transition-transform group-hover:-translate-x-1" />
-                            Back to Workspaces
-                         </button>
-                         
-                          {workspaceToDisplay && (
-                            <div className="space-y-10">
-                               <div className="flex items-center justify-between">
-                                  <div>
-                                     <h2 className="text-3xl font-black text-[#0d1c2f] dark:text-white capitalize">{workspaceToDisplay.name}</h2>
-                                     <p className="text-[#5a4041] dark:text-zinc-400 font-bold text-xs uppercase tracking-widest mt-1">{workspaceToDisplay.boards.length} Boards • {workspaceToDisplay.members.length} Members</p>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                  <button 
-                                   onClick={(e) => {
-                                     e.stopPropagation();
-                                     setMemberSearchContext("WORKSPACE");
-                                     setIsMemberSearchOpen(true);
-                                   }}
-                                   className="popup-trigger h-12 px-8 bg-[#0d1c2f] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:opacity-90 active:scale-95 transition-all"
-                                  >
-                                     Add Member
-                                  </button>
-                                  {(workspaceToDisplay.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
-                                    <button 
-                                      onClick={async (e) => {
-                                        e.stopPropagation();
-                                        if (!confirm(`Delete workspace "${workspaceToDisplay.name}"? This will remove all boards and data.`)) return;
-                                        try {
-                                          await deleteWorkspace(workspaceToDisplay.id);
-                                          setWorkspaces(prev => prev.filter(ws => ws.id !== workspaceToDisplay.id));
-                                          setSelectedWsId(null);
-                                        } catch (err: any) { alert(err.message || "Failed to delete workspace"); }
-                                      }}
-                                      className="h-12 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-rose-700 active:scale-95 transition-all"
-                                    >
-                                       Delete Workspace
-                                    </button>
-                                  )}
-                                  </div>
-                               </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {workspaceToDisplay.boards.map((b: any) => (
-                                    <button 
-                                      key={b.id}
-                                      onClick={() => handleBoardSelect(`b-${b.id}`)}
-                                      className="flex flex-col items-start p-6 rounded-2xl border border-[#e2bebe] dark:border-white/10 hover:border-[#78001f] dark:hover:border-sky-500/50 hover:bg-[#eff4ff]/30 dark:hover:bg-white/5 text-left transition-all group shadow-sm bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-red-950/20 dark:via-zinc-900 dark:to-zinc-900"
-                                    >
-                                      <div className="flex justify-between items-center w-full">
-                                         <span className="text-xl font-black text-[#0d1c2f] dark:text-white group-hover:text-[#78001f] dark:group-hover:text-sky-400 transition-colors">{b.title}</span>
-                                        <ChevronRight className="h-5 w-5 text-[#c91f41] opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
-                                     </div>
-                                   </button>
-                                 ))}
-                                  <button onClick={() => { setShowCreateBoard(true); setShowSwitcher(false); }} className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-[#e2bebe] dark:border-white/10 text-[#8e7070] dark:text-zinc-400 hover:bg-[#eff3ff] dark:hover:bg-white/5 transition-all gap-2">
-                                    <Plus className="h-6 w-6" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Create New Board</span>
-                                 </button>
-                              </div>
-
-                              <section>
-                                  <div className="flex items-center gap-4 mb-6">
-                                     <span className="text-[10px] font-black tracking-[0.2em] text-[#5a4041] dark:text-zinc-400 uppercase">Workspace Members</span>
-                                     <div className="h-[1px] flex-1 bg-[#e2bebe]/30 dark:bg-white/10" />
-                                 </div>
-                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    {workspaceToDisplay.members.map((m: any) => {
-                                      const uObj = m.user || m;
-                                      const uId = uObj.id || m.userId;
-                                      return (
-                                         <div key={m.id || uId} className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-[#e2bebe] dark:border-white/10 shadow-sm">
-                                            <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-black text-white shadow-sm shrink-0", getUserColor(uId, uObj.name))}>{initials(uObj.name)}</div>
-                                            <div className="flex-1 min-w-0">
-                                               <p className="text-sm font-black truncate text-[#0d1c2f] dark:text-white">{uObj.name}</p>
-                                               <p className="text-[10px] font-bold text-[#5a4041] dark:text-zinc-400 truncate uppercase tracking-tight">{uObj.email}</p>
-                                           </div>
-                                        </div>
-                                      );
-                                    })}
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setMemberSearchContext("WORKSPACE");
-                                        setIsMemberSearchOpen(true);
-                                      }}
-                                       className="popup-trigger flex items-center justify-center p-4 border-2 border-dashed border-[#e2bebe] dark:border-white/10 rounded-2xl text-[#8e7070] dark:text-zinc-400 hover:bg-[#eff3ff] dark:hover:bg-white/5 transition-all gap-2 group"
-                                    >
-                                       <Plus className="h-5 w-5 group-hover:scale-110 transition-transform" />
-                                       <span className="text-[10px] font-black uppercase tracking-widest">Invite</span>
-                                    </button>
-                                 </div>
-                              </section>
-                           </div>
-                         )}
+            <div ref={boardsScrollRef} className="flex-1 overflow-y-auto px-10 pb-8 custom-scrollbar">
+              {switcherTab === "BOARDS" ? (
+                <div className="space-y-8">
+                  {recentBoards.length > 0 && !switcherSearch && (
+                    <section>
+                      <div className="flex items-center gap-3 mb-4">
+                        <Clock className="h-4 w-4 text-[#5a4041] dark:text-zinc-400" />
+                        <span className="text-sm font-bold text-[#0d1c2f] dark:text-white">Recently viewed</span>
                       </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {workspaces.filter(ws => ws.name.toLowerCase().includes(switcherSearch.toLowerCase())).map(ws => (
-                          <button 
-                            key={ws.id}
-                            onClick={() => setSelectedWsId(ws.id)}
-                             className="flex flex-col items-start p-6 rounded-2xl border border-[#e2bebe] dark:border-white/10 hover:border-[#78001f] dark:hover:border-sky-500/50 hover:bg-[#eff4ff]/30 dark:hover:bg-white/5 text-left transition-all group shadow-sm h-40 justify-between bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-red-950/20 dark:via-zinc-900 dark:to-zinc-900"
+                      <div className="flex gap-4 overflow-x-auto pb-2">
+                        {recentBoards.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => handleBoardSelect(b.id)}
+                            className="flex-none w-[180px] rounded-xl border border-zinc-200 dark:border-white/10 overflow-hidden hover:shadow-md transition-all text-left bg-white dark:bg-zinc-800"
                           >
-                             <div className="flex items-center justify-between w-full">
-                                <div className="h-12 w-12 rounded-2xl bg-[#0d1c2f] flex items-center justify-center group-hover:bg-[#78001f] transition-colors">
-                                   <Briefcase className="h-6 w-6 text-white" />
-                                </div>
-                                 <div className="flex items-center -space-x-2">
-                                   {ws.members.slice(0, 5).map((m: any) => {
-                                     const uObj = m.user || m;
-                                     const uId = uObj.id || m.userId;
-                                     return (
-                                        <div key={m.id || uId} className={cn("h-8 w-8 rounded-full border-2 border-white dark:border-zinc-900 flex items-center justify-center text-[8px] font-black text-white shadow-sm", getUserColor(uId, uObj.name))}>{initials(uObj.name)}</div>
-                                     );
-                                   })}
-                                   {ws.members.length > 5 && (
-                                     <div className="h-8 w-8 rounded-full border-2 border-white bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[8px] font-black text-zinc-600 dark:text-zinc-300 shadow-sm">+{ws.members.length - 5}</div>
-                                   )}
-                                 </div>
-                             </div>
-                             <div>
-                                 <h4 className="text-xl font-black text-[#0d1c2f] dark:text-white group-hover:text-[#78001f] dark:group-hover:text-sky-400 transition-colors leading-tight truncate">{ws.name}</h4>
-                                 <p className="text-[10px] font-black text-[#5a4041] dark:text-zinc-400 uppercase tracking-[0.2em] mt-1">{ws.boards.length} Boards • {ws.members.length} Members</p>
-                             </div>
+                            <div className={cn("h-[100px] w-full", b.background || "bg-sky-600")} />
+                            <div className="px-3 py-2.5">
+                              <span className="text-sm font-semibold text-[#0d1c2f] dark:text-white truncate block">{b.title}</span>
+                              <span className="text-[10px] font-medium text-[#5a4041] dark:text-zinc-400 truncate block mt-0.5">{b.workspaceName}</span>
+                            </div>
                           </button>
                         ))}
-                         <button onClick={() => { setShowCreateWs(true); setShowSwitcher(false); }} className="flex flex-col items-center justify-center p-8 rounded-2xl border-2 border-dashed border-[#e2bebe] dark:border-white/10 text-[#8e7070] dark:text-zinc-400 hover:bg-[#eff3ff] dark:hover:bg-white/5 transition-all gap-4 group h-40">
-                            <div className="h-12 w-12 rounded-full bg-[#eff3ff] dark:bg-white/5 flex items-center justify-center group-hover:bg-[#78001f] dark:group-hover:bg-sky-500 group-hover:text-white transition-all">
-                              <Plus className="h-6 w-6" />
-                           </div>
-                           <span className="text-[10px] font-black uppercase tracking-[0.25em]">New Workspace</span>
-                        </button>
                       </div>
+                    </section>
+                  )}
+
+                  <section>
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#5a4041] dark:text-zinc-400 mb-4">All Boards</p>
+                    {visibleBoards.length > 0 ? (
+                      <div className="flex flex-wrap gap-4">
+                        {visibleBoards.map(b => (
+                          <button
+                            key={b.id}
+                            onClick={() => handleBoardSelect(b.id)}
+                            className="w-[180px] rounded-xl border border-zinc-200 dark:border-white/10 overflow-hidden hover:shadow-md transition-all text-left bg-white dark:bg-zinc-800"
+                          >
+                            <div className={cn("h-[100px] w-full", b.background || "bg-sky-600")} />
+                            <div className="px-3 py-2.5">
+                              <span className="text-sm font-semibold text-[#0d1c2f] dark:text-white truncate block">{b.title}</span>
+                              <span className="text-[10px] font-medium text-[#5a4041] dark:text-zinc-400 truncate block mt-0.5">{b.workspaceName}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[#8e7070] dark:text-zinc-500 text-center py-10">No boards found.</p>
                     )}
-                 </div>
-               )}
+                    {hasMoreBoards && (
+                      <p className="text-center text-xs text-[#8e7070] dark:text-zinc-500 mt-4 animate-pulse">Scroll to load more...</p>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                <div className="space-y-10">
+                  {!selectedWs ? (
+                    <>
+                      {recentBoards.length > 0 && !switcherSearch && (
+                        <section>
+                          <div className="flex items-center gap-3 mb-4">
+                            <Clock className="h-4 w-4 text-[#5a4041] dark:text-zinc-400" />
+                            <span className="text-sm font-bold text-[#0d1c2f] dark:text-white">Recently viewed</span>
+                          </div>
+                          <div className="flex gap-4 overflow-x-auto pb-2">
+                            {recentBoards.map(b => (
+                              <button
+                                key={b.id}
+                                onClick={() => handleBoardSelect(b.id)}
+                                className="flex-none w-[180px] rounded-xl border border-zinc-200 dark:border-white/10 overflow-hidden hover:shadow-md transition-all text-left bg-white dark:bg-zinc-800 group"
+                              >
+                                <div className={cn("h-[100px] w-full", b.background || "bg-sky-600")} />
+                                <div className="px-3 py-2.5">
+                                  <span className="text-sm font-semibold text-[#0d1c2f] dark:text-white truncate block">{b.title}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      <section>
+                        <p className="text-xs font-bold uppercase tracking-wider text-[#5a4041] dark:text-zinc-400 mb-5">Your Workspaces</p>
+                        <div className="space-y-8">
+                          {filteredWs.map(ws => (
+                            <div key={ws.id}>
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0", getUserColor(ws.ownerId, ws.name))}>
+                                  {ws.name[0]?.toUpperCase()}
+                                </div>
+                                <span className="text-base font-bold text-[#0d1c2f] dark:text-white">{ws.name}</span>
+                              </div>
+                              <div className="flex flex-wrap gap-4">
+                                {ws.boards.slice(0, wsBoardsPage * BOARDS_PER_PAGE).map((b: any) => (
+                                  <button
+                                    key={b.id}
+                                    onClick={() => handleBoardSelect(`b-${b.id}`)}
+                                    className="w-[180px] rounded-xl border border-zinc-200 dark:border-white/10 overflow-hidden hover:shadow-md transition-all text-left bg-white dark:bg-zinc-800 group"
+                                  >
+                                    <div className={cn("h-[100px] w-full", b.background || "bg-sky-600")} />
+                                    <div className="px-3 py-2.5">
+                                      <span className="text-sm font-semibold text-[#0d1c2f] dark:text-white truncate block">{b.title}</span>
+                                    </div>
+                                  </button>
+                                ))}
+                                <button
+                                  onClick={() => { setShowCreateBoard(true); setShowSwitcher(false); }}
+                                  className="w-[180px] h-[140px] rounded-xl border-2 border-dashed border-zinc-300 dark:border-white/10 flex items-center justify-center text-[#8e7070] dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors"
+                                >
+                                  <span className="text-sm font-semibold">Create new board</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          <button onClick={() => { setShowCreateWs(true); setShowSwitcher(false); }} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-sm font-semibold text-[#5a4041] dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
+                            <Plus className="h-4 w-4" />
+                            New Workspace
+                          </button>
+                        </div>
+                      </section>
+                    </>
+                  ) : (
+                    <div className="animate-in slide-in-from-right-4 duration-300">
+                      <button
+                        onClick={() => setSelectedWsId(null)}
+                        className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#c91f41] mb-6 group"
+                      >
+                        <ChevronRight className="h-4 w-4 rotate-180 transition-transform group-hover:-translate-x-1" />
+                        Back to Workspaces
+                      </button>
+
+                      {selectedWs && (
+                        <div className="space-y-8">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h2 className="text-3xl font-black text-[#0d1c2f] dark:text-white capitalize">{selectedWs.name}</h2>
+                              <p className="text-[#5a4041] dark:text-zinc-400 font-bold text-xs uppercase tracking-widest mt-1">{selectedWs.boards.length} Boards • {selectedWs.members.length} Members</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setMemberSearchContext("WORKSPACE"); setIsMemberSearchOpen(true); }}
+                                className="popup-trigger h-12 px-8 bg-[#0d1c2f] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:opacity-90 active:scale-95 transition-all"
+                              >
+                                Add Member
+                              </button>
+                              {(selectedWs.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (!confirm(`Delete workspace "${selectedWs.name}"? This will remove all boards and data.`)) return;
+                                    try {
+                                      await deleteWorkspace(selectedWs.id);
+                                      setWorkspaces(prev => prev.filter(ws => ws.id !== selectedWs.id));
+                                      setSelectedWsId(null);
+                                    } catch (err: any) { alert(err.message || "Failed to delete workspace"); }
+                                  }}
+                                  className="h-12 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-rose-700 active:scale-95 transition-all"
+                                >
+                                  Delete Workspace
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {visibleWsBoards.map((b: any) => (
+                              <button
+                                key={b.id}
+                                onClick={() => handleBoardSelect(`b-${b.id}`)}
+                                className="flex flex-col items-start p-6 rounded-2xl border border-[#e2bebe] dark:border-white/10 hover:border-[#78001f] dark:hover:border-sky-500/50 hover:bg-[#eff4ff]/30 dark:hover:bg-white/5 text-left transition-all group shadow-sm bg-gradient-to-br from-red-50 via-white to-rose-50 dark:from-red-950/20 dark:via-zinc-900 dark:to-zinc-900"
+                              >
+                                <div className="flex justify-between items-center w-full">
+                                  <span className="text-xl font-black text-[#0d1c2f] dark:text-white group-hover:text-[#78001f] dark:group-hover:text-sky-400 transition-colors">{b.title}</span>
+                                  <ChevronRight className="h-5 w-5 text-[#c91f41] opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-1" />
+                                </div>
+                              </button>
+                            ))}
+                            <button onClick={() => { setShowCreateBoard(true); setShowSwitcher(false); }} className="flex flex-col items-center justify-center p-6 rounded-2xl border-2 border-dashed border-[#e2bebe] dark:border-white/10 text-[#8e7070] dark:text-zinc-400 hover:bg-[#eff3ff] dark:hover:bg-white/5 transition-all gap-2">
+                              <Plus className="h-6 w-6" />
+                              <span className="text-[10px] font-black uppercase tracking-widest">Create New Board</span>
+                            </button>
+                          </div>
+                          {hasMoreWsBoards && (
+                            <p className="text-center text-xs text-[#8e7070] dark:text-zinc-500 animate-pulse">Scroll to load more...</p>
+                          )}
+
+                          <section>
+                            <div className="flex items-center gap-4 mb-5">
+                              <span className="text-[10px] font-black tracking-[0.2em] text-[#5a4041] dark:text-zinc-400 uppercase">Workspace Members</span>
+                              <div className="h-[1px] flex-1 bg-[#e2bebe]/30 dark:bg-white/10" />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {selectedWs.members.map((m: any) => {
+                                const uObj = m.user || m;
+                                const uId = uObj.id || m.userId;
+                                return (
+                                  <div key={m.id || uId} className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-[#e2bebe] dark:border-white/10 shadow-sm">
+                                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-black text-white shadow-sm shrink-0", getUserColor(uId, uObj.name))}>{initials(uObj.name)}</div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-black truncate text-[#0d1c2f] dark:text-white">{uObj.name}</p>
+                                      <p className="text-[10px] font-bold text-[#5a4041] dark:text-zinc-400 truncate uppercase tracking-tight">{uObj.email}</p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setMemberSearchContext("WORKSPACE"); setIsMemberSearchOpen(true); }}
+                                className="popup-trigger flex items-center justify-center p-4 border-2 border-dashed border-[#e2bebe] dark:border-white/10 rounded-2xl text-[#8e7070] dark:text-zinc-400 hover:bg-[#eff3ff] dark:hover:bg-white/5 transition-all gap-2 group"
+                              >
+                                <Plus className="h-5 w-5 group-hover:scale-110 transition-transform" />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Invite</span>
+                              </button>
+                            </div>
+                          </section>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {activeCard && (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-12" onClick={() => setActiveCardRange(null)}>
@@ -1785,38 +1894,33 @@ export default function BoardWorkbenchClient({
                          ))}
                          
                          <div className="pt-2">
-                            <input 
-                               placeholder={activeCard.card.memberIds.length === 0 ? "Add members to card first..." : "Assign & add item..."}
-                               disabled={activeCard.card.memberIds.length === 0}
-                               className="w-full h-10 px-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-xs font-bold outline-none focus:ring-2 ring-sky-500/10 placeholder:text-zinc-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                               <input 
+                                 placeholder="Add item... (defaults to you)"
+                                 className="w-full h-10 px-4 bg-zinc-100 dark:bg-zinc-800 rounded-xl text-xs font-bold outline-none focus:ring-2 ring-sky-500/10 placeholder:text-zinc-400"
                                onKeyDown={e => {
-                                 if (e.key === "Enter") {
-                                   const val = e.currentTarget.value.trim();
-                                   if (val) {
-                                     if (!checklistAssigneeId) {
-                                       setCardDetailWarning("Select a member to assign first!");
-                                       return;
-                                     }
-                                     const clDbId = Number(cl.id.replace("cl-", ""));
-                                     const assigneeId = Number(checklistAssigneeId.replace("u-", ""));
-                                     addChecklistItem(clDbId, val, assigneeId).then((item) => {
-                                       updateActiveCard(c => ({
-                                         ...c,
-                                         checklists: c.checklists.map(cList => cList.id === cl.id ? {
-                                           ...cList,
-                                           items: [...cList.items, { 
-                                             id: `ci-${item.id}`, 
-                                             title: val, 
-                                             done: false,
-                                             assignedMemberId: checklistAssigneeId || undefined
-                                           }]
-                                         } : cList)
-                                       }));
-                                     }).catch(err => console.error(err));
-                                     e.currentTarget.value = "";
-                                     setChecklistAssigneeId(null);
-                                   }
-                                 }
+                                  if (e.key === "Enter") {
+                                    const val = e.currentTarget.value.trim();
+                                    if (val) {
+                                      const clDbId = Number(cl.id.replace("cl-", ""));
+                                      const assigneeId = checklistAssigneeId ? Number(checklistAssigneeId.replace("u-", "")) : currentUser.id;
+                                      addChecklistItem(clDbId, val, assigneeId).then((item) => {
+                                        updateActiveCard(c => ({
+                                          ...c,
+                                          checklists: c.checklists.map(cList => cList.id === cl.id ? {
+                                            ...cList,
+                                            items: [...cList.items, { 
+                                              id: `ci-${item.id}`, 
+                                              title: val, 
+                                              done: false,
+                                              assignedMemberId: checklistAssigneeId || selfMemberId
+                                            }]
+                                          } : cList)
+                                        }));
+                                      }).catch(err => console.error(err));
+                                      e.currentTarget.value = "";
+                                      setChecklistAssigneeId(null);
+                                    }
+                                  }
                                }}
                             />
                            
@@ -2322,7 +2426,7 @@ export default function BoardWorkbenchClient({
         <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-5" onClick={() => setShowCreateBoard(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-4 mb-8">
-               <div className="h-12 w-12 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-600"><Layout className="h-6 w-6" /></div>
+               <div className="h-12 w-12 rounded-2xl bg-[#fce4ec] flex items-center justify-center text-[#c91f41]"><Layout className="h-6 w-6" /></div>
                <div>
                   <h3 className="text-xl font-black text-zinc-900 dark:text-white">Create Board</h3>
                   <p className="text-xs font-bold text-zinc-400">Bring your team together.</p>
@@ -2331,7 +2435,7 @@ export default function BoardWorkbenchClient({
             <div className="space-y-6">
                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Title</label>
-                  <input autoFocus value={newBoardTitle} onChange={e => setNewBoardTitle(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-sky-500 font-bold" placeholder="Sales Tracker..." />
+                   <input autoFocus value={newBoardTitle} onChange={e => setNewBoardTitle(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-[#c91f41] font-bold" placeholder="Sales Tracker..." />
                </div>
                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Workspace</label>
@@ -2350,9 +2454,9 @@ export default function BoardWorkbenchClient({
                       <button 
                         key={v.val}
                         onClick={() => setNewBoardVisibility(v.val as any)}
-                        className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left", newBoardVisibility === v.val ? "border-sky-600 bg-sky-50" : "border-zinc-100 bg-zinc-50 hover:bg-white")}
+                         className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left", newBoardVisibility === v.val ? "border-[#c91f41] bg-[#fce4ec]" : "border-zinc-100 bg-zinc-50 hover:bg-white")}
                       >
-                         <v.icon className={cn("h-5 w-5", newBoardVisibility === v.val ? "text-sky-600" : "text-zinc-400")} />
+                         <v.icon className={cn("h-5 w-5", newBoardVisibility === v.val ? "text-[#c91f41]" : "text-zinc-400")} />
                          <div>
                             <p className="text-xs font-black uppercase tracking-wider">{v.label}</p>
                             <p className="text-[10px] text-zinc-400 font-bold">{v.desc}</p>
@@ -2364,7 +2468,7 @@ export default function BoardWorkbenchClient({
             </div>
             <div className="mt-10 flex gap-3">
                <button onClick={() => setShowCreateBoard(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100">Cancel</button>
-               <button disabled={isSubmitting || !newBoardTitle.trim()} onClick={handleCreateBoard} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-sky-600 shadow-lg shadow-sky-600/30">Create</button>
+                <button disabled={isSubmitting || !newBoardTitle.trim()} onClick={handleCreateBoard} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-[#c91f41] shadow-lg shadow-[#c91f41]/30">Create</button>
             </div>
           </div>
         </div>
@@ -2374,10 +2478,10 @@ export default function BoardWorkbenchClient({
         <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-5" onClick={() => setShowCreateWs(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
              <h3 className="text-xl font-black mb-8">New Workspace</h3>
-             <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-sky-500 font-bold mb-10" placeholder="Engineering Team..." />
-             <div className="flex gap-3">
-                <button onClick={() => setShowCreateWs(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100">Cancel</button>
-                <button disabled={isSubmitting || !newWsName.trim()} onClick={handleCreateWorkspace} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-sky-600 shadow-lg shadow-sky-600/30">Create</button>
+              <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-[#c91f41] font-bold mb-10" placeholder="Engineering Team..." />
+              <div className="flex gap-3">
+                 <button onClick={() => setShowCreateWs(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100">Cancel</button>
+                 <button disabled={isSubmitting || !newWsName.trim()} onClick={handleCreateWorkspace} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-[#c91f41] shadow-lg shadow-[#c91f41]/30">Create</button>
              </div>
           </div>
         </div>

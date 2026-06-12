@@ -672,7 +672,7 @@ async function getStats(user: any) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const [openTasks, doneTasks, teamMembers, doneToday] = await Promise.all([
+  const [openTasks, doneTasks, teamMembers, doneToday, openBoardCards, openChecklistItems, doneBoardCards, doneChecklistItems, doneBoardCardsToday, doneChecklistItemsToday] = await Promise.all([
     db.task.count({
       where: {
         OR: [
@@ -720,9 +720,56 @@ async function getStats(user: any) {
           ...(user.role === "CEO" || user.role === "ADMIN" ? [{}] : []),
         ],
       }
-    })
+    }),
+    db.boardCard.count({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } }
+        ],
+        isCompleted: false,
+      },
+    }),
+    db.boardChecklistItem.count({
+      where: {
+        assignedUserId: user.id,
+        isDone: false,
+      },
+    }),
+    db.boardCard.count({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } }
+        ],
+        isCompleted: true,
+      },
+    }),
+    db.boardChecklistItem.count({
+      where: {
+        assignedUserId: user.id,
+        isDone: true,
+      },
+    }),
+    db.boardCard.count({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } }
+        ],
+        isCompleted: true,
+        updatedAt: { gte: today },
+      },
+    }),
+    db.boardChecklistItem.count({
+      where: {
+        assignedUserId: user.id,
+        isDone: true,
+        updatedAt: { gte: today },
+      },
+    }),
   ]);
-  return { openTasks, doneTasks, teamMembers, doneToday };
+  return { openTasks, doneTasks, teamMembers, doneToday, openBoardCards, openChecklistItems, doneBoardCards, doneChecklistItems, doneBoardCardsToday, doneChecklistItemsToday };
 }
 
 async function getActivityData(user: any) {
@@ -789,6 +836,58 @@ async function getActivityData(user: any) {
   return { activeTasks, recentActivities, publicHolidays };
 }
 
+async function getBoardDashboardData(user: any) {
+  const [boardCards, checklistItems, cardActivities, workspaceJoins] = await Promise.all([
+    db.boardCard.findMany({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } }
+        ],
+        isCompleted: false,
+        dueDate: { not: null }
+      },
+      include: {
+        list: { include: { board: { include: { workspace: true } } } },
+        members: { include: { user: true } }
+      },
+      orderBy: { dueDate: 'asc' }
+    }),
+    db.boardChecklistItem.findMany({
+      where: {
+        assignedUserId: user.id,
+        isDone: false
+      },
+      include: {
+        checklist: { include: { card: { include: { list: { include: { board: true } } } } } }
+      }
+    }),
+    db.boardCardActivity.findMany({
+      where: {
+        card: {
+          OR: [
+            { assignedToUserId: user.id },
+            { members: { some: { userId: user.id } } }
+          ]
+        }
+      },
+      include: { card: { include: { list: { include: { board: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    }),
+    db.workspaceMember.findMany({
+      where: {
+        workspace: { ownerId: user.id },
+        userId: { not: user.id }
+      },
+      include: { workspace: true, user: true },
+      orderBy: { joinedAt: 'desc' },
+      take: 10
+    })
+  ]);
+  return { boardCards, checklistItems, cardActivities, workspaceJoins };
+}
+
 function formatActivityDescription(activity: any) {
   const title = activity.task?.title;
   const projectTitle = activity.task?.project?.title;
@@ -805,7 +904,7 @@ function formatActivityDescription(activity: any) {
 }
 
 async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask: boolean }) {
-  const { openTasks, doneTasks, teamMembers, doneToday } = await getStats(user);
+  const { openTasks, doneTasks, teamMembers, doneToday, openBoardCards, openChecklistItems, doneBoardCards, doneChecklistItems, doneBoardCardsToday, doneChecklistItemsToday } = await getStats(user);
   
   const canSeeAddTaskInCard = 
     user.role === "ADMIN" || 
@@ -821,7 +920,7 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
           <div className="space-y-4 w-full">
             <div>
               <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Tasks Pending</p>
-              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks}</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks + openBoardCards + openChecklistItems}</p>
             </div>
             {canSeeAddTaskInCard && (
               <Link href="/tasks/new" className="flex items-center gap-2 text-[#c91f41] hover:text-[#a81a36] transition-colors group/btn">
@@ -844,14 +943,14 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
           <div className="space-y-4">
             <div>
               <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Completed Total</p>
-              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks}</p>
+              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks + doneBoardCards + doneChecklistItems}</p>
             </div>
             <div className="flex items-center gap-2">
                <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/15 flex items-center justify-center">
                   <CheckmarkCircle01Icon className="h-4 w-4 text-green-500" />
                </div>
                <div>
-                  <p className="text-xs font-bold text-gray-900 dark:text-white">{doneToday}</p>
+                  <p className="text-xs font-bold text-gray-900 dark:text-white">{doneToday + doneBoardCardsToday + doneChecklistItemsToday}</p>
                   <p className="text-[8px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Completed Today</p>
                </div>
             </div>
@@ -889,17 +988,32 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 
 async function ActivitySection({ user }: { user: any }) {
   const { activeTasks, recentActivities, publicHolidays } = await getActivityData(user);
+  const { boardCards, checklistItems, cardActivities, workspaceJoins } = await getBoardDashboardData(user);
+
+  const allDeadlineTasks = [
+    ...activeTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      slaStartedAt: t.slaStartedAt ? t.slaStartedAt.toISOString() : null,
+      slaHours: t.slaHours,
+      deadlineDate: null as string | null,
+    })),
+    ...boardCards.map((c) => ({
+      id: -(c.id),
+      title: c.title,
+      slaStartedAt: null,
+      slaHours: null,
+      deadlineDate: c.dueDate ? c.dueDate.toISOString() : null,
+    }))
+  ];
+
+  const totalActiveCount = activeTasks.length + boardCards.length + checklistItems.length;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-4">
         <DeadlineCalendarClient
-          tasks={activeTasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            slaStartedAt: t.slaStartedAt ? t.slaStartedAt.toISOString() : null,
-            slaHours: t.slaHours,
-          }))}
+          tasks={allDeadlineTasks}
           holidays={publicHolidays.map((h) => ({
             id: h.id,
             name: h.name,
@@ -917,20 +1031,20 @@ async function ActivitySection({ user }: { user: any }) {
               </div>
               <div>
                 <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Active Work</h2>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Confirmed & In Progress</p>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Tasks, Cards & Checklists</p>
               </div>
             </div>
-            {activeTasks.length > 0 && (
+            {totalActiveCount > 0 && (
                <span className="bg-[#c91f41] text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
-                 {activeTasks.length}
+                 {totalActiveCount}
                </span>
             )}
           </div>
-          {activeTasks.length > 0 ? (
-            <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-2 custom-scrollbar flex-1">
+          {totalActiveCount > 0 ? (
+            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
               {activeTasks.map((task) => (
                 <a
-                  key={task.id}
+                  key={`task-${task.id}`}
                   href={`/tasks/${task.id}`}
                   className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300"
                 >
@@ -947,6 +1061,49 @@ async function ActivitySection({ user }: { user: any }) {
                     </div>
                   </div>
                 </a>
+              ))}
+              {boardCards.map((card) => (
+                <a
+                  key={`card-${card.id}`}
+                  href={`/board?active=b-${card.list.board.id}`}
+                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#c91f41]">
+                        {card.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-bold text-gray-400">{card.list.board.title}</span>
+                        {card.dueDate && (
+                          <>
+                            <span className="w-1 h-1 rounded-full bg-gray-300" />
+                            <span className="text-[10px] font-bold text-gray-500">Due {new Date(card.dueDate).toLocaleDateString()}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              ))}
+              {checklistItems.map((item) => (
+                <div
+                  key={`checklist-${item.id}`}
+                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                        {item.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] font-bold text-gray-400">{item.checklist.title}</span>
+                        <span className="w-1 h-1 rounded-full bg-gray-300" />
+                        <span className="text-[10px] font-bold text-gray-500">{item.checklist.card.title}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
@@ -982,15 +1139,35 @@ async function ActivitySection({ user }: { user: any }) {
               </button>
             </form>
           </div>
-          {recentActivities.length > 0 ? (
+          {(recentActivities.length > 0 || cardActivities.length > 0 || workspaceJoins.length > 0) ? (
             <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
               {recentActivities.map((activity) => (
-                <div key={activity.id} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#c91f41] before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
+                <div key={`act-${activity.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#c91f41] before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
                   <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{formatActivityDescription(activity)}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{activity.user?.name ?? "Deleted User"}</span>
                     <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
                     <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(activity.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+              {cardActivities.map((ca) => (
+                <div key={`ca-${ca.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-amber-500 before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
+                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{ca.message}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{ca.actorName}</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(ca.createdAt)}</span>
+                  </div>
+                </div>
+              ))}
+              {workspaceJoins.map((wj) => (
+                <div key={`wj-${wj.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-blue-500 before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
+                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{wj.user.name} joined workspace "{wj.workspace.name}"</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">Workspace</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
+                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(wj.joinedAt)}</span>
                   </div>
                 </div>
               ))}
