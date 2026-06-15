@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { createClient, deleteClient, closeClient } from "@/app/actions/clientActions";
+import { createClient, updateClient, deleteClient, closeClient, addClientDocument, deleteClientDocument } from "@/app/actions/clientActions";
 import {
   Briefcase,
   Plus,
@@ -15,7 +15,15 @@ import {
   AlertCircle,
   ListTodo,
   Activity,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
+
+type ClientDocument = {
+  id: number;
+  name: string;
+  url: string;
+};
 
 type ClientItem = {
   id: number;
@@ -30,6 +38,7 @@ type ClientItem = {
   activeTasks: number;
   health: "HEALTHY" | "AT_RISK" | "ONBOARDING";
   createdAt: string;
+  documents: ClientDocument[];
 };
 
 interface Props {
@@ -49,6 +58,7 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
   const [search, setSearch] = useState("");
   const [itemsDisplayed, setItemsDisplayed] = useState(20);
   const [showModal, setShowModal] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientItem | null>(null);
   const [activeMenu, setActiveMenu] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,6 +71,8 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
     description: "",
   });
 
+  const [docForm, setDocForm] = useState({ name: "", url: "" });
+
   const filteredClients = clients.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -69,14 +81,25 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
   );
 
   const openAddModal = () => {
-    setFormData({
-      name: "",
-      contactName: "",
-      email: "",
-      phone: "",
-      description: "",
-    });
+    setEditingClient(null);
+    setFormData({ name: "", contactName: "", email: "", phone: "", description: "" });
+    setDocForm({ name: "", url: "" });
     setError("");
+    setShowModal(true);
+  };
+
+  const openEditModal = (client: ClientItem) => {
+    setEditingClient(client);
+    setFormData({
+      name: client.name,
+      contactName: client.contactName || "",
+      email: client.email || "",
+      phone: client.phone || "",
+      description: client.description || "",
+    });
+    setDocForm({ name: "", url: "" });
+    setError("");
+    setActiveMenu(null);
     setShowModal(true);
   };
 
@@ -86,14 +109,23 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
     setError("");
 
     try {
-      await createClient({
-        name: formData.name,
-        contactName: formData.contactName || undefined,
-        email: formData.email || undefined,
-        phone: formData.phone || undefined,
-        description: formData.description || undefined,
-      });
-
+      if (editingClient) {
+        await updateClient(editingClient.id, {
+          name: formData.name,
+          contactName: formData.contactName || undefined,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          description: formData.description || undefined,
+        });
+      } else {
+        await createClient({
+          name: formData.name,
+          contactName: formData.contactName || undefined,
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          description: formData.description || undefined,
+        });
+      }
       window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -102,9 +134,41 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
     }
   };
 
+  const handleAddDocument = async () => {
+    if (!docForm.name.trim() || !docForm.url.trim() || !editingClient) return;
+    try {
+      const doc = await addClientDocument(editingClient.id, docForm.name.trim(), docForm.url.trim());
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === editingClient.id
+            ? { ...c, documents: [...c.documents, { id: doc.id, name: doc.name, url: doc.url }] }
+            : c
+        )
+      );
+      setDocForm({ name: "", url: "" });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add document");
+    }
+  };
+
+  const handleDeleteDocument = async (docId: number) => {
+    if (!editingClient) return;
+    try {
+      await deleteClientDocument(docId);
+      setClients((prev) =>
+        prev.map((c) =>
+          c.id === editingClient.id
+            ? { ...c, documents: c.documents.filter((d) => d.id !== docId) }
+            : c
+        )
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete document");
+    }
+  };
+
   const handleDelete = async (clientId: number) => {
     if (!confirm("Are you sure you want to delete this client? This will also delete all associated projects and tasks.")) return;
-
     try {
       await deleteClient(clientId);
       setClients((prev) => prev.filter((c) => c.id !== clientId));
@@ -223,6 +287,15 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                             <Edit2 className="h-4 w-4" />
                             View Details
                           </Link>
+                          {canCreate && (
+                            <button
+                              onClick={() => openEditModal(client)}
+                              className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/5"
+                            >
+                              <Edit2 className="h-4 w-4" />
+                              Edit Client
+                            </button>
+                          )}
                           {canClose && client.status === "ACTIVE" && (
                             <button
                               onClick={() => handleClose(client.id)}
@@ -258,6 +331,25 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                 )}
                 {client.email && (
                   <p className="text-xs text-gray-400 dark:text-zinc-600 mt-0.5">{client.email}</p>
+                )}
+
+                {/* Documents */}
+                {client.documents.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {client.documents.map((doc) => (
+                      <a
+                        key={doc.id}
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 text-[10px] font-bold hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
+                      >
+                        <FileText className="h-3 w-3" />
+                        {doc.name}
+                        <ExternalLink className="h-2.5 w-2.5 opacity-50" />
+                      </a>
+                    ))}
+                  </div>
                 )}
 
                 {/* Stats Row */}
@@ -317,19 +409,18 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
         </div>
       )}
 
-
-      {/* Add Client Modal */}
+      {/* Add / Edit Client Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowModal(false)}
           />
-          <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl dark:shadow-black/60 w-full max-w-md mx-4 p-8 border border-transparent dark:border-white/10">
+          <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl dark:shadow-black/60 w-full max-w-2xl mx-4 p-8 border border-transparent dark:border-white/10 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">Onboard New Client</h2>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mt-1">New partnership</p>
+                <h2 className="text-xl font-black text-gray-900 dark:text-white tracking-tight">{editingClient ? "Edit Client" : "Onboard New Client"}</h2>
+                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest mt-1">{editingClient ? "Update details" : "New partnership"}</p>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -361,20 +452,19 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                 />
               </div>
 
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-2 block">
-                  Contact Person
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  className="w-full px-4 py-3 text-sm font-medium bg-gray-50 dark:bg-black border-2 border-transparent dark:border-white/10 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-black focus:border-[#c91f41] transition-all text-gray-900 dark:text-white"
-                  placeholder="Primary contact name"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-2 block">
+                    Contact
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.contactName}
+                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                    className="w-full px-4 py-3 text-sm font-medium bg-gray-50 dark:bg-black border-2 border-transparent dark:border-white/10 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-black focus:border-[#c91f41] transition-all text-gray-900 dark:text-white"
+                    placeholder="Contact name"
+                  />
+                </div>
                 <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-2 block">
                     Email
@@ -414,6 +504,54 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                 />
               </div>
 
+              {/* Documents Section (Edit mode only) */}
+              {editingClient && (
+                <div className="pt-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-2 block">
+                    Documents
+                  </label>
+                  {clients.find((c) => c.id === editingClient.id)?.documents && clients.find((c) => c.id === editingClient.id)!.documents.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      {clients.find((c) => c.id === editingClient.id)!.documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-white/5 rounded-lg">
+                          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline min-w-0">
+                            <FileText className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{doc.name}</span>
+                          </a>
+                          <button type="button" onClick={() => handleDeleteDocument(doc.id)} className="p-1 text-gray-400 hover:text-red-500 shrink-0">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={docForm.name}
+                      onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
+                      className="flex-1 px-3 py-2 text-sm font-medium bg-gray-50 dark:bg-black border-2 border-transparent dark:border-white/10 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-black focus:border-[#c91f41] transition-all text-gray-900 dark:text-white"
+                      placeholder="Document name"
+                    />
+                    <input
+                      type="url"
+                      value={docForm.url}
+                      onChange={(e) => setDocForm({ ...docForm, url: e.target.value })}
+                      className="flex-1 px-3 py-2 text-sm font-medium bg-gray-50 dark:bg-black border-2 border-transparent dark:border-white/10 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-black focus:border-[#c91f41] transition-all text-gray-900 dark:text-white"
+                      placeholder="Google Drive URL"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddDocument}
+                      disabled={!docForm.name.trim() || !docForm.url.trim()}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-3">
                 <button
                   type="button"
@@ -427,7 +565,7 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                   disabled={loading}
                   className="px-5 py-2.5 text-[11px] font-black uppercase tracking-widest text-white bg-[#c91f41] hover:bg-[#a61835] rounded-xl transition-colors disabled:opacity-50 shadow-lg shadow-[#c91f41]/20"
                 >
-                  {loading ? "Creating..." : "Onboard Client"}
+                  {loading ? (editingClient ? "Saving..." : "Creating...") : (editingClient ? "Save Changes" : "Onboard Client")}
                 </button>
               </div>
             </form>

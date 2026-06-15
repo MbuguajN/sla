@@ -24,6 +24,7 @@ export default async function ClientsPage({
 
   const clients = await db.client.findMany({
     include: {
+      documents: { orderBy: { createdAt: "desc" } },
       projects: {
         include: {
           tasks: {
@@ -92,6 +93,7 @@ export default async function ClientsPage({
         activeTasks,
         health,
         createdAt: c.createdAt.toISOString(),
+        documents: c.documents.map((d) => ({ id: d.id, name: d.name, url: d.url })),
       };
     })
     .filter((client) => {

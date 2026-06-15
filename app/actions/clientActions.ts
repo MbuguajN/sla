@@ -122,3 +122,28 @@ export async function closeClient(clientId: number) {
   revalidatePath(`/clients/${clientId}`);
   return client;
 }
+
+export async function addClientDocument(clientId: number, name: string, url: string) {
+  const user = await getCurrentUser();
+  if (!user || !canOnboardClient(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  const doc = await db.clientDocument.create({
+    data: { clientId, name, url },
+  });
+
+  revalidatePath("/clients");
+  revalidatePath(`/clients/${clientId}`);
+  return doc;
+}
+
+export async function deleteClientDocument(docId: number) {
+  const user = await getCurrentUser();
+  if (!user || !canOnboardClient(user)) {
+    throw new Error("Unauthorized");
+  }
+
+  await db.clientDocument.delete({ where: { id: docId } });
+  revalidatePath("/clients");
+}

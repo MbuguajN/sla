@@ -16,6 +16,9 @@ export default async function ClientDetailPage({
   const client = await db.client.findUnique({
     where: { id: parseInt(id) },
     include: {
+      documents: {
+        orderBy: { createdAt: "desc" },
+      },
       projects: {
         include: {
           departments: {
@@ -42,6 +45,13 @@ export default async function ClientDetailPage({
   }
 
   const canAddProject = canCreateProject(user) && client.status === "ACTIVE";
+
+  const documents = client.documents.map((doc) => ({
+    id: doc.id,
+    name: doc.name,
+    url: doc.url,
+  }));
+
   const now = new Date();
 
   let totalTasks = 0;
@@ -129,6 +139,7 @@ export default async function ClientDetailPage({
         description: client.description,
         status: client.status as string,
       }}
+      documents={documents}
       projects={projects}
       metrics={{
         activeProjects,

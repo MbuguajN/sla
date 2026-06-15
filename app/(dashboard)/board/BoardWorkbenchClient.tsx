@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit } from "@/app/actions/boardActions";
+import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
 
@@ -115,6 +115,24 @@ type CardPointer = {
 
 const MEMBER_COLORS = [
   "bg-rose-500", "bg-sky-500", "bg-emerald-500", "bg-amber-500", "bg-indigo-500", "bg-fuchsia-500", "bg-cyan-500"
+];
+
+const BOARD_COLORS = [
+  { name: "Sky", bg: "bg-sky-600" },
+  { name: "Rose", bg: "bg-rose-600" },
+  { name: "Emerald", bg: "bg-emerald-600" },
+  { name: "Amber", bg: "bg-amber-600" },
+  { name: "Indigo", bg: "bg-indigo-600" },
+  { name: "Fuchsia", bg: "bg-fuchsia-600" },
+  { name: "Cyan", bg: "bg-cyan-600" },
+  { name: "Teal", bg: "bg-teal-600" },
+  { name: "Violet", bg: "bg-violet-600" },
+  { name: "Pink", bg: "bg-pink-600" },
+  { name: "Lime", bg: "bg-lime-600" },
+  { name: "Orange", bg: "bg-orange-600" },
+  { name: "Slate", bg: "bg-slate-600" },
+  { name: "Zinc", bg: "bg-zinc-600" },
+  { name: "Stone", bg: "bg-stone-600" },
 ];
 
 const BOARD_LABELS: Label[] = [
@@ -371,6 +389,12 @@ export default function BoardWorkbenchClient({
         }
       }
       setBoardTeamMembers(allTeamMembers);
+
+      // Sync board background from DB into workspaces so useEffect rebuild doesn't overwrite local color
+      setWorkspaces(prev => prev.map(ws => ({
+        ...ws,
+        boards: ws.boards.map((b: any) => b.id === dbId ? { ...b, background: data.background || b.background } : b)
+      })));
 
       const wsMemberIds = (data.workspace?.members || []).map((m: any) => `u-${m.userId || m.user?.id}`);
       const boardMemberIds = teamMembers.map((m: any) => `u-${m.id}`);
@@ -1002,6 +1026,33 @@ export default function BoardWorkbenchClient({
                   ))}
                 </div>
               </div>
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Board Color</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {BOARD_COLORS.map(c => (
+                    <button
+                      key={c.bg}
+                      title={c.name}
+                      onClick={async () => {
+                        const dbId = Number(activeBoard.id.replace("b-", ""));
+                        try {
+                          await updateBoardBackground(dbId, c.bg);
+                          setBoards(prev => prev.map(b => b.id === activeBoard.id ? { ...b, background: c.bg } : b));
+                          setWorkspaces(prev => prev.map(ws => ({
+                            ...ws,
+                            boards: ws.boards.map((b: any) => b.id === dbId ? { ...b, background: c.bg } : b)
+                          })));
+                        } catch (err: any) { alert(err.message || "Failed to update color"); }
+                      }}
+                      className={cn(
+                        "h-10 w-full rounded-xl transition-all border-2",
+                        c.bg,
+                        activeBoard.background === c.bg ? "border-white ring-2 ring-zinc-400 scale-110" : "border-transparent hover:scale-105"
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
               <div className="h-px bg-zinc-100 dark:bg-white/10" />
               <button
                 onClick={async () => {
@@ -1074,6 +1125,22 @@ export default function BoardWorkbenchClient({
                       t.style.height = 'auto';
                       t.style.height = t.scrollHeight + 'px';
                     }}
+                    onBlur={async (e) => {
+                      const newTitle = e.currentTarget.value.trim();
+                      if (newTitle && newTitle !== list.title) {
+                        const listDbId = Number(list.id.replace("l-", ""));
+                        try {
+                          await renameList(listDbId, newTitle);
+                          setListsByBoard(prev => {
+                            const boardIdStr = activeBoard?.id;
+                            if (!boardIdStr) return prev;
+                            const lists = prev[boardIdStr] || [];
+                            return { ...prev, [boardIdStr]: lists.map((l: any) => l.id === list.id ? { ...l, title: newTitle } : l) };
+                          });
+                        } catch (err: any) { alert(err.message || "Failed to rename list"); }
+                      }
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
                   />
                 </div>
                 <div className="flex items-center gap-1">
@@ -1808,10 +1875,16 @@ export default function BoardWorkbenchClient({
                           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{formatDate(att.createdAt)}</p>
                         </div>
                         <button 
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            updateActiveCard(c => ({ ...c, attachments: c.attachments.filter(a => a.id !== att.id) }));
+                            const attDbId = Number(att.id.replace("at-", ""));
+                            try {
+                              await deleteCardAttachment(attDbId);
+                              updateActiveCard(c => ({ ...c, attachments: c.attachments.filter(a => a.id !== att.id) }));
+                            } catch (err: any) {
+                              alert(err.message || "Failed to delete attachment");
+                            }
                           }}
                           className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
                         >
@@ -1836,9 +1909,39 @@ export default function BoardWorkbenchClient({
                     <div className="flex items-center justify-between gap-3 mb-4">
                       <div className="flex items-center gap-3">
                         <CheckSquare className="h-5 w-5 text-zinc-400" />
-                        <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-700 dark:text-zinc-300">{cl.title}</h3>
+                        <input
+                          defaultValue={cl.title}
+                          onBlur={async (e) => {
+                            const newTitle = e.currentTarget.value.trim();
+                            if (newTitle && newTitle !== cl.title) {
+                              const clDbId = Number(cl.id.replace("cl-", ""));
+                              try {
+                                await renameChecklist(clDbId, newTitle);
+                                updateActiveCard(c => ({
+                                  ...c,
+                                  checklists: c.checklists.map(cList => cList.id === cl.id ? { ...cList, title: newTitle } : cList)
+                                }));
+                              } catch (err: any) { alert(err.message || "Failed to rename checklist"); }
+                            }
+                          }}
+                          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                          className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-700 dark:text-zinc-300 bg-transparent outline-none focus:bg-white dark:focus:bg-white/5 px-1.5 py-0.5 rounded transition-all cursor-text"
+                        />
                       </div>
-                      <button className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-rose-500">Delete</button>
+                      <button
+                        onClick={async () => {
+                          const clDbId = Number(cl.id.replace("cl-", ""));
+                          if (!confirm(`Delete checklist "${cl.title}"?`)) return;
+                          try {
+                            await deleteChecklist(clDbId);
+                            updateActiveCard(c => ({
+                              ...c,
+                              checklists: c.checklists.filter(cList => cList.id !== cl.id)
+                            }));
+                          } catch (err: any) { alert(err.message || "Failed to delete checklist"); }
+                        }}
+                        className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-rose-500"
+                      >Delete</button>
                     </div>
                     <div className="ml-8 space-y-6">
                        <ChecklistProgress checklist={cl} />
@@ -2371,11 +2474,17 @@ export default function BoardWorkbenchClient({
                </div>
                <button 
                   disabled={!newFileName.trim() || !newFileUrl.trim()}
-                  onClick={() => {
-                    updateActiveCard(c => ({
-                      ...c,
-                      attachments: [...c.attachments, { id: createId("at"), name: newFileName, url: newFileUrl, createdAt: new Date().toISOString() }]
-                    }));
+                  onClick={async () => {
+                    const cardDbId = Number(activeCard.card.id.replace("c-", ""));
+                    try {
+                      const att = await addCardAttachment(cardDbId, newFileName, newFileUrl);
+                      updateActiveCard(c => ({
+                        ...c,
+                        attachments: [...c.attachments, { id: `at-${att.id}`, name: newFileName, url: newFileUrl, createdAt: new Date().toISOString() }]
+                      }));
+                    } catch (err: any) {
+                      alert(err.message || "Failed to add attachment");
+                    }
                     setNewFileName("");
                     setNewFileUrl("");
                     setIsAddingFile(false);
@@ -2435,11 +2544,11 @@ export default function BoardWorkbenchClient({
             <div className="space-y-6">
                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Title</label>
-                   <input autoFocus value={newBoardTitle} onChange={e => setNewBoardTitle(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-[#c91f41] font-bold" placeholder="Sales Tracker..." />
+                   <input autoFocus value={newBoardTitle} onChange={e => setNewBoardTitle(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-[#c91f41] font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-500" placeholder="Sales Tracker..." />
                </div>
                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Workspace</label>
-                  <select value={newBoardWsId} onChange={e => setNewBoardWsId(Number(e.target.value))} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none font-bold">
+                  <select value={newBoardWsId} onChange={e => setNewBoardWsId(Number(e.target.value))} className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none font-bold">
                     {workspaces.map(ws => <option key={ws.id} value={ws.id}>{ws.name}</option>)}
                   </select>
                </div>
@@ -2454,11 +2563,11 @@ export default function BoardWorkbenchClient({
                       <button 
                         key={v.val}
                         onClick={() => setNewBoardVisibility(v.val as any)}
-                         className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left", newBoardVisibility === v.val ? "border-[#c91f41] bg-[#fce4ec]" : "border-zinc-100 bg-zinc-50 hover:bg-white")}
+                         className={cn("flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left", newBoardVisibility === v.val ? "border-[#c91f41] bg-[#fce4ec] dark:bg-[#c91f41]/10" : "border-zinc-100 dark:border-white/10 bg-zinc-50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10")}
                       >
                          <v.icon className={cn("h-5 w-5", newBoardVisibility === v.val ? "text-[#c91f41]" : "text-zinc-400")} />
                          <div>
-                            <p className="text-xs font-black uppercase tracking-wider">{v.label}</p>
+                            <p className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">{v.label}</p>
                             <p className="text-[10px] text-zinc-400 font-bold">{v.desc}</p>
                          </div>
                       </button>
@@ -2467,7 +2576,7 @@ export default function BoardWorkbenchClient({
                </div>
             </div>
             <div className="mt-10 flex gap-3">
-               <button onClick={() => setShowCreateBoard(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100">Cancel</button>
+               <button onClick={() => setShowCreateBoard(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100 dark:bg-white/10 dark:hover:bg-white/15">Cancel</button>
                 <button disabled={isSubmitting || !newBoardTitle.trim()} onClick={handleCreateBoard} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-[#c91f41] shadow-lg shadow-[#c91f41]/30">Create</button>
             </div>
           </div>
@@ -2477,10 +2586,10 @@ export default function BoardWorkbenchClient({
       {showCreateWs && (
         <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-5" onClick={() => setShowCreateWs(false)}>
           <div className="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-[2rem] p-8 shadow-2xl" onClick={e => e.stopPropagation()}>
-             <h3 className="text-xl font-black mb-8">New Workspace</h3>
-              <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 outline-none focus:border-[#c91f41] font-bold mb-10" placeholder="Engineering Team..." />
+             <h3 className="text-xl font-black mb-8 text-zinc-900 dark:text-white">New Workspace</h3>
+              <input autoFocus value={newWsName} onChange={e => setNewWsName(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-[#c91f41] font-bold mb-10 placeholder:text-zinc-400 dark:placeholder:text-zinc-500" placeholder="Engineering Team..." />
               <div className="flex gap-3">
-                 <button onClick={() => setShowCreateWs(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100">Cancel</button>
+                 <button onClick={() => setShowCreateWs(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100 dark:bg-white/10 dark:hover:bg-white/15">Cancel</button>
                  <button disabled={isSubmitting || !newWsName.trim()} onClick={handleCreateWorkspace} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-[#c91f41] shadow-lg shadow-[#c91f41]/30">Create</button>
              </div>
           </div>

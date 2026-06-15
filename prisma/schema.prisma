@@ -326,6 +326,18 @@ model Client {
   updatedAt   DateTime            @updatedAt
   boardCards  PersonalBoardCard[]
   projects    Project[]
+  documents   ClientDocument[]
+}
+
+model ClientDocument {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  name      String
+  url       String
+  createdAt DateTime @default(now())
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
 }
 
 model Project {

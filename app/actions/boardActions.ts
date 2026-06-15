@@ -786,3 +786,25 @@ export async function addCardActivity(cardId: number, message: string) {
   revalidatePath("/board");
   return activity;
 }
+
+/**
+ * BOARD BACKGROUND
+ */
+export async function updateBoardBackground(boardId: number, background: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.board.update({ where: { id: boardId }, data: { background } });
+  revalidatePath("/board");
+}
+
+/**
+ * CHECKLIST RENAME
+ */
+export async function renameChecklist(checklistId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardChecklist.update({ where: { id: checklistId }, data: { title } });
+  revalidatePath("/board");
+}

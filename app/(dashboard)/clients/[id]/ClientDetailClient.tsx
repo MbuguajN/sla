@@ -13,7 +13,11 @@ import {
   Gauge,
   CheckCircle2,
   FolderKanban,
+  FileText,
+  ExternalLink,
+  X,
 } from "lucide-react";
+import { addClientDocument, deleteClientDocument } from "@/app/actions/clientActions";
 
 export type ProjectItem = {
   id: number;
@@ -37,6 +41,12 @@ type ClientInfo = {
   status: string;
 };
 
+type ClientDocument = {
+  id: number;
+  name: string;
+  url: string;
+};
+
 type ClientMetrics = {
   activeProjects: number;
   overallCompletionRate: number;
@@ -48,6 +58,7 @@ type ClientMetrics = {
 
 interface Props {
   client: ClientInfo;
+  documents: ClientDocument[];
   projects: ProjectItem[];
   metrics: ClientMetrics;
   canAddProject: boolean;
@@ -87,9 +98,12 @@ function getInitials(value: string) {
   return value.slice(0, 2).toUpperCase();
 }
 
-export default function ClientDetailClient({ client, projects, metrics, canAddProject }: Props) {
+export default function ClientDetailClient({ client, documents: initialDocuments, projects, metrics, canAddProject }: Props) {
   const [search, setSearch] = useState("");
   const [itemsDisplayed, setItemsDisplayed] = useState(10);
+  const [documents, setDocuments] = useState<ClientDocument[]>(initialDocuments);
+  const [docForm, setDocForm] = useState({ name: "", url: "" });
+  const [addingDoc, setAddingDoc] = useState(false);
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
 
   const filteredProjects = useMemo(() => {
@@ -120,6 +134,29 @@ export default function ClientDetailClient({ client, projects, metrics, canAddPr
     const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 64;
     if (nearBottom) {
       setItemsDisplayed((prev) => Math.min(prev + 10, filteredProjects.length));
+    }
+  };
+
+  const handleAddDocument = async () => {
+    if (!docForm.name.trim() || !docForm.url.trim()) return;
+    setAddingDoc(true);
+    try {
+      const doc = await addClientDocument(client.id, docForm.name.trim(), docForm.url.trim());
+      setDocuments((prev) => [{ id: doc.id, name: doc.name, url: doc.url }, ...prev]);
+      setDocForm({ name: "", url: "" });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to add document");
+    } finally {
+      setAddingDoc(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: number) => {
+    try {
+      await deleteClientDocument(docId);
+      setDocuments((prev) => prev.filter((d) => d.id !== docId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete document");
     }
   };
 
@@ -157,6 +194,58 @@ export default function ClientDetailClient({ client, projects, metrics, canAddPr
                 {client.phone}
               </a>
             )}
+          </div>
+
+          {/* Documents */}
+          <div className="mt-3 space-y-2">
+            {documents.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="group/doc inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
+                    <a
+                      href={doc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 dark:text-blue-300 hover:underline"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      {doc.name}
+                      <ExternalLink className="h-3 w-3 opacity-50" />
+                    </a>
+                    <button
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      className="p-0.5 text-blue-300 dark:text-blue-500 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover/doc:opacity-100 transition-all"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Add Document Form */}
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={docForm.name}
+                onChange={(e) => setDocForm({ ...docForm, name: e.target.value })}
+                className="px-3 py-1.5 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:border-[#c91f41] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 w-40"
+                placeholder="Document name"
+              />
+              <input
+                type="url"
+                value={docForm.url}
+                onChange={(e) => setDocForm({ ...docForm, url: e.target.value })}
+                className="px-3 py-1.5 text-sm bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg focus:outline-none focus:border-[#c91f41] text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 flex-1"
+                placeholder="Google Drive URL"
+              />
+              <button
+                onClick={handleAddDocument}
+                disabled={!docForm.name.trim() || !docForm.url.trim() || addingDoc}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 
