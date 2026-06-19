@@ -17,11 +17,12 @@ const nextConfig = {
   async headers() {
     const contentSecurityPolicy = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com",
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
+      "img-src 'self' data: blob: https://www.google.com https://*.google.com https://*.gstatic.com",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com",
+      "frame-src https://accounts.google.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
