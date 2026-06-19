@@ -166,7 +166,8 @@ export function canCreateTask(user: PermissionContext): boolean {
   if (hasPrivilege(user, "CAN_CREATE_TASKS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
-    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
+    user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
+    user.departmentSlug === DEPARTMENTS.FINANCE
   );
 }
 

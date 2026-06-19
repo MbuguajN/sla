@@ -78,7 +78,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     ...(canSeeProjectsAndTasks ? [{ label: "Board", href: "/board", icon: UserGroupIcon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
-    ...(!isHROnly && !isFinanceOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
+    ...(!isHROnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 
   // Sections (collapsible)

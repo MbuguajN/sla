@@ -260,6 +260,88 @@ SECURITY WARNING: Do not share this code with anyone. Never give your password o
 }
 
 /**
+ * Generic notification email — sends a branded HTML email for any notification type
+ */
+export async function sendNotificationEmail(
+  to: string,
+  subject: string,
+  title: string,
+  body: string,
+  link?: string
+): Promise<void> {
+  try {
+    const transport = getTransporter();
+    const fromAddress = process.env.MAIL_FROM_ADDRESS || "portal@5dm.africa";
+    const fromName = process.env.MAIL_FROM_NAME || "5DM Operations Control";
+    const appDomain = process.env.APP_DOMAIN || "ops.5dm.africa";
+    const buttonUrl = link ? `https://${appDomain}${link}` : undefined;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <style>
+            body { margin: 0; padding: 24px 0; background: #eceef2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; color: #202938; }
+            .container { max-width: 500px; margin: 0 auto; padding: 0 14px; }
+            .card { background: #f9fafb; border: 1px solid #dfe3e8; border-radius: 12px; box-shadow: 0 8px 24px rgba(18, 24, 40, 0.08); overflow: hidden; }
+            .header { background: #c91f41; color: #ffffff; padding: 22px 24px 20px; text-align: center; }
+            .title { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.12; letter-spacing: -0.02em; }
+            .subtitle { margin: 7px 0 0; font-size: 12px; font-weight: 700; color: #f7d6de; }
+            .content { padding: 22px 24px 16px; }
+            .greeting { margin: 0 0 8px; font-size: 18px; font-weight: 800; color: #2c3446; }
+            .muted { margin: 0; color: #6d7585; font-size: 14px; line-height: 1.6; font-weight: 600; }
+            .panel { background: #eef1f5; border: 1px solid #d8dde5; border-radius: 8px; padding: 14px; margin: 16px 0; }
+            .panel p { margin: 0; font-size: 13px; color: #4f596a; font-weight: 700; line-height: 1.5; }
+            .button-wrap { margin: 18px 0 14px; text-align: center; }
+            .button { display: inline-block; background: #c91f41; color: #ffffff !important; text-decoration: none; font-size: 13px; font-weight: 800; padding: 11px 22px; border-radius: 8px; box-shadow: 0 6px 14px rgba(201, 31, 65, 0.24); }
+            .footer { text-align: center; color: #a0a7b3; font-size: 10px; font-weight: 700; padding: 8px 0 14px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="card">
+              <div class="header">
+                <h1 class="title">${title}</h1>
+                <p class="subtitle">5DM Operations Control</p>
+              </div>
+              <div class="content">
+                <div class="panel">
+                  <p>${body}</p>
+                </div>
+                ${buttonUrl ? `
+                <div class="button-wrap">
+                  <a href="${buttonUrl}" class="button">View Details</a>
+                </div>
+                ` : ""}
+              </div>
+              <div class="footer">
+                <p>&copy; ${new Date().getFullYear()} 5DM. All rights reserved.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const textContent = `${title}\n\n${body}\n${buttonUrl ? `\nView Details: ${buttonUrl}` : ""}`;
+
+    await transport.sendMail({
+      from: `${fromName} <${fromAddress}>`,
+      to,
+      subject,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    console.log(`✓ Notification email sent to ${to}: ${subject}`);
+  } catch (error) {
+    console.error(`✗ Failed to send notification email to ${to}:`, error);
+    // Non-blocking — don't throw, just log
+  }
+}
+
+/**
  * Test email configuration
  */
 export async function testEmailConfiguration(): Promise<boolean> {

@@ -37,7 +37,8 @@ export default async function DailyLogPage() {
     user.role === "ADMIN" ||
     user.role === "CEO" ||
     user.departmentSlug === "client-service" ||
-    user.departmentSlug === "business-development";
+    user.departmentSlug === "business-development" ||
+    user.departmentSlug === "finance";
 
   const tasks = await db.task.findMany({
     where: hasGlobalTaskAccess

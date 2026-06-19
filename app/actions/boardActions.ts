@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { BoardVisibility } from "@prisma/client";
+import { createNotification } from "./notificationActions";
+import { sendNotificationEmail } from "@/lib/email";
 
 /**
  * FETCHING
@@ -196,6 +198,26 @@ export async function inviteToBoard(boardId: number, userId: number) {
     data: { boardId, userId },
     include: { user: { select: { id: true, name: true, email: true } } },
   });
+
+  // In-app notification
+  await createNotification(
+    userId,
+    "BOARD_INVITE",
+    "Board Invite",
+    `${user.name} added you to board "${board.title}"`,
+    `/board?active=${boardId}`
+  );
+
+  // Email notification
+  if (member.user.email) {
+    await sendNotificationEmail(
+      member.user.email,
+      `You've been added to board "${board.title}"`,
+      "Board Invite",
+      `<strong>${user.name}</strong> added you to the board <strong>"${board.title}"</strong> in workspace <strong>"${board.workspace.name}"</strong>.`,
+      `/board?active=${boardId}`
+    );
+  }
 
   revalidatePath("/board");
   return member;
@@ -540,6 +562,33 @@ export async function setCardAssignee(cardId: number, userId: number | null) {
   if (!user) throw new Error("Unauthorized");
 
   await db.boardCard.update({ where: { id: cardId }, data: { assignedToUserId: userId } });
+
+  // Notify + email when assigning to someone else
+  if (userId && userId !== user.id) {
+    const assignee = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+    const card = await db.boardCard.findUnique({ where: { id: cardId }, select: { title: true } });
+
+    if (assignee && card) {
+      await createNotification(
+        userId,
+        "TASK_ASSIGNED",
+        "Card Assigned",
+        `${user.name} assigned you card "${card.title}"`,
+        `/board`
+      );
+
+      if (assignee.email) {
+        await sendNotificationEmail(
+          assignee.email,
+          `Card Assigned: ${card.title}`,
+          "Card Assigned",
+          `<strong>${user.name}</strong> assigned you the card <strong>"${card.title}"</strong>.`,
+          `/board`
+        );
+      }
+    }
+  }
+
   revalidatePath("/board");
   return { assignedToUserId: userId };
 }
@@ -681,14 +730,41 @@ export async function addChecklistItem(checklistId: number, title: string, assig
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const assignee = assignedUserId || user.id;
+  const assigneeId = assignedUserId || user.id;
 
   const maxPos = await db.boardChecklistItem.aggregate({ where: { checklistId }, _max: { position: true } });
   const nextPos = (maxPos._max.position ?? -1) + 1;
 
   const item = await db.boardChecklistItem.create({
-    data: { checklistId, title, position: nextPos, assignedUserId: assignee },
+    data: { checklistId, title, position: nextPos, assignedUserId: assigneeId },
   });
+
+  // Notify + email only when assigning to someone else
+  if (assigneeId !== user.id) {
+    const assignee = await db.user.findUnique({ where: { id: assigneeId }, select: { name: true, email: true } });
+    const checklist = await db.boardChecklist.findUnique({ where: { id: checklistId }, include: { card: true } });
+    const cardTitle = checklist?.card?.title || "a card";
+
+    if (assignee) {
+      await createNotification(
+        assigneeId,
+        "TASK_ASSIGNED",
+        "Checklist Item Assigned",
+        `${user.name} assigned you: "${title}" on card "${cardTitle}"`,
+        `/board`
+      );
+
+      if (assignee.email) {
+        await sendNotificationEmail(
+          assignee.email,
+          `Checklist Item Assigned: ${title}`,
+          "Checklist Item Assigned",
+          `<strong>${user.name}</strong> assigned you a checklist item on card <strong>"${cardTitle}"</strong>: <strong>${title}</strong>.`,
+          `/board`
+        );
+      }
+    }
+  }
 
   revalidatePath("/board");
   return item;

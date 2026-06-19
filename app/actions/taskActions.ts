@@ -14,6 +14,7 @@ import {
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
+import { sendNotificationEmail } from "@/lib/email";
 import { mkdir, writeFile } from "fs/promises";
 import { extname, join } from "path";
 import { isUserCurrentlyOnApprovedLeave, processLeaveTaskHandovers } from "./leaveHandoverActions";
@@ -535,6 +536,18 @@ export async function assignTask(taskId: number, assignedUserId: number) {
     `You have been assigned: ${task.title}`,
     `/tasks/${taskId}`
   );
+
+  // Send email notification
+  if (assignee.email) {
+    const clientName = updatedTask.project?.client?.name || "a project";
+    await sendNotificationEmail(
+      assignee.email,
+      `Task Assigned: ${task.title}`,
+      "Task Assigned",
+      `You have been assigned a new task in <strong>${clientName}</strong>: <strong>${task.title}</strong>.`,
+      `/tasks/${taskId}`
+    );
+  }
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
