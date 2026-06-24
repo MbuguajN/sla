@@ -808,6 +808,7 @@ enum Privilege {
   CAN_CREATE_CLIENTS
   CAN_CREATE_PROJECTS
   CAN_CREATE_TASKS
+  CAN_VIEW_EMPLOYEES
 }
 
 enum LoginAttemptStatus {

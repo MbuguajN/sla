@@ -5,8 +5,8 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 
 type DailyLogEntryInput = {
-  projectId: number;
-  taskId: number;
+  projectId: number | null;
+  taskId: number | null;
   note: string;
   markCompleted: boolean;
 };
@@ -43,29 +43,43 @@ export async function createDailyLogs(payload: DailyLogPayload) {
     throw new Error(`Too many entries. Max ${MAX_DAILY_LOG_ENTRIES} per submission`);
   }
 
-  const taskIds = Array.from(new Set(entries.map((entry) => entry.taskId)));
+  const taskIds = Array.from(new Set(entries.filter((e) => e.taskId).map((entry) => entry.taskId as number)));
 
-  const tasks = await db.task.findMany({
-    where: { id: { in: taskIds } },
-    select: {
-      id: true,
-      title: true,
-      projectId: true,
-      project: { select: { title: true } },
-      assignedUserId: true,
-      createdById: true,
-      deptId: true,
-      status: true,
-    },
-  });
+  const tasks = taskIds.length > 0
+    ? await db.task.findMany({
+        where: { id: { in: taskIds } },
+        select: {
+          id: true,
+          title: true,
+          projectId: true,
+          project: { select: { title: true } },
+          assignedUserId: true,
+          createdById: true,
+          deptId: true,
+          status: true,
+        },
+      })
+    : [];
 
   const taskMap = new Map(tasks.map((task) => [task.id, task]));
 
   for (const entry of entries) {
+    const note = entry.note.trim();
+    if (!note) {
+      throw new Error("Daily log note cannot be empty");
+    }
+
+    if (note.length > MAX_NOTE_LENGTH) {
+      throw new Error(`Daily log note is too long. Max ${MAX_NOTE_LENGTH} characters`);
+    }
+
+    // General log (no project/task) — skip task validation
+    if (!entry.taskId) continue;
+
     const task = taskMap.get(entry.taskId);
     if (!task) throw new Error("One or more selected tasks were not found");
 
-    if (task.projectId !== entry.projectId) {
+    if (entry.projectId && task.projectId !== entry.projectId) {
       throw new Error("Selected project does not match associated task");
     }
 
@@ -83,48 +97,45 @@ export async function createDailyLogs(payload: DailyLogPayload) {
     if (task.status === "CANCELLED") {
       throw new Error("Cancelled tasks cannot receive daily logs");
     }
-
-    const note = entry.note.trim();
-    if (!note) {
-      throw new Error("Daily log note cannot be empty");
-    }
-
-    if (note.length > MAX_NOTE_LENGTH) {
-      throw new Error(`Daily log note is too long. Max ${MAX_NOTE_LENGTH} characters`);
-    }
   }
 
   const createdIds = await db.$transaction(async (tx) => {
     const ids: number[] = [];
 
     for (const entry of entries) {
-      const task = taskMap.get(entry.taskId)!;
       const cleanNote = entry.note.trim();
+      const task = entry.taskId ? taskMap.get(entry.taskId) : null;
 
-      const subtask = await tx.subtask.create({
-        data: {
-          taskId: task.id,
-          title: deriveSubtaskTitle(cleanNote),
-          description: cleanNote,
-          status: entry.markCompleted ? "DONE" : "PENDING",
-        },
-      });
+      let subtaskId: number | undefined;
+
+      // Only create subtask if a task is associated
+      if (task) {
+        const subtask = await tx.subtask.create({
+          data: {
+            taskId: task.id,
+            title: deriveSubtaskTitle(cleanNote),
+            description: cleanNote,
+            status: entry.markCompleted ? "DONE" : "PENDING",
+          },
+        });
+        subtaskId = subtask.id;
+      }
 
       const created = await tx.activityLog.create({
         data: {
           type: "COMMENTED",
           description: entry.markCompleted ? "logged daily progress (completed)" : "logged daily progress",
-          taskId: task.id,
-          projectId: task.projectId,
+          taskId: task?.id ?? null,
+          projectId: task?.projectId ?? null,
           userId: user.id,
           metadata: JSON.stringify({
             kind: "DAILY_LOG",
             note: cleanNote,
             markCompleted: entry.markCompleted,
-            projectTitle: task.project.title,
-            taskTitle: subtask.title,
-            parentTaskTitle: task.title,
-            subtaskId: subtask.id,
+            projectTitle: task?.project?.title || null,
+            taskTitle: cleanNote.slice(0, 80),
+            parentTaskTitle: task?.title || null,
+            subtaskId: subtaskId ?? null,
             source: "PERSONAL_LOG",
           }),
         },

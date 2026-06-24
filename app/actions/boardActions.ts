@@ -13,7 +13,7 @@ import { sendNotificationEmail } from "@/lib/email";
 
 export async function getWorkspaces() {
   const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  if (!user) return [];
 
   const workspaces = await db.workspace.findMany({
     where: {
@@ -149,7 +149,7 @@ export async function createBoard(data: {
     }
   });
 
-  if (!ws) throw new Error("Unauthorized");
+  if (!ws) throw new Error("You are not a member of this workspace");
 
   const board = await db.board.create({
     data: {

@@ -80,9 +80,10 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [markCompleted, setMarkCompleted] = useState(false);
+  const [isGeneralLog, setIsGeneralLog] = useState(false);
 
   const [queuedEntries, setQueuedEntries] = useState<
-    { projectId: number; taskId: number; note: string; markCompleted: boolean }[]
+    { projectId: number | null; taskId: number | null; note: string; markCompleted: boolean }[]
   >([]);
 
   const selectedProject = useMemo(
@@ -115,9 +116,9 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
     setSelectedTaskId(null);
     setNote("");
     setMarkCompleted(false);
+    setIsGeneralLog(false);
     setQueuedEntries([]);
     setError("");
-    setLoading(false);
   };
 
   const closeWizard = () => {
@@ -126,16 +127,6 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
   };
 
   const addCurrentEntry = () => {
-    if (!selectedProjectId) {
-      setError("Please select a project");
-      return false;
-    }
-
-    if (!selectedTaskId) {
-      setError("Please select an associated task");
-      return false;
-    }
-
     const trimmedNote = note.trim();
     if (!trimmedNote) {
       setError("Please write what you did");
@@ -165,22 +156,8 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
   const submitLogs = async () => {
     const finalEntries = [...queuedEntries];
 
-    if (selectedTaskId || note.trim()) {
-      if (!selectedProjectId) {
-        setError("Please select a project");
-        return;
-      }
-
-      if (!selectedTaskId) {
-        setError("Please select an associated task");
-        return;
-      }
-
+    if (note.trim()) {
       const trimmedNote = note.trim();
-      if (!trimmedNote) {
-        setError("Please write what you did");
-        return;
-      }
 
       finalEntries.push({
         projectId: selectedProjectId,
@@ -289,9 +266,9 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                     <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
                       {new Date(row.loggedAt).toLocaleString()}
                     </td>
-                    <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{row.projectTitle}</td>
+                    <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{row.projectTitle || "General"}</td>
                     <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
-                      <p>{row.taskTitle}</p>
+                      <p>{row.taskTitle || "—"}</p>
                       {row.parentTaskTitle && row.parentTaskTitle !== row.taskTitle ? (
                         <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
                           Parent: {row.parentTaskTitle}
@@ -351,16 +328,24 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                   Select Project
                 </label>
                 <select
-                  value={selectedProjectId ?? ""}
+                  value={isGeneralLog ? "general" : (selectedProjectId ?? "")}
                   onChange={(event) => {
-                    const value = event.target.value ? Number(event.target.value) : null;
-                    setSelectedProjectId(value);
-                    setSelectedTaskId(null);
+                    const value = event.target.value;
+                    if (value === "general") {
+                      setIsGeneralLog(true);
+                      setSelectedProjectId(null);
+                      setSelectedTaskId(null);
+                    } else {
+                      setIsGeneralLog(false);
+                      setSelectedProjectId(value ? Number(value) : null);
+                      setSelectedTaskId(null);
+                    }
                     setError("");
                   }}
                   className="h-12 w-full rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-900 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
                 >
                   <option value="">Choose project</option>
+                  <option value="general">General Log (No Project)</option>
                   {projects.map((project) => (
                     <option key={project.id} value={project.id}>
                       {project.clientName} - {project.title}
@@ -426,6 +411,13 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                     </p>
                     <ul className="mt-2 space-y-1 text-xs font-semibold text-gray-700 dark:text-zinc-300">
                       {queuedEntries.map((entry, index) => {
+                        if (!entry.projectId) {
+                          return (
+                            <li key={`general-${index}`}>
+                              General Log - {entry.markCompleted ? "Completed" : "Progress"}
+                            </li>
+                          );
+                        }
                         const project = projects.find((item) => item.id === entry.projectId);
                         const task = project?.tasks.find((item) => item.id === entry.taskId);
                         return (
@@ -460,9 +452,16 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
               {step < 3 ? (
                 <button
                   onClick={() => {
-                    if (step === 1 && !selectedProjectId) {
-                      setError("Please select a project to continue");
-                      return;
+                    if (step === 1) {
+                      if (isGeneralLog) {
+                        setError("");
+                        setStep(3);
+                        return;
+                      }
+                      if (!selectedProjectId) {
+                        setError("Please select a project or choose General Log");
+                        return;
+                      }
                     }
                     if (step === 2 && !selectedTaskId) {
                       setError("Please select an associated task to continue");

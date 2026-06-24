@@ -34,6 +34,7 @@ interface SidebarProps {
     name: string;
     role: string;
     departmentSlug: string | null;
+    privileges?: string[];
   };
   canAccessEquipment?: boolean;
   logos?: { light: string | null; dark: string | null } | null;
@@ -71,6 +72,9 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
   // Main nav items
   const mainNav: NavItem[] = [
     { label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon },
+    ...(user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources" || user.privileges?.includes("CAN_VIEW_EMPLOYEES")
+      ? [{ label: "Employees", href: "/employees", icon: UserGroupIcon }]
+      : []),
     ...(user.role === "ADMIN" || user.role === "CEO"
       ? [{ label: "Reports", href: "/reports", icon: Book01Icon }]
       : []),

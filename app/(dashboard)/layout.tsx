@@ -35,6 +35,7 @@ export default async function DashboardLayout({
           name: user.name,
           role: user.role,
           departmentSlug: user.departmentSlug,
+          privileges: user.privileges,
         }}
         canAccessEquipment={canAccessEquipment}
         logos={logos}
