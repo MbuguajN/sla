@@ -194,24 +194,23 @@ export default function EmployeesClient({ employees, departments, currentUserRol
           />
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          {["ALL", ...departments].map((dept) => (
-            <button
-              key={dept}
-              onClick={() => {
-                setActiveDept(dept);
-                setVisibleCount(PAGE_SIZE);
-              }}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                activeDept === dept
-                  ? "bg-[#c91f41] text-white"
-                  : "text-gray-500 hover:text-[#c91f41] dark:text-zinc-400"
-              )}
-            >
-              {dept === "ALL" ? "All Staff" : dept}
-            </button>
-          ))}
+        <div className="relative">
+          <select
+            value={activeDept}
+            onChange={(e) => {
+              setActiveDept(e.target.value);
+              setVisibleCount(PAGE_SIZE);
+            }}
+            className="h-11 appearance-none rounded-xl border border-gray-200 bg-white px-4 pr-10 text-xs font-black uppercase tracking-[0.14em] text-gray-900 outline-none focus:ring-2 focus:ring-[#c91f41]/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+          >
+            <option value="ALL" className="bg-white text-gray-900 dark:bg-gray-900 dark:text-white">All Staff</option>
+            {departments.map((dept) => (
+              <option key={dept} value={dept} className="bg-white text-gray-900 dark:bg-gray-900 dark:text-white">{dept}</option>
+            ))}
+          </select>
+          <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-zinc-500">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </div>
         </div>
       </div>
 

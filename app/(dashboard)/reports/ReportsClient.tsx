@@ -771,22 +771,6 @@ export default function ReportsClient({
                     <p className="flex items-center gap-2"><Mail01Icon className="h-4 w-4" /> {employee.email}</p>
                     <p className="flex items-center gap-2"><Briefcase01Icon className="h-4 w-4" /> {employee.departmentName}</p>
                   </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-black uppercase tracking-[0.12em]">
-                    {employee.leaveBalances.length === 0 ? (
-                      <div className="col-span-2 rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] px-3 py-2 text-[#3b4a67] dark:text-zinc-300">
-                        No leave configured
-                      </div>
-                    ) : (
-                      employee.leaveBalances.map((lb) => (
-                        <div key={lb.type} className="rounded-xl bg-[#f6f7fb] dark:bg-[#19191a] px-3 py-2 text-[#3b4a67] dark:text-zinc-300">
-                          {getLeaveTypeLabel(lb.type)} Left: {formatDecimal(lb.remainingDays)}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="mt-2 rounded-xl bg-[#eef3ff] dark:bg-[#151b2b] px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#2f436f] dark:text-blue-200">
-                    Company Items Owned: {employee.companyItemsOwned}
-                  </div>
                   {employee.personalDocuments.length > 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setDocsEmployee({ name: employee.name, docs: employee.personalDocuments }); }}

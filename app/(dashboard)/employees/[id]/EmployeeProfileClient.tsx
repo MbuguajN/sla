@@ -31,12 +31,20 @@ type Document = {
   createdAt: string;
 };
 
+type CompanyItem = {
+  id: number;
+  name: string;
+  category: string | null;
+  serialNumber: string | null;
+};
+
 interface Props {
   employee: Employee;
   completedTasks: number;
   activeTasks: number;
   leaveBalances: LeaveBalance[];
   documents: Document[];
+  companyItems: CompanyItem[];
   currentUserId: number;
   currentUserRole: string;
 }
@@ -80,6 +88,7 @@ export default function EmployeeProfileClient({
   activeTasks,
   leaveBalances,
   documents,
+  companyItems,
   currentUserId,
   currentUserRole,
 }: Props) {
@@ -334,6 +343,67 @@ export default function EmployeeProfileClient({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                       </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {/* COMPANY ITEMS OWNED */}
+      <section className="space-y-6">
+        <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+            Company Items Owned
+          </h3>
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
+            {companyItems.length} items
+          </span>
+        </div>
+
+        {companyItems.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
+            <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500">
+              No company items assigned.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:border-white/10 dark:bg-black/40">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-900 dark:border-white text-left">
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
+                    Item Name
+                  </th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
+                    Category
+                  </th>
+                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
+                    Serial Number
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {companyItems.map((item) => (
+                  <tr
+                    key={item.id}
+                    className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"
+                  >
+                    <td className="px-4 py-5">
+                      <div className="flex items-center gap-3">
+                        <svg className="h-5 w-5 text-[#c91f41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{item.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">
+                      {item.category || "—"}
+                    </td>
+                    <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">
+                      {item.serialNumber || "—"}
                     </td>
                   </tr>
                 ))}

@@ -42,7 +42,7 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
   const lastQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 - 3, 1);
   const lastQuarterEnd = currentQuarterStart;
 
-  const [tasks, leavePolicies, leaves, documents, completedThisQuarter, completedLastQuarter] = await Promise.all([
+  const [tasks, leavePolicies, leaves, documents, completedThisQuarter, completedLastQuarter, companyItems] = await Promise.all([
     db.task.groupBy({
       by: ["status"],
       where: {
@@ -81,6 +81,11 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
         status: "DONE",
         completedAt: { gte: lastQuarterStart, lt: lastQuarterEnd },
       },
+    }),
+    db.equipmentItem.findMany({
+      where: { ownerUserId: employeeId },
+      select: { id: true, make: true, model: true, serialNumber: true, category: { select: { name: true } } },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
@@ -129,6 +134,12 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
       documents={documents.map((d) => ({
         ...d,
         createdAt: d.createdAt.toISOString(),
+      }))}
+      companyItems={companyItems.map((i) => ({
+        id: i.id,
+        name: `${i.make} ${i.model}`,
+        category: i.category?.name || null,
+        serialNumber: i.serialNumber,
       }))}
       currentUserId={user.id}
       currentUserRole={user.role}
