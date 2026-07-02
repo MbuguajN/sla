@@ -3,6 +3,8 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
@@ -258,6 +260,7 @@ export default function BoardWorkbenchClient({
   const [newFileName, setNewFileName] = useState("");
   const [newFileUrl, setNewFileUrl] = useState("");
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState("");
   const [activeComment, setActiveComment] = useState("");
   const [checklistAssigneeId, setChecklistAssigneeId] = useState<string | null>(null);
 
@@ -1802,40 +1805,37 @@ export default function BoardWorkbenchClient({
                       <h3 className="text-[12px] font-black uppercase tracking-[0.2em] text-zinc-700 dark:text-zinc-300">Description</h3>
                     </div>
                     {activeCard.card.description && !isDescriptionEditing && (
-                      <button onClick={() => setIsDescriptionEditing(true)} className="px-3 py-1.5 rounded-lg bg-zinc-200/50 hover:bg-zinc-200 text-[10px] font-black uppercase tracking-wider text-zinc-500 transition-all">Edit</button>
+                      <button onClick={() => { setDescriptionValue(activeCard.card.description || ""); setIsDescriptionEditing(true); }} className="px-3 py-1.5 rounded-lg bg-zinc-200/50 hover:bg-zinc-200 text-[10px] font-black uppercase tracking-wider text-zinc-500 transition-all">Edit</button>
                     )}
                   </div>
                   <div className="ml-8">
                      {isDescriptionEditing || !activeCard.card.description ? (
                        <div className="space-y-3">
-                         <textarea 
-                            autoFocus
+                         <RichTextEditor
+                            value={descriptionValue}
+                            onChange={setDescriptionValue}
                             placeholder="Add a more detailed description..."
-                            defaultValue={activeCard.card.description}
-                            className="w-full min-h-[80px] p-4 bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-2xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 outline-none focus:ring-4 ring-sky-500/10 transition-all resize-none"
-                            id="card-desc-editor"
+                            height={150}
                          />
                          <div className="flex gap-2">
-                            <button 
-                              onClick={async () => {
-                                const val = (document.getElementById("card-desc-editor") as HTMLTextAreaElement).value.trim();
-                                const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                                try { await updateCardDescription(cardDbId, val); } catch (err) { console.error(err); }
-                                updateActiveCard(c => ({ ...c, description: val }));
-                                setIsDescriptionEditing(false);
-                              }}
-                              className="bg-[#c91f41] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-[#a01832] shadow-[0_4px_12px_rgba(0,0,0,0.18)]"
-                            >
-                              Save
-                            </button>
-                            <button onClick={() => setIsDescriptionEditing(false)} className="text-zinc-500 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-zinc-200 transition-all">Cancel</button>
+                           <button 
+                             onClick={async () => {
+                               const val = descriptionValue.trim();
+                               const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
+                               try { await updateCardDescription(cardDbId, val); } catch (err) { console.error(err); }
+                               updateActiveCard(c => ({ ...c, description: val }));
+                               setIsDescriptionEditing(false);
+                             }}
+                             className="bg-[#c91f41] text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-[#a01832] shadow-[0_4px_12px_rgba(0,0,0,0.18)]"
+                           >
+                             Save
+                           </button>
+                           <button onClick={() => setIsDescriptionEditing(false)} className="text-zinc-500 px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-zinc-200 transition-all">Cancel</button>
                          </div>
                        </div>
                      ) : (
-                       <div className="p-4 bg-white/50 dark:bg-white/5 rounded-2xl border border-zinc-100 dark:border-white/5 cursor-pointer group hover:border-zinc-300 transition-all" onClick={() => setIsDescriptionEditing(true)}>
-                          <p className="text-sm font-semibold text-zinc-600 dark:text-zinc-400 whitespace-pre-wrap leading-relaxed">
-                            {activeCard.card.description}
-                          </p>
+                       <div className="p-4 bg-white/50 dark:bg-white/5 rounded-2xl border border-zinc-100 dark:border-white/5 cursor-pointer group hover:border-zinc-300 transition-all" onClick={() => { setDescriptionValue(activeCard.card.description || ""); setIsDescriptionEditing(true); }}>
+                          <MarkdownRenderer content={activeCard.card.description || ""} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                        </div>
                      )}
                   </div>
@@ -2068,17 +2068,12 @@ export default function BoardWorkbenchClient({
                         <div className={cn("h-9 w-9 flex-none rounded-full flex items-center justify-center text-[10px] font-black text-white uppercase shadow-sm", getUserColor(currentUser.id, currentUser.name))}>{initials(currentUser.name)}</div>
                         <div className="flex-1 space-y-3">
                            <div className="bg-white dark:bg-white/5 border border-zinc-200 dark:border-white/10 p-4 rounded-2xl shadow-inner focus-within:border-sky-500 transition-all">
-                              <textarea 
-                                placeholder="Write a comment..." 
-                                className="w-full bg-transparent text-sm font-semibold outline-none resize-none min-h-[60px]" 
+                              <RichTextEditor
                                 value={activeComment}
-                                onChange={e => setActiveComment(e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleAddComment();
-                                  }
-                                }}
+                                onChange={setActiveComment}
+                                placeholder="Write a comment..."
+                                height={100}
+                                compact
                               />
                            </div>
                            {activeComment && activeComment.trim() && (
@@ -2110,7 +2105,7 @@ export default function BoardWorkbenchClient({
                                     ? "bg-zinc-50/50 dark:bg-white/5 border-transparent text-zinc-400 italic" 
                                     : "bg-white dark:bg-white/5 border-zinc-100 dark:border-white/10 text-zinc-700 dark:text-zinc-300 group-hover:border-zinc-200"
                                 )}>
-                                   {act.message}
+                                   {act.type === "SYSTEM" ? act.message : <MarkdownRenderer content={act.message} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />}
                                 </div>
                              </div>
                           </div>

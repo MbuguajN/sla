@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createTask } from "@/app/actions/taskActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   ArrowLeft,
   ChevronRight,
@@ -342,12 +343,11 @@ export default function NewTaskClient({ projects, allDepartments, minSlaHours, p
                 <div className="space-y-5">
                   <div>
                     <label className={labelClassName}>Technical Instruction</label>
-                    <textarea
-                      placeholder="What needs to be done? Include specific dimensions, formats, or requirements..."
-                      rows={6}
+                    <RichTextEditor
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className={cn(fieldClassName, "resize-none p-5")}
+                      onChange={(val) => setFormData({ ...formData, description: val })}
+                      placeholder="What needs to be done? Include specific dimensions, formats, or requirements..."
+                      height={200}
                     />
                   </div>
 

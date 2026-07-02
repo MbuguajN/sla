@@ -42,12 +42,19 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
   const lastQuarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 - 3, 1);
   const lastQuarterEnd = currentQuarterStart;
 
-  const [tasks, leavePolicies, leaves, documents, completedThisQuarter, completedLastQuarter, companyItems] = await Promise.all([
+  const [tasks, boardCards, leavePolicies, leaves, documents, completedThisQuarter, completedLastQuarter, companyItems] = await Promise.all([
     db.task.groupBy({
       by: ["status"],
       where: {
         assignedUserId: employeeId,
         status: { notIn: ["CANCELLED"] },
+      },
+      _count: { id: true },
+    }),
+    db.boardCard.groupBy({
+      by: ["isCompleted"],
+      where: {
+        assignedToUserId: employeeId,
       },
       _count: { id: true },
     }),
@@ -94,6 +101,12 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
     .filter((t) => !["DONE", "CANCELLED"].includes(t.status))
     .reduce((sum, t) => sum + t._count.id, 0);
 
+  const completedBoardCards = boardCards.find((c) => c.isCompleted === true)?._count.id || 0;
+  const activeBoardCards = boardCards.find((c) => c.isCompleted === false)?._count.id || 0;
+
+  const totalCompleted = completedTasks + completedBoardCards;
+  const totalActive = activeTasks + activeBoardCards;
+
   const policyMap = new Map(leavePolicies.map((p) => [p.leaveType, p.daysAllowed]));
   const usedMap = new Map<string, number>();
   for (const l of leaves) {
@@ -128,8 +141,8 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
         ...employee,
         createdAt: employee.createdAt.toISOString(),
       }}
-      completedTasks={completedTasks}
-      activeTasks={activeTasks}
+      completedTasks={totalCompleted}
+      activeTasks={totalActive}
       leaveBalances={leaveBalances as any}
       documents={documents.map((d) => ({
         ...d,

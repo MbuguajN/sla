@@ -8,6 +8,8 @@ import {
 } from "@/app/actions/financeActions";
 import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Cancel01Icon, Clock01Icon, ShoppingBasket01Icon, BitcoinIcon, SquareLock02Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
+import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 type ReqItem = { id: number; itemName: string; quantity: number; unitPrice: number; vatInclusive: boolean };
 type Requisition = {
@@ -286,19 +288,20 @@ export default function FinanceRequisitionsClient({
                         <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                           <SquareLock02Icon className="w-3.5 h-3.5" /> Justification
                         </h4>
-                        <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 italic text-sm text-zinc-500 leading-relaxed font-medium">
-                          {req.reason}
+                        <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 text-sm text-zinc-500 leading-relaxed font-medium">
+                          <MarkdownRenderer content={req.reason} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                         </div>
                       </div>
 
                       {/* Manager approval console */}
-                      {isManagerReviewer && req.status === 'PENDING_MANAGER' && (
+                       {isManagerReviewer && req.status === 'PENDING_MANAGER' && (
                         <div className="space-y-4 pt-4">
-                           <textarea
-                            placeholder="Manager review notes or rejection reason..."
-                            className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
+                           <RichTextEditor
                             value={actionNote}
-                            onChange={(e) => setActionNote(e.target.value)}
+                            onChange={setActionNote}
+                            placeholder="Manager review notes or rejection reason..."
+                            height={120}
+                            compact
                            />
                            <div className="grid grid-cols-2 gap-3">
                               <button
@@ -330,13 +333,14 @@ export default function FinanceRequisitionsClient({
                       )}
 
                       {/* Finance approval console */}
-                      {isFinanceReviewer && req.status === 'PENDING_FINANCE' && (
+                       {isFinanceReviewer && req.status === 'PENDING_FINANCE' && (
                         <div className="space-y-4 pt-4">
-                           <textarea
-                            placeholder="Audit notes or rejection reason..."
-                            className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
+                           <RichTextEditor
                             value={actionNote}
-                            onChange={(e) => setActionNote(e.target.value)}
+                            onChange={setActionNote}
+                            placeholder="Audit notes or rejection reason..."
+                            height={120}
+                            compact
                            />
                            <div className="grid grid-cols-2 gap-3">
                               <button 
@@ -368,13 +372,14 @@ export default function FinanceRequisitionsClient({
                       )}
 
                       {/* Directors acting on PENDING_CEO */}
-                      {isDirectorReviewer && req.status === 'PENDING_CEO' && (
+                       {isDirectorReviewer && req.status === 'PENDING_CEO' && (
                         <div className="space-y-4 pt-4">
-                           <textarea
-                            placeholder="Directors notes or rejection reason..."
-                            className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 font-bold text-sm text-white resize-none"
+                           <RichTextEditor
                             value={actionNote}
-                            onChange={(e) => setActionNote(e.target.value)}
+                            onChange={setActionNote}
+                            placeholder="Directors notes or rejection reason..."
+                            height={120}
+                            compact
                            />
                            <div className="grid grid-cols-2 gap-3">
                               <button 

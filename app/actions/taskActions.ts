@@ -899,13 +899,9 @@ export async function addSubtask(taskId: number, title: string, description?: st
   const task = await db.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error("Task not found");
 
-  // Only initiator (creator) in Client Service or Business Development can add subtasks.
-  if (
-    task.createdById !== user.id ||
-    user.departmentSlug !== "client-service" &&
-    user.departmentSlug !== "business-development"
-  ) {
-    throw new Error("Unauthorized - Only the initiator in Client Service or Business Development can add subtasks");
+  // Only the initiator (creator) can add subtasks.
+  if (task.createdById !== user.id) {
+    throw new Error("Unauthorized - Only the task initiator can add subtasks");
   }
 
   let subtask;
@@ -998,13 +994,9 @@ export async function deleteSubtask(subtaskId: number) {
 
   if (!subtask) throw new Error("Subtask not found");
 
-  // Allow only initiator (creator) in Client Service or Business Development to delete subtasks.
-  if (
-    subtask.task.createdById !== user.id ||
-    user.departmentSlug !== "client-service" &&
-    user.departmentSlug !== "business-development"
-  ) {
-    throw new Error("Unauthorized - Only the initiator in Client Service or Business Development can delete subtasks");
+  // Allow only the initiator (creator) to delete subtasks.
+  if (subtask.task.createdById !== user.id) {
+    throw new Error("Unauthorized - Only the task initiator can delete subtasks");
   }
 
   await db.subtask.delete({ where: { id: subtaskId } });

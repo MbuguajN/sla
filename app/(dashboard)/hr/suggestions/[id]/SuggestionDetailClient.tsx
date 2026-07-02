@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { reviewSuggestion } from "@/app/actions/hrActions";
 import { ArrowLeft, Clock3 } from "lucide-react";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   Button,
   Card,
@@ -109,7 +110,9 @@ export default function SuggestionDetailClient({ suggestion }: Props) {
           <Card className="rounded-2xl border border-slate-200/80 bg-[#f9fafc] shadow-none">
             <CardBody className="p-7">
               <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#c91f41]">Statement</p>
-              <p className="mt-3 whitespace-pre-wrap text-[22px] leading-[1.35] text-[#233b57]">"{suggestion.content}"</p>
+              <div className="mt-3 text-[22px] leading-[1.35] text-[#233b57]">
+                <MarkdownRenderer content={suggestion.content} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
+              </div>
             </CardBody>
           </Card>
 

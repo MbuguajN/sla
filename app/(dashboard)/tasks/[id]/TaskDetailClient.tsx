@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   assignTask,
   confirmTask,
@@ -172,14 +174,13 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   const isAssignee = task.assignedUserId === currentUser.id;
   const isManager = currentUser.role === "MANAGER" && currentUser.departmentId === task.deptId;
   const isAdmin = currentUser.role === "ADMIN" || currentUser.role === "CEO";
-  const isInitiatorInAllowedDept = isCreator && (currentUser.departmentSlug === "client-service" || currentUser.departmentSlug === "business-development");
   
   const isTaskClosed = task.status === "DONE" || task.status === "CANCELLED";
 
   const canAddLink = isCreator && !isTaskClosed; 
-  const canAddSubtask = isInitiatorInAllowedDept && !isTaskClosed;
+  const canAddSubtask = isCreator && !isTaskClosed;
   const canToggleSubtaskDone = isAssignee && !isTaskClosed;
-  const canDeleteSubtask = (isInitiatorInAllowedDept || isAdmin || isManager) && !isTaskClosed;
+  const canDeleteSubtask = (isCreator || isAdmin || isManager) && !isTaskClosed;
   const canPostUpdate = !isTaskClosed;
 
   const canAssign = (isManager || isAdmin) && task.status === "UNASSIGNED";
@@ -365,9 +366,13 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
               <h2 className="text-[11px] font-extrabold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Description</h2>
             </div>
             <div className="bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-2xl p-6">
-              <p className="text-[16px] text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
-                {task.description || "The task initiator has not provided a detailed description."}
-              </p>
+              {task.description ? (
+                <MarkdownRenderer content={task.description} />
+              ) : (
+                <p className="text-[16px] text-slate-700 dark:text-zinc-300 leading-relaxed font-medium">
+                  The task initiator has not provided a detailed description.
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-6 mt-8 pt-8 border-t border-slate-200 dark:border-white/10">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5 text-center">DEADLINE</p>
@@ -458,9 +463,9 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                           {sub.title}
                         </p>
                         {sub.description && (
-                          <p className={`mt-1 text-[12px] leading-relaxed ${isDone ? "text-slate-300 dark:text-zinc-500" : "text-slate-500 dark:text-zinc-400"}`}>
-                            {sub.description}
-                          </p>
+                          <div className={`mt-1 text-[12px] leading-relaxed ${isDone ? "text-slate-300 dark:text-zinc-500" : "text-slate-500 dark:text-zinc-400"}`}>
+                            <MarkdownRenderer content={sub.description} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -483,12 +488,12 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                     </div>
                     <button onClick={handleAddSubtask} disabled={loading === "addSubtask"} className="h-12 px-6 bg-slate-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-black transition-colors disabled:opacity-60">ADD</button>
                   </div>
-                  <textarea
+                  <RichTextEditor
                     value={newSubtaskDesc}
-                    onChange={e => setNewSubtaskDesc(e.target.value)}
+                    onChange={setNewSubtaskDesc}
                     placeholder="Add a description (optional)"
-                    rows={2}
-                    className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/15 rounded-xl px-4 py-3 text-[13px] text-slate-700 dark:text-zinc-300 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-slate-50 dark:focus:ring-white/10 focus:border-slate-400 dark:focus:border-white/30 transition-all resize-none"
+                    height={100}
+                    compact
                   />
                 </div>
               )}
@@ -521,7 +526,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                       </p>
                       {act.parsedMeta.kind === "COMMENT" && (
                         <div className="mt-1.5 bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/10 rounded-xl p-2.5">
-                          <p className="text-[12px] text-slate-600 dark:text-zinc-300 leading-normal font-medium italic">"{act.parsedMeta.comment}"</p>
+                          <MarkdownRenderer content={act.parsedMeta.comment || ""} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                         </div>
                       )}
                     </div>
@@ -534,10 +539,12 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
           <section className="sticky top-6 bg-white dark:bg-white/5 rounded-2xl border border-slate-200 dark:border-white/15 shadow-xl p-6 flex flex-col gap-4 ring-1 ring-black/5 dark:ring-white/10">
             <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500 mb-2">Internal Status Update</h3>
             {canPostUpdate ? (
-              <textarea 
-                 value={commentText} onChange={e => setCommentText(e.target.value)}
-                 placeholder="Write your update here... "
-                 className="w-full resize-none border-none p-0 text-[14px] font-medium text-slate-900 dark:text-zinc-100 placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:ring-0 min-h-[100px] bg-transparent"
+              <RichTextEditor
+                 value={commentText}
+                 onChange={setCommentText}
+                 placeholder="Write your update here..."
+                 height={120}
+                 compact
               />
             ) : (
               <div className="min-h-[100px] flex items-center justify-center bg-slate-50 dark:bg-white/5 rounded-xl border border-dashed border-slate-200 dark:border-white/15">
@@ -631,9 +638,12 @@ function ReasonModal({ title, placeholder, buttonText, onClose, onSubmit }: { ti
       <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
       <div className="relative bg-white dark:bg-[#111111] rounded-3xl shadow-2xl w-full max-w-md p-10 border border-transparent dark:border-white/10">
         <h2 className="text-[20px] font-black text-slate-900 dark:text-white mb-8 tracking-tight text-center uppercase">{title}</h2>
-        <textarea 
-          value={reason} onChange={e => setReason(e.target.value)} rows={5} placeholder={placeholder} 
-          className="w-full bg-slate-50 dark:bg-black border border-slate-100 dark:border-white/10 rounded-2xl p-6 text-[14px] font-medium text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-slate-100 dark:focus:ring-white/10 mb-8 resize-none" 
+        <RichTextEditor
+          value={reason}
+          onChange={setReason}
+          placeholder={placeholder}
+          height={150}
+          compact
         />
         <div className="grid grid-cols-2 gap-4">
           <button onClick={onClose} className="h-14 font-bold text-[11px] text-slate-400 dark:text-zinc-500 uppercase tracking-widest hover:text-slate-600 dark:hover:text-zinc-300 transition-colors">CANCEL</button>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient, updateClient, deleteClient, closeClient, addClientDocument, deleteClientDocument } from "@/app/actions/clientActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   Briefcase,
   Plus,
@@ -495,12 +496,11 @@ export default function ClientsClient({ initialClients, canCreate, canClose }: P
                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-zinc-600 mb-2 block">
                   Description
                 </label>
-                <textarea
+                <RichTextEditor
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 text-sm font-medium bg-gray-50 dark:bg-black border-2 border-transparent dark:border-white/10 rounded-xl focus:outline-none focus:bg-white dark:focus:bg-black focus:border-[#c91f41] transition-all resize-none text-gray-900 dark:text-white"
+                  onChange={(val) => setFormData({ ...formData, description: val })}
                   placeholder="Brief description of the client"
+                  height={150}
                 />
               </div>
 

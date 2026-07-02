@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Search } from "lucide-react";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   Card,
   CardBody,
@@ -194,7 +195,9 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
                     <TableRow key={s.id}>
                       <TableCell>
                         <p className="text-sm font-bold text-gray-900 dark:text-white leading-tight">{s.title}</p>
-                        <p className="text-xs text-gray-500 dark:text-zinc-400 mt-1 line-clamp-2">{s.content}</p>
+                        <div className="text-xs text-gray-500 dark:text-zinc-400 mt-1 line-clamp-2">
+                          <MarkdownRenderer content={s.content} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
+                        </div>
                         {s.hrNote && <p className="text-[11px] text-gray-400 mt-2">HR Note: {s.hrNote}</p>}
                       </TableCell>
                       <TableCell>

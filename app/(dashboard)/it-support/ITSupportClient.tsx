@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   createITTicket,
   assignITTicket,
@@ -240,8 +242,8 @@ export default function ITSupportClient({
                   <td className="px-6 py-5">
                     <div className="max-w-xs">
                       <p className="text-[13px] font-black text-gray-900 dark:text-white uppercase italic group-hover:text-[#c91f41] transition-colors">{ticket.title}</p>
-                      <p className="text-[11px] font-medium text-gray-400 line-clamp-1 italic mt-0.5">
-                        {ticket.description}
+                      <p className="text-[11px] font-medium text-gray-400 line-clamp-1 mt-0.5">
+                        <MarkdownRenderer content={ticket.description} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                       </p>
                     </div>
                   </td>
@@ -448,13 +450,11 @@ export default function ITSupportClient({
 
                 <div>
                   <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">Explain In Detail</label>
-                  <textarea
-                    required
+                  <RichTextEditor
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={4}
+                    onChange={(val) => setFormData({ ...formData, description: val })}
                     placeholder="Explain the issue in detail, including steps to reproduce and impact..."
-                    className="w-full p-6 text-[13px] font-bold bg-gray-50 dark:bg-white/5 border-2 border-gray-100 dark:border-white/10 rounded-2xl focus:border-gray-900 dark:focus:border-[#c91f41] transition-all outline-none resize-none dark:text-white"
+                    height={200}
                   />
                 </div>
 

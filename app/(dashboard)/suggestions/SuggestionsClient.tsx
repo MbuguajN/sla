@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSuggestion } from "@/app/actions/hrActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import { 
   Message01Icon, 
   Add01Icon, 
@@ -296,9 +297,11 @@ export default function SuggestionsClient({ initialSuggestions }: Props) {
                         type="text" placeholder="Summary title..." value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}
                         className="w-full h-14 bg-gray-50 dark:bg-white/5 rounded-2xl px-6 font-bold text-sm outline-none border-2 border-transparent focus:border-indigo-600 transition-all dark:text-white"
                      />
-                     <textarea 
-                        rows={4} placeholder="Describe your suggestion in detail..." value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})}
-                        className="w-full bg-gray-50 dark:bg-white/5 rounded-2xl p-6 font-bold text-sm outline-none border-2 border-transparent focus:border-indigo-600 transition-all resize-none dark:text-white"
+                     <RichTextEditor
+                        value={formData.content}
+                        onChange={(val) => setFormData({...formData, content: val})}
+                        placeholder="Describe your suggestion in detail..."
+                        height={200}
                      />
                   </div>
                )}

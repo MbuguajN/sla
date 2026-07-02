@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { reviewSuggestion } from "@/app/actions/hrActions";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { Badge, Button, Input } from "@/components/daisy-components";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 
 type SuggestionItem = {
   id: number;
@@ -79,7 +80,7 @@ export default function SuggestionDetailClient({ suggestion }: { suggestion: Sug
         </div>
 
         <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5">
-          <p className="text-sm leading-relaxed text-slate-700 whitespace-pre-wrap">{suggestion.content}</p>
+          <MarkdownRenderer content={suggestion.content} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
         </div>
       </section>
 

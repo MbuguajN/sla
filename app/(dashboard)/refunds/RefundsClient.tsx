@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createRefundWithReceipts } from "@/app/actions/financeActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import { 
   Money01Icon, 
   Add01Icon, 
@@ -246,9 +247,11 @@ export default function RefundsClient({ initialRefunds }: Props) {
                {currentStep === 2 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                      <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Justification Basis</h2>
-                     <textarea 
-                    rows={5} placeholder="Detailed explanation for the reimbursement..." value={formData.reason} onChange={e => setFormData({...formData, reason: e.target.value})}
-                    className="w-full bg-gray-50 dark:bg-white/5 rounded-[2rem] p-6 font-bold text-sm outline-none border-4 border-transparent focus:border-emerald-600 transition-all resize-none dark:text-white"
+                     <RichTextEditor
+                    value={formData.reason}
+                    onChange={(val) => setFormData({...formData, reason: val})}
+                    placeholder="Detailed explanation for the reimbursement..."
+                    height={200}
                      />
                   <div className="space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gray-400">Upload Receipts</p>

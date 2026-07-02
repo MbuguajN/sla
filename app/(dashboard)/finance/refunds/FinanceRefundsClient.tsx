@@ -8,6 +8,8 @@ import {
   rejectRefundAsFinance,
   rejectRefundAsCEO,
 } from "@/app/actions/financeActions";
+import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { CreditCardIcon, Search01Icon, Cancel01Icon, CheckmarkCircle01Icon, ArrowDown01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 
@@ -210,7 +212,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                       </span>
                     ) : null}
                   </div>
-                  <h3 className="text-xl font-black text-[#111827] dark:text-white tracking-tight">{refund.reason}</h3>
+                   <div className="text-xl font-black text-[#111827] dark:text-white tracking-tight"><MarkdownRenderer content={refund.reason} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" /></div>
                   <p className="text-sm font-bold text-zinc-500 italic lowercase tracking-tight">Requested by {refund.userName}</p>
                 </div>
               </div>
@@ -245,8 +247,8 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   {/* Reason */}
                   <div className="space-y-4">
                     <h4 className="text-[11px] font-black text-zinc-400 uppercase tracking-widest">Refund Reason</h4>
-                    <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 italic text-sm text-zinc-500 leading-relaxed font-medium">
-                      {refund.reason}
+                    <div className="p-6 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 text-sm text-zinc-500 leading-relaxed font-medium">
+                      <MarkdownRenderer content={refund.reason} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                     </div>
                     {refund.receiptUrls?.length ? (
                       <div className="p-4 bg-[#f8faff] dark:bg-black rounded-2xl border border-gray-50 dark:border-white/5 space-y-2">
@@ -271,11 +273,12 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   {/* Approval Console — Finance acting on PENDING_FINANCE */}
                   {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_FINANCE' && (
                     <div className="space-y-4">
-                      <textarea
-                        placeholder="Audit notes or rejection reason..."
-                        className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500/20 font-bold text-sm text-white resize-none"
+                      <RichTextEditor
                         value={actionNote}
-                        onChange={(e) => setActionNote(e.target.value)}
+                        onChange={setActionNote}
+                        placeholder="Audit notes or rejection reason..."
+                        height={120}
+                        compact
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <button 
@@ -307,11 +310,12 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   {/* Director acting on PENDING_CEO */}
                   {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_CEO' && (
                     <div className="space-y-4">
-                      <textarea
-                        placeholder="Approval notes or rejection reason..."
-                        className="w-full h-24 p-4 bg-white dark:bg-black border border-gray-100 dark:border-white/10 rounded-2xl outline-none focus:ring-2 focus:ring-rose-500/20 font-bold text-sm text-white resize-none"
+                      <RichTextEditor
                         value={actionNote}
-                        onChange={(e) => setActionNote(e.target.value)}
+                        onChange={setActionNote}
+                        placeholder="Approval notes or rejection reason..."
+                        height={120}
+                        compact
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <button 

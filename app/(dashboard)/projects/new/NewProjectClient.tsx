@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createProject } from "@/app/actions/projectActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   ArrowLeft,
   Building2,
@@ -259,11 +260,11 @@ export default function NewProjectClient({ clients, departments, preselectedClie
                     <label className="label mb-1">
                       <span className="text-[11px] font-extrabold uppercase tracking-widest text-gray-400 dark:text-zinc-600">Description / Scope</span>
                     </label>
-                    <textarea 
-                      className="textarea textarea-bordered w-full rounded-2xl bg-gray-50 dark:bg-black border-gray-200 dark:border-white/10 focus:border-[#c91f41] focus:ring-1 focus:ring-[#c91f41] min-h-[175px] text-sm px-4 py-3 dark:text-white"
-                      placeholder="What are we trying to achieve? Provide high-level details..."
+                    <RichTextEditor
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(val) => setFormData({ ...formData, description: val })}
+                      placeholder="What are we trying to achieve? Provide high-level details..."
+                      height={200}
                     />
                   </div>
                 </div>

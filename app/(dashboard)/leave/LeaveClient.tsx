@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLeave, cancelLeave, updateLeaveHandovers } from "@/app/actions/hrActions";
+import RichTextEditor from "@/components/RichTextEditor";
 import {
   Calendar01Icon,
   Add01Icon,
@@ -681,12 +682,11 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               {currentStep === 3 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Core Reason</h2>
-                  <textarea
-                    rows={6}
-                    placeholder="Please justify your leave request..."
+                  <RichTextEditor
                     value={formData.reason}
-                    onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                    className="w-full bg-gray-50 dark:bg-white/5 rounded-2xl p-6 font-bold text-sm outline-none border-2 border-transparent focus:border-pink-600 transition-all resize-none dark:text-white"
+                    onChange={(val) => setFormData({ ...formData, reason: val })}
+                    placeholder="Please justify your leave request..."
+                    height={200}
                   />
                 </div>
               )}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createDailyLogs } from "@/app/actions/dailyLogActions";
 import { Calendar01Icon, Add01Icon, Search01Icon, Tick01Icon, Cancel01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
+import RichTextEditor from "@/components/RichTextEditor";
 
 type TaskOption = {
   id: number;
@@ -383,15 +384,14 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                 <label className="block text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 dark:text-zinc-400">
                   What did you do?
                 </label>
-                <textarea
-                  rows={5}
+                <RichTextEditor
                   value={note}
-                  onChange={(event) => {
-                    setNote(event.target.value);
+                  onChange={(val) => {
+                    setNote(val);
                     setError("");
                   }}
                   placeholder="Describe what you worked on today"
-                  className="w-full rounded-2xl border border-gray-200 bg-white p-4 text-sm font-semibold text-gray-900 outline-none focus:ring-2 focus:ring-[#c91f41]/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                  height={200}
                 />
 
                 <label className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-gray-500 dark:text-zinc-400">
