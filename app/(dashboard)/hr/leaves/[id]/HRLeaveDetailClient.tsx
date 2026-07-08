@@ -33,7 +33,8 @@ type LeaveDetail = {
 };
 
 const statusLabel: Record<string, string> = {
-  PENDING: "Pending",
+  PENDING: "Pending Manager",
+  PENDING_HR: "Pending HR",
   APPROVED: "Approved",
   DENIED: "Denied",
   CANCELLED: "Cancelled",
@@ -41,6 +42,7 @@ const statusLabel: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   PENDING: "warning",
+  PENDING_HR: "info",
   APPROVED: "success",
   DENIED: "error",
   CANCELLED: "secondary",
@@ -60,7 +62,7 @@ export default function HRLeaveDetailClient({ leave }: { leave: LeaveDetail }) {
   const [reviewNote, setReviewNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canReview = leave.status === "PENDING";
+  const canReview = leave.status === "PENDING_HR";
   const updatedDate = new Date(leave.updatedAt);
   const lastUpdatedLabel =
     Math.max(1, Math.floor((Date.now() - updatedDate.getTime()) / (1000 * 60 * 60))) + "h ago";

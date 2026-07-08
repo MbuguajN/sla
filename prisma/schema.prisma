@@ -907,6 +907,7 @@ enum LeaveDuration {
 
 enum LeaveStatus {
   PENDING
+  PENDING_HR
   APPROVED
   DENIED
   CANCELLED

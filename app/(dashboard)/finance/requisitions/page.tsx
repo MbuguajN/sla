@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { DEPARTMENTS, getCurrentUser, canApproveRequisitionAsCEO, canApproveRequisitionAsFinance } from "@/lib/permissions";
+import { DEPARTMENTS, getCurrentUser, canApproveRequisitionAsFinance } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import FinanceRequisitionsClient from "./FinanceRequisitionsClient";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
@@ -9,10 +9,9 @@ export default async function FinanceRequisitionsPage() {
   if (!user) redirect("/login");
 
   const canViewAsManager = user.role === "MANAGER" && user.departmentSlug !== DEPARTMENTS.FINANCE;
-  const canViewAsDirector = canApproveRequisitionAsCEO(user);
   const canViewAsFinance = canApproveRequisitionAsFinance(user);
 
-  if (!canViewAsManager && !canViewAsDirector && !canViewAsFinance) redirect("/dashboard");
+  if (!canViewAsManager && !canViewAsFinance) redirect("/dashboard");
 
   const where = canViewAsManager
     ? { user: { departmentId: user.departmentId } }
@@ -52,7 +51,6 @@ export default async function FinanceRequisitionsPage() {
         createdAt: r.createdAt.toISOString(),
       }))}
       canReviewAsManager={canViewAsManager}
-      canReviewAsDirector={canViewAsDirector}
       canReviewAsFinance={canViewAsFinance}
     />
     </>

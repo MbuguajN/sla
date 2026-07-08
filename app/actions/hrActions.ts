@@ -265,28 +265,24 @@ export async function createLeave(data: {
     },
   });
 
-  const hrReviewers = await db.user.findMany({
+  const managers = await db.user.findMany({
     where: {
-      OR: [
-        { role: "ADMIN" },
-        { role: "CEO" },
-        { department: { slug: DEPARTMENTS.HR } },
-      ],
+      role: "MANAGER",
       isActive: true,
     },
     select: { id: true },
   });
 
   await Promise.allSettled(
-    hrReviewers
+    managers
       .filter((reviewer) => reviewer.id !== user.id)
       .map((reviewer) =>
         createNotification(
           reviewer.id,
           "REQUISITION_UPDATED",
           "New Leave Request",
-          `${user.name} submitted a ${data.type.toLowerCase()} leave request for review`,
-          "/hr/leaves"
+          `${user.name} submitted a ${data.type.toLowerCase()} leave request for your review`,
+          "/manager/leaves"
         )
       )
   );
@@ -319,6 +315,77 @@ export async function reviewLeave(
   const leave = await db.leave.findUnique({ where: { id: leaveId } });
   if (!leave) throw new Error("Leave not found");
 
+  // Manager reviewing: advance to PENDING_HR (can only deny at this stage)
+  if (user.role === "MANAGER") {
+    if (leave.status !== "PENDING") throw new Error("Leave is not pending manager review");
+    if (decision === "DENIED") {
+      const updated = await db.leave.update({
+        where: { id: leaveId },
+        data: {
+          status: "DENIED",
+          reviewedBy: user.id,
+          reviewNote: reviewNote || null,
+        },
+      });
+      await createNotification(
+        leave.userId,
+        "LEAVE_DENIED",
+        "Leave Denied",
+        `Your leave request has been denied by your manager. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
+        "/leave"
+      );
+      revalidatePath("/leave");
+      revalidatePath("/hr/leaves");
+      revalidatePath("/manager/leaves");
+      return updated;
+    }
+    // Manager approves → advance to PENDING_HR
+    const updated = await db.leave.update({
+      where: { id: leaveId },
+      data: {
+        status: "PENDING_HR",
+        reviewNote: reviewNote || null,
+      },
+    });
+    // Notify HR reviewers
+    const hrReviewers = await db.user.findMany({
+      where: {
+        OR: [
+          { role: "ADMIN" },
+          { role: "CEO" },
+          { department: { slug: DEPARTMENTS.HR } },
+        ],
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    await Promise.allSettled(
+      hrReviewers.map((reviewer) =>
+        createNotification(
+          reviewer.id,
+          "REQUISITION_UPDATED",
+          "Leave Pending HR Approval",
+          `A leave request has been approved by the manager and is pending your approval`,
+          "/hr/leaves"
+        )
+      )
+    );
+    await createNotification(
+      leave.userId,
+      "REQUISITION_UPDATED",
+      "Leave Forwarded to HR",
+      `Your leave request has been approved by your manager and is now pending HR approval`,
+      "/leave"
+    );
+    revalidatePath("/leave");
+    revalidatePath("/hr/leaves");
+    revalidatePath("/manager/leaves");
+    return updated;
+  }
+
+  // HR/Admin reviewing: must be PENDING_HR
+  if (leave.status !== "PENDING_HR") throw new Error("Leave is not pending HR review");
+
   const updated = await db.leave.update({
     where: { id: leaveId },
     data: {
@@ -328,11 +395,10 @@ export async function reviewLeave(
     },
   });
 
-  // Create notification
   const notificationType = decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED";
   const message = decision === "APPROVED"
-    ? `Your leave request has been approved`
-    : `Your leave request has been denied`;
+    ? `Your leave request has been approved by HR`
+    : `Your leave request has been denied by HR. ${reviewNote ? `Reason: ${reviewNote}` : ""}`;
 
   await createNotification(
     leave.userId,
@@ -348,6 +414,7 @@ export async function reviewLeave(
 
   revalidatePath("/leave");
   revalidatePath("/hr/leaves");
+  revalidatePath("/manager/leaves");
   return updated;
 }
 

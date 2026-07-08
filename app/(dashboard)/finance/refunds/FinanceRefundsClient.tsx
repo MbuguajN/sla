@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  submitRefundForApproval,
-  approveRefundAsCEO,
+  approveRefundAsFinance,
   rejectRefundAsFinance,
-  rejectRefundAsCEO,
 } from "@/app/actions/financeActions";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -32,7 +30,6 @@ interface Props {
 }
 
 function formatStatusLabel(status: string) {
-  if (status === "PENDING_CEO") return "PENDING DIRECTOR";
   return status.split("_").join(" ");
 }
 
@@ -53,18 +50,13 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
   const handleApprove = async (refundId: number) => {
     setLoading(true);
     try {
-      if (currentUserRole === "CEO") {
-        await approveRefundAsCEO(refundId, actionNote || undefined);
-        setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "APPROVED" } : r));
-      } else {
-        await submitRefundForApproval(refundId, actionNote || undefined);
-        setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "PENDING_CEO" } : r));
-      }
+      await approveRefundAsFinance(refundId, actionNote || undefined);
+      setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "APPROVED" } : r));
       setActionNote("");
       setExpandedId(null);
       router.refresh();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to submit refund for approval");
+      alert(err instanceof Error ? err.message : "Failed to approve refund");
     } finally {
       setLoading(false);
     }
@@ -73,11 +65,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
   const handleDeny = async (refundId: number) => {
     setLoading(true);
     try {
-      if (currentUserRole === "CEO") {
-        await rejectRefundAsCEO(refundId, actionNote || "Denied");
-      } else {
-        await rejectRefundAsFinance(refundId, actionNote || "Denied");
-      }
+      await rejectRefundAsFinance(refundId, actionNote || "Denied");
       setRefunds(prev => prev.map(r => r.id === refundId ? { ...r, status: "DENIED" } : r));
       setActionNote("");
       setExpandedId(null);
@@ -111,7 +99,7 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
   const displayedItems = filtered.slice(0, itemsDisplayed);
   const hasMore = itemsDisplayed < filtered.length;
 
-  const statuses = ["ALL", "PENDING_FINANCE", "PENDING_CEO", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING_FINANCE", "APPROVED", "DENIED"];
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20 space-y-10">
@@ -271,49 +259,12 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                   </div>
 
                   {/* Approval Console — Finance acting on PENDING_FINANCE */}
-                  {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_FINANCE' && (
+                  {!isViewOnly && refund.status === 'PENDING_FINANCE' && (
                     <div className="space-y-4">
                       <RichTextEditor
                         value={actionNote}
                         onChange={setActionNote}
                         placeholder="Audit notes or rejection reason..."
-                        height={120}
-                        compact
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <button 
-                          onClick={() => handleApprove(refund.id)}
-                          disabled={loading}
-                          className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
-                        >
-                          <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Director
-                        </button>
-                        <button 
-                          onClick={() => handleDeny(refund.id)}
-                          disabled={loading}
-                          className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
-                        >
-                          <Cancel01Icon className="w-4 h-4" /> Reject
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Finance: waiting badge when already forwarded to Director */}
-                  {!isViewOnly && currentUserRole !== 'CEO' && refund.status === 'PENDING_CEO' && (
-                    <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
-                      <ArrowDown01Icon className="w-4 h-4 text-amber-500 flex-shrink-0 -rotate-90" />
-                      <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Forwarded — Awaiting Director Review</span>
-                    </div>
-                  )}
-
-                  {/* Director acting on PENDING_CEO */}
-                  {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_CEO' && (
-                    <div className="space-y-4">
-                      <RichTextEditor
-                        value={actionNote}
-                        onChange={setActionNote}
-                        placeholder="Approval notes or rejection reason..."
                         height={120}
                         compact
                       />
@@ -333,14 +284,6 @@ export default function FinanceRefundsClient({ initialRefunds, currentUserRole }
                           <Cancel01Icon className="w-4 h-4" /> Reject
                         </button>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Director: pending-finance info badge */}
-                  {!isViewOnly && currentUserRole === 'CEO' && refund.status === 'PENDING_FINANCE' && (
-                    <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
-                      <ArrowDown01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                      <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Pending Finance Review</span>
                     </div>
                   )}
                 </div>

@@ -461,6 +461,8 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                       "bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/20",
                     PENDING:
                       "bg-pink-50 text-pink-700 border border-pink-100 dark:bg-pink-500/10 dark:text-pink-300 dark:border-pink-500/20",
+                    PENDING_HR:
+                      "bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20",
                     CANCELLED:
                       "bg-gray-100 text-gray-600 border border-gray-200 dark:bg-white/5 dark:text-zinc-300 dark:border-white/10",
                   };
@@ -483,7 +485,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                           <span
                             className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full cursor-help ${statusColors[item.status] ?? "bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-zinc-300"}`}
                           >
-                            {item.status}
+                            {item.status === "PENDING_HR" ? "PENDING HR" : item.status}
                           </span>
                           {item.reviewNote && (
                             <div className="invisible group-hover:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs px-3 py-2 rounded-lg whitespace-nowrap font-semibold max-w-xs before:content-[''] before:absolute before:top-full before:left-1/2 before:-translate-x-1/2 before:border-4 before:border-transparent before:border-t-slate-900 dark:before:border-t-slate-100">

@@ -31,7 +31,7 @@ async function getFinanceDashboardData() {
   const [requisitions, refunds] = await Promise.all([
     db.requisition.findMany({
       include: { user: { include: { department: true } } },
-      where: { status: { in: ["PENDING_MANAGER", "PENDING_CEO", "PENDING_FINANCE"] } },
+      where: { status: { in: ["PENDING_MANAGER", "PENDING_FINANCE"] } },
       orderBy: { createdAt: "desc" },
       take: 3,
     }),
@@ -308,8 +308,6 @@ function getRequisitionFlow(status: string) {
   switch (status) {
     case "PENDING_MANAGER":
       return { label: "Manager Review", dot: "bg-amber-500", text: "text-amber-600" };
-    case "PENDING_CEO":
-      return { label: "Directors Review", dot: "bg-blue-500", text: "text-blue-600" };
     case "PENDING_FINANCE":
       return { label: "Finance Review", dot: "bg-emerald-500", text: "text-emerald-600" };
     default:

@@ -174,10 +174,10 @@ export async function createRequisition(data: {
     user.role === "CEO" || user.role === "ADMIN"
       ? "PENDING_FINANCE"
       : user.role === "MANAGER"
-        ? "PENDING_CEO"
+        ? "PENDING_FINANCE"
         : user.departmentId
           ? "PENDING_MANAGER"
-          : "PENDING_CEO";
+          : "PENDING_FINANCE";
 
   const requisition = await db.requisition.create({
     data: {
@@ -202,12 +202,6 @@ export async function createRequisition(data: {
     await notifyDepartmentManagers(
       requisition.user.departmentId,
       "Requisition Pending Department Manager Approval",
-      `${requisition.user.name} has submitted a requisition for KES ${requisition.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      "/finance/requisitions"
-    );
-  } else if (initialStatus === "PENDING_CEO") {
-    await notifyDirectors(
-      "Requisition Pending Directors Approval",
       `${requisition.user.name} has submitted a requisition for KES ${requisition.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       "/finance/requisitions"
     );
@@ -244,33 +238,8 @@ export async function advanceRequisition(reqId: number, note?: string) {
     const updated = await db.requisition.update({
       where: { id: reqId },
       data: {
-        status: "PENDING_CEO",
-        managerNote: note || null,
-      },
-      include: { user: true },
-    });
-
-    await notifyDirectors(
-      "Requisition Pending Directors Approval",
-      `${requisition.user.name} has a requisition for KES ${requisition.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending your approval`,
-      "/finance/requisitions"
-    );
-
-    revalidatePath("/requisitions");
-    revalidatePath("/finance/requisitions");
-    return updated;
-  }
-
-  if (canApproveRequisitionAsCEO(user)) {
-    if (requisition.status !== "PENDING_CEO") {
-      throw new Error("Not pending directors approval");
-    }
-
-    const updated = await db.requisition.update({
-      where: { id: reqId },
-      data: {
         status: "PENDING_FINANCE",
-        ceoNote: note || null,
+        managerNote: note || null,
       },
       include: { user: true },
     });
@@ -344,30 +313,6 @@ export async function rejectRequisition(reqId: number, note: string) {
       "REQUISITION_DENIED",
       "Requisition Rejected",
       `Your requisition has been rejected by your Department Manager. Reason: ${note}`,
-      "/requisitions"
-    );
-
-    revalidatePath("/requisitions");
-    revalidatePath("/finance/requisitions");
-    return updated;
-  }
-
-  if (canApproveRequisitionAsCEO(user)) {
-    if (requisition.status !== "PENDING_CEO") throw new Error("Not pending directors approval");
-
-    const updated = await db.requisition.update({
-      where: { id: reqId },
-      data: {
-        status: "DENIED",
-        ceoNote: note,
-      },
-    });
-
-    await createNotification(
-      requisition.userId,
-      "REQUISITION_DENIED",
-      "Requisition Rejected",
-      `Your requisition has been rejected by Directors. Reason: ${note}`,
       "/requisitions"
     );
 
@@ -453,17 +398,6 @@ export async function getPendingRefundsForFinance() {
   });
 }
 
-export async function getPendingRefundsForCEO() {
-  const user = await getCurrentUser();
-  if (!user || !canApproveRequisitionAsCEO(user)) throw new Error("Unauthorized");
-
-  return db.refund.findMany({
-    where: { status: "PENDING_CEO" },
-    include: { user: { include: { department: true } } },
-    orderBy: { createdAt: "desc" },
-  });
-}
-
 export async function createRefund(data: { amount: number; reason: string; receiptUrls?: string[] }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
@@ -528,8 +462,8 @@ export async function createRefundWithReceipts(formData: FormData) {
   });
 }
 
-// Finance submits refund for Director approval
-export async function submitRefundForApproval(refundId: number, note?: string) {
+// Finance approves refund directly
+export async function approveRefundAsFinance(refundId: number, note?: string) {
   const user = await getCurrentUser();
   if (!user || !canManageRefunds(user)) throw new Error("Unauthorized");
 
@@ -543,17 +477,19 @@ export async function submitRefundForApproval(refundId: number, note?: string) {
   const updated = await db.refund.update({
     where: { id: refundId },
     data: {
-      status: "PENDING_CEO",
+      status: "APPROVED",
       financeNote: note || null,
     },
     include: { user: true },
   });
 
-  // Notify Directors that refund is pending their approval
-  await notifyDirectors(
-    "Refund Pending Director Approval",
-    `${refund.user.name} has a refund request for KES ${refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pending your approval`,
-    "/finance/refunds"
+  // Notify requester that refund was approved
+  await createNotification(
+    refund.userId,
+    "REFUND_APPROVED",
+    "Refund Approved",
+    `Your refund request for KES ${refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} has been approved by Finance`,
+    "/refunds"
   );
 
   revalidatePath("/refunds");
@@ -587,78 +523,6 @@ export async function rejectRefundAsFinance(refundId: number, note: string) {
     "REFUND_DENIED",
     "Refund Rejected",
     `Your refund request has been rejected by Finance. Reason: ${note}`,
-    "/refunds"
-  );
-
-  revalidatePath("/refunds");
-  revalidatePath("/finance/refunds");
-  return updated;
-}
-
-// Director approves refund
-export async function approveRefundAsCEO(refundId: number, note?: string) {
-  const user = await getCurrentUser();
-  if (!user || !canApproveRequisitionAsCEO(user)) {
-    throw new Error("Unauthorized");
-  }
-
-  const refund = await db.refund.findUnique({
-    where: { id: refundId },
-    include: { user: true },
-  });
-  if (!refund) throw new Error("Refund not found");
-  if (refund.status !== "PENDING_CEO") throw new Error("Not pending Director approval");
-
-  const updated = await db.refund.update({
-    where: { id: refundId },
-    data: {
-      status: "APPROVED",
-      ceoNote: note || null,
-    },
-  });
-
-  // Notify requester that refund was approved
-  await createNotification(
-    refund.userId,
-    "REFUND_APPROVED",
-    "Refund Approved",
-    `Your refund request for KES ${refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} has been approved by Director`,
-    "/refunds"
-  );
-
-  revalidatePath("/refunds");
-  revalidatePath("/finance/refunds");
-  return updated;
-}
-
-// Director rejects refund
-export async function rejectRefundAsCEO(refundId: number, note: string) {
-  const user = await getCurrentUser();
-  if (!user || !canApproveRequisitionAsCEO(user)) {
-    throw new Error("Unauthorized");
-  }
-
-  const refund = await db.refund.findUnique({
-    where: { id: refundId },
-    include: { user: true },
-  });
-  if (!refund) throw new Error("Refund not found");
-  if (refund.status !== "PENDING_CEO") throw new Error("Not pending Director approval");
-
-  const updated = await db.refund.update({
-    where: { id: refundId },
-    data: {
-      status: "DENIED",
-      ceoNote: note,
-    },
-  });
-
-  // Notify requester that refund was rejected
-  await createNotification(
-    refund.userId,
-    "REFUND_DENIED",
-    "Refund Rejected",
-    `Your refund request has been rejected by Director. Reason: ${note}`,
     "/refunds"
   );
 

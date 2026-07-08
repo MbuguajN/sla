@@ -30,19 +30,16 @@ type Requisition = {
 interface Props {
   initialRequisitions: Requisition[];
   canReviewAsManager: boolean;
-  canReviewAsDirector: boolean;
   canReviewAsFinance: boolean;
 }
 
 function formatStatusLabel(status: string) {
-  if (status === "PENDING_CEO") return "PENDING DIRECTOR";
   return status.split("_").join(" ");
 }
 
 export default function FinanceRequisitionsClient({
   initialRequisitions,
   canReviewAsManager,
-  canReviewAsDirector,
   canReviewAsFinance,
 }: Props) {
   const router = useRouter();
@@ -57,7 +54,6 @@ export default function FinanceRequisitionsClient({
   const [actionNote, setActionNote] = useState("");
   const [loading, setLoading] = useState(false);
   const isManagerReviewer = canReviewAsManager;
-  const isDirectorReviewer = canReviewAsDirector;
   const isFinanceReviewer = canReviewAsFinance;
 
   const handleApprove = async (reqId: number) => {
@@ -66,10 +62,8 @@ export default function FinanceRequisitionsClient({
       await advanceRequisition(reqId, actionNote || undefined);
 
       const nextStatus = isManagerReviewer
-        ? "PENDING_CEO"
-        : isDirectorReviewer
-          ? "PENDING_FINANCE"
-          : "APPROVED";
+        ? "PENDING_FINANCE"
+        : "APPROVED";
 
       setRequisitions(prev => prev.map(r => r.id === reqId ? { ...r, status: nextStatus } : r));
       setActionNote("");
@@ -119,7 +113,7 @@ export default function FinanceRequisitionsClient({
   const displayedItems = filtered.slice(0, itemsDisplayed);
   const hasMore = itemsDisplayed < filtered.length;
 
-  const statuses = ["ALL", "PENDING_MANAGER", "PENDING_CEO", "PENDING_FINANCE", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING_MANAGER", "PENDING_FINANCE", "APPROVED", "DENIED"];
 
   return (
     <div className="max-w-[1600px] mx-auto pb-20 space-y-10">
@@ -367,45 +361,6 @@ export default function FinanceRequisitionsClient({
                           <div className="flex items-center gap-3 p-4 bg-amber-50/50 dark:bg-amber-500/5 border border-amber-100 dark:border-amber-500/20 rounded-2xl">
                             <Clock01Icon className="w-4 h-4 text-amber-500 flex-shrink-0" />
                             <span className="text-[11px] font-black text-amber-600 uppercase tracking-widest">Awaiting Earlier Approval Stage</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Directors acting on PENDING_CEO */}
-                       {isDirectorReviewer && req.status === 'PENDING_CEO' && (
-                        <div className="space-y-4 pt-4">
-                           <RichTextEditor
-                            value={actionNote}
-                            onChange={setActionNote}
-                            placeholder="Directors notes or rejection reason..."
-                            height={120}
-                            compact
-                           />
-                           <div className="grid grid-cols-2 gap-3">
-                              <button 
-                                onClick={() => handleApprove(req.id)}
-                                disabled={loading}
-                                className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
-                              >
-                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Finance
-                              </button>
-                              <button 
-                                onClick={() => handleDeny(req.id)}
-                                disabled={loading}
-                                className="h-14 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
-                              >
-                                <Cancel01Icon className="w-4 h-4" /> Reject
-                              </button>
-                           </div>
-                        </div>
-                      )}
-
-                      {/* Directors waiting badge */}
-                      {isDirectorReviewer && req.status !== 'PENDING_CEO' && (
-                        <div className="pt-4">
-                          <div className="flex items-center gap-3 p-4 bg-zinc-50 dark:bg-white/5 border border-zinc-100 dark:border-white/10 rounded-2xl">
-                            <Clock01Icon className="w-4 h-4 text-zinc-400 flex-shrink-0" />
-                            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">Waiting For Manager Stage</span>
                           </div>
                         </div>
                       )}
