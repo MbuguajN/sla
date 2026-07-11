@@ -19,6 +19,9 @@ import {
   Calendar01Icon,
   Message01Icon,
   Settings02Icon,
+  ShoppingBasket01Icon,
+  BitcoinIcon,
+  HelpCircleIcon,
 } from "@hugeicons/react";
 import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
@@ -84,18 +87,97 @@ async function getHRDashboardData() {
 
 async function getCEODashboardData() {
   const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const [employeesOnPremise, activeClients, activeProjects, pendingTasks, inProgressTasks, activeTasks, criticalTasks, employeesOutOfOffice] = await Promise.all([
+  const [
+    employeesOnPremise,
+    employeesOutOfOffice,
+    activeClients,
+    newClientsThisMonth,
+    activeProjects,
+    pendingTasks,
+    inProgressTasks,
+    doneTasksThisWeek,
+    doneToday,
+    overdueTasks,
+    pendingRequisitions,
+    pendingRequisitionTotal,
+    recentRefunds,
+    pendingLeaves,
+    employeesOnLeave,
+    leavesOnLeaveToday,
+    departments,
+    tasksPerDepartment,
+    recentActivity,
+    itTickets,
+    projects,
+    criticalTasks,
+  ] = await Promise.all([
     db.user.count({ where: { isActive: true } }),
+    db.leave.count({
+      where: {
+        status: "APPROVED",
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+    }),
     db.client.count({ where: { projects: { some: {} } } }),
+    db.client.count({ where: { createdAt: { gte: monthStart } } }),
     db.project.count({ where: { status: "ACTIVE" } }),
     db.task.count({ where: { status: { in: ["UNASSIGNED", "ASSIGNED", "CONFIRMED"] } } }),
     db.task.count({ where: { status: "IN_PROGRESS" } }),
-    db.task.findMany({
-      where: { status: { in: ["CONFIRMED", "IN_PROGRESS", "PAUSED"] } },
-      include: { project: true },
-      orderBy: { updatedAt: "desc" },
-      take: 3,
+    db.task.count({ where: { status: "DONE", updatedAt: { gte: weekAgo } } }),
+    db.task.count({ where: { status: "DONE", updatedAt: { gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) } } }),
+    db.task.count({
+      where: {
+        status: { notIn: ["DONE", "CANCELLED"] },
+        submittedAt: { lt: weekAgo },
+      },
+    }),
+    db.requisition.count({ where: { status: { in: ["PENDING_MANAGER", "PENDING_FINANCE"] } } }),
+    db.requisition.aggregate({
+      where: { status: { in: ["PENDING_MANAGER", "PENDING_FINANCE"] } },
+      _sum: { totalAmount: true },
+    }),
+    db.refund.findMany({
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    db.leave.count({ where: { status: { in: ["PENDING", "PENDING_HR"] } } }),
+    db.leave.count({
+      where: {
+        status: "APPROVED",
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+    }),
+    db.leave.findMany({
+      where: {
+        status: "APPROVED",
+        startDate: { lte: now },
+        endDate: { gte: now },
+      },
+      include: { user: { include: { department: true } } },
+      take: 5,
+    }),
+    db.department.findMany({ select: { id: true, name: true, slug: true } }),
+    db.task.groupBy({
+      by: ["deptId"],
+      where: { status: { notIn: ["DONE", "CANCELLED"] } },
+      _count: true,
+    }),
+    db.activityLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    db.iTTicket.count({ where: { status: { notIn: ["RESOLVED", "CLOSED"] } } }),
+    db.project.findMany({
+      where: { status: "ACTIVE" },
+      include: { tasks: { select: { status: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
     }),
     db.task.findMany({
       where: {
@@ -110,18 +192,24 @@ async function getCEODashboardData() {
       orderBy: { updatedAt: "desc" },
       take: 8,
     }),
-    db.leave.count({
-      where: {
-        status: "APPROVED",
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-    }),
   ]);
 
-  const inboundCapacity = Math.max(1, Math.ceil(pendingTasks * 1.08));
-  const activeStations = Math.max(1, Math.ceil((inProgressTasks || 1) * 1.2));
-  const fleetOnRoad = Math.max(1, inProgressTasks);
+  const totalPendingSpend = pendingRequisitionTotal._sum.totalAmount ?? 0;
+
+  const departmentMap = new Map(departments.map((d) => [d.id, d.name]));
+  const maxDeptTasks = Math.max(1, ...tasksPerDepartment.map((d) => d._count));
+  const deptWorkload = departments
+    .map((dept) => {
+      const entry = tasksPerDepartment.find((d) => d.deptId === dept.id);
+      return {
+        name: dept.name.toUpperCase(),
+        count: entry?._count ?? 0,
+        pct: Math.round(((entry?._count ?? 0) / maxDeptTasks) * 100),
+      };
+    })
+    .filter((d) => d.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
 
   const criticalSlas = criticalTasks
     .map((task) => {
@@ -143,155 +231,393 @@ async function getCEODashboardData() {
           note: breached
             ? `Breached by ${minutes}m - Priority Critical`
             : `Nearing breach (${Math.max(0, Math.floor(remainingMs / 60000))}m remaining)`,
+          pct,
+          breached,
         };
       }
 
       return null;
     })
-    .filter((item): item is { id: number; region: string; title: string; note: string } => Boolean(item))
-    .slice(0, 2);
+    .filter((item): item is { id: number; region: string; title: string; note: string; pct: number; breached: boolean } => Boolean(item))
+    .slice(0, 3);
+
+  const projectHealth = projects.map((p) => {
+    const total = p.tasks.length;
+    const done = p.tasks.filter((t) => t.status === "DONE").length;
+    return {
+      id: p.id,
+      name: p.title,
+      pct: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
+  });
 
   return {
     employeesOnPremise,
+    employeesOutOfOffice,
     activeClients,
+    newClientsThisMonth,
     activeProjects,
     pendingTasks,
-    inboundCapacity,
     inProgressTasks,
-    activeStations,
-    fleetOnRoad,
-    activeTasks,
+    doneTasksThisWeek,
+    doneToday,
+    overdueTasks,
+    pendingRequisitions,
+    totalPendingSpend,
+    recentRefunds,
+    pendingLeaves,
+    employeesOnLeave,
+    leavesOnLeaveToday,
+    deptWorkload,
     criticalSlas,
-    employeesOutOfOffice,
+    recentActivity,
+    itTickets,
+    projectHealth,
   };
 }
 
 async function CEODashboardSection() {
-  const {
-    employeesOnPremise,
-    activeClients,
-    activeProjects,
-    pendingTasks,
-    inboundCapacity,
-    inProgressTasks,
-    activeStations,
-    fleetOnRoad,
-    activeTasks,
-    criticalSlas,
-    employeesOutOfOffice,
-  } = await getCEODashboardData();
-
-  const inboundPct = Math.min(100, Math.round((pendingTasks / inboundCapacity) * 100));
-  const pickingPct = Math.min(100, Math.round((inProgressTasks / activeStations) * 100));
-  const fleetPct = Math.min(100, Math.round((fleetOnRoad / Math.max(fleetOnRoad + 6, 1)) * 100));
-
-  const getActiveTaskProgress = (task: { status: string }) => {
-    switch (task.status) {
-      case "CONFIRMED":
-        return 28;
-      case "IN_PROGRESS":
-        return 68;
-      case "PAUSED":
-        return 52;
-      default:
-        return 20;
-    }
-  };
+  const data = await getCEODashboardData();
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-8">
+      {/* Page Title */}
       <section>
-          <h1 className="text-[44px] leading-none font-black tracking-tight text-[#111f34] dark:text-white">Executive Dashboard</h1>
+        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#111f34] dark:text-white">
+          Executive <span className="text-[#c91f41]">Dashboard</span>
+        </h1>
       </section>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Employees On Premise</p>
-          <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
-          <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{employeesOnPremise.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">{employeesOutOfOffice} employees out of office</p>
-          </div>
+      {/* 1. Top Stats Row */}
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <UserMultipleIcon className="w-6 h-6 text-[#c91f41] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Attendance</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">
+            {data.employeesOnPremise.toLocaleString()}{" "}
+            <span className="text-xs font-medium text-[#005a4d]">/ {data.employeesOutOfOffice}</span>
+          </h3>
+          <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">On Premise / Out</p>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Active Clients</p>
-          <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
-          <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{activeClients.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">Live client accounts</p>
-          </div>
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <BitcoinIcon className="w-6 h-6 text-[#005a4d] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Active Clients</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeClients}</h3>
+          <p className="text-[10px] text-[#005a4d] font-medium">+{data.newClientsThisMonth} this month</p>
         </div>
 
-        <div className="rounded-2xl bg-white dark:bg-[#111111] p-4 border border-[#e6eaf2] dark:border-white/10">
-          <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#7f8896] dark:text-zinc-500">Active Projects</p>
-          <div className="mt-2 h-0.5 w-6 rounded-full bg-[#c91f41]" />
-          <div className="mt-5 space-y-2">
-            <p className="text-[34px] leading-none font-black text-[#122038] dark:text-white">{activeProjects.toLocaleString()}</p>
-            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#7f8896] dark:text-zinc-500">Current open initiatives</p>
-          </div>
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <ClipboardIcon className="w-6 h-6 text-[#c91f41] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Projects</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeProjects}</h3>
+          <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">Ongoing initiatives</p>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <TaskDone01Icon className="w-6 h-6 text-[#a3002d] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Pending Tasks</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingTasks}</h3>
+          <p className="text-[10px] text-red-500 font-medium">{data.overdueTasks} overdue</p>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <ShoppingBasket01Icon className="w-6 h-6 text-[#c91f41] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Requisitions</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">
+            {data.pendingRequisitions}{" "}
+            <span className="text-sm font-semibold text-[#a3002d]">
+              KES {(data.totalPendingSpend / 1000).toFixed(1)}k
+            </span>
+          </h3>
+          <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">Awaiting approval</p>
+        </div>
+
+        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <Calendar01Icon className="w-6 h-6 text-[#005a4d] mb-2" />
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Leave Requests</p>
+          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingLeaves}</h3>
+          <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">New submissions</p>
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
-        <div className="xl:col-span-7 space-y-4">
+      {/* 2. Operations Overview & Project Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Operations */}
+        <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-[30px] leading-none font-black tracking-tight text-[#1f2d43] dark:text-white">Operational Tasks</h2>
-            <Link href="/tasks" className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c91f41] hover:text-[#a61a35]">
-              View Log
+            <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Operations Overview</h2>
+            <Link href="/tasks" className="text-xs font-bold text-[#c91f41] uppercase tracking-widest flex items-center gap-1 hover:underline">
+              Full Report <ArrowRight01Icon className="w-4 h-4" />
             </Link>
           </div>
 
-          <div className="rounded-2xl bg-[#eef3fb] dark:bg-white/5 border border-[#e2e8f2] dark:border-white/10 p-4 space-y-4">
-            {activeTasks.length > 0 ? (
-              activeTasks.map((task) => {
-                const progress = getActiveTaskProgress(task);
-                return (
-                  <div key={task.id} className="rounded-xl bg-white dark:bg-[#111111] px-4 py-3">
-                    <div className="flex items-center justify-between gap-3 text-[12px] font-black text-[#223149] dark:text-white">
-                      <div className="min-w-0">
-                        <p className="truncate">{task.title}</p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#8c95a3] dark:text-zinc-500 truncate">
-                          {task.project.title}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-[11px] font-black text-[#7d8796] dark:text-zinc-400">{progress}%</span>
-                    </div>
-                    <div className="mt-2 h-2 rounded-full bg-[#e7edf8] dark:bg-white/10">
-                      <div className="h-full rounded-full bg-[#c91f41]" style={{ width: `${progress}%` }} />
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Task Velocity */}
+            <div className="p-6 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm">
+              <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.1em] mb-4">Task Velocity</p>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#111f34] dark:text-white">Done This Week</span>
+                    <span className="text-xs font-bold text-[#005a4d]">{data.doneTasksThisWeek}</span>
                   </div>
-                );
-              })
+                  <div className="mt-1.5 h-1.5 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#005a4d] rounded-full" style={{ width: `${Math.min(100, Math.round((data.doneTasksThisWeek / Math.max(1, data.doneTasksThisWeek + data.inProgressTasks + data.pendingTasks)) * 100))}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#111f34] dark:text-white">In Progress</span>
+                    <span className="text-xs font-bold text-[#c91f41]">{data.inProgressTasks}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#c91f41] rounded-full" style={{ width: `${Math.min(100, Math.round((data.inProgressTasks / Math.max(1, data.doneTasksThisWeek + data.inProgressTasks + data.pendingTasks)) * 100))}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[#111f34] dark:text-white">Pending Review</span>
+                    <span className="text-xs font-bold text-[#a3002d]">{data.pendingTasks}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#a3002d] rounded-full" style={{ width: `${Math.min(100, Math.round((data.pendingTasks / Math.max(1, data.doneTasksThisWeek + data.inProgressTasks + data.pendingTasks)) * 100))}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Department Workload */}
+            <div className="p-6 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm">
+              <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.1em] mb-4">Dept Workload Distribution</p>
+              <div className="space-y-3">
+                {data.deptWorkload.map((dept) => (
+                  <div key={dept.name} className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold w-20 text-gray-400 dark:text-zinc-500 truncate">{dept.name}</span>
+                    <div className="flex-1 h-3 bg-gray-100 dark:bg-white/10 rounded-sm overflow-hidden">
+                      <div className="h-full bg-[#c91f41] rounded-sm" style={{ width: `${dept.pct}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold text-[#111f34] dark:text-white w-8 text-right">{dept.pct}%</span>
+                  </div>
+                ))}
+                {data.deptWorkload.length === 0 && (
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 text-center py-4">No active department tasks</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Critical SLAs */}
+          <div className="p-6 bg-white dark:bg-[#111111] rounded-2xl border-l-4 border-l-[#c91f41] border border-gray-100 dark:border-white/10 shadow-sm">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-bold text-[#111f34] dark:text-white">Critical System SLAs</h3>
+              {data.criticalSlas.length > 0 && (
+                <span className="px-2 py-0.5 bg-[#c91f41]/10 text-[#c91f41] text-[10px] font-bold rounded uppercase">Action Required</span>
+              )}
+            </div>
+            {data.criticalSlas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {data.criticalSlas.map((sla) => (
+                  <div key={sla.id} className="flex flex-col gap-2">
+                    <div className="flex justify-between text-[11px] font-bold">
+                      <span className="truncate">{sla.title}</span>
+                      <span className={sla.breached ? "text-red-500" : "text-[#005a4d]"}>{sla.region}</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                      <div className={`h-full ${sla.breached ? "bg-red-500" : "bg-[#c91f41]"}`} style={{ width: `${Math.min(100, sla.pct)}%` }} />
+                    </div>
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">{sla.note}</p>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="rounded-xl bg-white dark:bg-[#111111] px-4 py-6 text-center">
-                <p className="text-sm font-bold text-[#223149] dark:text-white">No active tasks at the moment</p>
+              <div className="flex flex-col gap-2">
+                <div className="flex justify-between text-[11px] font-bold">
+                  <span>All Systems Operational</span>
+                  <span className="text-[#005a4d]">Normal</span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#005a4d] rounded-full" style={{ width: "100%" }} />
+                </div>
+                <p className="text-[10px] text-gray-400 dark:text-zinc-500">All tracked work is within acceptable SLA thresholds.</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="xl:col-span-5 space-y-4">
-          <h2 className="text-[30px] leading-none font-black tracking-tight text-[#c91f41]">Critical SLAs</h2>
-          <div className="rounded-2xl bg-[#fff6f8] dark:bg-[#c91f41]/5 border border-[#f4dde4] dark:border-[#c91f41]/20 p-5 space-y-5">
-            {criticalSlas.length > 0 ? (
-              criticalSlas.map((item) => (
-                <div key={item.id} className="border-l-2 border-[#c91f41] pl-3">
-                  <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9aa1ae]">{item.region}</p>
-                  <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43] dark:text-white">{item.title}</p>
-                  <p className="mt-1 text-[11px] font-bold text-[#d45b72]">{item.note}</p>
+        {/* Project Health */}
+        <div className="lg:col-span-4 flex flex-col gap-6">
+          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Project Health</h2>
+          <div className="flex flex-col bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm p-6 gap-6">
+            <div className="space-y-4">
+              {data.projectHealth.map((project) => (
+                <div key={project.id}>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-xs font-bold text-[#111f34] dark:text-white truncate">{project.name}</span>
+                    <span className="text-xs font-bold text-gray-400 dark:text-zinc-500">{project.pct}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-gray-100 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#c91f41] rounded-full" style={{ width: `${project.pct}%` }} />
+                  </div>
                 </div>
-              ))
-            ) : (
-              <div className="border-l-2 border-[#c91f41] pl-3">
-                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-[#9aa1ae]">System Wide</p>
-                <p className="mt-1 text-[19px] leading-tight font-black text-[#1f2d43] dark:text-white">No Critical SLA Breaches</p>
-                <p className="mt-1 text-[11px] font-bold text-[#7d8697] dark:text-zinc-500">All tracked work is within acceptable SLA thresholds.</p>
-              </div>
-            )}
+              ))}
+              {data.projectHealth.length === 0 && (
+                <p className="text-xs text-gray-400 dark:text-zinc-500 text-center py-4">No active projects</p>
+              )}
+            </div>
+
+            <div className="pt-6 border-t border-gray-100 dark:border-white/10">
+              <Link href="/projects" className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.1em] mb-4 hover:text-[#c91f41] transition-colors block">
+                View All Projects →
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Financial Summary */}
+      <section className="flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Financial Summary</h2>
+          <div className="px-6 py-2 bg-[#c91f41] text-white rounded-xl shadow-lg flex items-center gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">Total Pending Spend</span>
+            <span className="text-xl font-extrabold">KES {data.totalPendingSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+              <h3 className="text-sm font-bold text-[#111f34] dark:text-white">High Priority Requisitions</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50/80 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+                  <tr>
+                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">Request ID</th>
+                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">Department</th>
+                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-white/5">
+                  {/* We fetch pending requisitions inline for CEO */}
+                  <RequisitionTableRows />
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="lg:col-span-4 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
+              <h3 className="text-sm font-bold text-[#111f34] dark:text-white">Recent Refunds</h3>
+            </div>
+            <div className="divide-y divide-gray-50 dark:divide-white/5">
+              {data.recentRefunds.length > 0 ? data.recentRefunds.map((refund) => (
+                <div key={refund.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                  <div>
+                    <p className="text-xs font-bold text-[#111f34] dark:text-white">#RF-{refund.id}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">{refund.user.name}</p>
+                  </div>
+                  <span className="text-sm font-extrabold text-red-500">
+                    -KES {refund.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )) : (
+                <div className="px-6 py-6 text-center">
+                  <p className="text-xs text-gray-400 dark:text-zinc-500">No recent refunds</p>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10">
+              <Link href="/finance/refunds" className="text-[10px] font-bold text-[#c91f41] uppercase tracking-widest hover:underline">
+                View All Refunds →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
+
+      {/* 4. HR Snapshot & Activity Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* HR Snapshot */}
+        <div className="lg:col-span-5 flex flex-col gap-6">
+          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">HR Snapshot</h2>
+          <div className="bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm p-6">
+            <div className="flex justify-between items-center mb-6">
+              <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">On Leave Today</p>
+              <span className="text-lg font-extrabold text-[#111f34] dark:text-white">{data.employeesOnLeave}</span>
+            </div>
+            <div className="space-y-3">
+              {data.leavesOnLeaveToday.length > 0 ? data.leavesOnLeaveToday.map((leave) => (
+                <div key={leave.id} className="flex items-center gap-3">
+                  <div className="size-8 rounded-full bg-[#c91f41]/10 flex items-center justify-center text-[10px] font-bold text-[#c91f41]">
+                    {leave.user.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-[#111f34] dark:text-white">{leave.user.name}</p>
+                    <p className="text-[10px] text-gray-400 dark:text-zinc-500">{leave.user.department?.name || "Unassigned"} • {getLeaveTypeLabel(leave.type)}</p>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-xs text-gray-400 dark:text-zinc-500 text-center py-4">No employees on leave today</p>
+              )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/10">
+              <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest mb-4">Pending Leave Requests</p>
+              <div className="flex flex-col gap-2">
+                <div className="p-3 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-between">
+                  <span className="text-xs font-medium text-[#111f34] dark:text-white">{data.pendingLeaves} New Submissions</span>
+                  <Link href="/hr/leaves" className="text-[10px] font-bold text-[#c91f41] px-3 py-1 bg-white dark:bg-[#111111] rounded-lg shadow-sm hover:underline">
+                    Review All
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Activity Feed */}
+        <div className="lg:col-span-7 flex flex-col gap-6">
+          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Executive Activity Feed</h2>
+          <div className="bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 h-[400px] overflow-y-auto custom-scrollbar">
+              <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-white/10">
+                {data.recentActivity.length > 0 ? data.recentActivity.map((activity, idx) => {
+                  const colors = ["bg-[#c91f41]", "bg-[#005a4d]", "bg-[#a3002d]", "bg-[#c91f41]/20"];
+                  const color = colors[idx % colors.length];
+                  const isLight = idx % colors.length === 3;
+                  return (
+                    <div key={activity.id} className="flex gap-4 relative">
+                      <div className={`size-6 rounded-full ${color} border-4 border-white dark:border-[#111111] z-10 flex items-center justify-center`}>
+                        <span className={`w-3 h-3 ${isLight ? "text-[#c91f41]" : "text-white"}`}><PlayIcon className="w-3 h-3" /></span>
+                      </div>
+                      <div className="flex-1 -mt-0.5">
+                        <p className="text-xs text-[#111f34] dark:text-white leading-relaxed">
+                          {activity.description}
+                        </p>
+                        <p className="text-[10px] text-gray-400 dark:text-zinc-500 mt-1">{formatTimeAgo(activity.createdAt)}</p>
+                      </div>
+                    </div>
+                  );
+                }) : (
+                  <p className="text-xs text-gray-400 dark:text-zinc-500 text-center py-8">No recent activity</p>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[#a3002d] text-lg"><HelpCircleIcon className="w-5 h-5" /></span>
+                <span className="text-xs font-bold text-[#111f34] dark:text-white">{data.itTickets} Open IT Tickets</span>
+              </div>
+              <Link href="/it-support" className="text-[10px] font-bold text-[#c91f41] uppercase tracking-widest hover:underline">
+                View All Activity
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -302,6 +628,48 @@ function formatFinanceDate(date: Date) {
     day: "2-digit",
     year: "numeric",
   }).format(date);
+}
+
+async function RequisitionTableRows() {
+  const requisitions = await db.requisition.findMany({
+    include: { user: { include: { department: true } } },
+    where: { status: { in: ["PENDING_MANAGER", "PENDING_FINANCE"] } },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
+
+  if (requisitions.length === 0) {
+    return (
+      <tr>
+        <td colSpan={4} className="px-6 py-6 text-center text-xs text-gray-400 dark:text-zinc-500">
+          No pending requisitions
+        </td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      {requisitions.map((req) => {
+        const flow = getRequisitionFlow(req.status);
+        return (
+          <tr key={req.id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+            <td className="px-6 py-4 text-xs font-bold text-[#c91f41]">#RQ-{req.id}</td>
+            <td className="px-6 py-4 text-xs text-[#111f34] dark:text-white">{req.user.department?.name || "Operations"}</td>
+            <td className="px-6 py-4 text-xs font-bold text-[#111f34] dark:text-white">
+              KES {req.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </td>
+            <td className="px-6 py-4">
+              <span className={cn("inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em]", flow.text)}>
+                <span className={cn("h-1.5 w-1.5 rounded-full", flow.dot)} />
+                {flow.label}
+              </span>
+            </td>
+          </tr>
+        );
+      })}
+    </>
+  );
 }
 
 function getRequisitionFlow(status: string) {
