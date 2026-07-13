@@ -62,7 +62,7 @@ export default function HRLeaveDetailClient({ leave }: { leave: LeaveDetail }) {
   const [reviewNote, setReviewNote] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const canReview = leave.status === "PENDING_HR";
+  const canReview = leave.status === "PENDING_HR" || leave.status === "PENDING";
   const updatedDate = new Date(leave.updatedAt);
   const lastUpdatedLabel =
     Math.max(1, Math.floor((Date.now() - updatedDate.getTime()) / (1000 * 60 * 60))) + "h ago";

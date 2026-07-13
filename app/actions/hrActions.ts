@@ -383,8 +383,8 @@ export async function reviewLeave(
     return updated;
   }
 
-  // HR/Admin reviewing: must be PENDING_HR
-  if (leave.status !== "PENDING_HR") throw new Error("Leave is not pending HR review");
+  // HR/Admin reviewing: must be PENDING or PENDING_HR
+  if (leave.status !== "PENDING_HR" && leave.status !== "PENDING") throw new Error("Leave is not pending HR review");
 
   const updated = await db.leave.update({
     where: { id: leaveId },
