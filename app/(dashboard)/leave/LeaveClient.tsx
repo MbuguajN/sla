@@ -627,13 +627,13 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                         value={formData.duration}
                         onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                         disabled={!supportsHalfDayType(formData.type)}
-                        className="mt-1 h-11 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-bold text-gray-700 dark:text-zinc-300"
+                        className="mt-1 h-11 w-full rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111111] px-3 text-xs font-bold text-gray-700 dark:text-zinc-300"
                       >
-                        <option value="FULL_DAY">{formatDurationLabel("FULL_DAY")}</option>
+                        <option value="FULL_DAY" className="bg-white dark:bg-[#111111]">{formatDurationLabel("FULL_DAY")}</option>
                         {supportsHalfDayType(formData.type) ? (
                           <>
-                            <option value="HALF_DAY_MORNING">{formatDurationLabel("HALF_DAY_MORNING")}</option>
-                            <option value="HALF_DAY_AFTERNOON">{formatDurationLabel("HALF_DAY_AFTERNOON")}</option>
+                            <option value="HALF_DAY_MORNING" className="bg-white dark:bg-[#111111]">{formatDurationLabel("HALF_DAY_MORNING")}</option>
+                            <option value="HALF_DAY_AFTERNOON" className="bg-white dark:bg-[#111111]">{formatDurationLabel("HALF_DAY_AFTERNOON")}</option>
                           </>
                         ) : null}
                       </select>
@@ -653,14 +653,14 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                       })()}
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Start Date</span>
                       <input
                         type="date"
                         value={formData.startDate}
                         onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="w-full h-14 bg-gray-50 dark:bg-white/5 rounded-2xl px-6 font-bold text-sm outline-none border-2 border-transparent focus:border-pink-600 transition-all dark:text-white"
+                        className="w-full h-14 bg-gray-50 dark:bg-white/5 rounded-2xl px-6 font-bold text-sm outline-none border-2 border-transparent focus:border-pink-600 transition-all text-gray-700 dark:text-white [color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-2">
@@ -669,7 +669,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                         type="date"
                         value={formData.endDate}
                         onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        className="w-full h-14 bg-gray-50 dark:bg-white/5 rounded-2xl px-6 font-bold text-sm outline-none border-2 border-transparent focus:border-pink-600 transition-all dark:text-white"
+                        className="w-full h-14 bg-gray-50 dark:bg-white/5 rounded-2xl px-6 font-bold text-sm outline-none border-2 border-transparent focus:border-pink-600 transition-all text-gray-700 dark:text-white [color-scheme:dark]"
                       />
                     </div>
                   </div>
@@ -709,7 +709,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                           type="checkbox"
                           checked={selectedTaskIds.length > 0 && selectedTaskIds.length === allTaskIds.length}
                           onChange={toggleSelectAllTasks}
-                          className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                          className="w-4 h-4 rounded border-gray-300 dark:border-white/20 text-pink-600 focus:ring-pink-500 bg-white dark:bg-[#111111]"
                         />
                         Check All Options
                       </label>
@@ -725,7 +725,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                                     type="checkbox"
                                     checked={selected}
                                     onChange={() => toggleTaskSelection(task.id)}
-                                    className="w-4 h-4 rounded border-gray-300 text-pink-600 focus:ring-pink-500"
+                                    className="w-4 h-4 rounded border-gray-300 dark:border-white/20 text-pink-600 focus:ring-pink-500 bg-white dark:bg-[#111111]"
                                   />
                                   <div className="min-w-0">
                                     <p className="text-sm font-extrabold text-gray-900 dark:text-white truncate">{task.title}</p>
@@ -744,11 +744,11 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                                     }))
                                   }
                                   disabled={!selected}
-                                  className="h-11 min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
+                                  className="h-11 min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111111] px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
                                 >
-                                  <option value="">Choose teammate</option>
+                                  <option value="" className="bg-white dark:bg-[#111111]">Choose teammate</option>
                                   {departmentMembers.map((member) => (
-                                    <option key={member.id} value={member.id}>
+                                    <option key={member.id} value={member.id} className="bg-white dark:bg-[#111111]">
                                       {member.name}
                                     </option>
                                   ))}

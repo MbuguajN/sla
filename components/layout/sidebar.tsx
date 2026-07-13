@@ -42,7 +42,7 @@ interface SidebarProps {
 
 export default function Sidebar({ user, canAccessEquipment = false, logos }: SidebarProps) {
   const pathname = usePathname();
-  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "finance", "it", "admin"]);
+  const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "manager", "finance", "it", "admin"]);
 
   const isActive = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
@@ -54,6 +54,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
 
   const canAccessHR =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
+  const canAccessManagerLeaves = user.role === "MANAGER";
   const isHROnly = user.departmentSlug === "human-resources" && user.role === "EMPLOYEE" || user.departmentSlug === "human-resources" && user.role === "MANAGER";
   const canAccessFinance =
     user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "finance";
@@ -107,6 +108,14 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
         { label: "All Leaves", href: "/hr/leaves", icon: Calendar01Icon },
         { label: "Suggestions", href: "/hr/suggestions", icon: Message01Icon },
         { label: "Leave Policies", href: "/hr/leave-policy", icon: Settings02Icon },
+      ]
+    },
+    {
+      id: "manager",
+      title: "Manager",
+      visible: canAccessManagerLeaves,
+      items: [
+        { label: "Team Leaves", href: "/manager/leaves", icon: Calendar01Icon },
       ]
     },
     {

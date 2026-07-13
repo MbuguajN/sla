@@ -228,7 +228,7 @@ export function canViewHRData(user: { role: string; departmentSlug: string | nul
 }
 
 export function canManageLeaves(user: { role: string; departmentSlug: string | null }): boolean {
-  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.role === "ADMIN" || user.role === "CEO" || user.role === "MANAGER") return true;
   return user.departmentSlug === DEPARTMENTS.HR;
 }
 
