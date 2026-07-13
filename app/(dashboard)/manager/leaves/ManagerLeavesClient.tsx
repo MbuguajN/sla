@@ -72,7 +72,11 @@ export default function ManagerLeavesClient({ initialLeaves }: Props) {
     }
     setLoading(true);
     try {
-      await reviewLeave(leaveId, decision, reviewNote.trim() || undefined);
+      const result = await reviewLeave(leaveId, decision, reviewNote.trim() || undefined);
+      if (result && !result.ok) {
+        alert(result.error || "Action failed");
+        return;
+      }
       setLeaves(prev => prev.map(l => l.id === leaveId ? { ...l, status: decision === "APPROVED" ? "PENDING_HR" : "DENIED" } : l));
       setReviewNote("");
       setExpandedId(null);

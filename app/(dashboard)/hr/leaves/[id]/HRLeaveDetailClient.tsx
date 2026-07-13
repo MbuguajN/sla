@@ -74,7 +74,11 @@ export default function HRLeaveDetailClient({ leave }: { leave: LeaveDetail }) {
     }
     setLoading(true);
     try {
-      await reviewLeave(leave.id, decision, reviewNote.trim() || undefined);
+      const result = await reviewLeave(leave.id, decision, reviewNote.trim() || undefined);
+      if (result && !result.ok) {
+        alert(result.error || "Action failed");
+        return;
+      }
       setStatus(decision);
       router.refresh();
     } catch (err) {

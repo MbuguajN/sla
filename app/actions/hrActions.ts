@@ -308,122 +308,135 @@ export async function reviewLeave(
   leaveId: number,
   decision: "APPROVED" | "DENIED",
   reviewNote?: string
-) {
-  const user = await getCurrentUser();
-  if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
+): Promise<{ ok: boolean; id?: number; status?: string; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+    if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
 
-  const leave = await db.leave.findUnique({ where: { id: leaveId } });
-  if (!leave) throw new Error("Leave not found");
+    const leave = await db.leave.findUnique({ where: { id: leaveId } });
+    if (!leave) throw new Error("Leave not found");
 
-  // Manager reviewing: advance to PENDING_HR (can only deny at this stage)
-  if (user.role === "MANAGER") {
-    if (leave.status !== "PENDING") throw new Error("Leave is not pending manager review");
-    if (decision === "DENIED") {
+    // Manager reviewing: advance to PENDING_HR (can only deny at this stage)
+    if (user.role === "MANAGER") {
+      if (leave.status !== "PENDING") throw new Error("Leave is not pending manager review");
+      if (decision === "DENIED") {
+        const updated = await db.leave.update({
+          where: { id: leaveId },
+          data: {
+            status: "DENIED",
+            reviewedBy: user.id,
+            reviewNote: reviewNote || null,
+          },
+        });
+        try {
+          await createNotification(
+            leave.userId,
+            "LEAVE_DENIED",
+            "Leave Denied",
+            `Your leave request has been denied by your manager. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
+            "/leave"
+          );
+        } catch (e) {
+          console.error("Failed to create leave notification:", e);
+        }
+        revalidatePath("/leave");
+        revalidatePath("/hr/leaves");
+        revalidatePath("/manager/leaves");
+        return { ok: true, id: updated.id, status: updated.status };
+      }
+      // Manager approves → advance to PENDING_HR
       const updated = await db.leave.update({
         where: { id: leaveId },
         data: {
-          status: "DENIED",
-          reviewedBy: user.id,
+          status: "PENDING_HR",
           reviewNote: reviewNote || null,
         },
       });
-      await createNotification(
-        leave.userId,
-        "LEAVE_DENIED",
-        "Leave Denied",
-        `Your leave request has been denied by your manager. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
-        "/leave"
+      // Notify HR reviewers
+      const hrReviewers = await db.user.findMany({
+        where: {
+          OR: [
+            { role: "ADMIN" },
+            { role: "CEO" },
+            { department: { slug: DEPARTMENTS.HR } },
+          ],
+          isActive: true,
+        },
+        select: { id: true },
+      });
+      await Promise.allSettled(
+        hrReviewers.map((reviewer) =>
+          createNotification(
+            reviewer.id,
+            "REQUISITION_UPDATED",
+            "Leave Pending HR Approval",
+            `A leave request has been approved by the manager and is pending your approval`,
+            "/hr/leaves"
+          )
+        )
       );
+      try {
+        await createNotification(
+          leave.userId,
+          "REQUISITION_UPDATED",
+          "Leave Forwarded to HR",
+          `Your leave request has been approved by your manager and is now pending HR approval`,
+          "/leave"
+        );
+      } catch (e) {
+        console.error("Failed to create leave notification:", e);
+      }
       revalidatePath("/leave");
       revalidatePath("/hr/leaves");
       revalidatePath("/manager/leaves");
-      return updated;
+      return { ok: true, id: updated.id, status: updated.status };
     }
-    // Manager approves → advance to PENDING_HR
+
+    // HR/Admin reviewing: must be PENDING or PENDING_HR
+    if (leave.status !== "PENDING_HR" && leave.status !== "PENDING") throw new Error("Leave is not pending HR review");
+
     const updated = await db.leave.update({
       where: { id: leaveId },
       data: {
-        status: "PENDING_HR",
+        status: decision,
+        reviewedBy: user.id,
         reviewNote: reviewNote || null,
       },
     });
-    // Notify HR reviewers
-    const hrReviewers = await db.user.findMany({
-      where: {
-        OR: [
-          { role: "ADMIN" },
-          { role: "CEO" },
-          { department: { slug: DEPARTMENTS.HR } },
-        ],
-        isActive: true,
-      },
-      select: { id: true },
-    });
-    await Promise.allSettled(
-      hrReviewers.map((reviewer) =>
-        createNotification(
-          reviewer.id,
-          "REQUISITION_UPDATED",
-          "Leave Pending HR Approval",
-          `A leave request has been approved by the manager and is pending your approval`,
-          "/hr/leaves"
-        )
-      )
-    );
-    await createNotification(
-      leave.userId,
-      "REQUISITION_UPDATED",
-      "Leave Forwarded to HR",
-      `Your leave request has been approved by your manager and is now pending HR approval`,
-      "/leave"
-    );
+
+    const notificationType = decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED";
+    const message = decision === "APPROVED"
+      ? `Your leave request has been approved by HR`
+      : `Your leave request has been denied by HR. ${reviewNote ? `Reason: ${reviewNote}` : ""}`;
+
+    try {
+      await createNotification(
+        leave.userId,
+        notificationType,
+        `Leave ${decision}`,
+        message,
+        "/leave"
+      );
+    } catch (e) {
+      console.error("Failed to create leave notification:", e);
+    }
+
+    if (decision === "APPROVED") {
+      try {
+        await processLeaveTaskHandovers();
+      } catch (e) {
+        console.error("Failed to process leave task handovers:", e);
+      }
+    }
+
     revalidatePath("/leave");
     revalidatePath("/hr/leaves");
     revalidatePath("/manager/leaves");
-    return updated;
+    return { ok: true, id: updated.id, status: updated.status };
+  } catch (error) {
+    console.error("reviewLeave error:", error);
+    return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
   }
-
-  // HR/Admin reviewing: must be PENDING or PENDING_HR
-  if (leave.status !== "PENDING_HR" && leave.status !== "PENDING") throw new Error("Leave is not pending HR review");
-
-  const updated = await db.leave.update({
-    where: { id: leaveId },
-    data: {
-      status: decision,
-      reviewedBy: user.id,
-      reviewNote: reviewNote || null,
-    },
-  });
-
-  const notificationType = decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED";
-  const message = decision === "APPROVED"
-    ? `Your leave request has been approved by HR`
-    : `Your leave request has been denied by HR. ${reviewNote ? `Reason: ${reviewNote}` : ""}`;
-
-  try {
-    await createNotification(
-      leave.userId,
-      notificationType,
-      `Leave ${decision}`,
-      message,
-      "/leave"
-    );
-  } catch (e) {
-    console.error("Failed to create leave notification:", e);
-  }
-
-  if (decision === "APPROVED") {
-    try {
-      await processLeaveTaskHandovers();
-    } catch (e) {
-      console.error("Failed to process leave task handovers:", e);
-    }
-  }
-
-  revalidatePath("/leave");
-  revalidatePath("/hr/leaves");
-  revalidatePath("/manager/leaves");
-  return updated;
 }
 
 export async function updateLeaveHandovers(leaveId: number, handovers: LeaveHandoverInput[]) {
