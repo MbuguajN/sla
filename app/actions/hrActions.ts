@@ -400,16 +400,24 @@ export async function reviewLeave(
     ? `Your leave request has been approved by HR`
     : `Your leave request has been denied by HR. ${reviewNote ? `Reason: ${reviewNote}` : ""}`;
 
-  await createNotification(
-    leave.userId,
-    notificationType,
-    `Leave ${decision}`,
-    message,
-    "/leave"
-  );
+  try {
+    await createNotification(
+      leave.userId,
+      notificationType,
+      `Leave ${decision}`,
+      message,
+      "/leave"
+    );
+  } catch (e) {
+    console.error("Failed to create leave notification:", e);
+  }
 
   if (decision === "APPROVED") {
-    await processLeaveTaskHandovers();
+    try {
+      await processLeaveTaskHandovers();
+    } catch (e) {
+      console.error("Failed to process leave task handovers:", e);
+    }
   }
 
   revalidatePath("/leave");
