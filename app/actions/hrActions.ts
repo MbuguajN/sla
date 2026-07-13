@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions, DEPARTMENTS } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
-import { hasApprovedLeaveOverlap, processLeaveTaskHandovers } from "./leaveHandoverActions";
 import {
   MODERN_LEAVE_TYPES,
   LEAVE_DURATIONS,
@@ -77,6 +76,7 @@ async function validateLeaveHandoversForUser(
       throw new Error("Invalid task selected for handover");
     }
 
+    const { hasApprovedLeaveOverlap } = await import("./leaveHandoverActions");
     const overlap = await hasApprovedLeaveOverlap(
       handover.delegateUserId,
       startDate,
@@ -99,7 +99,7 @@ export async function getMyLeaves() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  await processLeaveTaskHandovers();
+  await (await import("./leaveHandoverActions")).processLeaveTaskHandovers();
 
   return db.leave.findMany({
     where: { userId: user.id },
@@ -120,7 +120,7 @@ export async function getAllLeaves() {
   const user = await getCurrentUser();
   if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
 
-  await processLeaveTaskHandovers();
+  await (await import("./leaveHandoverActions")).processLeaveTaskHandovers();
 
   return db.leave.findMany({
     include: {
@@ -423,7 +423,8 @@ export async function reviewLeave(
 
     if (decision === "APPROVED") {
       try {
-        await processLeaveTaskHandovers();
+  await (await import("./leaveHandoverActions")).processLeaveTaskHandovers();
+
       } catch (e) {
         console.error("Failed to process leave task handovers:", e);
       }
