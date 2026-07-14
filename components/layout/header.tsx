@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import NotificationDropdown from "./NotificationDropdown";
 import { addPlatformLink, deletePlatformLink } from "@/app/actions/platformActions";
 import { Globe, Plus, X, Trash2, ExternalLink, Loader2, Search } from "lucide-react";
+import MeetingRoomStatus from "@/components/MeetingRoomStatus";
 
 interface PlatformLinkItem {
   id: number;
@@ -310,8 +311,13 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
         <WeatherWidget />
       </div>
 
+      {/* Center — Meeting Room Status */}
+      <div className="flex-none">
+        <MeetingRoomStatus />
+      </div>
+
       {/* Right actions */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-1 justify-end">
         {/* Platforms dropdown */}
         <div className="relative" ref={platformsRef}>
           <button

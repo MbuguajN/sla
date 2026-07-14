@@ -59,6 +59,8 @@ model User {
   dailyLogs                 DailyLog[]
   personalDocuments         PersonalDocument[]
   boardVisits               BoardVisit[]
+  meetingRoomsCreated       MeetingRoom[]
+  meetingBookings           MeetingBooking[]
 }
 
 model Workspace {
@@ -1045,4 +1047,37 @@ model PlatformLink {
   favicon   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model MeetingRoom {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  location  String?
+  isActive  Boolean  @default(true)
+  createdBy Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  creator   User     @relation(fields: [createdBy], references: [id])
+  bookings  MeetingBooking[]
+}
+
+model MeetingBooking {
+  id                Int       @id @default(autoincrement())
+  roomId            Int
+  bookedByUserId    Int
+  title             String
+  startTime         DateTime
+  endTime           DateTime
+  isRecurring       Boolean   @default(false)
+  recurrenceType    String?
+  recurrenceEndDate DateTime?
+  recurrenceGroupId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  room              MeetingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bookedBy          User        @relation(fields: [bookedByUserId], references: [id])
+
+  @@index([roomId, startTime])
+  @@index([bookedByUserId])
+  @@index([recurrenceGroupId])
 }

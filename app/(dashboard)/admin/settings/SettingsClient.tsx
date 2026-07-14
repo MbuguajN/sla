@@ -1,7 +1,13 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { uploadLogo, updateSystemSetting } from "@/app/actions/adminActions";
+import {
+  getMeetingRooms,
+  createMeetingRoom,
+  updateMeetingRoom,
+  deleteMeetingRoom,
+} from "@/app/actions/meetingRoomActions";
 import { 
   Settings02Icon, 
   Image01Icon, 
@@ -10,6 +16,7 @@ import {
   Upload01Icon, 
   Tick02Icon
 } from "@hugeicons/react";
+import { DoorOpen, Plus, Trash2, Loader2, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Setting = {
@@ -37,6 +44,67 @@ export default function SettingsClient({ initialSettings, initialLogos }: Props)
 
   const lightInputRef = useRef<HTMLInputElement>(null);
   const darkInputRef = useRef<HTMLInputElement>(null);
+
+  // Meeting room state
+  const [rooms, setRooms] = useState<{ id: number; name: string; location: string | null; currentBooking: any }[]>([]);
+  const [loadingRooms, setLoadingRooms] = useState(true);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomLocation, setNewRoomLocation] = useState("");
+  const [addingRoom, setAddingRoom] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<number | null>(null);
+  const [editRoomName, setEditRoomName] = useState("");
+  const [editRoomLocation, setEditRoomLocation] = useState("");
+
+  useEffect(() => {
+    loadRooms();
+  }, []);
+
+  async function loadRooms() {
+    try {
+      const data = await getMeetingRooms();
+      setRooms(data);
+    } catch (err) {
+      console.error("Failed to load rooms:", err);
+    } finally {
+      setLoadingRooms(false);
+    }
+  }
+
+  async function handleAddRoom() {
+    if (!newRoomName.trim()) return;
+    setAddingRoom(true);
+    try {
+      await createMeetingRoom(newRoomName.trim(), newRoomLocation.trim() || undefined);
+      setNewRoomName("");
+      setNewRoomLocation("");
+      await loadRooms();
+    } catch (err: any) {
+      alert(err.message || "Failed to add room");
+    } finally {
+      setAddingRoom(false);
+    }
+  }
+
+  async function handleUpdateRoom(id: number) {
+    if (!editRoomName.trim()) return;
+    try {
+      await updateMeetingRoom(id, { name: editRoomName.trim(), location: editRoomLocation.trim() || undefined });
+      setEditingRoom(null);
+      await loadRooms();
+    } catch (err: any) {
+      alert(err.message || "Failed to update room");
+    }
+  }
+
+  async function handleDeleteRoom(id: number, name: string) {
+    if (!confirm(`Delete meeting room "${name}"? This cannot be undone.`)) return;
+    try {
+      await deleteMeetingRoom(id);
+      await loadRooms();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete room");
+    }
+  }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, mode: "light" | "dark") => {
     const file = e.target.files?.[0];
@@ -277,6 +345,124 @@ export default function SettingsClient({ initialSettings, initialLogos }: Props)
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Meeting Rooms */}
+        <div className="card bg-base-100 shadow-xl border border-base-200 overflow-visible">
+          <div className="card-body p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-[#fff1f3] flex items-center justify-center rounded-2xl">
+                <DoorOpen className="w-6 h-6 text-[#f43f5e]" />
+              </div>
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-bold tracking-tight text-[#111827] dark:text-white">Meeting Rooms</h2>
+                <span className="text-[10px] font-bold text-[#9ca3af] dark:text-zinc-500 uppercase tracking-[0.2em] mt-1">
+                  Manage meeting rooms
+                </span>
+              </div>
+            </div>
+
+            {/* Add room form */}
+            <div className="flex gap-3 mb-6">
+              <input
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                placeholder="Room name"
+                className="flex-1 h-10 px-4 bg-white dark:bg-zinc-800 border border-[#e5e7eb] dark:border-white/10 rounded-xl text-sm font-bold text-[#111827] dark:text-white placeholder-gray-400 outline-none focus:border-[#f43f5e] focus:ring-2 focus:ring-[#f43f5e]/10 transition-all"
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddRoom(); }}
+              />
+              <input
+                value={newRoomLocation}
+                onChange={(e) => setNewRoomLocation(e.target.value)}
+                placeholder="Location (optional)"
+                className="flex-1 h-10 px-4 bg-white dark:bg-zinc-800 border border-[#e5e7eb] dark:border-white/10 rounded-xl text-sm font-bold text-[#111827] dark:text-white placeholder-gray-400 outline-none focus:border-[#f43f5e] focus:ring-2 focus:ring-[#f43f5e]/10 transition-all"
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddRoom(); }}
+              />
+              <button
+                onClick={handleAddRoom}
+                disabled={!newRoomName.trim() || addingRoom}
+                className="h-10 px-5 bg-[#f43f5e] text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-[#e11d48] disabled:opacity-40 transition-all flex items-center gap-2"
+              >
+                {addingRoom ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                Add
+              </button>
+            </div>
+
+            {/* Rooms list */}
+            {loadingRooms ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+              </div>
+            ) : rooms.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-8">No meeting rooms yet. Add one above.</p>
+            ) : (
+              <div className="space-y-2">
+                {rooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5"
+                  >
+                    <DoorOpen className="h-4 w-4 text-gray-400 shrink-0" />
+                    {editingRoom === room.id ? (
+                      <>
+                        <input
+                          value={editRoomName}
+                          onChange={(e) => setEditRoomName(e.target.value)}
+                          className="flex-1 h-8 px-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-[#111827] dark:text-white outline-none focus:border-[#f43f5e]"
+                          onKeyDown={(e) => { if (e.key === "Enter") handleUpdateRoom(room.id); }}
+                          autoFocus
+                        />
+                        <input
+                          value={editRoomLocation}
+                          onChange={(e) => setEditRoomLocation(e.target.value)}
+                          placeholder="Location"
+                          className="flex-1 h-8 px-3 bg-white dark:bg-zinc-800 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-[#111827] dark:text-white outline-none focus:border-[#f43f5e]"
+                          onKeyDown={(e) => { if (e.key === "Enter") handleUpdateRoom(room.id); }}
+                        />
+                        <button
+                          onClick={() => handleUpdateRoom(room.id)}
+                          className="h-8 px-3 rounded-lg bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600 transition-colors"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingRoom(null)}
+                          className="h-8 px-3 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-zinc-300 text-xs font-bold hover:bg-gray-300 dark:hover:bg-white/15 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-bold text-[#111827] dark:text-white">{room.name}</span>
+                          {room.location && (
+                            <span className="ml-2 text-xs text-gray-400">({room.location})</span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingRoom(room.id);
+                            setEditRoomName(room.name);
+                            setEditRoomLocation(room.location || "");
+                          }}
+                          className="h-8 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 transition-colors"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRoom(room.id, room.name)}
+                          className="h-8 px-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
