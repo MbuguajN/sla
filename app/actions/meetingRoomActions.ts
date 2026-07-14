@@ -34,8 +34,8 @@ export async function getMeetingRooms() {
       ? {
           id: room.bookings[0].id,
           title: room.bookings[0].title,
-          startTime: room.bookings[0].startTime,
-          endTime: room.bookings[0].endTime,
+          startTime: room.bookings[0].startTime.toISOString(),
+          endTime: room.bookings[0].endTime.toISOString(),
           bookedBy: room.bookings[0].bookedBy,
         }
       : null,
@@ -119,11 +119,12 @@ export async function getRoomBookings(roomId: number, date: string) {
   return bookings.map((b) => ({
     id: b.id,
     title: b.title,
-    startTime: b.startTime,
-    endTime: b.endTime,
+    startTime: b.startTime.toISOString(),
+    endTime: b.endTime.toISOString(),
     bookedBy: b.bookedBy,
     isRecurring: b.isRecurring,
     recurrenceType: b.recurrenceType,
+    recurrenceGroupId: b.recurrenceGroupId,
   }));
 }
 
@@ -270,7 +271,14 @@ export async function getAllRoomBookings(date: string) {
     orderBy: { startTime: "asc" },
   });
 
-  return bookings;
+  return bookings.map((b) => ({
+    ...b,
+    startTime: b.startTime.toISOString(),
+    endTime: b.endTime.toISOString(),
+    createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
+    recurrenceEndDate: b.recurrenceEndDate?.toISOString() || null,
+  }));
 }
 
 function generateRecurrences(

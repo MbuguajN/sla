@@ -28,13 +28,13 @@ type RoomData = {
   currentBooking: {
     id: number;
     title: string;
-    startTime: Date;
-    endTime: Date;
+    startTime: string;
+    endTime: string;
     bookedBy: { id: number; name: string };
   } | null;
 };
 
-function formatTime(date: Date) {
+function formatTime(date: Date | string) {
   return new Date(date).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -125,6 +125,7 @@ export default function MeetingRoomStatus() {
       setRooms(data as RoomData[]);
     } catch (err) {
       console.error("Failed to load meeting rooms:", err);
+      setRooms([]);
     } finally {
       setLoading(false);
     }
@@ -163,7 +164,7 @@ export default function MeetingRoomStatus() {
     const endDateTime = new Date(`${bookDate}T${bookEnd}`);
 
     try {
-      await createBooking({
+      const result = await createBooking({
         roomId: selectedRoom.id,
         title: bookTitle.trim(),
         startTime: startDateTime.toISOString(),
@@ -176,6 +177,7 @@ export default function MeetingRoomStatus() {
       await loadRooms();
       setShowBookingForm(false);
     } catch (err: any) {
+      console.error("Booking failed:", err);
       setError(err.message || "Failed to book room");
     } finally {
       setBooking(false);
