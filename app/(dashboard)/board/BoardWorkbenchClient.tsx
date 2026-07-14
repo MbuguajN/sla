@@ -83,6 +83,11 @@ type CardData = {
   attachments: Attachment[];
   activity: ActivityEntry[];
   position: number;
+  task?: {
+    id: number;
+    status: string;
+    assignedUserId: number | null;
+  } | null;
 };
 
 type ListData = {
@@ -378,7 +383,8 @@ export default function BoardWorkbenchClient({
             }))
           })),
           attachments: c.attachments.map((a: any) => ({ id: `at-${a.id}`, name: a.name, url: a.url, createdAt: new Date(a.createdAt).toISOString() })),
-          activity: c.activity.map((a: any) => ({ id: `ba-${a.id}`, type: a.type as "COMMENT" | "SYSTEM", actor: a.actorName, message: a.message, createdAt: new Date(a.createdAt).toISOString() }))
+          activity: c.activity.map((a: any) => ({ id: `ba-${a.id}`, type: a.type as "COMMENT" | "SYSTEM", actor: a.actorName, message: a.message, createdAt: new Date(a.createdAt).toISOString() })),
+          task: c.task || null,
         }))
       }));
 
@@ -1232,6 +1238,24 @@ export default function BoardWorkbenchClient({
                         )}
                       </div>
                     </div>
+                    {card.task && (
+                      <div className="mb-2">
+                        <span className={cn(
+                          "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider",
+                          card.task.status === "DONE" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                          card.task.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                          card.task.status === "ASSIGNED" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" :
+                          card.task.status === "SUBMITTED" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" :
+                          "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                        )}>
+                          {card.task.status === "DONE" ? "Done" :
+                           card.task.status === "IN_PROGRESS" ? "In Progress" :
+                           card.task.status === "ASSIGNED" ? "Assigned" :
+                           card.task.status === "SUBMITTED" ? "Submitted" :
+                           card.task.status}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-zinc-400">
                       {card.dueDate && (
                         <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md", getDueStatus(card.dueDate, card.isCompleted))}>

@@ -10,6 +10,7 @@ import {
   DEPARTMENTS,
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { ensureProjectBoard } from "./boardTaskSync";
 
 export async function getProjects() {
   const user = await getCurrentUser();
@@ -155,6 +156,8 @@ export async function createProject(data: {
       userId: user.id,
     },
   });
+
+  await ensureProjectBoard(project.id).catch(() => {});
 
   revalidatePath("/projects");
   revalidatePath(`/clients/${data.clientId}`);

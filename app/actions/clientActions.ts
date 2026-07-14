@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { getCurrentUser, canOnboardClient, canViewClients, canCloseClient } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { ensureClientWorkspace } from "./boardTaskSync";
 
 export async function getClients() {
   const user = await getCurrentUser();
@@ -59,6 +60,8 @@ export async function createClient(data: {
       createdBy: user.id,
     },
   });
+
+  await ensureClientWorkspace(client.id).catch(() => {});
 
   revalidatePath("/clients");
   return client;

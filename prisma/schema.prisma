@@ -71,6 +71,7 @@ model Workspace {
   boards      Board[]
   owner       User              @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members     WorkspaceMember[]
+  client      Client?
 
   @@index([ownerId])
 }
@@ -97,7 +98,10 @@ model Board {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   visibility  BoardVisibility  @default(WORKSPACE)
+  type        BoardType        @default(STANDALONE)
+  projectId   Int?             @unique
   workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
   lists       BoardList[]
   members     BoardMember[]
   visits      BoardVisit[]
@@ -156,10 +160,12 @@ model BoardCard {
   isCompleted   Boolean               @default(false)
   includeInLogs Boolean               @default(true)
   assignedToUserId Int?
+  taskId        Int?                  @unique
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   list        BoardList             @relation(fields: [listId], references: [id], onDelete: Cascade)
   assignedUser User?                 @relation("BoardCardAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  task        Task?                 @relation("BoardCardTask")
   labels      BoardCardLabel[]
   members     BoardCardMember[]
   checklists  BoardChecklist[]
@@ -212,10 +218,12 @@ model BoardChecklistItem {
   isDone           Boolean         @default(false)
   assignedUserId   Int?
   position         Int             @default(0)
+  subtaskId        Int?            @unique
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   checklist        BoardChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   assignedUser     User?           @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  subtask          Subtask?        @relation("ChecklistItemSubtask")
 
   @@index([checklistId])
 }
@@ -322,11 +330,13 @@ model Client {
   description String?
   status      ClientStatus        @default(ACTIVE)
   createdBy   Int?
+  workspaceId Int?                @unique
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
   boardCards  PersonalBoardCard[]
   projects    Project[]
   documents   ClientDocument[]
+  workspace   Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
 }
 
 model ClientDocument {
@@ -352,6 +362,7 @@ model Project {
   updatedAt   DateTime            @updatedAt
   activityLog ActivityLog[]
   boardCards  PersonalBoardCard[]
+  boards      Board[]
   client      Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
   departments ProjectDepartment[]
   briefLinks  ProjectLink[]
@@ -382,38 +393,40 @@ model ProjectDepartment {
 }
 
 model Task {
-  id                 Int                   @id @default(autoincrement())
-  projectId          Int
-  title              String
-  description        String?
-  status             TaskStatus            @default(UNASSIGNED)
-  priority           Priority              @default(MEDIUM)
-  deptId             Int?
-  assignedUserId     Int?
-  createdById        Int?
-  slaHours           Int?
-  slaStartedAt       DateTime?
-  startedAt          DateTime?
-  slaPausedAt        DateTime?
-  slaPausedDuration  Int?                  @default(0)
-  confirmedAt        DateTime?
-  submittedAt        DateTime?
-  completedAt        DateTime?
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  briefCategory      BriefCategory?
-  briefReceivedAt    DateTime?
-  source             TaskSource            @default(STANDARD)
-  activityLog        ActivityLog[]
-  collectionCards    CollectionBoardCard[]
-  leaveHandovers     LeaveTaskHandover[]
-  boardCard          PersonalBoardCard?
-  subtasks           Subtask[]
-  assignedTo         User?                 @relation("TaskAssignee", fields: [assignedUserId], references: [id])
-  createdBy          User?                 @relation("TaskCreator", fields: [createdById], references: [id])
-  assignedDepartment Department?           @relation(fields: [deptId], references: [id])
-  project            Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  links              TaskLink[]
+  id                      Int                   @id @default(autoincrement())
+  projectId               Int
+  title                   String
+  description             String?
+  status                  TaskStatus            @default(UNASSIGNED)
+  priority                Priority              @default(MEDIUM)
+  deptId                  Int?
+  assignedUserId          Int?
+  createdById             Int?
+  slaHours                Int?
+  slaStartedAt            DateTime?
+  startedAt               DateTime?
+  slaPausedAt             DateTime?
+  slaPausedDuration       Int?                  @default(0)
+  confirmedAt             DateTime?
+  submittedAt             DateTime?
+  completedAt             DateTime?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  briefCategory           BriefCategory?
+  briefReceivedAt         DateTime?
+  source                  TaskSource            @default(STANDARD)
+  workspaceBoardCardId    Int?                  @unique
+  activityLog             ActivityLog[]
+  collectionCards         CollectionBoardCard[]
+  leaveHandovers          LeaveTaskHandover[]
+  boardCard               PersonalBoardCard?
+  workspaceBoardCard      BoardCard?            @relation("BoardCardTask", fields: [workspaceBoardCardId], references: [id], onDelete: SetNull)
+  subtasks                Subtask[]
+  assignedTo              User?                 @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  createdBy               User?                 @relation("TaskCreator", fields: [createdById], references: [id])
+  assignedDepartment      Department?           @relation(fields: [deptId], references: [id])
+  project                 Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  links                   TaskLink[]
 
   @@index([status])
   @@index([assignedUserId])
@@ -561,14 +574,16 @@ model CollectionBoardAccess {
 }
 
 model Subtask {
-  id          Int           @id @default(autoincrement())
-  taskId      Int
-  title       String
-  description String?
-  status      SubtaskStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  task        Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id               Int                    @id @default(autoincrement())
+  taskId           Int
+  title            String
+  description      String?
+  status           SubtaskStatus          @default(PENDING)
+  checklistItemId  Int?                   @unique
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  task             Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  checklistItem    BoardChecklistItem?    @relation("ChecklistItemSubtask", fields: [checklistItemId], references: [id], onDelete: SetNull)
 }
 
 model ActivityLog {
@@ -797,6 +812,11 @@ enum BoardVisibility {
   PUBLIC
 }
 
+enum BoardType {
+  PROJECT
+  STANDALONE
+}
+
 enum Role {
   ADMIN
   CEO
@@ -832,6 +852,7 @@ enum TaskSource {
   STANDARD
   SELF_BOARD
   COLLECTION_BOARD
+  BOARD
 }
 
 enum TaskStatus {

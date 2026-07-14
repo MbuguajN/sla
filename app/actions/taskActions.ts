@@ -13,6 +13,7 @@ import {
   canRequestRevision,
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
+import { syncTaskToCard, syncSubtaskToChecklistItem, addBoardMemberForAssignee, syncChecklistItemToSubtask, syncCardToTask } from "./boardTaskSync";
 import { createNotification } from "./notificationActions";
 import { sendNotificationEmail } from "@/lib/email";
 import { mkdir, writeFile } from "fs/promises";
@@ -459,6 +460,9 @@ export async function createTask(data: {
 
   revalidatePath("/tasks");
   revalidatePath(`/projects/${data.projectId}`);
+
+  await syncTaskToCard(task.id).catch(() => {});
+
   return task;
 }
 
@@ -551,6 +555,21 @@ export async function assignTask(taskId: number, assignedUserId: number) {
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
+
+  if (updatedTask.workspaceBoardCardId) {
+    const card = await db.boardCard.findUnique({
+      where: { id: updatedTask.workspaceBoardCardId },
+      include: { list: { include: { board: true } } },
+    });
+    if (card) {
+      await addBoardMemberForAssignee(card.list.board.id, assignedUserId).catch(() => {});
+      await db.boardCard.update({
+        where: { id: updatedTask.workspaceBoardCardId },
+        data: { assignedToUserId: assignedUserId },
+      }).catch(() => {});
+    }
+  }
+
   return updatedTask;
 }
 
@@ -829,6 +848,13 @@ export async function completeTask(taskId: number) {
     include: { assignedTo: true },
   });
 
+  if (task.workspaceBoardCardId) {
+    await db.boardCard.update({
+      where: { id: task.workspaceBoardCardId },
+      data: { isCompleted: true },
+    }).catch(() => {});
+  }
+
   await db.activityLog.create({
     data: {
       type: "COMPLETED",
@@ -954,6 +980,13 @@ export async function updateSubtaskStatus(
     where: { id: subtaskId },
     data: { status: normalizedStatus },
   });
+
+  if (subtask.checklistItemId) {
+    await db.boardChecklistItem.update({
+      where: { id: subtask.checklistItemId },
+      data: { isDone: normalizedStatus === "DONE" },
+    }).catch(() => {});
+  }
 
   if (statusChangedToDone) {
     await db.activityLog.create({

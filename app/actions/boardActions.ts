@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { BoardVisibility } from "@prisma/client";
 import { createNotification } from "./notificationActions";
 import { sendNotificationEmail } from "@/lib/email";
+import { syncCardToTask, syncChecklistItemToSubtask } from "./boardTaskSync";
 
 /**
  * FETCHING
@@ -73,7 +74,14 @@ export async function getBoard(boardId: number) {
             orderBy: { position: "asc" },
             include: {
               labels: true,
-              members: true
+              members: true,
+              task: {
+                select: {
+                  id: true,
+                  status: true,
+                  assignedUserId: true,
+                },
+              },
             }
           }
         }
@@ -472,6 +480,14 @@ export async function createCard(listId: number, title: string) {
     data: { cardId: card.id, type: "SYSTEM", actorName: "System", message: "Card created" },
   });
 
+  const fullCard = await db.boardCard.findUnique({
+    where: { id: card.id },
+    include: { list: { include: { board: true } } },
+  });
+  if (fullCard?.list.board.projectId) {
+    await syncCardToTask(card.id).catch(() => {});
+  }
+
   revalidatePath("/board");
   return card;
 }
@@ -518,6 +534,13 @@ export async function toggleCardComplete(cardId: number) {
 
     await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: true } });
 
+    if (card.taskId) {
+      await db.task.update({
+        where: { id: card.taskId },
+        data: { status: "DONE", completedAt: new Date() },
+      }).catch(() => {});
+    }
+
     if (card.includeInLogs) {
       const boardTitle = card.list.board.title;
       const workspaceName = card.list.board.workspace?.name || boardTitle;
@@ -540,6 +563,13 @@ export async function toggleCardComplete(cardId: number) {
     }
   } else {
     await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: false } });
+
+    if (card.taskId) {
+      await db.task.update({
+        where: { id: card.taskId },
+        data: { status: "ASSIGNED", completedAt: null },
+      }).catch(() => {});
+    }
   }
 
   revalidatePath("/board");
@@ -767,6 +797,15 @@ export async function addChecklistItem(checklistId: number, title: string, assig
   }
 
   revalidatePath("/board");
+
+  const fullItem = await db.boardChecklistItem.findUnique({
+    where: { id: item.id },
+    include: { checklist: { include: { card: true } } },
+  });
+  if (fullItem?.checklist.card.taskId) {
+    await syncChecklistItemToSubtask(item.id).catch(() => {});
+  }
+
   return item;
 }
 
@@ -786,6 +825,13 @@ export async function toggleChecklistItem(itemId: number) {
 
   const newDone = !item.isDone;
   await db.boardChecklistItem.update({ where: { id: itemId }, data: { isDone: newDone } });
+
+  if (item.subtaskId) {
+    await db.subtask.update({
+      where: { id: item.subtaskId },
+      data: { status: newDone ? "DONE" : "PENDING" },
+    }).catch(() => {});
+  }
 
   if (newDone) {
     const card = item.checklist.card;
