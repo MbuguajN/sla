@@ -942,24 +942,24 @@ export default function BoardWorkbenchClient({
 
       {activeBoard && (
         <div className="flex-none h-16 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-5">
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">{activeBoard.workspaceName}</span>
-            <div className="h-6 w-[2px] bg-zinc-200 dark:bg-white/10 mx-2" />
+          <div className="flex items-center gap-4 min-w-0 flex-1">
+            <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] truncate max-w-[140px]" title={activeBoard.workspaceName}>{activeBoard.workspaceName}</span>
+            <div className="h-6 w-[2px] bg-zinc-200 dark:bg-white/10 mx-2 shrink-0" />
             
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shrink-0">
                {activeBoard.visibility === "PRIVATE" ? <Lock className="h-3 w-3" /> : activeBoard.visibility === "PUBLIC" ? <Globe className="h-3 w-3" /> : <Users className="h-3 w-3" />}
                {activeBoard.visibility}
             </div>
             
-            <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1" />
+            <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1 shrink-0" />
             
-            <h1 className="text-xl font-black tracking-tight text-zinc-800 dark:text-white">{activeBoard.title}</h1>
+            <h1 className="text-xl font-black tracking-tight text-zinc-800 dark:text-white truncate min-w-0" title={activeBoard.title}>{activeBoard.title}</h1>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Team</span>
-              <AvatarPile ids={activeBoard.memberIds} size="h-9 w-9" max={10} />
+              <AvatarPile ids={activeBoard.memberIds} size="h-9 w-9" max={6} />
             </div>
 
             <button 
@@ -1517,7 +1517,7 @@ export default function BoardWorkbenchClient({
                                 <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0", getUserColor(ws.ownerId, ws.name))}>
                                   {ws.name[0]?.toUpperCase()}
                                 </div>
-                                <span className="text-base font-bold text-[#0d1c2f] dark:text-white">{ws.name}</span>
+                                <span className="text-base font-bold text-[#0d1c2f] dark:text-white truncate max-w-[200px]" title={ws.name}>{ws.name}</span>
                               </div>
                               <div className="flex flex-wrap gap-4">
                                 {ws.boards.slice(0, wsBoardsPage * BOARDS_PER_PAGE).map((b: any) => (
@@ -1562,7 +1562,7 @@ export default function BoardWorkbenchClient({
                         <div className="space-y-8">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h2 className="text-3xl font-black text-[#0d1c2f] dark:text-white capitalize">{selectedWs.name}</h2>
+                              <h2 className="text-3xl font-black text-[#0d1c2f] dark:text-white capitalize truncate max-w-[400px]" title={selectedWs.name}>{selectedWs.name}</h2>
                               <p className="text-[#5a4041] dark:text-zinc-400 font-bold text-xs uppercase tracking-widest mt-1">{selectedWs.boards.length} Boards • {selectedWs.members.length} Members</p>
                             </div>
                             <div className="flex items-center gap-3">
