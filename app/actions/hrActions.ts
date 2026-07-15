@@ -507,7 +507,7 @@ export async function cancelLeave(leaveId: number) {
   const leave = await db.leave.findUnique({ where: { id: leaveId } });
   if (!leave) throw new Error("Leave not found");
   if (leave.userId !== user.id) throw new Error("Unauthorized");
-  if (leave.status !== "PENDING") throw new Error("Only pending leaves can be cancelled");
+  if (leave.status !== "PENDING" && leave.status !== "PENDING_HR") throw new Error("Only pending leaves can be cancelled");
 
   const updated = await db.leave.update({
     where: { id: leaveId },

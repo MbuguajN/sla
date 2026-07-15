@@ -504,7 +504,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                               Edit Handover
                             </button>
                           ) : null}
-                          {item.status === "PENDING" ? (
+                          {["PENDING", "PENDING_HR"].includes(item.status) ? (
                             <button
                               onClick={() => handleCancelLeave(item.id)}
                               className="inline-flex h-8 items-center rounded-lg border border-rose-200 dark:border-rose-500/20 bg-rose-50 dark:bg-rose-500/10 px-3 text-[10px] font-black uppercase tracking-[0.12em] text-rose-600 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-500/20"
