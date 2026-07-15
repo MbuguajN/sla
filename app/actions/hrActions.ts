@@ -392,8 +392,8 @@ export async function reviewLeave(
       return { ok: true, id: updated.id, status: updated.status };
     }
 
-    // HR/Admin reviewing: must be PENDING or PENDING_HR
-    if (leave.status !== "PENDING_HR" && leave.status !== "PENDING") throw new Error("Leave is not pending HR review");
+    // HR/Admin reviewing: must be PENDING_HR only
+    if (leave.status !== "PENDING_HR") throw new Error("Leave is not pending HR review. Only leaves approved by a manager can be reviewed by HR.");
 
     const updated = await db.leave.update({
       where: { id: leaveId },

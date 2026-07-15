@@ -10,6 +10,9 @@ export default async function HRLeavesPage() {
   if (!canManageLeaves(user)) redirect("/dashboard");
 
   const leaves = await db.leave.findMany({
+    where: {
+      status: { in: ["PENDING_HR", "APPROVED", "DENIED", "CANCELLED"] },
+    },
     include: { user: { include: { department: true } } },
     orderBy: { createdAt: "desc" },
   });

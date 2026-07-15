@@ -60,7 +60,7 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
     CANCELLED: "secondary",
   };
 
-  const statuses = ["ALL", "PENDING", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"];
+  const statuses = ["ALL", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"];
 
   return (
     <div className="space-y-6">
@@ -75,11 +75,7 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
           <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">Leave Requests</h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 leading-relaxed">Review submitted leave requests and process approvals quickly.</p>
         </div>
-        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="rounded-3xl bg-white dark:bg-black/40 border border-gray-100 dark:border-white/10 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Pending Manager</p>
-            <p className="text-4xl font-black text-slate-800 dark:text-white mt-2">{leaves.filter((l) => l.status === "PENDING").length}</p>
-          </div>
+        <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-3xl bg-white dark:bg-black/40 border border-gray-100 dark:border-white/10 p-6">
             <p className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Pending HR</p>
             <p className="text-4xl font-black text-slate-800 dark:text-white mt-2">{leaves.filter((l) => l.status === "PENDING_HR").length}</p>
