@@ -316,9 +316,11 @@ export async function reviewLeave(
     const leave = await db.leave.findUnique({ where: { id: leaveId } });
     if (!leave) throw new Error("Leave not found");
 
-    // Manager reviewing: advance to PENDING_HR (can only deny at this stage)
-    if (user.role === "MANAGER") {
-      if (leave.status !== "PENDING") throw new Error("Leave is not pending manager review");
+    // Manager reviewing: only PENDING leaves go through manager first
+    const isManager = user.role === "MANAGER";
+    const isHrOrAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === DEPARTMENTS.HR;
+
+    if (isManager && leave.status === "PENDING") {
       if (decision === "DENIED") {
         const updated = await db.leave.update({
           where: { id: leaveId },
