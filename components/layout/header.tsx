@@ -424,7 +424,6 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
                           const q = platformSearch.toLowerCase();
                           return l.name.toLowerCase().includes(q) || l.url.toLowerCase().includes(q);
                         })
-                        .slice(0, 5)
                         .map((link) => {
                           const isActive = previewLink?.id === link.id;
                           return (
@@ -483,15 +482,6 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
                             <div className="px-5 py-8 text-center">
                               <Search className="h-6 w-6 text-gray-200 dark:text-zinc-700 mx-auto mb-2" />
                               <p className="text-xs font-bold text-gray-400 dark:text-zinc-600">No matches for &quot;{platformSearch}&quot;</p>
-                            </div>
-                          );
-                        }
-                        if (filtered.length > 5) {
-                          return (
-                            <div className="px-5 py-2 text-center">
-                              <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">
-                                +{filtered.length - 5} more
-                              </p>
                             </div>
                           );
                         }
