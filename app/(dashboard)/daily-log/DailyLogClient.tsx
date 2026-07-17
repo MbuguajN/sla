@@ -33,7 +33,7 @@ type DailyLogRow = {
   source?: "wizard" | "task" | "board";
 };
 
-type FilterMode = "daily" | "weekly" | "monthly";
+type FilterMode = "daily" | "weekly" | "all";
 
 interface Props {
   projects: ProjectOption[];
@@ -64,7 +64,7 @@ function isInRange(date: Date, mode: FilterMode) {
     return date >= start && date < end;
   }
 
-  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+  return true;
 }
 
 export default function DailyLogClient({ projects, initialLogs }: Props) {
@@ -226,7 +226,7 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
             {([
               { key: "daily", label: "Daily" },
               { key: "weekly", label: "Weekly" },
-              { key: "monthly", label: "Monthly" },
+              { key: "all", label: "All" },
             ] as const).map((item) => (
               <button
                 key={item.key}
