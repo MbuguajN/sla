@@ -4,13 +4,11 @@ import db from "@/lib/db";
 import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { clearLatestActivity } from "@/app/actions/taskActions";
 import {
   ClipboardIcon,
   Tick02Icon,
   UserMultipleIcon,
   PlayIcon,
-  Clock01Icon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
   TaskDone01Icon,
@@ -27,6 +25,8 @@ import { DashboardSkeleton, ListSkeleton } from "@/components/skeletons";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
 import DeadlineCalendarClient from "./DeadlineCalendarClient";
 import { getLeaveDurationLabel, getLeaveTypeLabel } from "@/lib/leave";
+import CompanyPulse from "@/components/CompanyPulse";
+import { getCompanyPulse } from "@/app/actions/pulseActions";
 
 export const dynamic = "force-dynamic";
 
@@ -1211,7 +1211,6 @@ async function getBoardDashboardData(user: any) {
           { members: { some: { userId: user.id } } }
         ],
         isCompleted: false,
-        dueDate: { not: null }
       },
       include: {
         list: { include: { board: { include: { workspace: true } } } },
@@ -1355,6 +1354,7 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 async function ActivitySection({ user }: { user: any }) {
   const { activeTasks, recentActivities, publicHolidays } = await getActivityData(user);
   const { boardCards, checklistItems, cardActivities, workspaceJoins } = await getBoardDashboardData(user);
+  const pulseFeed = await getCompanyPulse();
 
   const allDeadlineTasks = [
     ...activeTasks.map((t) => ({
@@ -1377,17 +1377,6 @@ async function ActivitySection({ user }: { user: any }) {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <div className="lg:col-span-4">
-        <DeadlineCalendarClient
-          tasks={allDeadlineTasks}
-          holidays={publicHolidays.map((h) => ({
-            id: h.id,
-            name: h.name,
-            date: h.date.toISOString(),
-          }))}
-        />
-      </div>
-
       <div className="lg:col-span-4 space-y-6">
         <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-6 overflow-hidden relative flex flex-col" style={{ height: "480px" }}>
           <div className="flex items-center justify-between mb-6">
@@ -1396,7 +1385,7 @@ async function ActivitySection({ user }: { user: any }) {
                 <PlayIcon className="h-5 w-5 text-[#c91f41]" />
               </div>
               <div>
-                <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Active Work</h2>
+                <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Tasks at a Glance</h2>
                 <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Tasks, Cards & Checklists</p>
               </div>
             </div>
@@ -1407,70 +1396,127 @@ async function ActivitySection({ user }: { user: any }) {
             )}
           </div>
           {totalActiveCount > 0 ? (
-            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2 custom-scrollbar flex-1">
-              {activeTasks.map((task) => (
-                <a
-                  key={`task-${task.id}`}
-                  href={`/tasks/${task.id}`}
-                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#c91f41]">
-                        {task.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold text-gray-400">{task.project?.client?.name}</span>
-                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                        <span className="text-[10px] font-bold text-gray-500">{task.project?.title}</span>
+            <div className="space-y-2 overflow-y-auto pr-2 custom-scrollbar flex-1">
+              {(() => {
+                const now = new Date();
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                const todayEnd = new Date(todayStart.getTime() + 86400000);
+                const weekEnd = new Date(todayStart.getTime() + 7 * 86400000);
+
+                type GlanceItem = {
+                  key: string;
+                  href: string | null;
+                  title: string;
+                  subtitle: string;
+                  deadline: Date | null;
+                  status: "ACTIVE" | "WAITING" | "CRITICAL" | "PENDING";
+                  sortDate: number;
+                };
+
+                const items: GlanceItem[] = [];
+
+                for (const task of activeTasks) {
+                  const due = task.slaStartedAt ? new Date(task.slaStartedAt.getTime() + (task.slaHours ?? 0) * 3600000) : null;
+                  let status: GlanceItem["status"] = "PENDING";
+                  if (due) {
+                    if (due < todayEnd) status = "CRITICAL";
+                    else if (due < weekEnd) status = "ACTIVE";
+                    else status = "WAITING";
+                  }
+                  items.push({
+                    key: `task-${task.id}`,
+                    href: `/tasks/${task.id}`,
+                    title: task.title,
+                    subtitle: [task.project?.client?.name, task.project?.title].filter(Boolean).join(" · "),
+                    deadline: due,
+                    status,
+                    sortDate: due ? due.getTime() : Number.MAX_SAFE_INTEGER,
+                  });
+                }
+
+                for (const card of boardCards) {
+                  const due = card.dueDate ? new Date(card.dueDate) : null;
+                  let status: GlanceItem["status"] = "PENDING";
+                  if (due) {
+                    if (due < todayEnd) status = "CRITICAL";
+                    else if (due < weekEnd) status = "ACTIVE";
+                    else status = "WAITING";
+                  }
+                  items.push({
+                    key: `card-${card.id}`,
+                    href: `/board?active=b-${card.list.board.id}`,
+                    title: card.title,
+                    subtitle: card.list.board.title,
+                    deadline: due,
+                    status,
+                    sortDate: due ? due.getTime() : Number.MAX_SAFE_INTEGER,
+                  });
+                }
+
+                for (const item of checklistItems) {
+                  items.push({
+                    key: `checklist-${item.id}`,
+                    href: null,
+                    title: item.title,
+                    subtitle: [item.checklist.title, item.checklist.card.title].filter(Boolean).join(" · "),
+                    deadline: null,
+                    status: "PENDING",
+                    sortDate: Number.MAX_SAFE_INTEGER,
+                  });
+                }
+
+                items.sort((a, b) => a.sortDate - b.sortDate);
+
+                function formatDateLabel(d: Date | null): string {
+                  if (!d) return "OPEN";
+                  if (d >= todayStart && d < todayEnd) return "TODAY";
+                  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+                  return `${months[d.getMonth()]} ${d.getDate()}`;
+                }
+
+                function getStatusStyle(s: GlanceItem["status"]): string {
+                  switch (s) {
+                    case "ACTIVE": return "bg-emerald-50 text-emerald-600";
+                    case "WAITING": return "bg-blue-50 text-blue-600";
+                    case "CRITICAL": return "bg-red-50 text-red-600";
+                    case "PENDING": return "bg-gray-100 text-gray-500";
+                  }
+                }
+
+                function getStatusDot(s: GlanceItem["status"]): string {
+                  switch (s) {
+                    case "ACTIVE": return "bg-emerald-500";
+                    case "WAITING": return "bg-blue-500";
+                    case "CRITICAL": return "bg-red-500";
+                    case "PENDING": return "bg-gray-400";
+                  }
+                }
+
+                return items.map((item) => {
+                  const row = (
+                    <div key={item.key} className="flex items-center gap-3 py-2 px-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                      <div className="w-14 flex-shrink-0 text-center">
+                        <span className="text-[10px] font-black text-gray-400 dark:text-zinc-600 uppercase tracking-widest">{formatDateLabel(item.deadline)}</span>
                       </div>
-                    </div>
-                  </div>
-                </a>
-              ))}
-              {boardCards.map((card) => (
-                <a
-                  key={`card-${card.id}`}
-                  href={`/board?active=b-${card.list.board.id}`}
-                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent hover:border-[#c91f41]/10 hover:bg-white dark:hover:bg-white/10 hover:shadow-lg hover:shadow-gray-200/50 dark:hover:shadow-none transition-all duration-300"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#c91f41]">
-                        {card.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold text-gray-400">{card.list.board.title}</span>
-                        {card.dueDate && (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-gray-300" />
-                            <span className="text-[10px] font-bold text-gray-500">Due {new Date(card.dueDate).toLocaleDateString()}</span>
-                          </>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{item.title}</p>
+                        {item.subtitle && (
+                          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 truncate uppercase tracking-wider mt-0.5">{item.subtitle}</p>
                         )}
                       </div>
-                    </div>
-                  </div>
-                </a>
-              ))}
-              {checklistItems.map((item) => (
-                <div
-                  key={`checklist-${item.id}`}
-                  className="group block p-4 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-transparent"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                        {item.title}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-bold text-gray-400">{item.checklist.title}</span>
-                        <span className="w-1 h-1 rounded-full bg-gray-300" />
-                        <span className="text-[10px] font-bold text-gray-500">{item.checklist.card.title}</span>
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full flex-shrink-0 ${getStatusStyle(item.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(item.status)}`} />
+                        <span className="text-[9px] font-black uppercase tracking-widest">{item.status}</span>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                  return item.href ? (
+                    <a key={item.key} href={item.href} className="block">
+                      {row}
+                    </a>
+                  ) : row;
+                });
+              })()}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -1484,70 +1530,19 @@ async function ActivitySection({ user }: { user: any }) {
         </div>
       </div>
 
-      <div className="lg:col-span-4 space-y-6">
-        <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-6" style={{ height: "480px", display: "flex", flexDirection: "column" }}>
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center">
-                <Clock01Icon className="h-5 w-5 text-[#c91f41]" />
-              </div>
-              <div>
-                <h2 className="text-base font-black text-gray-900 dark:text-white tracking-tight">Recent Activity</h2>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">Live Updates</p>
-              </div>
-            </div>
-            <form action={clearLatestActivity}>
-              <button
-                type="submit"
-                className="text-[10px] font-black text-gray-400 hover:text-[#c91f41] uppercase tracking-widest transition-colors flex items-center gap-1 group"
-              >
-                Clear All
-              </button>
-            </form>
-          </div>
-          {(recentActivities.length > 0 || cardActivities.length > 0 || workspaceJoins.length > 0) ? (
-            <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1">
-              {recentActivities.map((activity) => (
-                <div key={`act-${activity.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-[#c91f41] before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
-                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{formatActivityDescription(activity)}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{activity.user?.name ?? "Deleted User"}</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(activity.createdAt)}</span>
-                  </div>
-                </div>
-              ))}
-              {cardActivities.map((ca) => (
-                <div key={`ca-${ca.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-amber-500 before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
-                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{ca.message}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">{ca.actorName}</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(ca.createdAt)}</span>
-                  </div>
-                </div>
-              ))}
-              {workspaceJoins.map((wj) => (
-                <div key={`wj-${wj.id}`} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-1.5 before:h-1.5 before:rounded-full before:bg-blue-500 before:z-10 after:absolute after:left-[2.5px] after:top-3 after:h-[calc(100%+0.5rem)] after:w-px after:bg-gray-100 last:after:hidden">
-                  <p className="text-sm text-gray-900 dark:text-white font-bold leading-snug">{wj.user.name} joined workspace "{wj.workspace.name}"</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-tighter">Workspace</span>
-                    <span className="w-1 h-1 rounded-full bg-gray-200 dark:bg-zinc-700" />
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-zinc-600">{formatTime(wj.joinedAt)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center flex-1">
-              <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-3">
-                <Clock01Icon className="h-6 w-6 text-gray-300 dark:text-zinc-700" />
-              </div>
-              <p className="text-sm font-medium text-gray-700 dark:text-zinc-400">No activity yet</p>
-              <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">Activities will appear as they happen.</p>
-            </div>
-          )}
-        </div>
+      <div className="lg:col-span-4">
+        <DeadlineCalendarClient
+          tasks={allDeadlineTasks}
+          holidays={publicHolidays.map((h) => ({
+            id: h.id,
+            name: h.name,
+            date: h.date.toISOString(),
+          }))}
+        />
+      </div>
+
+      <div className="lg:col-span-4">
+        <CompanyPulse initialFeed={pulseFeed} currentUserId={user.id} />
       </div>
     </div>
   );

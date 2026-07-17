@@ -30,6 +30,7 @@ type DailyLogRow = {
   parentTaskTitle?: string;
   note: string;
   markCompleted: boolean;
+  source?: "wizard" | "task" | "board";
 };
 
 type FilterMode = "daily" | "weekly" | "monthly";
@@ -251,13 +252,14 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                 <th className="px-5 py-3">Project</th>
                 <th className="px-5 py-3">Task</th>
                 <th className="px-5 py-3">What Was Done</th>
+                <th className="px-5 py-3">Source</th>
                 <th className="px-5 py-3">Result</th>
               </tr>
             </thead>
             <tbody>
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-sm font-semibold text-gray-500 dark:text-zinc-400">
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm font-semibold text-gray-500 dark:text-zinc-400">
                     No daily logs found for this filter.
                   </td>
                 </tr>
@@ -277,6 +279,20 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                       ) : null}
                     </td>
                     <td className="px-5 py-3 text-sm text-gray-600 dark:text-zinc-300">{row.note}</td>
+                    <td className="px-5 py-3">
+                      <span
+                        className={cn(
+                          "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
+                          row.source === "board"
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                            : row.source === "task"
+                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                            : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-400"
+                        )}
+                      >
+                        {row.source === "board" ? "Board" : row.source === "task" ? "Task" : "Log"}
+                      </span>
+                    </td>
                     <td className="px-5 py-3">
                       <span
                         className={cn(

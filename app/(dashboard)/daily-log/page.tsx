@@ -103,7 +103,68 @@ export default async function DailyLogPage() {
     take: 500,
   });
 
-  const logs = activityLogs
+  const taskActivityLogs = await db.activityLog.findMany({
+    where: {
+      userId: user.id,
+      type: { in: ["COMPLETED", "STATUS_CHANGED", "ASSIGNED"] },
+      taskId: { not: null },
+    },
+    include: {
+      task: {
+        select: {
+          id: true,
+          title: true,
+          project: { select: { id: true, title: true, client: { select: { name: true } } } },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 200,
+  });
+
+  const userCardIds = (
+    await db.boardCard.findMany({
+      where: {
+        OR: [
+          { assignedToUserId: user.id },
+          { members: { some: { userId: user.id } } },
+        ],
+      },
+      select: { id: true },
+    })
+  ).map((c) => c.id);
+
+  const boardActivities = userCardIds.length > 0
+    ? await db.boardCardActivity.findMany({
+        where: {
+          cardId: { in: userCardIds },
+          type: { in: ["completed", "uncompleted", "created", "assigned", "moved", "comment"] },
+        },
+        include: {
+          card: {
+            select: {
+              id: true,
+              title: true,
+              list: {
+                select: {
+                  board: {
+                    select: {
+                      id: true,
+                      title: true,
+                      project: { select: { id: true, title: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      })
+    : [];
+
+  const wizardLogs = activityLogs
     .map((log) => {
       const metadata = parseDailyLogMetadata(log.metadata);
       if (!metadata) return null;
@@ -118,9 +179,50 @@ export default async function DailyLogPage() {
         parentTaskTitle: metadata.parentTaskTitle || log.task?.title || "",
         note: metadata.note || "",
         markCompleted: Boolean(metadata.markCompleted),
+        source: "wizard" as const,
       };
     })
     .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  const taskLogs = taskActivityLogs
+    .map((log) => {
+      const task = log.task;
+      if (!task) return null;
+      return {
+        id: -(log.id),
+        loggedAt: log.createdAt.toISOString(),
+        projectId: task.project?.id ?? null,
+        projectTitle: task.project ? `${task.project.client?.name ?? ""} - ${task.project.title}` : "Task Activity",
+        taskId: task.id,
+        taskTitle: task.title,
+        parentTaskTitle: "",
+        note: log.description,
+        markCompleted: log.type === "COMPLETED",
+        source: "task" as const,
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+
+  const boardLogs = boardActivities
+    .map((ca) => {
+      const board = ca.card.list.board;
+      return {
+        id: -(ca.id + 1000000),
+        loggedAt: ca.createdAt.toISOString(),
+        projectId: board.project?.id ?? null,
+        projectTitle: board.project ? board.project.title : board.title,
+        taskId: null,
+        taskTitle: ca.card.title,
+        parentTaskTitle: "",
+        note: ca.message,
+        markCompleted: ca.type === "completed",
+        source: "board" as const,
+      };
+    });
+
+  const logs = [...wizardLogs, ...taskLogs, ...boardLogs].sort(
+    (a, b) => new Date(b.loggedAt).getTime() - new Date(a.loggedAt).getTime()
+  );
 
   return (
     <>
