@@ -163,6 +163,25 @@ export default function MeetingRoomStatus() {
     const startDateTime = new Date(`${bookDate}T${bookStart}`);
     const endDateTime = new Date(`${bookDate}T${bookEnd}`);
 
+    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+      setError("Invalid date or time entered");
+      setBooking(false);
+      return;
+    }
+
+    if (endDateTime <= startDateTime) {
+      setError("End time must be after start time");
+      setBooking(false);
+      return;
+    }
+
+    const diffMinutes = (endDateTime.getTime() - startDateTime.getTime()) / 60000;
+    if (diffMinutes < 15) {
+      setError("Booking must be at least 15 minutes long");
+      setBooking(false);
+      return;
+    }
+
     try {
       const result = await createBooking({
         roomId: selectedRoom.id,
@@ -178,7 +197,8 @@ export default function MeetingRoomStatus() {
       setShowBookingForm(false);
     } catch (err: any) {
       console.error("Booking failed:", err);
-      setError(err.message || "Failed to book room");
+      const msg = err?.message || err?.digest?.split(":?.*")[1] || "Failed to book room";
+      setError(msg);
     } finally {
       setBooking(false);
     }
