@@ -334,7 +334,7 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
           </button>
 
           {showPlatforms && (
-            <div className="absolute top-full right-0 mt-2 w-[420px] bg-white dark:bg-[#111111] rounded-2xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.25)] dark:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.7)] border border-gray-200 dark:border-white/15 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute top-full right-0 mt-2 w-[420px] bg-white dark:bg-[#111111] rounded-2xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.25)] dark:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.7)] border border-gray-200 dark:border-white/15 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* Header */}
               <div className="px-5 py-4 border-b border-gray-200 dark:border-white/15">
                 <div className="flex items-center justify-between mb-3">
@@ -403,7 +403,7 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
               )}
 
               {/* Links list + preview */}
-              <div className="flex max-h-[400px]">
+              <div className="flex max-h-[500px]">
                 {/* Links list */}
                 <div className={cn("flex-1 overflow-y-auto transition-all duration-200", previewLink ? "w-[180px]" : "")}>
                   {platformLinks.length === 0 ? (
