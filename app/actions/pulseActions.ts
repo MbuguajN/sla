@@ -21,16 +21,11 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-  const [
-    activityLogs,
-    approvedLeaves,
-    boardActivities,
-    itTickets,
-    workspaceJoins,
-    pulseComments,
-  ] = await Promise.all([
-    // Activity logs (task completions, assignments, comments, system events)
-    db.activityLog.findMany({
+  const items: PulseItem[] = [];
+
+  // Each query is independent — if one fails, others still work
+  try {
+    const logs = await db.activityLog.findMany({
       where: {
         createdAt: { gte: twentyFourHoursAgo },
         isHiddenFromDashboard: false,
@@ -42,10 +37,29 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
       },
       orderBy: { createdAt: "desc" },
       take: 20,
-    }),
+    });
+    for (const log of logs) {
+      const userName = log.user?.name || "System";
+      const taskTitle = log.task?.title;
+      let message = log.description;
+      if (taskTitle) message = `${message} — ${taskTitle}`;
+      let category: "task" | "team" | "system" = "task";
+      if (log.description.toLowerCase().includes("leave")) category = "team";
+      if (log.description.toLowerCase().includes("system") || log.description.toLowerCase().includes("maintenance")) category = "system";
+      items.push({
+        id: `activity-${log.id}`,
+        type: "activity",
+        category,
+        message,
+        userName,
+        userId: log.user?.id || null,
+        timestamp: log.createdAt.toISOString(),
+      });
+    }
+  } catch {}
 
-    // Approved leaves (show who's on leave)
-    db.leave.findMany({
+  try {
+    const leaves = await db.leave.findMany({
       where: {
         status: "APPROVED",
         startDate: { lte: now },
@@ -54,13 +68,25 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,
-    }),
+    });
+    for (const leave of leaves) {
+      const start = new Date(leave.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const end = new Date(leave.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      items.push({
+        id: `leave-${leave.id}`,
+        type: "leave",
+        category: "team",
+        message: `${leave.user.name} is on leave from ${start} – ${end}`,
+        userName: leave.user.name,
+        userId: leave.user.id,
+        timestamp: leave.createdAt.toISOString(),
+      });
+    }
+  } catch {}
 
-    // Board card activities
-    db.boardCardActivity.findMany({
-      where: {
-        createdAt: { gte: twentyFourHoursAgo },
-      },
+  try {
+    const boards = await db.boardCardActivity.findMany({
+      where: { createdAt: { gte: twentyFourHoursAgo } },
       include: {
         card: {
           select: {
@@ -72,139 +98,87 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
       },
       orderBy: { createdAt: "desc" },
       take: 15,
-    }),
+    });
+    for (const ca of boards) {
+      items.push({
+        id: `board-${ca.id}`,
+        type: "board_activity",
+        category: "task",
+        message: ca.message,
+        userName: ca.actorName,
+        userId: null,
+        timestamp: ca.createdAt.toISOString(),
+      });
+    }
+  } catch {}
 
-    // IT ticket updates (resolved recently)
-    db.iTTicket.findMany({
+  try {
+    const tickets = await db.iTTicket.findMany({
       where: {
         status: "RESOLVED",
         updatedAt: { gte: twentyFourHoursAgo },
       },
-      include: {
-        assignedTo: { select: { id: true, name: true } },
-      },
+      include: { assignedTo: { select: { id: true, name: true } } },
       orderBy: { updatedAt: "desc" },
       take: 5,
-    }),
+    });
+    for (const ticket of tickets) {
+      items.push({
+        id: `it-${ticket.id}`,
+        type: "it_ticket",
+        category: "system",
+        message: `IT ticket "${ticket.title}" resolved`,
+        userName: ticket.assignedTo?.name || "IT Team",
+        userId: ticket.assignedTo?.id || null,
+        timestamp: ticket.updatedAt.toISOString(),
+      });
+    }
+  } catch {}
 
-    // Workspace joins
-    db.workspaceMember.findMany({
-      where: {
-        joinedAt: { gte: twentyFourHoursAgo },
-      },
+  try {
+    const joins = await db.workspaceMember.findMany({
+      where: { joinedAt: { gte: twentyFourHoursAgo } },
       include: {
         user: { select: { id: true, name: true } },
         workspace: { select: { id: true, name: true } },
       },
       orderBy: { joinedAt: "desc" },
       take: 5,
-    }),
+    });
+    for (const wj of joins) {
+      items.push({
+        id: `ws-${wj.id}`,
+        type: "workspace_join",
+        category: "team",
+        message: `${wj.user.name} joined workspace "${wj.workspace.name}"`,
+        userName: wj.user.name,
+        userId: wj.user.id,
+        timestamp: wj.joinedAt.toISOString(),
+      });
+    }
+  } catch {}
 
-    // Pulse comments
-    db.pulseComment.findMany({
-      where: {
-        createdAt: { gte: twentyFourHoursAgo },
-      },
+  try {
+    const comments = await db.pulseComment.findMany({
+      where: { createdAt: { gte: twentyFourHoursAgo } },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,
-    }),
-  ]);
-
-  const items: PulseItem[] = [];
-
-  // Process activity logs
-  for (const log of activityLogs) {
-    const userName = log.user?.name || "System";
-    const taskTitle = log.task?.title;
-    let message = log.description;
-    if (taskTitle) message = `${message} — ${taskTitle}`;
-
-    let category: "task" | "team" | "system" = "task";
-    if (log.description.toLowerCase().includes("leave")) category = "team";
-    if (log.description.toLowerCase().includes("system") || log.description.toLowerCase().includes("maintenance")) category = "system";
-
-    items.push({
-      id: `activity-${log.id}`,
-      type: "activity",
-      category,
-      message,
-      userName,
-      userId: log.user?.id || null,
-      timestamp: log.createdAt.toISOString(),
     });
-  }
+    for (const pc of comments) {
+      items.push({
+        id: `comment-${pc.id}`,
+        type: "comment",
+        category: "system",
+        message: pc.content,
+        userName: pc.user.name,
+        userId: pc.user.id,
+        timestamp: pc.createdAt.toISOString(),
+      });
+    }
+  } catch {}
 
-  // Process approved leaves
-  for (const leave of approvedLeaves) {
-    const start = new Date(leave.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const end = new Date(leave.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    items.push({
-      id: `leave-${leave.id}`,
-      type: "leave",
-      category: "team",
-      message: `${leave.user.name} is on leave from ${start} – ${end}`,
-      userName: leave.user.name,
-      userId: leave.user.id,
-      timestamp: leave.createdAt.toISOString(),
-    });
-  }
-
-  // Process board card activities
-  for (const ca of boardActivities) {
-    items.push({
-      id: `board-${ca.id}`,
-      type: "board_activity",
-      category: "task",
-      message: ca.message,
-      userName: ca.actorName,
-      userId: null,
-      timestamp: ca.createdAt.toISOString(),
-    });
-  }
-
-  // Process IT tickets
-  for (const ticket of itTickets) {
-    items.push({
-      id: `it-${ticket.id}`,
-      type: "it_ticket",
-      category: "system",
-      message: `IT ticket "${ticket.title}" resolved`,
-      userName: ticket.assignedTo?.name || "IT Team",
-      userId: ticket.assignedTo?.id || null,
-      timestamp: ticket.updatedAt.toISOString(),
-    });
-  }
-
-  // Process workspace joins
-  for (const wj of workspaceJoins) {
-    items.push({
-      id: `ws-${wj.id}`,
-      type: "workspace_join",
-      category: "team",
-      message: `${wj.user.name} joined workspace "${wj.workspace.name}"`,
-      userName: wj.user.name,
-      userId: wj.user.id,
-      timestamp: wj.joinedAt.toISOString(),
-    });
-  }
-
-  // Process pulse comments
-  for (const pc of pulseComments) {
-    items.push({
-      id: `comment-${pc.id}`,
-      type: "comment",
-      category: "system",
-      message: pc.content,
-      userName: pc.user.name,
-      userId: pc.user.id,
-      timestamp: pc.createdAt.toISOString(),
-    });
-  }
-
-  // Sort by timestamp descending
   items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
   return items.slice(0, 30);
 }
 
@@ -221,7 +195,6 @@ export async function postPulseComment(content: string) {
     },
   });
 
-  // Also create an activity log entry
   await db.activityLog.create({
     data: {
       type: "COMMENTED",

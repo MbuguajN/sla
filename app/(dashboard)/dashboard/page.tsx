@@ -1354,7 +1354,12 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 async function ActivitySection({ user }: { user: any }) {
   const { activeTasks, recentActivities, publicHolidays } = await getActivityData(user);
   const { boardCards, checklistItems, cardActivities, workspaceJoins } = await getBoardDashboardData(user);
-  const pulseFeed = await getCompanyPulse();
+  let pulseFeed: any[] = [];
+  try {
+    pulseFeed = await getCompanyPulse();
+  } catch (e) {
+    console.error("Failed to load company pulse:", e);
+  }
 
   const allDeadlineTasks = [
     ...activeTasks.map((t) => ({
