@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export type PulseItem = {
   id: string;
-  type: "activity" | "leave" | "board_activity" | "it_ticket" | "workspace_join" | "comment";
+  type: "activity" | "leave" | "board_activity" | "it_ticket" | "comment";
   category: "task" | "team" | "system";
   message: string;
   userName: string;
@@ -30,6 +30,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
         createdAt: { gte: sevenDaysAgo },
         isHiddenFromDashboard: false,
         type: { not: "COMMENTED" },
+        task: { assignedUserId: user.id },
       },
       include: {
         user: { select: { id: true, name: true } },
@@ -89,7 +90,11 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
 
   try {
     const boards = await db.boardCardActivity.findMany({
-      where: { createdAt: { gte: sevenDaysAgo } },
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+        card: { assignedToUserId: user.id },
+        type: { not: "created" },
+      },
       include: {
         card: {
           select: {
@@ -120,6 +125,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
       where: {
         status: "RESOLVED",
         updatedAt: { gte: sevenDaysAgo },
+        assignedUserId: user.id,
       },
       include: { assignedTo: { select: { id: true, name: true } } },
       orderBy: { updatedAt: "desc" },
@@ -134,29 +140,6 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
         userName: ticket.assignedTo?.name || "IT Team",
         userId: ticket.assignedTo?.id || null,
         timestamp: ticket.updatedAt.toISOString(),
-      });
-    }
-  } catch {}
-
-  try {
-    const joins = await db.workspaceMember.findMany({
-      where: { joinedAt: { gte: sevenDaysAgo } },
-      include: {
-        user: { select: { id: true, name: true } },
-        workspace: { select: { id: true, name: true } },
-      },
-      orderBy: { joinedAt: "desc" },
-      take: 5,
-    });
-    for (const wj of joins) {
-      items.push({
-        id: `ws-${wj.id}`,
-        type: "workspace_join",
-        category: "team",
-        message: `${wj.user.name} joined workspace "${wj.workspace.name}"`,
-        userName: wj.user.name,
-        userId: wj.user.id,
-        timestamp: wj.joinedAt.toISOString(),
       });
     }
   } catch {}
