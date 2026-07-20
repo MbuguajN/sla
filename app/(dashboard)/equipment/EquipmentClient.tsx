@@ -9,7 +9,7 @@ import {
   removeEquipmentViewer,
   updateEquipmentItem,
 } from "@/app/actions/equipmentActions";
-import { Search, Plus, Edit2, Laptop, UserPlus, UserMinus, Trash2 } from "lucide-react";
+import { Search, Plus, Edit2, Laptop, UserPlus, UserMinus, Trash2, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EquipmentStatus = "IN_USE" | "NOT_IN_USE" | "MAINTENANCE" | "RETIRED";
@@ -87,6 +87,8 @@ export default function EquipmentClient({
 
   const [editingItem, setEditingItem] = useState<EquipmentItem | null>(null);
   const [showItemModal, setShowItemModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportCategoryIds, setExportCategoryIds] = useState<Set<number>>(new Set());
   const [itemForm, setItemForm] = useState({
     categoryId: categories[0]?.id?.toString() || "",
     make: "",
@@ -125,6 +127,56 @@ export default function EquipmentClient({
       serialNumber: "",
     });
     setShowItemModal(true);
+  };
+
+  const openExportModal = () => {
+    setExportCategoryIds(new Set(allCategories.map((c) => c.id)));
+    setShowExportModal(true);
+  };
+
+  const toggleExportCategory = (id: number) => {
+    setExportCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllCategories = () => setExportCategoryIds(new Set(allCategories.map((c) => c.id)));
+  const deselectAllCategories = () => setExportCategoryIds(new Set());
+
+  const handleExportCSV = () => {
+    const toExport = filtered.filter((item) => exportCategoryIds.has(item.categoryId));
+    if (toExport.length === 0) {
+      alert("No items to export for the selected categories.");
+      return;
+    }
+
+    const headers = ["Category", "Make", "Model", "Owner", "Status", "Serial Number", "Date Added"];
+    const rows = toExport.map((item) => [
+      item.categoryName,
+      item.make,
+      item.model,
+      item.ownerUserName || item.ownerLabel || "5DM",
+      statusLabel(item.status),
+      item.serialNumber || "N/A",
+      new Date(item.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `equipment-export-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setShowExportModal(false);
   };
 
   const openEditItem = (item: EquipmentItem) => {
@@ -299,6 +351,13 @@ export default function EquipmentClient({
             Add Equipment
           </button>
         )}
+        <button
+          onClick={openExportModal}
+          className="h-12 px-6 bg-white dark:bg-[#0a0a0a] border-2 border-gray-900 dark:border-white/10 text-gray-900 dark:text-white rounded-xl text-[11px] font-black uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(17,24,39,1)] dark:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all flex items-center gap-2"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </button>
       </div>
 
       {error && (
@@ -569,6 +628,76 @@ export default function EquipmentClient({
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {showExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setShowExportModal(false)} />
+          <div className="relative w-full max-w-md bg-white dark:bg-[#0a0a0a] rounded-3xl border-2 border-gray-900 dark:border-white/10 overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-white/10">
+              <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase italic">Export Equipment</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Select categories to include in the CSV export.</p>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={selectAllCategories}
+                  className="h-8 px-3 rounded-lg border border-gray-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+                >
+                  Select All
+                </button>
+                <button
+                  onClick={deselectAllCategories}
+                  className="h-8 px-3 rounded-lg border border-gray-200 dark:border-white/10 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+                >
+                  Deselect All
+                </button>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-100 dark:border-white/10 rounded-xl p-3">
+                {allCategories.map((cat) => {
+                  const count = filtered.filter((i) => i.categoryId === cat.id).length;
+                  return (
+                    <label
+                      key={cat.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={exportCategoryIds.has(cat.id)}
+                        onChange={() => toggleExportCategory(cat.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-[#c91f41] focus:ring-[#c91f41]"
+                      />
+                      <span className="text-sm font-bold text-gray-900 dark:text-white flex-1">{cat.name}</span>
+                      <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase">{count} items</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                {filtered.filter((i) => exportCategoryIds.has(i.categoryId)).length} items will be exported based on current filters.
+              </p>
+            </div>
+
+            <div className="p-5 border-t border-gray-100 dark:border-white/10 flex justify-end gap-2">
+              <button
+                onClick={() => setShowExportModal(false)}
+                className="h-10 px-4 rounded-xl border border-gray-300 dark:border-white/20 text-xs font-black uppercase tracking-widest"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExportCSV}
+                disabled={exportCategoryIds.size === 0}
+                className="h-10 px-4 rounded-xl bg-[#c91f41] text-white text-xs font-black uppercase tracking-widest disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download CSV
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
