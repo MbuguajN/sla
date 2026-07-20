@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft01Icon, Cancel01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
+import { addPersonalDocument, updatePersonalDocument, deletePersonalDocument } from "@/app/actions/profileActions";
 
 type Employee = {
   id: number;
@@ -12,6 +13,15 @@ type Employee = {
   role: string;
   createdAt: string;
   department: { id: number; name: string; slug: string } | null;
+  employmentDate: string | null;
+  maritalStatus: string | null;
+  gender: string | null;
+  phoneNumber: string | null;
+  address: string | null;
+  dateOfBirth: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  emergencyContactRelation: string | null;
 };
 
 type LeaveBalance = {
@@ -28,6 +38,8 @@ type Document = {
   id: number;
   name: string;
   url: string;
+  category: string;
+  accessLevel: string;
   createdAt: string;
 };
 
@@ -93,10 +105,83 @@ export default function EmployeeProfileClient({
   currentUserRole,
 }: Props) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<string>("personal");
   const color = getAvatarColor(employee.name);
   const initials = getInitials(employee.name);
   const totalTasks = completedTasks + activeTasks;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const isOwnProfile = currentUserId === employee.id;
+
+  // Document upload state
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [docName, setDocName] = useState("");
+  const [docUrl, setDocUrl] = useState("");
+  const [docCategory, setDocCategory] = useState("Contract");
+  const [docAccessLevel, setDocAccessLevel] = useState("Restricted");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  // Document edit state
+  const [editingDocId, setEditingDocId] = useState<number | null>(null);
+  const [editDocName, setEditDocName] = useState("");
+  const [editDocCategory, setEditDocCategory] = useState("");
+  const [editDocAccessLevel, setEditDocAccessLevel] = useState("");
+  const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+
+  async function handleUpload() {
+    if (!docName.trim() || !docUrl.trim()) {
+      setUploadError("Name and URL are required");
+      return;
+    }
+    setUploading(true);
+    setUploadError("");
+    try {
+      await addPersonalDocument(docName.trim(), docUrl.trim(), docCategory, docAccessLevel);
+      setDocName("");
+      setDocUrl("");
+      setDocCategory("Contract");
+      setDocAccessLevel("Restricted");
+      setShowUploadForm(false);
+      router.refresh();
+    } catch (err: any) {
+      setUploadError(err.message || "Upload failed");
+    }
+    setUploading(false);
+  }
+
+  async function handleUpdate(docId: number) {
+    try {
+      await updatePersonalDocument(docId, {
+        name: editDocName.trim(),
+        category: editDocCategory,
+        accessLevel: editDocAccessLevel,
+      });
+      setEditingDocId(null);
+      setOpenDropdownId(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Update failed");
+    }
+  }
+
+  async function handleDelete(docId: number) {
+    if (!confirm("Delete this document?")) return;
+    try {
+      await deletePersonalDocument(docId);
+      setOpenDropdownId(null);
+      router.refresh();
+    } catch (err: any) {
+      alert(err.message || "Delete failed");
+    }
+  }
+
+  function startEdit(doc: Document) {
+    setEditingDocId(doc.id);
+    setEditDocName(doc.name);
+    setEditDocCategory(doc.category);
+    setEditDocAccessLevel(doc.accessLevel);
+    setOpenDropdownId(null);
+  }
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-6 px-4 pb-8 pt-4">
@@ -169,249 +254,544 @@ export default function EmployeeProfileClient({
         </div>
       </section>
 
-      {/* METRICS & LEAVE GRID */}
-      <section className="grid grid-cols-12 gap-10">
-        {/* Performance Metrics */}
-        <div className="col-span-12 space-y-6 lg:col-span-7">
-          <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
-            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
-              Performance Metrics
-            </h3>
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
-              All Time
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                Completed Tasks
-              </span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
-              </div>
-              <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
-                <div
-                  className="h-full bg-[#c91f41] transition-all duration-1000"
-                  style={{ width: `${completionRate}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                Active Queue
-              </span>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
-              </div>
-              <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
-                <div
-                  className="h-full bg-gray-900 dark:bg-white transition-all duration-1000"
-                  style={{ width: totalTasks > 0 ? `${Math.round((activeTasks / totalTasks) * 100)}%` : "0%" }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Efficiency Card */}
-          <div className="relative overflow-hidden bg-gray-900 p-8 text-white dark:bg-gray-800 dark:text-white">
-            <div className="relative z-10 space-y-2">
-              <h4 className="text-xl font-black tracking-tight">Task Completion Rate</h4>
-              <p className="max-w-sm text-sm opacity-70">
-                Based on all assigned tasks across projects and departments.
-              </p>
-              <div className="flex items-center gap-6 pt-4">
-                <span className="text-5xl font-black text-[#c91f41]">{completionRate}%</span>
-                <div className="flex-1 space-y-1">
-                  <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.14em] opacity-50">
-                    <span>0%</span>
-                    <span>Target: 80%</span>
-                    <span>100%</span>
-                  </div>
-                  <div className="relative h-2 overflow-hidden rounded-full bg-white/20">
-                    <div
-                      className="h-full rounded-full bg-[#c91f41]"
-                      style={{ width: `${completionRate}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full border-[20px] border-[#c91f41]/10" />
-          </div>
+      {/* TAB NAVIGATION */}
+      <div className="border-b border-gray-200 dark:border-white/10">
+        <div className="flex items-center overflow-x-auto custom-scrollbar gap-1 whitespace-nowrap">
+          {[
+            { key: "personal", label: "Personal" },
+            { key: "job", label: "Job" },
+            { key: "time-off", label: "Time Off" },
+            { key: "emergency", label: "Emergency" },
+            { key: "recognition", label: "Recognition" },
+            { key: "performance", label: "Performance" },
+            { key: "training", label: "Training" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "py-4 px-4 text-sm font-bold transition-all border-t-4 -mt-[1px]",
+                activeTab === tab.key
+                  ? "bg-white dark:bg-black/40 border-[#c91f41] text-[#c91f41]"
+                  : "border-transparent text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+      </div>
 
-        {/* Leave Balance */}
-        <div className="col-span-12 space-y-6 lg:col-span-5">
-          <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
-            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
-              Leave Balance
-            </h3>
-            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
-              {new Date().getFullYear()}
-            </span>
-          </div>
+      {/* TAB CONTENT */}
+      {activeTab === "personal" && (
+        <div className="space-y-10">
+          {/* Basic Information */}
+          <section className="space-y-6">
+            <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl text-[#c91f41]">👤</span>
+                <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                  Basic Information
+                </h3>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Employment Date</span>
+                <input
+                  type="date"
+                  defaultValue={employee.employmentDate ? new Date(employee.employmentDate).toISOString().split("T")[0] : ""}
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Marital Status</span>
+                <select
+                  defaultValue={employee.maritalStatus || ""}
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select</option>
+                  <option value="Single">Single</option>
+                  <option value="Married">Married</option>
+                  <option value="Divorced">Divorced</option>
+                  <option value="Widowed">Widowed</option>
+                </select>
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Gender</span>
+                <select
+                  defaultValue={employee.gender || ""}
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <option value="">Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Non-binary">Non-binary</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Phone Number</span>
+                <input
+                  type="tel"
+                  defaultValue={employee.phoneNumber || ""}
+                  placeholder="e.g. +27 82 123 4567"
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Date of Birth</span>
+                <input
+                  type="date"
+                  defaultValue={employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split("T")[0] : ""}
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+              <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Address</span>
+                <input
+                  type="text"
+                  defaultValue={employee.address || ""}
+                  placeholder="Home address"
+                  disabled={!isOwnProfile}
+                  className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+              </div>
+            </div>
+          </section>
 
-          <div className="space-y-8 border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-black/40">
-            {leaveBalances.length === 0 ? (
-              <p className="text-sm text-gray-400 dark:text-zinc-500">No leave policies configured.</p>
-            ) : (
-              leaveBalances.map((lb) => (
-                <div key={lb.type} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">{lb.label}</span>
-                    <span className="text-[10px] font-black uppercase tracking-[0.14em]">
-                      {lb.used} / {lb.allowed} DAYS
-                    </span>
+          {/* Personal Documents */}
+          <section className="space-y-6">
+            <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+              <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                Personal Documents
+              </h3>
+              <div className="flex items-center gap-4">
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
+                  {documents.length} files
+                </span>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => setShowUploadForm(!showUploadForm)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41] hover:bg-[#c91f41]/10 px-3 py-1.5 rounded-lg transition-all"
+                  >
+                    {showUploadForm ? "Cancel" : "+ Add Document"}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Upload Form */}
+            {showUploadForm && isOwnProfile && (
+              <div className="rounded-2xl border border-[#c91f41]/20 bg-[#c91f41]/5 p-6 space-y-4">
+                {uploadError && (
+                  <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/30 rounded-lg text-xs text-red-600 dark:text-red-400 font-bold">
+                    {uploadError}
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-white/10">
-                    <div
-                      className={cn("h-full rounded-full transition-all duration-1000", lb.color)}
-                      style={{ width: `${lb.percentage}%` }}
-                    />
-                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <input
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    placeholder="Document name"
+                    className="h-10 px-4 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-[#c91f41] focus:ring-2 focus:ring-[#c91f41]/10 transition-all"
+                  />
+                  <input
+                    value={docUrl}
+                    onChange={(e) => setDocUrl(e.target.value)}
+                    placeholder="https://example.com/document.pdf"
+                    className="h-10 px-4 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-[#c91f41] focus:ring-2 focus:ring-[#c91f41]/10 transition-all"
+                  />
+                  <select
+                    value={docCategory}
+                    onChange={(e) => setDocCategory(e.target.value)}
+                    className="h-10 px-4 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-[#c91f41] focus:ring-2 focus:ring-[#c91f41]/10 transition-all appearance-none"
+                  >
+                    <option value="Contract">Contract</option>
+                    <option value="Identification">Identification</option>
+                    <option value="Legal">Legal</option>
+                    <option value="General">General</option>
+                  </select>
+                  <select
+                    value={docAccessLevel}
+                    onChange={(e) => setDocAccessLevel(e.target.value)}
+                    className="h-10 px-4 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-[#c91f41] focus:ring-2 focus:ring-[#c91f41]/10 transition-all appearance-none"
+                  >
+                    <option value="Restricted">Restricted</option>
+                    <option value="Confidential">Confidential</option>
+                    <option value="Internal">Internal</option>
+                  </select>
                 </div>
-              ))
+                <button
+                  onClick={handleUpload}
+                  disabled={uploading || !docName.trim() || !docUrl.trim()}
+                  className="h-10 px-6 bg-[#c91f41] text-white rounded-lg text-[10px] font-black uppercase tracking-[0.14em] hover:bg-[#a81a36] disabled:opacity-40 transition-all"
+                >
+                  {uploading ? "Uploading..." : "Add Document"}
+                </button>
+              </div>
             )}
-          </div>
-        </div>
-      </section>
 
-      {/* DOCUMENTS REPOSITORY */}
-      <section className="space-y-6">
-        <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
-          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
-            Uploaded Documents
-          </h3>
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
-            {documents.length} files
-          </span>
-        </div>
-
-        {documents.length === 0 ? (
-          <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
-            <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500">
-              No documents uploaded yet.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:border-white/10 dark:bg-black/40">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-gray-900 dark:border-white text-left">
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Document Name
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Uploaded On
-                  </th>
-                  <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => (
-                  <tr
-                    key={doc.id}
-                    className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"
-                  >
-                    <td className="px-4 py-5">
-                      <div className="flex items-center gap-3">
-                        <svg className="h-5 w-5 text-[#c91f41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span className="text-sm font-bold text-gray-900 dark:text-white">{doc.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">
-                      {new Date(doc.createdAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </td>
-                    <td className="px-4 py-5 text-right">
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-400 transition-colors hover:text-[#c91f41] dark:text-zinc-500"
+            {documents.length === 0 ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
+                <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500">
+                  No documents uploaded yet.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:border-white/10 dark:bg-black/40">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-gray-900 dark:border-white text-left">
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500 w-[35%]">
+                        Document Name
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500 w-[15%]">
+                        Category
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500 w-[15%]">
+                        Uploaded On
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500 w-[15%]">
+                        Access Level
+                      </th>
+                      <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500 text-right w-[20%]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map((doc) => (
+                      <tr
+                        key={doc.id}
+                        className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5 group"
                       >
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {/* COMPANY ITEMS OWNED */}
-      <section className="space-y-6">
-        <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
-          <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
-            Company Items Owned
-          </h3>
-          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
-            {companyItems.length} items
-          </span>
+                        <td className="px-6 py-4">
+                          {editingDocId === doc.id ? (
+                            <input
+                              value={editDocName}
+                              onChange={(e) => setEditDocName(e.target.value)}
+                              className="w-full h-8 px-3 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-bold text-gray-900 dark:text-white outline-none focus:border-[#c91f41] transition-all"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-3">
+                              <svg className="h-5 w-5 text-[#c91f41] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{doc.name}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {editingDocId === doc.id ? (
+                            <select
+                              value={editDocCategory}
+                              onChange={(e) => setEditDocCategory(e.target.value)}
+                              className="h-8 px-2 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-[#c91f41] transition-all appearance-none"
+                            >
+                              <option value="Contract">Contract</option>
+                              <option value="Identification">Identification</option>
+                              <option value="Legal">Legal</option>
+                              <option value="General">General</option>
+                            </select>
+                          ) : (
+                            <span className="bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-zinc-300 px-3 py-1 rounded-full text-[10px] font-black uppercase">
+                              {doc.category}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500 dark:text-zinc-400 whitespace-nowrap">
+                          {new Date(doc.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </td>
+                        <td className="px-6 py-4">
+                          {editingDocId === doc.id ? (
+                            <select
+                              value={editDocAccessLevel}
+                              onChange={(e) => setEditDocAccessLevel(e.target.value)}
+                              className="h-8 px-2 bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg text-xs font-bold text-gray-900 dark:text-white outline-none focus:border-[#c91f41] transition-all appearance-none"
+                            >
+                              <option value="Restricted">Restricted</option>
+                              <option value="Confidential">Confidential</option>
+                              <option value="Internal">Internal</option>
+                            </select>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full flex-shrink-0",
+                                doc.accessLevel === "Confidential" ? "bg-red-500" : doc.accessLevel === "Restricted" ? "bg-amber-500" : "bg-emerald-500"
+                              )} />
+                              <span className="text-xs font-black uppercase tracking-wider text-gray-600 dark:text-zinc-400">{doc.accessLevel}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {editingDocId === doc.id ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => setEditingDocId(null)}
+                                className="h-7 px-3 rounded-lg border border-gray-200 dark:border-white/10 text-[10px] font-black uppercase tracking-wider text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleUpdate(doc.id)}
+                                className="h-7 px-3 rounded-lg bg-[#c91f41] text-white text-[10px] font-black uppercase tracking-wider hover:bg-[#a81a36] transition-all"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-end gap-1 relative">
+                              <a
+                                href={doc.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-8 w-8 flex items-center justify-center rounded-lg opacity-30 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 hover:text-[#c91f41] transition-all"
+                                title="Download"
+                              >
+                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                              </a>
+                              {isOwnProfile && (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setOpenDropdownId(openDropdownId === doc.id ? null : doc.id)}
+                                    className="h-8 w-8 flex items-center justify-center rounded-lg opacity-30 group-hover:opacity-100 hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all"
+                                  >
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01" />
+                                    </svg>
+                                  </button>
+                                  {openDropdownId === doc.id && (
+                                    <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-1 animate-in fade-in zoom-in-95 duration-150">
+                                      <button
+                                        onClick={() => startEdit(doc)}
+                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-gray-700 dark:text-zinc-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                                      >
+                                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        Update
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(doc.id)}
+                                        className="w-full px-4 py-2.5 text-left text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors flex items-center gap-2"
+                                      >
+                                        <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        Delete
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
+      )}
 
-        {companyItems.length === 0 ? (
-          <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
-            <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500">
-              No company items assigned.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:border-white/10 dark:bg-black/40">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-gray-900 dark:border-white text-left">
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Item Name
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Category
-                  </th>
-                  <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                    Serial Number
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {companyItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5"
-                  >
-                    <td className="px-4 py-5">
-                      <div className="flex items-center gap-3">
-                        <svg className="h-5 w-5 text-[#c91f41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        <span className="text-sm font-bold text-gray-900 dark:text-white">{item.name}</span>
+      {activeTab === "job" && (
+        <div className="space-y-10">
+          <section className="grid grid-cols-12 gap-10">
+            <div className="col-span-12 space-y-6 lg:col-span-7">
+              <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+                <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+                  Performance Metrics
+                </h3>
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">All Time</span>
+              </div>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Completed Tasks</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
+                    <div className="h-full bg-[#c91f41] transition-all duration-1000" style={{ width: `${completionRate}%` }} />
+                  </div>
+                </div>
+                <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
+                  <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Active Queue</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
+                    <div className="h-full bg-gray-900 dark:bg-white transition-all duration-1000" style={{ width: totalTasks > 0 ? `${Math.round((activeTasks / totalTasks) * 100)}%` : "0%" }} />
+                  </div>
+                </div>
+              </div>
+              <div className="relative overflow-hidden bg-gray-900 p-8 text-white dark:bg-gray-800">
+                <div className="relative z-10 space-y-2">
+                  <h4 className="text-xl font-black tracking-tight">Task Completion Rate</h4>
+                  <p className="max-w-sm text-sm opacity-70">Based on all assigned tasks across projects and departments.</p>
+                  <div className="flex items-center gap-6 pt-4">
+                    <span className="text-5xl font-black text-[#c91f41]">{completionRate}%</span>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.14em] opacity-50">
+                        <span>0%</span><span>Target: 80%</span><span>100%</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">
-                      {item.category || "—"}
-                    </td>
-                    <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">
-                      {item.serialNumber || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <div className="relative h-2 overflow-hidden rounded-full bg-white/20">
+                        <div className="h-full rounded-full bg-[#c91f41]" style={{ width: `${completionRate}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute -bottom-10 -right-10 h-40 w-40 rounded-full border-[20px] border-[#c91f41]/10" />
+              </div>
+            </div>
+            <div className="col-span-12 space-y-6 lg:col-span-5">
+              <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+                <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Leave Balance</h3>
+                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">{new Date().getFullYear()}</span>
+              </div>
+              <div className="space-y-8 border border-gray-200 bg-white p-6 dark:border-white/10 dark:bg-black/40">
+                {leaveBalances.length === 0 ? (
+                  <p className="text-sm text-gray-400 dark:text-zinc-500">No leave policies configured.</p>
+                ) : (
+                  leaveBalances.map((lb) => (
+                    <div key={lb.type} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{lb.label}</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em]">{lb.used} / {lb.allowed} DAYS</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-white/10">
+                        <div className={cn("h-full rounded-full transition-all duration-1000", lb.color)} style={{ width: `${lb.percentage}%` }} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </section>
+          {/* Company Items */}
+          <section className="space-y-6">
+            <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+              <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Company Items Owned</h3>
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">{companyItems.length} items</span>
+            </div>
+            {companyItems.length === 0 ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
+                <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500">No company items assigned.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white dark:border-white/10 dark:bg-black/40">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b-2 border-gray-900 dark:border-white text-left">
+                      <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Item Name</th>
+                      <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Category</th>
+                      <th className="px-4 py-4 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Serial Number</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {companyItems.map((item) => (
+                      <tr key={item.id} className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/5">
+                        <td className="px-4 py-5">
+                          <div className="flex items-center gap-3">
+                            <svg className="h-5 w-5 text-[#c91f41]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                            <span className="text-sm font-bold text-gray-900 dark:text-white">{item.name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">{item.category || "—"}</td>
+                        <td className="px-4 py-5 text-sm text-gray-500 dark:text-zinc-400">{item.serialNumber || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {activeTab === "emergency" && (
+        <section className="space-y-6">
+          <div className="flex items-end justify-between border-b-2 border-gray-900 dark:border-white pb-2">
+            <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">
+              Emergency Contact
+            </h3>
           </div>
-        )}
-      </section>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Contact Name</span>
+              <input
+                type="text"
+                defaultValue={employee.emergencyContactName || ""}
+                placeholder="Full name"
+                disabled={!isOwnProfile}
+                className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Phone Number</span>
+              <input
+                type="tel"
+                defaultValue={employee.emergencyContactPhone || ""}
+                placeholder="+27 82 123 4567"
+                disabled={!isOwnProfile}
+                className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+            <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Relationship</span>
+              <select
+                defaultValue={employee.emergencyContactRelation || ""}
+                disabled={!isOwnProfile}
+                className="w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-[#c91f41]/20 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="">Select</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Parent">Parent</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Child">Child</option>
+                <option value="Friend">Friend</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {(activeTab === "time-off" || activeTab === "recognition" || activeTab === "performance" || activeTab === "training") && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center dark:border-white/10 dark:bg-black/40">
+          <p className="text-sm font-semibold text-gray-400 dark:text-zinc-500 capitalize">
+            {activeTab.replace("-", " ")} tab coming soon.
+          </p>
+        </div>
+      )}
+
+      {/* Sticky Save Bar — only for own profile */}
+      {isOwnProfile && (
+        <div className="sticky bottom-0 bg-gray-50/95 dark:bg-black/95 backdrop-blur-sm border-t border-gray-200 dark:border-white/10 py-6 flex justify-end gap-4 z-40 -mx-4 px-4">
+          <button className="px-6 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-all">
+            Cancel
+          </button>
+          <button className="px-8 py-2 bg-[#c91f41] text-white text-[10px] font-black uppercase tracking-[0.14em] rounded-lg shadow-lg shadow-[#c91f41]/20 hover:bg-[#a81a36] active:scale-95 transition-all">
+            Save Changes
+          </button>
+        </div>
+      )}
     </div>
   );
 }

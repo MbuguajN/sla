@@ -21,6 +21,15 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
       role: true,
       createdAt: true,
       department: { select: { id: true, name: true, slug: true } },
+      employmentDate: true,
+      maritalStatus: true,
+      gender: true,
+      phoneNumber: true,
+      address: true,
+      dateOfBirth: true,
+      emergencyContactName: true,
+      emergencyContactPhone: true,
+      emergencyContactRelation: true,
     },
   });
 
@@ -72,7 +81,7 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
     }),
     db.personalDocument.findMany({
       where: { userId: employeeId },
-      select: { id: true, name: true, url: true, createdAt: true },
+      select: { id: true, name: true, url: true, category: true, accessLevel: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     }),
     db.task.count({
@@ -140,6 +149,8 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
       employee={{
         ...employee,
         createdAt: employee.createdAt.toISOString(),
+        employmentDate: employee.employmentDate?.toISOString() || null,
+        dateOfBirth: employee.dateOfBirth?.toISOString() || null,
       }}
       completedTasks={totalCompleted}
       activeTasks={totalActive}
