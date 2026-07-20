@@ -19,7 +19,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
   if (!user) throw new Error("Unauthorized");
 
   const now = new Date();
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const items: PulseItem[] = [];
 
@@ -27,7 +27,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
   try {
     const logs = await db.activityLog.findMany({
       where: {
-        createdAt: { gte: twentyFourHoursAgo },
+        createdAt: { gte: sevenDaysAgo },
         isHiddenFromDashboard: false,
         type: { not: "COMMENTED" },
       },
@@ -62,21 +62,24 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
     const leaves = await db.leave.findMany({
       where: {
         status: "APPROVED",
-        startDate: { lte: now },
         endDate: { gte: now },
       },
       include: { user: { select: { id: true, name: true } } },
-      orderBy: { createdAt: "desc" },
+      orderBy: { startDate: "asc" },
       take: 10,
     });
     for (const leave of leaves) {
       const start = new Date(leave.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
       const end = new Date(leave.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      const isCurrentlyOnLeave = new Date(leave.startDate) <= now;
+      const message = isCurrentlyOnLeave
+        ? `${leave.user.name} is on leave from ${start} – ${end}`
+        : `${leave.user.name} will be on leave from ${start} – ${end}`;
       items.push({
         id: `leave-${leave.id}`,
         type: "leave",
         category: "team",
-        message: `${leave.user.name} is on leave from ${start} – ${end}`,
+        message,
         userName: leave.user.name,
         userId: leave.user.id,
         timestamp: leave.createdAt.toISOString(),
@@ -86,7 +89,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
 
   try {
     const boards = await db.boardCardActivity.findMany({
-      where: { createdAt: { gte: twentyFourHoursAgo } },
+      where: { createdAt: { gte: sevenDaysAgo } },
       include: {
         card: {
           select: {
@@ -116,7 +119,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
     const tickets = await db.iTTicket.findMany({
       where: {
         status: "RESOLVED",
-        updatedAt: { gte: twentyFourHoursAgo },
+        updatedAt: { gte: sevenDaysAgo },
       },
       include: { assignedTo: { select: { id: true, name: true } } },
       orderBy: { updatedAt: "desc" },
@@ -137,7 +140,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
 
   try {
     const joins = await db.workspaceMember.findMany({
-      where: { joinedAt: { gte: twentyFourHoursAgo } },
+      where: { joinedAt: { gte: sevenDaysAgo } },
       include: {
         user: { select: { id: true, name: true } },
         workspace: { select: { id: true, name: true } },
@@ -160,7 +163,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
 
   try {
     const comments = await db.pulseComment.findMany({
-      where: { createdAt: { gte: twentyFourHoursAgo } },
+      where: { createdAt: { gte: sevenDaysAgo } },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
       take: 10,
