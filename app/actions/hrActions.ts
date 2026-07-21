@@ -252,6 +252,10 @@ export async function createLeave(data: {
   const leaveStartDateTime = toUtcDateTime(start, startHour);
   const leaveEndDateTime = toUtcDateTime(end, endHour);
 
+  // General Staff leaves go directly to HR, skipping manager approval
+  const isGeneralStaff = user.departmentSlug === DEPARTMENTS.GENERAL;
+  const initialStatus = isGeneralStaff ? "PENDING_HR" : "PENDING";
+
   const leave = await db.leave.create({
     data: {
       userId: user.id,
@@ -261,31 +265,57 @@ export async function createLeave(data: {
       endDate: leaveEndDateTime,
       totalDays,
       reason: data.reason,
-      status: "PENDING",
+      status: initialStatus,
     },
   });
 
-  const managers = await db.user.findMany({
-    where: {
-      role: "MANAGER",
-      isActive: true,
-    },
-    select: { id: true },
-  });
-
-  await Promise.allSettled(
-    managers
-      .filter((reviewer) => reviewer.id !== user.id)
-      .map((reviewer) =>
+  if (isGeneralStaff) {
+    // General Staff: notify HR directly
+    const hrReviewers = await db.user.findMany({
+      where: {
+        OR: [
+          { role: "ADMIN" },
+          { role: "CEO" },
+          { department: { slug: DEPARTMENTS.HR } },
+        ],
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    await Promise.allSettled(
+      hrReviewers.map((reviewer) =>
         createNotification(
           reviewer.id,
           "REQUISITION_UPDATED",
           "New Leave Request",
           `${user.name} submitted a ${data.type.toLowerCase()} leave request for your review`,
-          "/manager/leaves"
+          "/hr/leaves"
         )
       )
-  );
+    );
+  } else {
+    // Other roles: notify managers first
+    const managers = await db.user.findMany({
+      where: {
+        role: "MANAGER",
+        isActive: true,
+      },
+      select: { id: true },
+    });
+    await Promise.allSettled(
+      managers
+        .filter((reviewer) => reviewer.id !== user.id)
+        .map((reviewer) =>
+          createNotification(
+            reviewer.id,
+            "REQUISITION_UPDATED",
+            "New Leave Request",
+            `${user.name} submitted a ${data.type.toLowerCase()} leave request for your review`,
+            "/manager/leaves"
+          )
+        )
+    );
+  }
 
   if (validatedHandovers.length > 0) {
     await db.leaveTaskHandover.createMany({
