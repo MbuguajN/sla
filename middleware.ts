@@ -9,9 +9,12 @@ export default withAuth(
     const isCEO = token?.role === "CEO";
     const isHR = token?.departmentSlug === "human-resources";
     const isFinance = token?.departmentSlug === "finance";
+    const isGeneralStaff = token?.departmentSlug === "general-staff";
 
     if (path === "/") {
-      return NextResponse.redirect(new URL(isAdmin ? "/admin" : "/dashboard", req.url));
+      if (isAdmin) return NextResponse.redirect(new URL("/admin", req.url));
+      if (isGeneralStaff) return NextResponse.redirect(new URL("/leave", req.url));
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     // Admin-only routes
@@ -32,6 +35,26 @@ export default withAuth(
 
       if (blocksOperationalRoutes) {
         return NextResponse.redirect(new URL("/hr/leaves", req.url));
+      }
+    }
+
+    // General Staff: only allow personal pages
+    if (isGeneralStaff && !isAdmin && !isCEO) {
+      const blockedRoutes =
+        path.startsWith("/dashboard") ||
+        path.startsWith("/clients") ||
+        path.startsWith("/projects") ||
+        path.startsWith("/tasks") ||
+        path.startsWith("/board") ||
+        path.startsWith("/daily-log") ||
+        path.startsWith("/reports") ||
+        path.startsWith("/employees") ||
+        path.startsWith("/manager") ||
+        path.startsWith("/hr") ||
+        path.startsWith("/finance");
+
+      if (blockedRoutes) {
+        return NextResponse.redirect(new URL("/leave", req.url));
       }
     }
 

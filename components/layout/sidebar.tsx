@@ -61,19 +61,22 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
   const canAccessRequisitionReview = canAccessFinance || user.role === "MANAGER";
   const isFinanceOnly = user.departmentSlug === "finance" && (user.role === "EMPLOYEE" || user.role === "MANAGER");
   const canAccessAdmin = user.role === "ADMIN";
-  const canSeeProjectsAndTasks = !isHROnly;
+  const isGeneralStaffOnly = user.departmentSlug === "general-staff" && user.role === "EMPLOYEE";
+  const canSeeProjectsAndTasks = !isHROnly && !isGeneralStaffOnly;
   const canSeeClients =
-    user.role === "ADMIN" ||
-    user.role === "CEO" ||
-    user.role === "MANAGER" ||
-    user.departmentSlug === "finance" ||
-    user.departmentSlug === "business-development" ||
-    user.departmentSlug === "client-service";
+    !isGeneralStaffOnly && (
+      user.role === "ADMIN" ||
+      user.role === "CEO" ||
+      user.role === "MANAGER" ||
+      user.departmentSlug === "finance" ||
+      user.departmentSlug === "business-development" ||
+      user.departmentSlug === "client-service"
+    );
 
   // Main nav items
   const mainNav: NavItem[] = [
-    { label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon },
-    ...(user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources" || user.privileges?.includes("CAN_VIEW_EMPLOYEES")
+    ...(!isGeneralStaffOnly ? [{ label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon }] : []),
+    ...(!isGeneralStaffOnly && (user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources" || user.privileges?.includes("CAN_VIEW_EMPLOYEES"))
       ? [{ label: "Employees", href: "/employees", icon: UserGroupIcon }]
       : []),
     ...(user.role === "ADMIN" || user.role === "CEO"
@@ -83,7 +86,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     ...(canSeeProjectsAndTasks ? [{ label: "Board", href: "/board", icon: UserGroupIcon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Projects", href: "/projects", icon: Briefcase02Icon }] : []),
     ...(canSeeProjectsAndTasks ? [{ label: "Tasks", href: "/tasks", icon: TaskDone01Icon }] : []),
-    ...(!isHROnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
+    ...(!isHROnly && !isGeneralStaffOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 
   // Sections (collapsible)
@@ -160,7 +163,7 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     <aside className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-black z-30 flex flex-col transition-all duration-300 border-r border-gray-100 dark:border-white/10">
       {/* Sidebar Logo wrapper */}
       <div className="h-24 flex items-center justify-center px-4">
-        <Link href="/dashboard" className="flex items-center justify-center gap-3 group w-full">
+        <Link href={isGeneralStaffOnly ? "/leave" : "/dashboard"} className="flex items-center justify-center gap-3 group w-full">
           {logos?.light ? (
             <div className="relative">
               <img 
