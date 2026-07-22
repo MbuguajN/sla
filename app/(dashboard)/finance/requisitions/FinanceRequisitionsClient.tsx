@@ -10,6 +10,7 @@ import { InvoiceIcon, Search01Icon, ArrowDown01Icon, CheckmarkCircle01Icon, Canc
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import DateRangeFilter from "@/components/DateRangeFilter";
 
 type ReqItem = { id: number; itemName: string; quantity: number; unitPrice: number; vatInclusive: boolean };
 type Requisition = {
@@ -136,39 +137,20 @@ export default function FinanceRequisitionsClient({
       </div>
 
       {/* Global Controls */}
-      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-black p-3 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="relative group flex-1 min-w-[200px] max-w-xs">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <Search01Icon className="w-4 h-4 text-gray-400 group-focus-within:text-emerald-600 transition-colors" />
+      <div className="bg-white dark:bg-black p-3 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative group flex-1 min-w-[200px] max-w-xs">
+            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <Search01Icon className="w-4 h-4 text-gray-400 group-focus-within:text-emerald-600 transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search title or initiator..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-10 pl-9 pr-4 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold text-xs text-gray-900 dark:text-white placeholder:text-zinc-500"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search title or initiator..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-10 pl-9 pr-4 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold text-xs text-gray-900 dark:text-white placeholder:text-zinc-500"
-          />
-        </div>
-
-        <input
-          type="date"
-          value={filterFromDate}
-          onChange={(e) => {
-            setFilterFromDate(e.target.value);
-            setItemsDisplayed(9);
-          }}
-          className="h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs"
-        />
-
-        <input
-          type="date"
-          value={filterToDate}
-          onChange={(e) => {
-            setFilterToDate(e.target.value);
-            setItemsDisplayed(9);
-          }}
-          className="h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs"
-        />
         
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {statuses.map((status) => (
@@ -189,6 +171,15 @@ export default function FinanceRequisitionsClient({
             </button>
           ))}
         </div>
+        </div>
+        <DateRangeFilter
+          fromDate={filterFromDate}
+          toDate={filterToDate}
+          onFromDateChange={(v) => { setFilterFromDate(v); setItemsDisplayed(9); }}
+          onToDateChange={(v) => { setFilterToDate(v); setItemsDisplayed(9); }}
+          onReset={() => { setFilterFromDate(""); setFilterToDate(""); setItemsDisplayed(9); }}
+          focusColor="emerald-500"
+        />
       </div>
 
       {/* Requisition Pile */}

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createLeave, cancelLeave, updateLeaveHandovers } from "@/app/actions/hrActions";
 import RichTextEditor from "@/components/RichTextEditor";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import {
   Calendar01Icon,
   Add01Icon,
@@ -402,7 +403,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
             {filteredAndPaginatedLeaves.total} request{filteredAndPaginatedLeaves.total !== 1 ? "s" : ""} (showing {filteredAndPaginatedLeaves.items.length})
           </p>
           
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input
               type="text"
               placeholder="Search type, reason, status..."
@@ -411,27 +412,17 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                 setTableSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="col-span-1 md:col-span-2 px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-            <input
-              type="date"
-              value={filterFromDate}
-              onChange={(e) => {
-                setFilterFromDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-            />
-            <input
-              type="date"
-              value={filterToDate}
-              onChange={(e) => {
-                setFilterToDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-pink-500"
             />
           </div>
+          <DateRangeFilter
+            fromDate={filterFromDate}
+            toDate={filterToDate}
+            onFromDateChange={(v) => { setFilterFromDate(v); setCurrentPage(1); }}
+            onToDateChange={(v) => { setFilterToDate(v); setCurrentPage(1); }}
+            onReset={() => { setFilterFromDate(""); setFilterToDate(""); setCurrentPage(1); }}
+            focusColor="pink-500"
+          />
         </div>
 
         <div className="overflow-x-auto flex-1 max-h-[600px] overflow-y-auto">

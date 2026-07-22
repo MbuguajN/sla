@@ -269,7 +269,7 @@ export default function NotificationDropdown() {
           </div>
 
           {/* Mobile: bottom sheet */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#111111] rounded-t-2xl shadow-xl dark:shadow-black/60 border-t border-gray-200 dark:border-white/10 max-h-[70vh] overflow-y-auto">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#111111] rounded-t-2xl shadow-xl dark:shadow-black/60 border-t border-gray-200 dark:border-white/10 max-h-[60vh] overflow-hidden flex flex-col">
             {/* Drag handle */}
             <div className="flex justify-center pt-2 pb-1">
               <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-600" />
@@ -292,6 +292,8 @@ export default function NotificationDropdown() {
               )}
             </div>
 
+            {/* Scrollable list */}
+            <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="px-4 py-8 text-center text-gray-400 dark:text-zinc-600">Loading...</div>
             ) : notifications.length === 0 ? (
@@ -331,6 +333,7 @@ export default function NotificationDropdown() {
                 ))}
               </div>
             )}
+            </div>
           </div>
         </>
       )}

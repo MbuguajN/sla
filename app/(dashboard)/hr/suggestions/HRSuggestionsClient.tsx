@@ -5,6 +5,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MessageSquare, Search } from "lucide-react";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import DateRangeFilter from "@/components/DateRangeFilter";
 import {
   Card,
   CardBody,
@@ -120,8 +121,8 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div className="md:col-span-2 relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
@@ -134,25 +135,15 @@ export default function HRSuggestionsClient({ initialSuggestions }: Props) {
                 className="pl-10 h-10 rounded-xl border-gray-200 bg-white dark:bg-black dark:border-white/10 dark:text-zinc-100"
               />
             </div>
-            <input
-              type="date"
-              value={filterFromDate}
-              onChange={(e) => {
-                setFilterFromDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#c91f41]"
-            />
-            <input
-              type="date"
-              value={filterToDate}
-              onChange={(e) => {
-                setFilterToDate(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#c91f41]"
-            />
           </div>
+          <DateRangeFilter
+            fromDate={filterFromDate}
+            toDate={filterToDate}
+            onFromDateChange={(v) => { setFilterFromDate(v); setCurrentPage(1); }}
+            onToDateChange={(v) => { setFilterToDate(v); setCurrentPage(1); }}
+            onReset={() => { setFilterFromDate(""); setFilterToDate(""); setCurrentPage(1); }}
+            focusColor="#c91f41"
+          />
 
           <div className="inline-flex flex-wrap items-center gap-1.5 rounded-2xl bg-gray-50 dark:bg-white/5 p-1.5 border border-gray-100 dark:border-white/10">
             {statuses.map((s) => (
