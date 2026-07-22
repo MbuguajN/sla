@@ -303,7 +303,7 @@ export default function FinanceRequisitionsClient({
                                 disabled={loading}
                                 className="h-14 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                               >
-                                <CheckmarkCircle01Icon className="w-4 h-4" /> Submit for Directors
+                                <CheckmarkCircle01Icon className="w-4 h-4" /> Approve & Send to Finance
                               </button>
                               <button
                                 onClick={() => handleDeny(req.id)}
