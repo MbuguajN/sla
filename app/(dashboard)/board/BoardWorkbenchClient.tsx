@@ -900,13 +900,13 @@ export default function BoardWorkbenchClient({
   };
 
   return (
-    <div className="-m-8 h-[calc(100vh-5rem)] overflow-hidden bg-zinc-100 dark:bg-zinc-950 flex flex-col">
-      <div className="flex-none h-14 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-5">
-        <div className="flex items-center gap-4">
-          <button onClick={() => setShowSwitcher(prev => !prev)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100">
+    <div className="-m-4 md:-m-8 h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] overflow-hidden bg-zinc-100 dark:bg-zinc-950 flex flex-col">
+      <div className="flex-none h-14 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-3 md:px-5">
+        <div className="flex items-center gap-2 md:gap-4">
+          <button onClick={() => setShowSwitcher(prev => !prev)} className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100">
             <Layout className="h-3.5 w-3.5" />
-            Boards
-            <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-50" />
+            <span className="hidden sm:inline">Boards</span>
+            <ChevronDown className="h-3.5 w-3.5 ml-0.5 md:ml-1 opacity-50" />
           </button>
           <div className="relative">
             <button onClick={() => setShowCreateMenu(p => !p)} className="h-8 w-8 rounded-lg bg-[#c91f41] flex items-center justify-center text-white shadow-[0_6px_15px_-3px_rgba(0,0,0,0.4)] hover:bg-[#a01832] transition-colors">
@@ -941,23 +941,23 @@ export default function BoardWorkbenchClient({
       </div>
 
       {activeBoard && (
-        <div className="flex-none h-16 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-5">
-          <div className="flex items-center gap-4 min-w-0 flex-1">
-            <span className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] truncate max-w-[140px]" title={activeBoard.workspaceName}>{activeBoard.workspaceName}</span>
-            <div className="h-6 w-[2px] bg-zinc-200 dark:bg-white/10 mx-2 shrink-0" />
+        <div className="flex-none h-14 md:h-16 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-md border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-3 md:px-5">
+          <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
+            <span className="hidden sm:inline text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] truncate max-w-[140px]" title={activeBoard.workspaceName}>{activeBoard.workspaceName}</span>
+            <div className="hidden sm:block h-6 w-[2px] bg-zinc-200 dark:bg-white/10 mx-2 shrink-0" />
             
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shrink-0">
+            <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shrink-0">
                {activeBoard.visibility === "PRIVATE" ? <Lock className="h-3 w-3" /> : activeBoard.visibility === "PUBLIC" ? <Globe className="h-3 w-3" /> : <Users className="h-3 w-3" />}
                {activeBoard.visibility}
             </div>
             
-            <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1 shrink-0" />
+            <div className="hidden md:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1 shrink-0" />
             
-            <h1 className="text-xl font-black tracking-tight text-zinc-800 dark:text-white truncate min-w-0" title={activeBoard.title}>{activeBoard.title}</h1>
+            <h1 className="text-base md:text-xl font-black tracking-tight text-zinc-800 dark:text-white truncate min-w-0" title={activeBoard.title}>{activeBoard.title}</h1>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 md:gap-6">
+            <div className="hidden sm:flex items-center gap-3">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Team</span>
               <AvatarPile ids={activeBoard.memberIds} size="h-9 w-9" max={6} />
             </div>
@@ -968,10 +968,10 @@ export default function BoardWorkbenchClient({
                 setMemberSearchContext("BOARD");
                 setIsMemberSearchOpen(true);
               }}
-              className="popup-trigger h-10 px-5 flex items-center gap-2.5 rounded-xl bg-[#c91f41] text-white text-[11px] font-black uppercase tracking-widest shadow-[0_8px_20px_-4px_rgba(0,0,0,0.4)] hover:bg-[#a01832] hover:-translate-y-0.5 transition-all"
+              className="popup-trigger h-9 md:h-10 px-3 md:px-5 flex items-center gap-2 rounded-xl bg-[#c91f41] text-white text-[10px] md:text-[11px] font-black uppercase tracking-widest shadow-[0_8px_20px_-4px_rgba(0,0,0,0.4)] hover:bg-[#a01832] hover:-translate-y-0.5 transition-all"
             >
               <UserPlus className="h-4 w-4 stroke-[2.5]" />
-              Invite
+              <span className="hidden sm:inline">Invite</span>
             </button>
 
             <div className="h-8 w-px bg-zinc-200 dark:bg-white/10" />
@@ -1330,7 +1330,7 @@ export default function BoardWorkbenchClient({
             </div>
           ))}
 
-          <div className="w-[272px] shrink-0">
+          <div className="w-[240px] md:w-[272px] shrink-0">
             {addingList ? (
                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl p-2.5 shadow-xl">
                  <input 
@@ -1678,7 +1678,7 @@ export default function BoardWorkbenchClient({
                           (e.target as HTMLInputElement).blur();
                         }
                       }}
-                      className="text-2xl font-black text-zinc-800 dark:text-white bg-transparent outline-none focus:bg-white dark:focus:bg-white/5 rounded-xl px-3 py-1 -ml-3 w-full"
+                       className="text-xl md:text-2xl font-black text-zinc-800 dark:text-white bg-transparent outline-none focus:bg-white dark:focus:bg-white/5 rounded-xl px-3 py-1 -ml-3 w-full"
                     />
                  </div>
                  <p className="text-zinc-500 text-sm font-bold ml-8 uppercase tracking-widest text-[10px]">
@@ -1689,9 +1689,9 @@ export default function BoardWorkbenchClient({
             </div>
 
             <div className="flex-1 overflow-y-auto min-h-0">
-            <div className="flex gap-8 px-10 pb-12">
-              <div className="flex-1 space-y-10">
-                <div className="flex flex-wrap gap-10">
+            <div className="flex flex-col md:flex-row gap-4 md:gap-8 px-4 md:px-10 pb-8 md:pb-12">
+              <div className="flex-1 space-y-6 md:space-y-10">
+                <div className="flex flex-wrap gap-6 md:gap-10">
                    <div>
                      <h3 className="text-[10px] font-black uppercase text-zinc-400 tracking-[0.2em] mb-3">Members</h3>
                      <div className="flex items-center gap-2">
@@ -2139,7 +2139,7 @@ export default function BoardWorkbenchClient({
                 </div>
               </div>
 
-              <div className="w-[180px] space-y-10">
+              <div className="w-full md:w-[180px] space-y-6 md:space-y-10">
                 <section>
                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-4">Add to card</h4>
                   <div className="space-y-2">
@@ -2284,7 +2284,7 @@ export default function BoardWorkbenchClient({
         <div 
           className={cn(
             "popup-content fixed bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[500] p-5 animate-in slide-in-from-top-2 duration-150",
-            memberSearchContext === "BOARD" || memberSearchContext === "WORKSPACE" ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 shadow-[0_0_100px_rgba(0,0,0,0.2)]" : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 shadow-[0_0_100px_rgba(0,0,0,0.2)]"
+            memberSearchContext === "BOARD" || memberSearchContext === "WORKSPACE" ? "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[320px] shadow-[0_0_100px_rgba(0,0,0,0.2)]" : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[320px] shadow-[0_0_100px_rgba(0,0,0,0.2)]"
           )}
           onClick={e => e.stopPropagation()}
         >
@@ -2349,7 +2349,7 @@ export default function BoardWorkbenchClient({
 
       {isLabelEditorOpen && activeCard && (
         <div 
-          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
+          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[320px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-4">
@@ -2443,7 +2443,7 @@ export default function BoardWorkbenchClient({
 
       {isChecklistAddOpen && activeCard && (
          <div 
-          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
+          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[320px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
           onClick={e => e.stopPropagation()}
         >
             <div className="flex items-center justify-between mb-4">
@@ -2475,7 +2475,7 @@ export default function BoardWorkbenchClient({
 
       {isAddingFile && activeCard && (
          <div 
-          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-6"
+          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[400px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-4 md:p-6 max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
             <div className="flex items-center justify-between mb-6">
@@ -2518,7 +2518,7 @@ export default function BoardWorkbenchClient({
 
       {isDateSelectionOpen && activeCard && (
          <div 
-          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
+          className="popup-content fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] max-w-[288px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-3xl shadow-2xl z-[350] p-5"
           onClick={e => e.stopPropagation()}
         >
             <div className="flex items-center justify-between mb-4">
