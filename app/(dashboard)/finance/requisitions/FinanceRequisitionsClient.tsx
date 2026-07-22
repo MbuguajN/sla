@@ -136,17 +136,17 @@ export default function FinanceRequisitionsClient({
       </div>
 
       {/* Global Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-4 bg-white dark:bg-black p-4 rounded-3xl border border-gray-100 dark:border-white/10 shadow-sm">
-        <div className="lg:col-span-2 relative group">
-          <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-            <Search01Icon className="w-4.5 h-4.5 text-gray-400 group-focus-within:text-emerald-600 transition-colors" />
+      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-black p-3 rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm">
+        <div className="relative group flex-1 min-w-[200px] max-w-xs">
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+            <Search01Icon className="w-4 h-4 text-gray-400 group-focus-within:text-emerald-600 transition-colors" />
           </div>
           <input
             type="text"
-            placeholder="Filter by title or initiator..."
+            placeholder="Search title or initiator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-14 pl-12 pr-6 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all font-bold text-sm text-gray-900 dark:text-white placeholder:text-zinc-700"
+            className="w-full h-10 pl-9 pr-4 bg-[#f8faff] dark:bg-[#0a0a0a] border border-transparent dark:border-white/10 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all font-bold text-xs text-gray-900 dark:text-white placeholder:text-zinc-500"
           />
         </div>
 
@@ -157,7 +157,7 @@ export default function FinanceRequisitionsClient({
             setFilterFromDate(e.target.value);
             setItemsDisplayed(9);
           }}
-          className="h-14 px-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+          className="h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs"
         />
 
         <input
@@ -167,10 +167,10 @@ export default function FinanceRequisitionsClient({
             setFilterToDate(e.target.value);
             setItemsDisplayed(9);
           }}
-          className="h-14 px-4 rounded-2xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-4 focus:ring-emerald-500/5 transition-all"
+          className="h-10 px-3 rounded-xl border border-gray-200 dark:border-white/10 bg-[#f8faff] dark:bg-[#0a0a0a] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all text-xs"
         />
         
-        <div className="lg:col-span-2 flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           {statuses.map((status) => (
             <button
               key={status}
@@ -179,10 +179,10 @@ export default function FinanceRequisitionsClient({
                 setItemsDisplayed(9);
               }}
               className={cn(
-                "px-5 h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex-shrink-0 border-2",
+                "px-3 h-10 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex-shrink-0 border",
                 statusFilter === status 
-                  ? "bg-white dark:bg-black border-emerald-600 text-emerald-600 shadow-lg shadow-emerald-500/10" 
-                  : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-600 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
+                  ? "bg-white dark:bg-black border-emerald-600 text-emerald-600 shadow-md shadow-emerald-500/10" 
+                  : "bg-[#f8faff] dark:bg-black border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10"
               )}
             >
               {formatStatusLabel(status)}
