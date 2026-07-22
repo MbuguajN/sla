@@ -105,8 +105,8 @@ export default function RefundsClient({ initialRefunds }: Props) {
   const hasMore = itemsDisplayed < filtered.length;
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
+    <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
         <div className="space-y-2">
            <div className="flex items-center gap-2">
              <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
@@ -114,7 +114,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
              </div>
              <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none">Returns</span>
            </div>
-           <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
+           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
              <span className="text-emerald-600 italic">Refunds</span>
            </h1>
            <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">
@@ -124,7 +124,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
 
         <button 
           onClick={() => setShowModal(true)}
-          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-emerald-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-6 py-4 shadow-xl hover:shadow-emerald-500/20 transition-all active:scale-95"
+          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-emerald-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-4 md:px-6 py-3 md:py-4 shadow-xl hover:shadow-emerald-500/20 transition-all active:scale-95"
         >
           <div className="w-6 h-6 rounded-lg bg-white/10 dark:bg-emerald-500/20 flex items-center justify-center">
             <Add01Icon className="w-3.5 h-3.5 text-white dark:text-emerald-500" />
@@ -211,9 +211,9 @@ export default function RefundsClient({ initialRefunds }: Props) {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowModal(false)} />
-           <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+           <div className="relative bg-white dark:bg-black rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-4 md:p-5 border border-gray-100 dark:border-white/10 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-4">
                   {STEPS.map(step => (
@@ -231,14 +231,14 @@ export default function RefundsClient({ initialRefunds }: Props) {
             <div className="min-h-[250px] flex flex-col justify-center">
                {currentStep === 1 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Refund Amount</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Refund Amount</h2>
                      <div className="relative group/input">
                         <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2">
                       <span className="font-black text-gray-400 text-lg uppercase tracking-widest">KES</span>
                         </div>
                         <input 
                       type="text" inputMode="numeric" pattern="[0-9]*" placeholder="0" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value.replace(/[^0-9]/g, "")})}
-                           className="w-full h-20 bg-gray-50 dark:bg-white/5 rounded-3xl pl-24 pr-8 font-black text-4xl outline-none border-4 border-transparent focus:border-emerald-600 transition-all dark:text-white"
+                           className="w-full h-16 md:h-20 bg-gray-50 dark:bg-white/5 rounded-3xl pl-20 md:pl-24 pr-6 md:pr-8 font-black text-3xl md:text-4xl outline-none border-4 border-transparent focus:border-emerald-600 transition-all dark:text-white"
                         />
                      </div>
                   </div>
@@ -246,7 +246,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
 
                {currentStep === 2 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
-                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Justification Basis</h2>
+                     <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Justification Basis</h2>
                      <RichTextEditor
                     value={formData.reason}
                     onChange={(val) => setFormData({...formData, reason: val})}
@@ -288,7 +288,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
                      <div className="mx-auto w-24 h-24 rounded-full bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
                         <Money01Icon className="w-12 h-12 text-emerald-600" />
                      </div>
-                  <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Confirm Refund</h2>
+                  <h2 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Confirm Refund</h2>
                   <p className="text-sm font-bold text-gray-400">Total Refund: <span className="text-emerald-600">KES {parseFloat(formData.amount || "0").toLocaleString()}</span>. Ready for submission.</p>
                 <p className="text-[11px] font-bold text-gray-500 dark:text-zinc-400">Receipts attached: {receiptFiles.length}</p>
                   </div>
@@ -299,7 +299,7 @@ export default function RefundsClient({ initialRefunds }: Props) {
                <button onClick={() => currentStep > 1 && setCurrentStep(prev => prev -1)} className="text-xs font-black uppercase text-gray-400 hover:text-gray-900">Back</button>
                <button 
                   onClick={currentStep === 3 ? handleSubmit : nextStep} disabled={loading}
-                  className="bg-[#111827] dark:bg-white text-white dark:text-black px-12 h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
+                  className="bg-[#111827] dark:bg-white text-white dark:text-black px-8 md:px-12 h-12 md:h-14 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl transition-all active:scale-95"
                >
                 {loading ? "..." : currentStep === 3 ? "Confirm Refund" : "Next"}
                </button>

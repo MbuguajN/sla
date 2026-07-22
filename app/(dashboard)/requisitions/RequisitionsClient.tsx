@@ -111,8 +111,8 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
   const hasMore = itemsDisplayed < filtered.length;
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
+    <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
         <div className="space-y-2">
            <div className="flex items-center gap-2">
              <div className="p-2 bg-amber-50 dark:bg-amber-500/10 rounded-xl">
@@ -120,7 +120,7 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
              </div>
              <span className="text-[11px] font-black text-amber-600 uppercase tracking-[0.2em] leading-none">Procurement Node</span>
            </div>
-           <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
+           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
              Stock <span className="text-amber-600 italic">Requisitions</span>
            </h1>
            <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">
@@ -130,7 +130,7 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
 
         <button 
           onClick={() => setShowModal(true)}
-          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-amber-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-6 py-4 shadow-xl hover:shadow-amber-500/20 transition-all active:scale-95"
+          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-amber-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-4 md:px-6 py-3 md:py-4 shadow-xl hover:shadow-amber-500/20 transition-all active:scale-95"
         >
           <div className="w-6 h-6 rounded-lg bg-white/10 dark:bg-amber-500/20 flex items-center justify-center">
             <Add01Icon className="w-3.5 h-3.5 text-white dark:text-amber-500" />
@@ -210,9 +210,9 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowModal(false)} />
-          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+          <div className="relative bg-white dark:bg-black rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-4 md:p-5 border border-gray-100 dark:border-white/10 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-4">
                   {STEPS.map(step => (
@@ -230,7 +230,7 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
             <div className="min-h-[280px] flex flex-col justify-center">
                {currentStep === 1 && (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Overview</h2>
+                     <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Overview</h2>
                      <div className="space-y-4">
                         <div className="space-y-2">
                            <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Description Node</span>
@@ -252,28 +252,30 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
 
                {currentStep === 2 && (
                   <div className="space-y-4 animate-in fade-in slide-in-from-right-4 max-h-[420px] overflow-y-auto pr-2">
-                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-4">Items</h2>
+                     <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-4">Items</h2>
                      {formData.items.map((item, idx) => {
                         const rowTotal = item.quantity * item.unitPrice * (item.vatInclusive ? 1.16 : 1);
                         return (
                            <div key={idx} className="p-4 bg-gray-50 dark:bg-white/5 rounded-2xl space-y-3">
-                              <div className="flex gap-3">
-                                 <input
-                                    type="text" placeholder="Item Name" value={item.name} onChange={e => updateItem(idx, "name", e.target.value)}
-                                    className="flex-1 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
-                                 />
-                                 <input
-                                    type="number" placeholder="Qty" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
-                                    className="w-20 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
-                                 />
-                                 <input
-                                    type="number" placeholder="Unit Price" value={item.unitPrice || ""} onChange={e => updateItem(idx, "unitPrice", parseFloat(e.target.value) || 0)}
-                                    className="w-32 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
-                                 />
-                                 <button onClick={() => removeItem(idx)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
-                                    <Cancel01Icon className="w-4 h-4" />
-                                 </button>
-                              </div>
+                               <div className="flex flex-col sm:flex-row gap-3">
+                                  <input
+                                     type="text" placeholder="Item Name" value={item.name} onChange={e => updateItem(idx, "name", e.target.value)}
+                                     className="flex-1 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
+                                  />
+                                  <div className="flex gap-3">
+                                    <input
+                                       type="number" placeholder="Qty" value={item.quantity} onChange={e => updateItem(idx, "quantity", parseInt(e.target.value) || 1)}
+                                       className="w-20 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
+                                    />
+                                    <input
+                                       type="number" placeholder="Unit Price" value={item.unitPrice || ""} onChange={e => updateItem(idx, "unitPrice", parseFloat(e.target.value) || 0)}
+                                       className="flex-1 sm:w-32 bg-white dark:bg-black rounded-xl h-10 px-4 font-bold text-[13px] outline-none"
+                                    />
+                                  </div>
+                                  <button onClick={() => removeItem(idx)} className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors self-start">
+                                     <Cancel01Icon className="w-4 h-4" />
+                                  </button>
+                               </div>
                               <div className="flex items-center justify-between px-1">
                                  <label className="flex items-center gap-2 cursor-pointer select-none">
                                     <input
@@ -309,7 +311,7 @@ export default function RequisitionsClient({ initialRequisitions }: Props) {
                      <div className="mx-auto w-20 h-20 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
                         <ShoppingBasket01Icon className="w-10 h-10 text-amber-600" />
                      </div>
-                     <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Final Registry</h2>
+                      <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Final Registry</h2>
                      <p className="text-sm font-bold text-gray-400 max-w-xs mx-auto">Confirm your requisition for {formData.items.length} item{formData.items.length !== 1 ? "s" : ""}. This will be transmitted to procurement.</p>
                      <div className="inline-flex items-center gap-3 px-6 py-3 bg-amber-50 dark:bg-amber-500/10 rounded-2xl">
                         <span className="text-[11px] font-black uppercase text-gray-500 dark:text-zinc-400 tracking-widest">Total</span>
