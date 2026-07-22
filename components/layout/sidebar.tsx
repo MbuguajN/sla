@@ -38,9 +38,11 @@ interface SidebarProps {
   };
   canAccessEquipment?: boolean;
   logos?: { light: string | null; dark: string | null } | null;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export default function Sidebar({ user, canAccessEquipment = false, logos }: SidebarProps) {
+export default function Sidebar({ user, canAccessEquipment = false, logos, mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<string[]>(["personal", "hr", "manager", "finance", "it", "admin"]);
 
@@ -73,7 +75,6 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
       user.departmentSlug === "client-service"
     );
 
-  // Main nav items
   const mainNav: NavItem[] = [
     ...(!isGeneralStaffOnly ? [{ label: "Dashboard", href: "/dashboard", icon: DashboardSquare01Icon }] : []),
     ...(!isGeneralStaffOnly && (user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources" || user.privileges?.includes("CAN_VIEW_EMPLOYEES"))
@@ -89,7 +90,6 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     ...(!isHROnly && !isGeneralStaffOnly ? [{ label: "Daily Log", href: "/daily-log", icon: Calendar01Icon }] : []),
   ];
 
-  // Sections (collapsible)
   const Sections = [
     {
       id: "personal",
@@ -159,41 +159,33 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
     EMPLOYEE: "Employee",
   };
 
-  return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-white dark:bg-black z-30 flex flex-col transition-all duration-300 border-r border-gray-100 dark:border-white/10">
-      {/* Sidebar Logo wrapper */}
-      <div className="h-24 flex items-center justify-center px-4">
-        <Link href={isGeneralStaffOnly ? "/leave" : "/dashboard"} className="flex items-center justify-center gap-3 group w-full">
+  const sidebarContent = (
+    <>
+      {/* Logo */}
+      <div className="h-20 md:h-24 flex items-center justify-center px-4">
+        <Link href={isGeneralStaffOnly ? "/leave" : "/dashboard"} onClick={onMobileClose} className="flex items-center justify-center gap-3 group w-full">
           {logos?.light ? (
             <div className="relative">
-              <img 
-                src={logos.light} 
-                alt="Logo" 
-                className="h-14 w-auto object-contain dark:hidden transition-transform duration-300 group-hover:scale-105" 
-              />
+              <img src={logos.light} alt="Logo" className="h-12 md:h-14 w-auto object-contain dark:hidden transition-transform duration-300 group-hover:scale-105" />
               {logos.dark && (
-                <img 
-                  src={logos.dark} 
-                  alt="Logo" 
-                  className="h-14 w-auto object-contain hidden dark:block transition-transform duration-300 group-hover:scale-105" 
-                />
+                <img src={logos.dark} alt="Logo" className="h-12 md:h-14 w-auto object-contain hidden dark:block transition-transform duration-300 group-hover:scale-105" />
               )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="w-12 h-12 rounded-xl bg-[#c91f41] flex items-center justify-center shadow-lg shadow-[#c91f41]/20 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
-                <Building01Icon className="text-white h-7 w-7" />
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-[#c91f41] flex items-center justify-center shadow-lg shadow-[#c91f41]/20 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
+                <Building01Icon className="text-white h-6 w-6 md:h-7 md:w-7" />
               </div>
-              <span className="font-black text-2xl tracking-tighter text-gray-900 dark:text-white">SLA<span className="text-[#c91f41]">.</span></span>
+              <span className="font-black text-xl md:text-2xl tracking-tighter text-gray-900 dark:text-white">SLA<span className="text-[#c91f41]">.</span></span>
             </div>
           )}
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-3 md:px-4 py-4 space-y-1">
         {mainNav.map((item) => (
-          <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
+          <SidebarLink key={item.href} item={item} active={isActive(item.href)} onClick={onMobileClose} />
         ))}
 
         {Sections.filter(s => s.visible).map(section => (
@@ -204,17 +196,18 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
             expanded={expandedSections.includes(section.id)}
             onToggle={() => toggleSection(section.id)}
             isActive={isActive}
+            onClick={onMobileClose}
           />
         ))}
       </nav>
 
-      {/* Bottom user section */}
-      <div className="p-4 border-t border-gray-50 dark:border-white/10">
-          <div className="flex items-center gap-3 p-2 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
-          <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center shrink-0 border border-white shadow-sm overflow-hidden">
-             <span className="text-[#c91f41] text-sm font-bold">
-               {user?.name?.[0]?.toUpperCase() || "U"}
-             </span>
+      {/* Bottom user */}
+      <div className="p-3 md:p-4 border-t border-gray-50 dark:border-white/10">
+        <div className="flex items-center gap-3 p-2 rounded-2xl bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10">
+          <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center shrink-0 border border-white shadow-sm overflow-hidden">
+            <span className="text-[#c91f41] text-sm font-bold">
+              {user?.name?.[0]?.toUpperCase() || "U"}
+            </span>
           </div>
           <div className="min-w-0">
             <p className="text-sm font-bold text-gray-900 dark:text-white truncate tracking-tight">{user?.name || "User"}</p>
@@ -222,15 +215,35 @@ export default function Sidebar({ user, canAccessEquipment = false, logos }: Sid
           </div>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex fixed left-0 top-0 h-full w-64 bg-white dark:bg-black z-30 flex-col transition-all duration-300 border-r border-gray-100 dark:border-white/10">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={onMobileClose} />
+          <aside className="absolute left-0 top-0 h-full w-72 bg-white dark:bg-black flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
 
-function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
+function SidebarLink({ item, active, onClick }: { item: NavItem; active: boolean; onClick?: () => void }) {
   const Icon = item.icon;
   return (
     <Link
       href={item.href}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-300",
         active
@@ -238,7 +251,7 @@ function SidebarLink({ item, active }: { item: NavItem; active: boolean }) {
           : "text-gray-500 dark:text-zinc-500 hover:bg-gray-50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
       )}
     >
-      <Icon className={cn("h-[20px] w-[20px] transition-all duration-300", active ? "text-[#c91f41]" : "text-gray-400 dark:text-zinc-600")} />
+      <Icon className={cn("h-5 w-5 transition-all duration-300", active ? "text-[#c91f41]" : "text-gray-400 dark:text-zinc-600")} />
       {item.label}
     </Link>
   );
@@ -250,12 +263,14 @@ function SidebarSection({
   expanded,
   onToggle,
   isActive,
+  onClick,
 }: {
   title: string;
   items: NavItem[];
   expanded: boolean;
   onToggle: () => void;
   isActive: (href: string) => boolean;
+  onClick?: () => void;
 }) {
   return (
     <div className="pt-4">
@@ -268,19 +283,16 @@ function SidebarSection({
           className={cn("h-3.5 w-3.5 transition-transform duration-300", expanded && "rotate-180")}
         />
       </button>
-      <div 
+      <div
         className={cn(
           "space-y-0.5 overflow-hidden transition-all duration-300 ease-in-out",
           expanded ? "max-h-[500px] mt-1 opacity-100" : "max-h-0 opacity-0"
         )}
       >
         {items.map((item) => (
-          <SidebarLink key={item.href} item={item} active={isActive(item.href)} />
+          <SidebarLink key={item.href} item={item} active={isActive(item.href)} onClick={onClick} />
         ))}
       </div>
     </div>
   );
 }
-
-
-

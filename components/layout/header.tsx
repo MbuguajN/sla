@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { Moon02Icon, Sun01Icon, Logout01Icon } from "@hugeicons/react";
+import { Moon02Icon, Sun01Icon, Logout01Icon, Menu01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import NotificationDropdown from "./NotificationDropdown";
@@ -26,6 +26,7 @@ interface HeaderProps {
   };
   platformLinks: PlatformLinkItem[];
   isAdmin: boolean;
+  onMenuToggle?: () => void;
 }
 
 function getGreeting(): string {
@@ -215,7 +216,7 @@ function getDomainName(url: string): string {
   }
 }
 
-export default function Header({ user, platformLinks: initialLinks, isAdmin }: HeaderProps) {
+export default function Header({ user, platformLinks: initialLinks, isAdmin, onMenuToggle }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [showPlatforms, setShowPlatforms] = useState(false);
@@ -297,29 +298,39 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
   };
 
   return (
-    <header className="h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-white/10 px-10">
-      {/* Greeting + Header Widgets */}
-      <div className="flex items-center gap-4 flex-1">
-        <div>
-          <p className="text-sm font-black text-gray-900 dark:text-white">
+    <header className="h-16 md:h-20 sticky top-0 z-20 flex items-center justify-between bg-white/80 dark:bg-black/90 backdrop-blur-md border-b border-gray-100 dark:border-white/10 px-4 md:px-10">
+      {/* Left — Hamburger + Greeting */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {onMenuToggle && (
+          <button
+            onClick={onMenuToggle}
+            className="md:hidden w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-gray-200 dark:border-white/10 shrink-0"
+          >
+            <Menu01Icon className="h-5 w-5" />
+          </button>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-black text-gray-900 dark:text-white truncate">
             {getGreeting()}, {user.name?.split(" ")[0] ?? "User"}
           </p>
-          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest">
+          <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-widest hidden sm:block">
             Welcome back
           </p>
         </div>
-        <WeatherWidget />
+        <div className="hidden lg:block">
+          <WeatherWidget />
+        </div>
       </div>
 
-      {/* Center — Meeting Room Status */}
-      <div className="flex-none">
+      {/* Center — Meeting Room Status (hidden on mobile) */}
+      <div className="hidden xl:flex flex-none">
         <MeetingRoomStatus />
       </div>
 
       {/* Right actions */}
-      <div className="flex items-center gap-3 flex-1 justify-end">
-        {/* Platforms dropdown */}
-        <div className="relative" ref={platformsRef}>
+      <div className="flex items-center gap-2 md:gap-3 flex-1 justify-end">
+        {/* Platforms dropdown (hidden on mobile) */}
+        <div className="relative hidden md:block" ref={platformsRef}>
           <button
             onClick={() => { setShowPlatforms(!showPlatforms); setShowAddLink(false); }}
             className={cn(
@@ -334,7 +345,7 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
           </button>
 
           {showPlatforms && (
-            <div className="absolute top-full right-0 mt-2 w-[420px] bg-white dark:bg-[#111111] rounded-2xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.25)] dark:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.7)] border border-gray-200 dark:border-white/15 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] max-w-[420px] bg-white dark:bg-[#111111] rounded-2xl shadow-[0_8px_40px_-8px_rgba(0,0,0,0.25)] dark:shadow-[0_8px_40px_-8px_rgba(0,0,0,0.7)] border border-gray-200 dark:border-white/15 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* Header */}
               <div className="px-5 py-4 border-b border-gray-200 dark:border-white/15">
                 <div className="flex items-center justify-between mb-3">
@@ -537,7 +548,7 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-transparent dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20"
+          className="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all border border-transparent dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20"
         >
           {isDark ? <Sun01Icon className="h-5 w-5" /> : <Moon02Icon className="h-5 w-5" />}
         </button>
@@ -546,11 +557,11 @@ export default function Header({ user, platformLinks: initialLinks, isAdmin }: H
         <NotificationDropdown />
 
         {/* User avatar */}
-        <div className="relative border-l border-gray-100 dark:border-white/10 pl-4 ml-2">
+        <div className="relative border-l border-gray-100 dark:border-white/10 pl-2 md:pl-4 md:ml-2">
           <button
             onClick={() => setShowDropdown(!showDropdown)}
             className={cn(
-              "w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 border border-white shadow-sm ring-1 ring-[#c91f41]/5 overflow-hidden",
+              "w-9 h-9 md:w-10 md:h-10 rounded-2xl flex items-center justify-center transition-all duration-300 border border-white shadow-sm ring-1 ring-[#c91f41]/5 overflow-hidden",
               getUserColor(user.id, user.name)
             )}
           >
