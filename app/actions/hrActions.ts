@@ -294,11 +294,12 @@ export async function createLeave(data: {
       )
     );
   } else {
-    // Other roles: notify managers first
+    // Other roles: notify only managers in the same department
     const managers = await db.user.findMany({
       where: {
         role: "MANAGER",
         isActive: true,
+        departmentId: user.departmentId,
       },
       select: { id: true },
     });
