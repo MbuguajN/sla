@@ -365,8 +365,8 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
   }, [initialLeaves, tableSearch, filterFromDate, filterToDate, currentPage]);
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
+    <div className="space-y-6 md:space-y-8 max-w-[1600px] mx-auto pb-10 px-4">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-6 pb-6 border-b border-gray-100 dark:border-white/10">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <div className="p-2 bg-pink-50 dark:bg-pink-500/10 rounded-xl">
@@ -374,7 +374,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
             </div>
             <span className="text-[11px] font-black text-pink-600 uppercase tracking-[0.2em] leading-none">Absence Protocol</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
             Leave <span className="text-pink-600 italic">Management</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">
@@ -387,7 +387,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
             setShowModal(true);
             resetForm();
           }}
-          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-pink-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-6 py-4 shadow-xl hover:shadow-pink-500/20 transition-all active:scale-95"
+          className="group flex items-center gap-3 bg-[#111827] dark:bg-black hover:bg-black dark:hover:bg-pink-500/10 border border-transparent dark:border-white/10 text-white rounded-2xl px-4 md:px-6 py-3 md:py-4 shadow-xl hover:shadow-pink-500/20 transition-all active:scale-95"
         >
           <div className="w-6 h-6 rounded-lg bg-white/10 dark:bg-pink-500/20 flex items-center justify-center">
             <Add01Icon className="w-3.5 h-3.5 text-white dark:text-pink-500" />
@@ -555,9 +555,9 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={closeModal} />
-          <div className="relative bg-white dark:bg-black rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-5 border border-gray-100 dark:border-white/10 overflow-hidden">
+          <div className="relative bg-white dark:bg-black rounded-2xl md:rounded-[2.5rem] shadow-2xl w-full max-w-2xl p-4 md:p-5 border border-gray-100 dark:border-white/10 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
                 {STEPS.map((step) => (
@@ -578,9 +578,9 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
             <div className="min-h-[250px] flex flex-col justify-center">
               {currentStep === 1 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Select Nature</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Select Nature</h2>
                   {availableLeaveTypes.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-4">
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {availableLeaveTypes.map((type) => {
                         const isActive = formData.type === type;
                         return (
@@ -615,7 +615,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
 
               {currentStep === 2 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Duration</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Duration</h2>
                   <div className="rounded-2xl border border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5 px-5 py-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">Selected Leave Balance</p>
                     <p className="mt-2 text-sm font-extrabold text-gray-800 dark:text-zinc-200">
@@ -653,7 +653,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                       })()}
                     </p>
                   </div>
-                   <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest pl-2">Start Date</span>
                       <input
@@ -683,7 +683,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
 
               {currentStep === 3 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Core Reason</h2>
+                  <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Core Reason</h2>
                   <RichTextEditor
                     value={formData.reason}
                     onChange={(val) => setFormData({ ...formData, reason: val })}
@@ -696,7 +696,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
               {currentStep === 4 && (
                 <div className="space-y-5 animate-in fade-in slide-in-from-right-4">
                   <div className="space-y-2">
-                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Task Handover</h2>
+                    <h2 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Task Handover</h2>
                     <p className="text-xs font-semibold text-gray-500 dark:text-zinc-400">
                       Select active tasks to hand over during leave and choose the teammate responsible for each task.
                     </p>
@@ -744,7 +744,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                                     }))
                                   }
                                   disabled={!selected}
-                                  className="h-11 min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111111] px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
+                                  className="h-11 w-full md:min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#111111] px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
                                 >
                                   <option value="" className="bg-white dark:bg-[#111111]">Choose teammate</option>
                                   {departmentMembers.map((member) => (
@@ -796,9 +796,9 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
       )}
 
       {showEditHandoverModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 transition-opacity" onClick={() => setShowEditHandoverModal(false)} />
-          <div className="relative bg-white dark:bg-black rounded-[2rem] shadow-2xl w-full max-w-3xl p-8 border border-gray-100 dark:border-white/10 overflow-hidden">
+          <div className="relative bg-white dark:bg-black rounded-2xl md:rounded-[2rem] shadow-2xl w-full max-w-3xl p-5 md:p-8 border border-gray-100 dark:border-white/10 overflow-hidden max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-black uppercase tracking-tight text-gray-900 dark:text-white">Edit Task Handover</h3>
               <button
@@ -851,7 +851,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                               }))
                             }
                             disabled={!selected}
-                            className="h-11 min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
+                            className="h-11 w-full md:min-w-[220px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black px-3 text-xs font-bold text-gray-700 dark:text-zinc-300 disabled:opacity-50"
                           >
                             <option value="">Choose teammate</option>
                             {departmentMembers.map((member) => (
