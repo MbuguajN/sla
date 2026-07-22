@@ -120,8 +120,21 @@ export default function NotificationDropdown() {
     }
   };
 
+  const bellRef = useRef<HTMLButtonElement | null>(null);
+  const [bellRect, setBellRect] = useState<{ right: number; top: number } | null>(null);
+
+  const updateBellPosition = () => {
+    if (bellRef.current) {
+      const rect = bellRef.current.getBoundingClientRect();
+      setBellRect({ right: window.innerWidth - rect.right, top: rect.bottom + 8 });
+    }
+  };
+
   const handleBellClick = async () => {
     await requestBrowserPermission();
+    if (!isOpen) {
+      updateBellPosition();
+    }
     setIsOpen((prev) => !prev);
   };
 
@@ -171,6 +184,7 @@ export default function NotificationDropdown() {
   return (
     <div className="relative">
       <button
+        ref={bellRef}
         onClick={handleBellClick}
         className="p-2 rounded-lg text-gray-400 dark:text-zinc-500 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-600 dark:hover:text-white transition-colors relative"
       >
@@ -182,13 +196,15 @@ export default function NotificationDropdown() {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-10 bg-black/20 md:bg-transparent" onClick={() => setIsOpen(false)} />
-          {/* Mobile: bottom sheet. Desktop: dropdown */}
-          <div className="fixed bottom-0 left-0 right-0 md:absolute md:right-0 md:bottom-auto md:mt-2 w-full md:w-96 bg-white dark:bg-[#111111] rounded-t-2xl md:rounded-xl shadow-lg dark:shadow-black/60 border border-gray-200 dark:border-white/10 z-20 max-h-[70vh] md:max-h-96 overflow-y-auto">
-            {/* Mobile drag handle */}
-            <div className="flex justify-center pt-2 pb-1 md:hidden">
-              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-600" />
-            </div>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          {/* Desktop: fixed dropdown aligned to bell. Mobile: bottom sheet */}
+          <div
+            className="hidden md:block fixed z-50 w-96 bg-white dark:bg-[#111111] rounded-xl shadow-xl dark:shadow-black/60 border border-gray-200 dark:border-white/10 max-h-96 overflow-y-auto"
+            style={{
+              right: bellRect ? bellRect.right : 16,
+              top: bellRect ? bellRect.top : 60,
+            }}
+          >
             {/* Header */}
             <div className="sticky top-0 bg-white dark:bg-[#111111] border-b border-gray-100 dark:border-white/10 px-4 py-3 flex items-center justify-between">
               <div>
@@ -211,6 +227,71 @@ export default function NotificationDropdown() {
             </div>
 
             {/* Notifications list */}
+            {loading ? (
+              <div className="px-4 py-8 text-center text-gray-400 dark:text-zinc-600">Loading...</div>
+            ) : notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center">
+                <Bell className="h-8 w-8 text-gray-300 dark:text-zinc-700 mx-auto mb-2" />
+                <p className="text-sm text-gray-400 dark:text-zinc-600">No notifications yet</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100 dark:divide-white/10">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition-colors ${
+                      !notification.isRead ? "bg-[#fef2f4] dark:bg-[#c91f41]/5" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`h-2 w-2 rounded-full mt-1.5 flex-shrink-0 ${
+                          notification.isRead ? "bg-gray-300 dark:bg-zinc-700" : "bg-[#c91f41]"
+                        }`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-600 dark:text-zinc-400 mt-0.5 line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-zinc-600 mt-1">
+                          {formatTime(notification.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile: bottom sheet */}
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-[#111111] rounded-t-2xl shadow-xl dark:shadow-black/60 border-t border-gray-200 dark:border-white/10 max-h-[70vh] overflow-y-auto">
+            {/* Drag handle */}
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-600" />
+            </div>
+            {/* Header */}
+            <div className="sticky top-0 bg-white dark:bg-[#111111] border-b border-gray-100 dark:border-white/10 px-4 py-3 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                {unreadCount > 0 && (
+                  <p className="text-xs text-gray-400 dark:text-zinc-600">{unreadCount} unread</p>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="text-xs text-[#c91f41] hover:text-[#a01832] font-medium"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
             {loading ? (
               <div className="px-4 py-8 text-center text-gray-400 dark:text-zinc-600">Loading...</div>
             ) : notifications.length === 0 ? (
