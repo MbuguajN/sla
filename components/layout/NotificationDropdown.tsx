@@ -182,8 +182,13 @@ export default function NotificationDropdown() {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-96 bg-white dark:bg-[#111111] rounded-xl shadow-lg dark:shadow-black/60 border border-gray-200 dark:border-white/10 z-20 max-h-96 overflow-y-auto">
+          <div className="fixed inset-0 z-10 bg-black/20 md:bg-transparent" onClick={() => setIsOpen(false)} />
+          {/* Mobile: bottom sheet. Desktop: dropdown */}
+          <div className="fixed bottom-0 left-0 right-0 md:absolute md:right-0 md:bottom-auto md:mt-2 w-full md:w-96 bg-white dark:bg-[#111111] rounded-t-2xl md:rounded-xl shadow-lg dark:shadow-black/60 border border-gray-200 dark:border-white/10 z-20 max-h-[70vh] md:max-h-96 overflow-y-auto">
+            {/* Mobile drag handle */}
+            <div className="flex justify-center pt-2 pb-1 md:hidden">
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-600" />
+            </div>
             {/* Header */}
             <div className="sticky top-0 bg-white dark:bg-[#111111] border-b border-gray-100 dark:border-white/10 px-4 py-3 flex items-center justify-between">
               <div>
@@ -192,7 +197,7 @@ export default function NotificationDropdown() {
                   <p className="text-xs text-gray-400 dark:text-zinc-600">{unreadCount} unread</p>
                 )}
                 {notificationPermission !== "granted" && (
-                  <p className="text-[10px] text-gray-400 dark:text-zinc-600">Desktop alerts are currently disabled</p>
+                  <p className="text-[10px] text-gray-400 dark:text-zinc-600">Alerts are currently disabled</p>
                 )}
               </div>
               {unreadCount > 0 && (
