@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import MobileAccessGuard from "@/components/MobileAccessGuard";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
@@ -36,7 +35,7 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.className} antialiased bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-300`}>
-        <MobileAccessGuard>{children}</MobileAccessGuard>
+        {children}
       </body>
     </html>
   );
