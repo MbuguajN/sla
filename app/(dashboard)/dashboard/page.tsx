@@ -283,48 +283,48 @@ async function CEODashboardSection() {
     <div className="space-y-8">
       {/* Page Title */}
       <section>
-        <h1 className="text-[44px] leading-none font-black tracking-tight text-[#111f34] dark:text-white">
+        <h1 className="text-3xl md:text-[44px] leading-none font-black tracking-tight text-[#111f34] dark:text-white">
           Executive <span className="text-[#c91f41]">Dashboard</span>
         </h1>
       </section>
 
       {/* 1. Top Stats Row */}
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <UserMultipleIcon className="w-6 h-6 text-[#c91f41] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <UserMultipleIcon className="w-5 h-5 md:w-6 md:h-6 text-[#c91f41] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Attendance</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">
             {data.employeesOnPremise.toLocaleString()}{" "}
             <span className="text-xs font-medium text-[#005a4d]">/ {data.employeesOutOfOffice}</span>
           </h3>
           <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">On Premise / Out</p>
         </div>
 
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <BitcoinIcon className="w-6 h-6 text-[#005a4d] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <BitcoinIcon className="w-5 h-5 md:w-6 md:h-6 text-[#005a4d] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Active Clients</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeClients}</h3>
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeClients}</h3>
           <p className="text-[10px] text-[#005a4d] font-medium">+{data.newClientsThisMonth} this month</p>
         </div>
 
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <ClipboardIcon className="w-6 h-6 text-[#c91f41] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <ClipboardIcon className="w-5 h-5 md:w-6 md:h-6 text-[#c91f41] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Projects</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeProjects}</h3>
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">{data.activeProjects}</h3>
           <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">Ongoing initiatives</p>
         </div>
 
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <TaskDone01Icon className="w-6 h-6 text-[#a3002d] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <TaskDone01Icon className="w-5 h-5 md:w-6 md:h-6 text-[#a3002d] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Pending Tasks</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingTasks}</h3>
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingTasks}</h3>
           <p className="text-[10px] text-red-500 font-medium">{data.overdueTasks} overdue</p>
         </div>
 
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <ShoppingBasket01Icon className="w-6 h-6 text-[#c91f41] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <ShoppingBasket01Icon className="w-5 h-5 md:w-6 md:h-6 text-[#c91f41] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Requisitions</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">
             {data.pendingRequisitions}{" "}
             <span className="text-sm font-semibold text-[#a3002d]">
               KES {(data.totalPendingSpend / 1000).toFixed(1)}k
@@ -333,10 +333,10 @@ async function CEODashboardSection() {
           <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">Awaiting approval</p>
         </div>
 
-        <div className="p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
-          <Calendar01Icon className="w-6 h-6 text-[#005a4d] mb-2" />
+        <div className="p-4 md:p-5 bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm flex flex-col gap-1">
+          <Calendar01Icon className="w-5 h-5 md:w-6 md:h-6 text-[#005a4d] mb-1 md:mb-2" />
           <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-wider">Leave Requests</p>
-          <h3 className="text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingLeaves}</h3>
+          <h3 className="text-xl md:text-2xl font-extrabold text-[#111f34] dark:text-white">{data.pendingLeaves}</h3>
           <p className="text-[10px] text-gray-400 dark:text-zinc-500 font-medium">New submissions</p>
         </div>
       </section>
@@ -346,7 +346,7 @@ async function CEODashboardSection() {
         {/* Operations */}
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Operations Overview</h2>
+            <h2 className="text-lg md:text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Operations Overview</h2>
             <Link href="/tasks" className="text-xs font-bold text-[#c91f41] uppercase tracking-widest flex items-center gap-1 hover:underline">
               Full Report <ArrowRight01Icon className="w-4 h-4" />
             </Link>
@@ -447,7 +447,7 @@ async function CEODashboardSection() {
 
         {/* Project Health */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Project Health</h2>
+          <h2 className="text-lg md:text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Project Health</h2>
           <div className="flex flex-col bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm p-6 gap-6">
             <div className="space-y-4">
               {data.projectHealth.map((project) => (
@@ -478,10 +478,10 @@ async function CEODashboardSection() {
       {/* 3. Financial Summary */}
       <section className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Financial Summary</h2>
-          <div className="px-6 py-2 bg-[#c91f41] text-white rounded-xl shadow-lg flex items-center gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">Total Pending Spend</span>
-            <span className="text-xl font-extrabold">KES {data.totalPendingSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <h2 className="text-lg md:text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Financial Summary</h2>
+          <div className="px-4 md:px-6 py-2 bg-[#c91f41] text-white rounded-xl shadow-lg flex items-center gap-2 md:gap-3">
+            <span className="text-[10px] md:text-[11px] font-bold uppercase tracking-widest opacity-80 hidden sm:inline">Total Pending Spend</span>
+            <span className="text-lg md:text-xl font-extrabold">KES {data.totalPendingSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
         </div>
 
@@ -542,7 +542,7 @@ async function CEODashboardSection() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* HR Snapshot */}
         <div className="lg:col-span-5 flex flex-col gap-6">
-          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">HR Snapshot</h2>
+          <h2 className="text-lg md:text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">HR Snapshot</h2>
           <div className="bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm p-6">
             <div className="flex justify-between items-center mb-6">
               <p className="text-[11px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-widest">On Leave Today</p>
@@ -580,7 +580,7 @@ async function CEODashboardSection() {
 
         {/* Activity Feed */}
         <div className="lg:col-span-7 flex flex-col gap-6">
-          <h2 className="text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Executive Activity Feed</h2>
+          <h2 className="text-lg md:text-xl font-extrabold text-[#111f34] dark:text-white tracking-tight">Executive Activity Feed</h2>
           <div className="bg-white dark:bg-[#111111] rounded-2xl border border-gray-100 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
             <div className="p-6 h-[400px] overflow-y-auto custom-scrollbar">
               <div className="space-y-6 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-gray-200 dark:before:bg-white/10">
@@ -755,12 +755,12 @@ async function HRDashboardSection() {
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
-              <Calendar01Icon className="h-5 w-5 text-rose-500" />
+            <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
+              <Calendar01Icon className="h-4 w-4 md:h-5 md:w-5 text-rose-500" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(activeLeaveRequests).padStart(2, "0")}</p>
+            <p className="text-2xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(activeLeaveRequests).padStart(2, "0")}</p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">Active Leave Requests</p>
           </div>
           <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
@@ -770,12 +770,12 @@ async function HRDashboardSection() {
 
         <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
-              <Message01Icon className="h-5 w-5 text-emerald-500" />
+            <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
+              <Message01Icon className="h-4 w-4 md:h-5 md:w-5 text-emerald-500" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(newSuggestions).padStart(2, "0")}</p>
+            <p className="text-2xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(newSuggestions).padStart(2, "0")}</p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">New Suggestions</p>
           </div>
           <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
@@ -785,12 +785,12 @@ async function HRDashboardSection() {
 
         <div className="rounded-2xl bg-white dark:bg-[#111111] border border-slate-100 dark:border-white/10 p-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.35)] dark:shadow-none">
           <div className="flex items-center justify-between">
-            <div className="h-9 w-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
-              <Settings02Icon className="h-5 w-5 text-amber-600" />
+            <div className="h-8 w-8 md:h-9 md:w-9 rounded-xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
+              <Settings02Icon className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
             </div>
           </div>
           <div className="mt-4 space-y-1">
-            <p className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(employeesOnLeave).padStart(2, "0")}</p>
+            <p className="text-2xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white">{String(employeesOnLeave).padStart(2, "0")}</p>
             <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-600 dark:text-zinc-500">Employees On Leave</p>
           </div>
           <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 dark:text-zinc-600">
@@ -803,7 +803,7 @@ async function HRDashboardSection() {
         <div className="xl:col-span-7 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Leave Requests</h2>
+              <h2 className="text-xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white">Leave Requests</h2>
               <p className="text-sm text-slate-500 dark:text-zinc-500">Real-time status of employee attendance planning</p>
             </div>
           </div>
@@ -866,7 +866,7 @@ async function HRDashboardSection() {
 
         <div className="xl:col-span-5 space-y-4">
           <div>
-              <h2 className="text-3xl font-black tracking-tight text-slate-800 dark:text-white">Culture Lab</h2>
+              <h2 className="text-xl md:text-3xl font-black tracking-tight text-slate-800 dark:text-white">Culture Lab</h2>
               <p className="text-sm text-slate-500 dark:text-zinc-500">All employee suggestions in one review table</p>
           </div>
 
@@ -922,13 +922,13 @@ async function FinanceDashboardSection() {
   return (
     <div className="space-y-12">
       <section className="space-y-3">
-        <h1 className="text-[2.1rem] leading-none font-black tracking-tight text-slate-700 dark:text-white">Ledger Oversight</h1>
+        <h1 className="text-2xl md:text-[2.1rem] leading-none font-black tracking-tight text-slate-700 dark:text-white">Ledger Oversight</h1>
       </section>
 
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-5 w-full">
-            <h2 className="text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">New Requisitions</h2>
+            <h2 className="text-lg md:text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">New Requisitions</h2>
             <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <Link href="/finance/requisitions" className="text-[10px] font-black uppercase tracking-[0.25em] text-[#c91f41] whitespace-nowrap">
@@ -981,7 +981,7 @@ async function FinanceDashboardSection() {
       <section className="space-y-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-5 w-full">
-            <h2 className="text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">Recent Refunds</h2>
+            <h2 className="text-lg md:text-[1.35rem] font-black tracking-tight text-slate-800 dark:text-white">Recent Refunds</h2>
             <div className="h-px flex-1 bg-slate-200 dark:bg-white/10" />
           </div>
           <Link href="/finance/refunds" className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500 whitespace-nowrap">
@@ -1279,13 +1279,13 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-4 md:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-[#c91f41]" />
         <div className="flex items-start justify-between">
           <div className="space-y-4 w-full">
             <div>
               <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Tasks Pending</p>
-              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks + openBoardCards + openChecklistItems}</p>
+              <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks + openBoardCards + openChecklistItems}</p>
             </div>
             {canSeeAddTaskInCard && (
               <Link href="/tasks/new" className="flex items-center gap-2 text-[#c91f41] hover:text-[#a81a36] transition-colors group/btn">
@@ -1302,13 +1302,13 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
         </div>
       </div>
 
-      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-4 md:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-green-500" />
         <div className="flex items-start justify-between">
           <div className="space-y-4">
             <div>
               <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Completed Total</p>
-              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks + doneBoardCards + doneChecklistItems}</p>
+              <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks + doneBoardCards + doneChecklistItems}</p>
             </div>
             <div className="flex items-center gap-2">
                <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/15 flex items-center justify-center">
@@ -1326,13 +1326,13 @@ async function StatsSection({ user, canCreateTask }: { user: any, canCreateTask:
         </div>
       </div>
 
-      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
+      <div className="group relative overflow-hidden bg-white dark:bg-[#111111] rounded-3xl border border-gray-100 dark:border-white/10 p-4 md:p-6 transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-none hover:-translate-y-1">
         <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
         <div className="flex items-start justify-between">
           <div className="space-y-4">
             <div>
               <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 uppercase tracking-[0.15em]">Active Team</p>
-              <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{teamMembers.length}</p>
+              <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{teamMembers.length}</p>
             </div>
             <div className="flex -space-x-2 overflow-hidden">
               {teamMembers.map((member: any) => (
@@ -1383,7 +1383,7 @@ async function ActivitySection({ user }: { user: any }) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <div className="lg:col-span-4 space-y-6">
-        <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-6 overflow-hidden relative flex flex-col" style={{ height: "480px" }}>
+        <div className="bg-white dark:bg-[#111111] shadow-sm dark:shadow-none rounded-3xl border border-gray-100 dark:border-white/10 p-4 md:p-6 overflow-hidden relative flex flex-col h-[360px] md:h-[480px]">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#fff1f2] flex items-center justify-center">
