@@ -233,12 +233,12 @@ export default function ProfileClient({
 
       {/* HERO */}
       <section className="overflow-hidden border-b-4 border-[#c91f41] bg-white dark:bg-black/40">
-        <div className="grid grid-cols-12 gap-10 p-8 md:p-10">
-          <div className="col-span-12 flex flex-col items-center gap-6 lg:col-span-4 lg:items-start">
+        <div className="grid grid-cols-12 gap-6 md:gap-10 p-5 md:p-8 lg:p-10">
+          <div className="col-span-12 flex flex-col items-center gap-4 lg:col-span-4 lg:items-start">
             <div className="relative">
-              <div className="flex h-52 w-40 items-center justify-center border-2 border-gray-900 dark:border-white"
+              <div className="flex h-36 w-28 md:h-52 md:w-40 items-center justify-center border-2 border-gray-900 dark:border-white"
                 style={{ background: `linear-gradient(135deg, ${color}22, ${color}08)` }}>
-                <span className="text-7xl font-black" style={{ color }}>{initials}</span>
+                <span className="text-5xl md:text-7xl font-black" style={{ color }}>{initials}</span>
               </div>
               <div className="absolute -bottom-4 -right-4 bg-[#c91f41] p-3 text-white">
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
@@ -252,9 +252,9 @@ export default function ProfileClient({
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#c91f41]">
                 {profile.department?.name || "No Department"} / {getRoleLabel(profile.role)}
               </span>
-              <h2 className="text-5xl font-black uppercase leading-none tracking-tight text-gray-900 dark:text-white">{profile.name}</h2>
+              <h2 className="text-3xl md:text-5xl font-black uppercase leading-none tracking-tight text-gray-900 dark:text-white">{profile.name}</h2>
             </div>
-            <div className="mt-4 flex gap-6">
+            <div className="mt-2 md:mt-4 flex flex-wrap gap-4 md:gap-6">
               <div className="flex flex-col">
                 <span className="text-[10px] font-black uppercase tracking-[0.14em] opacity-40">Department</span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white">{profile.department?.name || "Unassigned"}</span>
