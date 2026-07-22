@@ -48,7 +48,7 @@ export default async function DashboardPage() {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white">
+           <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#111827] dark:text-white">
             System <span className="text-rose-500 italic">Command</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-sm">
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
                 </div>
                 <div className="space-y-1">
                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{card.label}</p>
-                   <p className="text-4xl font-black text-[#111827] dark:text-white tabular-nums tracking-tighter">{card.value}</p>
+                    <p className="text-3xl md:text-4xl font-black text-[#111827] dark:text-white tabular-nums tracking-tighter">{card.value}</p>
                 </div>
              </div>
           </div>

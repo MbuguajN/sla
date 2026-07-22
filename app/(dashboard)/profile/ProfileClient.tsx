@@ -607,14 +607,14 @@ export default function ProfileClient({
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Completed Tasks</span>
-                  <span className="text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
+                   <span className="text-3xl md:text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
                   <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
                     <div className="h-full bg-[#c91f41]" style={{ width: `${completionRate}%` }} />
                   </div>
                 </div>
                 <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Active Queue</span>
-                  <span className="text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
+                   <span className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
                   <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
                     <div className="h-full bg-gray-900 dark:bg-white" style={{ width: totalTasks > 0 ? `${Math.round((activeTasks / totalTasks) * 100)}%` : "0%" }} />
                   </div>
@@ -625,7 +625,7 @@ export default function ProfileClient({
                   <h4 className="text-xl font-black tracking-tight">Task Completion Rate</h4>
                   <p className="max-w-sm text-sm opacity-70">Based on all assigned tasks across projects and departments.</p>
                   <div className="flex items-center gap-6 pt-4">
-                    <span className="text-5xl font-black text-[#c91f41]">{completionRate}%</span>
+                     <span className="text-3xl md:text-5xl font-black text-[#c91f41]">{completionRate}%</span>
                     <div className="flex-1 space-y-1">
                       <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.14em] opacity-50">
                         <span>0%</span><span>Target: 80%</span><span>100%</span>

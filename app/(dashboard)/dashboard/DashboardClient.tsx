@@ -122,7 +122,7 @@ export default function DashboardClient({ user, stats, activity }: { user: any, 
             <div className="space-y-4 w-full">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Tasks Pending</p>
-                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks}</p>
+                <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{openTasks}</p>
               </div>
               {canSeeAddTaskInCard && (
                 <Link href="/tasks/new" className="flex items-center gap-2 text-[#c91f41] hover:text-[#a81a36] transition-colors group/btn">
@@ -145,7 +145,7 @@ export default function DashboardClient({ user, stats, activity }: { user: any, 
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Completed Total</p>
-                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks}</p>
+                <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{doneTasks}</p>
               </div>
               <div className="flex items-center gap-2">
                  <div className="w-8 h-8 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
@@ -169,7 +169,7 @@ export default function DashboardClient({ user, stats, activity }: { user: any, 
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-500 uppercase tracking-[0.15em]">Active Team</p>
-                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{teamMembers.length}</p>
+                <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white tracking-tighter mt-1">{teamMembers.length}</p>
               </div>
               <div className="flex -space-x-2 overflow-hidden">
                 {teamMembers.map((member: any) => (

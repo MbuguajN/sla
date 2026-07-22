@@ -144,7 +144,7 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
             </div>
             <span className="text-[11px] font-black text-[#c91f41] uppercase tracking-[0.2em]">Policy Engine</span>
           </div>
-          <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">Leave Policy</h1>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight">Leave Policy</h1>
           <p className="text-sm text-gray-500 dark:text-zinc-400 mt-2 leading-relaxed">
             Configure leave allocations per role and manage public holidays.
           </p>
@@ -152,12 +152,12 @@ export default function LeavePolicyClient({ initialPolicies, initialHolidays }: 
         <div className="xl:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-3xl bg-white dark:bg-black/40 border border-gray-100 dark:border-white/10 p-6 flex flex-col justify-between">
             <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Policy Entries</span>
-            <p className="text-4xl font-black text-slate-800 dark:text-white mt-2">{policies.length}</p>
+            <p className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white mt-2">{policies.length}</p>
             <span className="text-xs text-gray-400 dark:text-zinc-500 font-semibold mt-1">across all roles and types</span>
           </div>
           <div className="rounded-3xl bg-white dark:bg-black/40 border border-gray-100 dark:border-white/10 p-6 flex flex-col justify-between">
             <span className="text-xs font-black uppercase tracking-[0.16em] text-gray-400">Public Holidays</span>
-            <p className="text-4xl font-black text-slate-800 dark:text-white mt-2">{holidays.length}</p>
+            <p className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white mt-2">{holidays.length}</p>
             <span className="text-xs text-gray-400 dark:text-zinc-500 font-semibold mt-1">registered this year</span>
           </div>
         </div>

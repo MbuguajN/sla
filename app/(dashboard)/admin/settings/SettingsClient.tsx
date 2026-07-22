@@ -182,7 +182,7 @@ export default function SettingsClient({ initialSettings, initialLogos }: Props)
             </div>
             <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">Admin Control</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-base-content">System <span className="text-rose-500">Settings</span></h1>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-base-content">System <span className="text-rose-500">Settings</span></h1>
           <p className="text-base-content/50 mt-2 font-medium">Configure global parameters and branding for the entire platform.</p>
         </div>
       </div>

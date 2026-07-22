@@ -270,7 +270,7 @@ export default function ClientDetailClient({ client, documents: initialDocuments
               </p>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-5xl font-black leading-none text-gray-900 dark:text-white">
+              <span className="text-3xl md:text-5xl font-black leading-none text-gray-900 dark:text-white">
                 {metrics.activeProjectsCompletion}%
               </span>
               <span className="text-xs font-bold text-[#005045] bg-[#a8f1df] px-2 py-1">
@@ -295,7 +295,7 @@ export default function ClientDetailClient({ client, documents: initialDocuments
               </p>
             </div>
             <div className="flex flex-col">
-              <span className="text-5xl font-black leading-none text-gray-900 dark:text-white">
+              <span className="text-3xl md:text-5xl font-black leading-none text-gray-900 dark:text-white">
                 {metrics.activeProjects}
               </span>
               <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2">
@@ -314,7 +314,7 @@ export default function ClientDetailClient({ client, documents: initialDocuments
               </p>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-5xl font-black leading-none text-gray-900 dark:text-white">
+              <span className="text-3xl md:text-5xl font-black leading-none text-gray-900 dark:text-white">
                 {metrics.clientHealth}%
               </span>
               <span className="text-[10px] font-black uppercase tracking-widest text-[#005045]">

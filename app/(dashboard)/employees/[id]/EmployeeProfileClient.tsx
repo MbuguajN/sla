@@ -224,7 +224,7 @@ export default function EmployeeProfileClient({
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#c91f41]">
                 {employee.department?.name || "No Department"} / {getRoleLabel(employee.role)}
               </span>
-              <h2 className="text-5xl font-black uppercase leading-none tracking-tight text-gray-900 dark:text-white">
+              <h2 className="text-3xl md:text-5xl font-black uppercase leading-none tracking-tight text-gray-900 dark:text-white">
                 {employee.name}
               </h2>
             </div>
@@ -623,7 +623,7 @@ export default function EmployeeProfileClient({
                 <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Completed Tasks</span>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
+                    <span className="text-3xl md:text-4xl font-black text-[#c91f41]">{completedTasks.toLocaleString()}</span>
                   </div>
                   <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
                     <div className="h-full bg-[#c91f41] transition-all duration-1000" style={{ width: `${completionRate}%` }} />
@@ -632,7 +632,7 @@ export default function EmployeeProfileClient({
                 <div className="bg-gray-50 dark:bg-white/5 p-6 space-y-4">
                   <span className="text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Active Queue</span>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
+                    <span className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white">{activeTasks}</span>
                   </div>
                   <div className="h-1 w-full overflow-hidden bg-gray-200 dark:bg-white/10">
                     <div className="h-full bg-gray-900 dark:bg-white transition-all duration-1000" style={{ width: totalTasks > 0 ? `${Math.round((activeTasks / totalTasks) * 100)}%` : "0%" }} />
@@ -644,7 +644,7 @@ export default function EmployeeProfileClient({
                   <h4 className="text-xl font-black tracking-tight">Task Completion Rate</h4>
                   <p className="max-w-sm text-sm opacity-70">Based on all assigned tasks across projects and departments.</p>
                   <div className="flex items-center gap-6 pt-4">
-                    <span className="text-5xl font-black text-[#c91f41]">{completionRate}%</span>
+                    <span className="text-3xl md:text-5xl font-black text-[#c91f41]">{completionRate}%</span>
                     <div className="flex-1 space-y-1">
                       <div className="flex justify-between text-[8px] font-black uppercase tracking-[0.14em] opacity-50">
                         <span>0%</span><span>Target: 80%</span><span>100%</span>

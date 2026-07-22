@@ -145,7 +145,7 @@ export default function EmployeesClient({ employees, departments, currentUserRol
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c91f41]">
               Operations Control
             </p>
-            <h1 className="mt-1 text-4xl font-black tracking-tight text-gray-900 dark:text-white">
+            <h1 className="mt-1 text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">
               Employees
             </h1>
             {canManageAccess && (

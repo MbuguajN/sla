@@ -126,7 +126,7 @@ export default function FinanceRequisitionsClient({
             </div>
             <span className="text-[11px] font-black text-emerald-600 uppercase tracking-[0.2em] leading-none">Budgetary Control</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[#111827] dark:text-white leading-none">
             Procurement <span className="text-emerald-600 italic">Audit</span>
           </h1>
           <p className="text-[#9ca3af] dark:text-zinc-500 font-bold text-[13px] tracking-tight">

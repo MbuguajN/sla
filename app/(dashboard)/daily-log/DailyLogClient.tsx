@@ -192,7 +192,7 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
       <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 dark:border-white/10 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#c91f41]">Execution Notes</p>
-          <h1 className="mt-1 text-4xl font-black tracking-tight text-gray-900 dark:text-white">Daily Log</h1>
+          <h1 className="mt-1 text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">Daily Log</h1>
           <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-zinc-400">
             Record what you worked on and keep task activity timelines updated.
           </p>
