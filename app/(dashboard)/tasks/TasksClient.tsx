@@ -242,15 +242,15 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-5 rounded-3xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7">
-          <h1 className="text-4xl font-black text-slate-800 dark:text-white tracking-tight">Pipeline Velocity</h1>
+        <div className="xl:col-span-5 rounded-3xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-5 md:p-7">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight">Pipeline Velocity</h1>
           <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2 leading-relaxed max-w-md">
             A curated view of active operational tasks. Priorities are weighted by SLA proximity.
           </p>
           {canCreate && (
             <Link
               href="/tasks/new"
-              className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl bg-[#c91f41] text-white text-sm font-bold hover:bg-[#a81a36] transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 mt-4 md:mt-6 px-4 md:px-5 py-2 md:py-2.5 rounded-xl bg-[#c91f41] text-white text-sm font-bold hover:bg-[#a81a36] transition-colors shadow-sm"
             >
               <Add01Icon className="h-4 w-4" />
               Create New Task
@@ -298,14 +298,14 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                 placeholder="Search task or client"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-9 w-56 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-9 pr-3 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#ffd8e0]"
+                className="h-9 w-full sm:w-56 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-9 pr-3 text-sm text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-[#ffd8e0]"
               />
             </div>
 
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 min-w-[132px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+              className="h-9 min-w-[120px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-3 md:pl-4 pr-8 md:pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {statuses.map((s) => (
                 <option key={s} value={s}>
@@ -317,7 +317,7 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="h-9 min-w-[132px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+              className="h-9 min-w-[120px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-3 md:pl-4 pr-8 md:pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
             >
               {priorities.map((p) => (
                 <option key={p} value={p}>
@@ -333,7 +333,7 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                   setDepartmentFilter(e.target.value);
                   setItemsDisplayed(10);
                 }}
-                className="h-9 min-w-[140px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-4 pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
+                className="h-9 min-w-[120px] rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-black pl-3 md:pl-4 pr-8 md:pr-10 text-xs font-semibold text-gray-600 dark:text-zinc-400"
               >
                 <option value="ALL">All Departments</option>
                 {departments.map((dept) => (
@@ -551,9 +551,9 @@ function MetricCard({
   };
 
   return (
-    <div className={`rounded-2xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 border-l-2 p-5 ${accentStyles[accent]}`}>
+    <div className={`rounded-2xl bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 border-l-2 p-4 md:p-5 ${accentStyles[accent]}`}>
       <p className="text-[10px] font-black text-gray-400 dark:text-zinc-600 uppercase tracking-[0.2em]">{label}</p>
-      <p className="text-4xl font-black text-slate-800 dark:text-white tracking-tight mt-2">{value}</p>
+      <p className="text-3xl md:text-4xl font-black text-slate-800 dark:text-white tracking-tight mt-2">{value}</p>
       <p className="text-[10px] font-bold text-gray-400 dark:text-zinc-600 mt-1">{note}</p>
     </div>
   );
