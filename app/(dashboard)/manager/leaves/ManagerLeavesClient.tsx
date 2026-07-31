@@ -150,7 +150,7 @@ export default function ManagerLeavesClient({ initialLeaves }: Props) {
         </div>
 
         <div className="overflow-x-auto">
-          <Table className="text-sm">
+          <Table className="text-sm hidden md:table">
             <TableHead>
               <TableRow className="border-b border-gray-100 dark:border-white/10">
                 <TableHeader className="text-[11px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">Employee</TableHeader>
@@ -202,6 +202,55 @@ export default function ManagerLeavesClient({ initialLeaves }: Props) {
               ))}
             </TableBody>
           </Table>
+
+          {/* Mobile card layout */}
+          <div className="md:hidden divide-y divide-gray-100 dark:divide-white/5">
+            {filtered.map((leave) => (
+              <div key={leave.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-zinc-100">{leave.userName}</p>
+                    <p className="text-xs text-gray-400 dark:text-zinc-500">{leave.userDepartment || "Unassigned"}</p>
+                  </div>
+                  <Badge variant={statusToBadgeVariant[leave.status] as "warning" | "info" | "success" | "error" | "secondary"}>
+                    {leave.status.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-gray-400 dark:text-zinc-500">Type</span>
+                    <p className="font-bold text-slate-700 dark:text-zinc-200">{getLeaveTypeLabel(leave.type)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 dark:text-zinc-500">Duration</span>
+                    <p className="font-bold text-slate-700 dark:text-zinc-200">{getLeaveDurationLabel(leave.duration)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 dark:text-zinc-500">Days</span>
+                    <p className="font-bold text-slate-700 dark:text-zinc-200">{leave.totalDays}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 dark:text-zinc-500">Dates</span>
+                    <p className="font-bold text-slate-700 dark:text-zinc-200">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                {leave.reason && (
+                  <div className="text-xs">
+                    <span className="text-gray-400 dark:text-zinc-500">Reason</span>
+                    <p className="text-slate-600 dark:text-zinc-300 line-clamp-2">{leave.reason}</p>
+                  </div>
+                )}
+                {leave.status === "PENDING" && (
+                  <button
+                    onClick={() => setExpandedId(leave.id)}
+                    className="w-full h-9 bg-[#c91f41] hover:bg-[#b31c3a] text-white rounded-xl text-xs font-bold transition-colors"
+                  >
+                    Review Request
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

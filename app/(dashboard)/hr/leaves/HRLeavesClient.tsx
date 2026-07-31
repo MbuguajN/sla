@@ -126,53 +126,103 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
         <Card className="rounded-none border-0 shadow-none bg-transparent">
           <CardBody className="p-0">
             {filtered.length > 0 ? (
-              <Table>
-                <TableHead>
-                  <TableHeader>Employee</TableHeader>
-                  <TableHeader>Type</TableHeader>
-                  <TableHeader>Dates</TableHeader>
-                  <TableHeader>Days</TableHeader>
-                  <TableHeader>Status</TableHeader>
-                  {!viewOnly && <TableHeader>Actions</TableHeader>}
-                </TableHead>
-                <TableBody>
+              <>
+                {/* Desktop table */}
+                <Table className="hidden md:table">
+                  <TableHead>
+                    <TableHeader>Employee</TableHeader>
+                    <TableHeader>Type</TableHeader>
+                    <TableHeader>Dates</TableHeader>
+                    <TableHeader>Days</TableHeader>
+                    <TableHeader>Status</TableHeader>
+                    {!viewOnly && <TableHeader>Actions</TableHeader>}
+                  </TableHead>
+                  <TableBody>
+                    {filtered.map((leave) => (
+                      <TableRow key={leave.id}>
+                        <TableCell>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{leave.userName}</p>
+                          <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{leave.userDepartment || "Unassigned"}</p>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">
+                            {getLeaveTypeLabel(leave.type)} ({getLeaveDurationLabel(leave.duration)})
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-gray-600 dark:text-zinc-300">
+                            {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-black text-gray-900 dark:text-white">{leave.totalDays}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusToBadgeVariant[leave.status] || "secondary"}>{leave.status}</Badge>
+                        </TableCell>
+                        {!viewOnly && (
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/hr/leaves/${leave.id}`)}
+                          >
+                            Review
+                          </Button>
+                        </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* Mobile card layout */}
+                <div className="md:hidden divide-y divide-gray-100 dark:divide-white/5">
                   {filtered.map((leave) => (
-                    <TableRow key={leave.id}>
-                      <TableCell>
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">{leave.userName}</p>
-                        <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{leave.userDepartment || "Unassigned"}</p>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-xs font-black uppercase tracking-widest text-[#c91f41] bg-[#fef2f4] dark:bg-[#c91f41]/10 px-2.5 py-1 rounded-lg">
-                          {getLeaveTypeLabel(leave.type)} ({getLeaveDurationLabel(leave.duration)})
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-gray-600 dark:text-zinc-300">
-                          {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-black text-gray-900 dark:text-white">{leave.totalDays}</span>
-                      </TableCell>
-                      <TableCell>
+                    <div key={leave.id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white">{leave.userName}</p>
+                          <p className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider">{leave.userDepartment || "Unassigned"}</p>
+                        </div>
                         <Badge variant={statusToBadgeVariant[leave.status] || "secondary"}>{leave.status}</Badge>
-                      </TableCell>
-                      {!viewOnly && (
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => router.push(`/hr/leaves/${leave.id}`)}
-                        >
-                          Review
-                        </Button>
-                      </TableCell>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-gray-400 dark:text-zinc-500">Type</span>
+                          <p className="font-bold text-[#c91f41]">{getLeaveTypeLabel(leave.type)}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 dark:text-zinc-500">Duration</span>
+                          <p className="font-bold text-gray-900 dark:text-white">{getLeaveDurationLabel(leave.duration)}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 dark:text-zinc-500">Days</span>
+                          <p className="font-bold text-gray-900 dark:text-white">{leave.totalDays}</p>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 dark:text-zinc-500">Dates</span>
+                          <p className="font-bold text-gray-900 dark:text-white">{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      {leave.reason && (
+                        <div className="text-xs">
+                          <span className="text-gray-400 dark:text-zinc-500">Reason</span>
+                          <p className="text-gray-600 dark:text-zinc-300 line-clamp-2">{leave.reason}</p>
+                        </div>
                       )}
-                    </TableRow>
+                      {!viewOnly && (
+                        <button
+                          onClick={() => router.push(`/hr/leaves/${leave.id}`)}
+                          className="w-full h-9 bg-[#c91f41] hover:bg-[#b31c3a] text-white rounded-xl text-xs font-bold transition-colors"
+                        >
+                          Review Request
+                        </button>
+                      )}
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              </>
             ) : (
               <div className="text-center py-14">
                 <p className="text-sm font-semibold text-gray-500 dark:text-zinc-400">No leave requests found</p>
