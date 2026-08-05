@@ -92,9 +92,10 @@ export async function getBoard(boardId: number) {
   if (!board) return null;
 
   const isOwner = board.workspace.ownerId === user.id;
+  const isAdmin = user.role === "ADMIN" || user.role === "CEO";
   const isMember = board.workspace.members.length > 0;
 
-  if (!isOwner && !isMember) throw new Error("Unauthorized");
+  if (!isOwner && !isAdmin && !isMember) throw new Error("Unauthorized");
 
   return board;
 }
@@ -131,7 +132,7 @@ export async function deleteWorkspace(workspaceId: number) {
 
   const ws = await db.workspace.findUnique({ where: { id: workspaceId } });
   if (!ws) throw new Error("Workspace not found");
-  if (ws.ownerId !== user.id) throw new Error("Only the owner can delete a workspace");
+  if (ws.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the owner can delete a workspace");
 
   await db.workspace.delete({ where: { id: workspaceId } });
   revalidatePath("/board");
@@ -238,7 +239,7 @@ export async function removeBoardMember(boardId: number, userId: number) {
   const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
   if (!board) throw new Error("Board not found");
 
-  if (board.workspace.ownerId !== user.id) throw new Error("Unauthorized");
+  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Unauthorized");
 
   await db.boardMember.delete({ where: { boardId_userId: { boardId, userId } } });
   revalidatePath("/board");
@@ -287,11 +288,12 @@ export async function getBoardData(boardId: number) {
   if (!board) return null;
 
   const isOwner = board.workspace.ownerId === user.id;
+  const isAdmin = user.role === "ADMIN" || user.role === "CEO";
   const isWsMember = board.workspace.members.some((m: any) => m.userId === user.id);
   const isBoardMember = board.members.some((m: any) => m.userId === user.id);
 
-  // Workspace owner always has access
-  if (isOwner) return board;
+  // Workspace owner or admin always has access
+  if (isOwner || isAdmin) return board;
 
   // Board members always have access
   if (isBoardMember) return board;
@@ -343,7 +345,7 @@ export async function deleteBoard(boardId: number) {
 
   const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
   if (!board) throw new Error("Board not found");
-  if (board.workspace.ownerId !== user.id) throw new Error("Only the workspace owner can delete a board");
+  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the workspace owner can delete a board");
 
   await db.board.delete({ where: { id: boardId } });
   revalidatePath("/board");
@@ -355,7 +357,7 @@ export async function updateBoardVisibility(boardId: number, visibility: BoardVi
 
   const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
   if (!board) throw new Error("Board not found");
-  if (board.workspace.ownerId !== user.id) throw new Error("Only the workspace owner can change board visibility");
+  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the workspace owner can change board visibility");
 
   await db.board.update({ where: { id: boardId }, data: { visibility } });
   revalidatePath("/board");
@@ -390,7 +392,7 @@ export async function renameList(listId: number, title: string) {
 
   const isCreator = list.createdById === user.id;
   const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id;
+  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
   if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
 
   await db.boardList.update({ where: { id: listId }, data: { title } });
@@ -406,7 +408,7 @@ export async function deleteList(listId: number) {
 
   const isCreator = list.createdById === user.id;
   const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id;
+  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
   if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
 
   await db.boardList.delete({ where: { id: listId } });
@@ -422,7 +424,7 @@ export async function toggleListRestrict(listId: number) {
 
   const isCreator = list.createdById === user.id;
   const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id;
+  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
   if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
 
   await db.boardList.update({ where: { id: listId }, data: { isRestricted: !list.isRestricted } });

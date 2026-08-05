@@ -1007,6 +1007,7 @@ export default function BoardWorkbenchClient({
               <button onClick={() => setShowBoardSettings(false)} className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-400"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-4">
+              {(activeWorkspace?.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Board Visibility</label>
                 <div className="flex gap-2">
@@ -1035,6 +1036,7 @@ export default function BoardWorkbenchClient({
                   ))}
                 </div>
               </div>
+              )}
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Board Color</label>
                 <div className="grid grid-cols-5 gap-2">
@@ -1063,6 +1065,7 @@ export default function BoardWorkbenchClient({
                 </div>
               </div>
               <div className="h-px bg-zinc-100 dark:bg-white/10" />
+              {(activeWorkspace?.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
               <button
                 onClick={async () => {
                   const dbId = Number(activeBoard.id.replace("b-", ""));
@@ -1070,6 +1073,9 @@ export default function BoardWorkbenchClient({
                   try {
                     await deleteBoard(dbId);
                     setWorkspaces(prev => prev.map(ws => ({ ...ws, boards: ws.boards.filter((b: any) => b.id !== dbId) })));
+                    setListsByBoard(prev => { const next = { ...prev }; delete next[activeBoardId!]; return next; });
+                    const remaining = workspaces.flatMap(ws => ws.boards.filter((b: any) => b.id !== dbId));
+                    setActiveBoardId(remaining.length > 0 ? `b-${remaining[0].id}` : null);
                     setShowBoardSettings(false);
                   } catch (err: any) { alert(err.message || "Failed to delete board"); }
                 }}
@@ -1077,6 +1083,7 @@ export default function BoardWorkbenchClient({
               >
                 Delete Board
               </button>
+              )}
             </div>
           </div>
         </div>
@@ -2248,18 +2255,18 @@ export default function BoardWorkbenchClient({
                           <span className={cn("inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200", activeCard.card.includeInLogs ? "translate-x-[18px]" : "translate-x-[2px]")} />
                         </button>
                       </div>
+                      {canEdit && (
                       <button 
                         onClick={async () => {
+                          if (!activeCardRange || !activeBoardId) return;
                           if (confirm("Are you sure you want to delete this card?")) {
-                            if (activeCardRange) {
-                              const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
-                              try { await deleteCard(cardDbId); } catch (e: any) { alert(e.message || "Failed to delete card"); return; }
-                            }
+                            const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
+                            try { await deleteCard(cardDbId); } catch (e: any) { alert(e.message || "Failed to delete card"); return; }
                             setListsByBoard(prev => ({
                               ...prev,
-                              [activeBoardId!]: prev[activeBoardId!].map(l => l.id === activeCardRange?.listId ? {
+                              [activeBoardId]: prev[activeBoardId].map(l => l.id === activeCardRange.listId ? {
                                 ...l,
-                                cards: l.cards.filter(c => c.id !== activeCardRange?.cardId)
+                                cards: l.cards.filter(c => c.id !== activeCardRange.cardId)
                               } : l)
                             }));
                             setActiveCardRange(null);
@@ -2270,6 +2277,7 @@ export default function BoardWorkbenchClient({
                         <Trash2 className="h-3.5 w-3.5" />
                         Delete
                        </button>
+                      )}
                   </div>
                 </section>
               </div>
