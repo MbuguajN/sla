@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 export type PulseItem = {
   id: string;
-  type: "activity" | "leave" | "board_activity" | "it_ticket" | "comment";
+  type: "activity" | "leave" | "board_activity" | "it_ticket" | "comment" | "suggestion";
   category: "task" | "team" | "system";
   message: string;
   userName: string;
@@ -160,6 +160,29 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
         userName: pc.user.name,
         userId: pc.user.id,
         timestamp: pc.createdAt.toISOString(),
+      });
+    }
+  } catch {}
+
+  try {
+    const suggestions = await db.suggestion.findMany({
+      where: {
+        createdAt: { gte: sevenDaysAgo },
+      },
+      include: { user: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    for (const sg of suggestions) {
+      const userName = sg.isAnonymous ? "Anonymous" : (sg.user?.name || "Someone");
+      items.push({
+        id: `suggestion-${sg.id}`,
+        type: "suggestion",
+        category: "team",
+        message: sg.title,
+        userName,
+        userId: sg.isAnonymous ? null : sg.user?.id || null,
+        timestamp: sg.createdAt.toISOString(),
       });
     }
   } catch {}

@@ -27,6 +27,7 @@ function getDotColor(item: PulseItem): string {
     case "board_activity": return "bg-amber-500";
     case "it_ticket": return "bg-purple-500";
     case "comment": return "bg-gray-400";
+    case "suggestion": return "bg-blue-500";
     default: return "bg-gray-400";
   }
 }
