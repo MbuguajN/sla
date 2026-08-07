@@ -171,7 +171,7 @@ export async function getCompanyPulse(): Promise<PulseItem[]> {
       },
       include: { user: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 5,
     });
     for (const sg of suggestions) {
       const userName = sg.isAnonymous ? "Anonymous" : (sg.user?.name || "Someone");
