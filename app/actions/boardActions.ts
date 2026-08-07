@@ -595,6 +595,25 @@ export async function setCardAssignee(cardId: number, userId: number | null) {
 
   await db.boardCard.update({ where: { id: cardId }, data: { assignedToUserId: userId } });
 
+  // Sync assignee to linked Task
+  try {
+    const cardWithBoard = await db.boardCard.findUnique({
+      where: { id: cardId },
+      include: { list: { include: { board: { select: { projectId: true } } } } },
+    });
+    if (cardWithBoard?.taskId) {
+      await db.task.update({
+        where: { id: cardWithBoard.taskId },
+        data: { assignedUserId: userId },
+      });
+      if (cardWithBoard.list.board.projectId) {
+        revalidatePath(`/projects/${cardWithBoard.list.board.projectId}`);
+      }
+    }
+  } catch (e) {
+    console.error("Failed to sync assignee to task:", e);
+  }
+
   // Notify + email when assigning to someone else
   if (userId && userId !== user.id) {
     const assignee = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
@@ -871,6 +890,14 @@ export async function deleteChecklistItem(itemId: number) {
   if (!user) throw new Error("Unauthorized");
 
   await db.boardChecklistItem.delete({ where: { id: itemId } });
+  revalidatePath("/board");
+}
+
+export async function updateChecklistItem(itemId: number, title: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  await db.boardChecklistItem.update({ where: { id: itemId }, data: { title: title.trim() } });
   revalidatePath("/board");
 }
 

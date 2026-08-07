@@ -5,7 +5,7 @@ import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquar
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist } from "@/app/actions/boardActions";
+import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
 
@@ -262,6 +262,8 @@ export default function BoardWorkbenchClient({
   const [isChecklistAddOpen, setIsChecklistAddOpen] = useState(false);
   const [isDateSelectionOpen, setIsDateSelectionOpen] = useState(false);
   const [isAddingFile, setIsAddingFile] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemTitle, setEditingItemTitle] = useState("");
   const [newFileName, setNewFileName] = useState("");
   const [newFileUrl, setNewFileUrl] = useState("");
   const [isDescriptionEditing, setIsDescriptionEditing] = useState(false);
@@ -2000,7 +2002,38 @@ export default function BoardWorkbenchClient({
                                 {it.done && <Check className="h-4 w-4 stroke-[3]" />}
                               </button>
                               <div className="flex-1">
-                                <p className={cn("text-sm font-semibold mt-0.5", it.done ? "text-zinc-400 line-through" : "text-zinc-700 dark:text-zinc-300")}>{it.title}</p>
+                                {editingItemId === it.id ? (
+                                  <input
+                                    autoFocus
+                                    value={editingItemTitle}
+                                    onChange={e => setEditingItemTitle(e.target.value)}
+                                    onBlur={async () => {
+                                      const trimmed = editingItemTitle.trim();
+                                      if (trimmed && trimmed !== it.title) {
+                                        try { await updateChecklistItem(Number(it.id.replace("ci-", "")), trimmed); } catch (e: any) { alert(e.message || "Failed to rename"); }
+                                        updateActiveCard(c => ({
+                                          ...c,
+                                          checklists: c.checklists.map(cList => cList.id === cl.id ? {
+                                            ...cList,
+                                            items: cList.items.map(item => item.id === it.id ? { ...item, title: trimmed } : item)
+                                          } : cList)
+                                        }));
+                                      }
+                                      setEditingItemId(null);
+                                    }}
+                                    onKeyDown={e => {
+                                      if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                      if (e.key === "Escape") setEditingItemId(null);
+                                    }}
+                                    className="w-full text-sm font-semibold bg-white dark:bg-zinc-700 border border-blue-400 rounded px-1.5 py-0.5 outline-none text-zinc-700 dark:text-zinc-300"
+                                  />
+                                ) : (
+                                  <p
+                                    onDoubleClick={() => { setEditingItemId(it.id); setEditingItemTitle(it.title); }}
+                                    className={cn("text-sm font-semibold mt-0.5 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-600 rounded px-1 -mx-1", it.done ? "text-zinc-400 line-through" : "text-zinc-700 dark:text-zinc-300")}
+                                    title="Double-click to rename"
+                                  >{it.title}</p>
+                                )}
                                 {it.assignedMemberId && (
                                    <div className="flex items-center gap-1.5 mt-1.5">
                                       <div className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-black text-white", getUserColor(Number(it.assignedMemberId.replace('u-', '')), members.find(m => m.id === it.assignedMemberId)?.name || ''))}>
@@ -2010,8 +2043,9 @@ export default function BoardWorkbenchClient({
                                    </div>
                                 )}
                               </div>
-                              <button 
-                                onClick={() => {
+                               <button 
+                                onClick={async () => {
+                                  try { await deleteChecklistItem(Number(it.id.replace("ci-", ""))); } catch (e: any) { alert(e.message || "Failed to delete item"); return; }
                                   updateActiveCard(c => ({
                                     ...c,
                                     checklists: c.checklists.map(cList => cList.id === cl.id ? {
