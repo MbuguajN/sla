@@ -781,10 +781,23 @@ model EquipmentItem {
   updatedAt    DateTime          @updatedAt
   category     EquipmentCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   ownerUser    User?             @relation("EquipmentOwner", fields: [ownerUserId], references: [id])
+  specs        EquipmentSpec[]
 
   @@index([categoryId])
   @@index([ownerUserId])
   @@index([status])
+}
+
+model EquipmentSpec {
+  id              Int           @id @default(autoincrement())
+  equipmentItemId Int
+  specType        String
+  specValue       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  equipmentItem   EquipmentItem @relation(fields: [equipmentItemId], references: [id], onDelete: Cascade)
+
+  @@index([equipmentItemId])
 }
 
 model EquipmentViewer {

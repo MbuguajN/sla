@@ -142,3 +142,23 @@ export async function removeEquipmentViewer(userId: number) {
 
   revalidatePath("/equipment");
 }
+
+export async function setEquipmentSpecs(itemId: number, specs: { specType: string; specValue: string }[]) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+  requireAdminRole(user.role);
+
+  await db.equipmentSpec.deleteMany({ where: { equipmentItemId: itemId } });
+
+  if (specs.length > 0) {
+    await db.equipmentSpec.createMany({
+      data: specs.map((s) => ({
+        equipmentItemId: itemId,
+        specType: s.specType.trim(),
+        specValue: s.specValue.trim(),
+      })),
+    });
+  }
+
+  revalidatePath("/equipment");
+}

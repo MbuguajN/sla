@@ -91,6 +91,7 @@ export default async function EquipmentPage() {
       include: {
         category: true,
         ownerUser: { select: { id: true, name: true, email: true } },
+        specs: true,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -129,6 +130,7 @@ export default async function EquipmentPage() {
           status: i.status,
           serialNumber: i.serialNumber || "",
           createdAt: i.createdAt.toISOString(),
+          specs: i.specs.map((s) => ({ specType: s.specType, specValue: s.specValue })),
         }))}
         viewers={viewers.map((v) => ({
           userId: v.userId,

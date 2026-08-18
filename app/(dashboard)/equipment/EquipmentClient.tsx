@@ -8,8 +8,9 @@ import {
   deleteEquipmentItem,
   removeEquipmentViewer,
   updateEquipmentItem,
+  setEquipmentSpecs,
 } from "@/app/actions/equipmentActions";
-import { Search, Plus, Edit2, Laptop, UserPlus, UserMinus, Trash2, Download } from "lucide-react";
+import { Search, Plus, Edit2, Laptop, UserPlus, UserMinus, Trash2, Download, Eye, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type EquipmentStatus = "IN_USE" | "NOT_IN_USE" | "MAINTENANCE" | "RETIRED";
@@ -31,6 +32,7 @@ type EquipmentItem = {
   status: EquipmentStatus;
   serialNumber: string;
   createdAt: string;
+  specs: { specType: string; specValue: string }[];
 };
 
 type Viewer = {
@@ -97,6 +99,8 @@ export default function EquipmentClient({
     status: "IN_USE" as EquipmentStatus,
     serialNumber: "",
   });
+  const [itemSpecs, setItemSpecs] = useState<{ specType: string; specValue: string }[]>([]);
+  const [viewingItem, setViewingItem] = useState<EquipmentItem | null>(null);
 
   const viewerIds = useMemo(() => new Set(allowedViewers.map((v) => v.userId)), [allowedViewers]);
 
@@ -126,6 +130,7 @@ export default function EquipmentClient({
       status: "IN_USE",
       serialNumber: "",
     });
+    setItemSpecs([]);
     setShowItemModal(true);
   };
 
@@ -189,6 +194,7 @@ export default function EquipmentClient({
       status: item.status,
       serialNumber: item.serialNumber || "",
     });
+    setItemSpecs(item.specs.map((s) => ({ ...s })));
     setShowItemModal(true);
   };
 
@@ -261,6 +267,7 @@ export default function EquipmentClient({
 
       if (editingItem) {
         await updateEquipmentItem(editingItem.id, payload);
+        await setEquipmentSpecs(editingItem.id, itemSpecs);
 
         const owner = payload.ownerUserId ? users.find((u) => u.id === payload.ownerUserId) : null;
         const category = allCategories.find((c) => c.id === payload.categoryId);
@@ -279,12 +286,14 @@ export default function EquipmentClient({
                   ownerUserId: payload.ownerUserId,
                   ownerUserName: owner?.name || null,
                   ownerLabel: payload.ownerLabel || "5DM",
+                  specs: itemSpecs,
                 }
               : it
           )
         );
       } else {
         const created = await createEquipmentItem(payload);
+        await setEquipmentSpecs(created.id, itemSpecs);
         const owner = payload.ownerUserId ? users.find((u) => u.id === payload.ownerUserId) : null;
         const category = allCategories.find((c) => c.id === payload.categoryId);
         setAllItems((prev) => [
@@ -300,6 +309,7 @@ export default function EquipmentClient({
             ownerUserName: owner?.name || null,
             ownerLabel: payload.ownerLabel || "5DM",
             createdAt: new Date().toISOString(),
+            specs: itemSpecs,
           },
           ...prev,
         ]);
@@ -481,7 +491,7 @@ export default function EquipmentClient({
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-white/10">
               {filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                <tr key={item.id} onClick={() => setViewingItem(item)} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer">
                   <td className="px-5 py-3 text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">{item.categoryName}</td>
                   <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{item.make}</td>
                   <td className="px-5 py-3 text-sm font-bold text-gray-700 dark:text-gray-300">{item.model}</td>
@@ -609,6 +619,51 @@ export default function EquipmentClient({
                   className="w-full h-11 px-3 border-2 border-gray-900 dark:border-white/10 rounded-xl bg-white dark:bg-black text-sm"
                 />
               </div>
+
+              <div className="md:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">Specs</label>
+                  <button
+                    type="button"
+                    onClick={() => setItemSpecs((prev) => [...prev, { specType: "", specValue: "" }])}
+                    className="h-7 px-3 rounded-lg bg-gray-100 dark:bg-white/10 text-[10px] font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 inline-flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Spec
+                  </button>
+                </div>
+                {itemSpecs.length === 0 && (
+                  <p className="text-xs text-gray-400 italic">No specs added yet.</p>
+                )}
+                {itemSpecs.map((spec, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input
+                      value={spec.specType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItemSpecs((prev) => prev.map((s, i) => i === idx ? { ...s, specType: val } : s));
+                      }}
+                      placeholder="Spec type (e.g. Processor)"
+                      className="flex-1 h-9 px-3 border-2 border-gray-900 dark:border-white/10 rounded-xl bg-white dark:bg-black text-sm"
+                    />
+                    <input
+                      value={spec.specValue}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItemSpecs((prev) => prev.map((s, i) => i === idx ? { ...s, specValue: val } : s));
+                      }}
+                      placeholder="Spec value (e.g. i5 8th Gen)"
+                      className="flex-1 h-9 px-3 border-2 border-gray-900 dark:border-white/10 rounded-xl bg-white dark:bg-black text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setItemSpecs((prev) => prev.filter((_, i) => i !== idx))}
+                      className="h-9 w-9 flex items-center justify-center rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-all shrink-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="p-5 border-t border-gray-100 dark:border-white/10 flex justify-end gap-2">
@@ -695,6 +750,90 @@ export default function EquipmentClient({
               >
                 <Download className="h-4 w-4" />
                 Download CSV
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setViewingItem(null)} />
+          <div className="relative w-full max-w-lg bg-white dark:bg-[#0a0a0a] rounded-3xl border-2 border-gray-900 dark:border-white/10 overflow-hidden">
+            <div className="p-5 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
+              <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase italic">Equipment Details</h2>
+              <button onClick={() => setViewingItem(null)} className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Type</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{viewingItem.categoryName}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Status</p>
+                  <span className={cn("px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest", viewingItem.status === "IN_USE" && "bg-emerald-50 text-emerald-700", viewingItem.status === "NOT_IN_USE" && "bg-zinc-100 text-zinc-700", viewingItem.status === "MAINTENANCE" && "bg-amber-50 text-amber-700", viewingItem.status === "RETIRED" && "bg-rose-50 text-rose-700")}>
+                    {statusLabel(viewingItem.status)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Make</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{viewingItem.make}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Model</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{viewingItem.model}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Owner</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{viewingItem.ownerUserName || viewingItem.ownerLabel || "5DM"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Serial Number</p>
+                  <p className="text-sm font-mono text-gray-900 dark:text-white">{viewingItem.serialNumber || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Date Added</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{new Date(viewingItem.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                </div>
+              </div>
+
+              {viewingItem.specs.length > 0 && (
+                <div className="pt-3 border-t border-gray-100 dark:border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2">Specifications</p>
+                  <div className="space-y-1.5">
+                    {viewingItem.specs.map((spec, idx) => (
+                      <div key={idx} className="flex items-center gap-3 py-1.5 px-3 rounded-lg bg-gray-50 dark:bg-white/5">
+                        <span className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase min-w-[100px]">{spec.specType}</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{spec.specValue}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {viewingItem.specs.length === 0 && (
+                <div className="pt-3 border-t border-gray-100 dark:border-white/10">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Specifications</p>
+                  <p className="text-xs text-gray-400 italic">No specs recorded.</p>
+                </div>
+              )}
+            </div>
+            <div className="p-5 border-t border-gray-100 dark:border-white/10 flex justify-end gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => { setViewingItem(null); openEditItem(viewingItem); }}
+                  className="h-10 px-4 rounded-xl bg-gray-900 text-white text-xs font-black uppercase tracking-widest inline-flex items-center gap-1.5"
+                >
+                  <Edit2 className="h-3.5 w-3.5" /> Edit
+                </button>
+              )}
+              <button
+                onClick={() => setViewingItem(null)}
+                className="h-10 px-4 rounded-xl border border-gray-300 dark:border-white/20 text-xs font-black uppercase tracking-widest"
+              >
+                Close
               </button>
             </div>
           </div>
