@@ -1,9 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createDailyLogs } from "@/app/actions/dailyLogActions";
-import { Calendar01Icon, Add01Icon, Search01Icon, Tick01Icon, Cancel01Icon } from "@hugeicons/react";
+import {
+  Calendar01Icon,
+  Add01Icon,
+  Search01Icon,
+  Tick01Icon,
+  Cancel01Icon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  ArrowDown01Icon,
+} from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -44,6 +53,34 @@ type DailyLogRow = {
 };
 
 type MemberOption = { id: number; name: string };
+
+const PAGE_SIZES = [10, 25, 50, 100];
+
+/**
+ * Notes are authored as markdown. Rendering that inside a table cell makes row
+ * heights wildly uneven, so the collapsed row shows a flattened one-line preview
+ * and the full markdown is rendered only when the row is expanded.
+ */
+function toPreviewText(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, " code ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/[*_`>~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatLoggedAt(value: string) {
+  const date = new Date(value);
+  return {
+    day: date.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }),
+    time: date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+  };
+}
 
 const SCOPE_LABELS: Record<LogScope, string> = {
   personal: "Personal",
@@ -126,6 +163,39 @@ export default function DailyLogClient({
   }, [initialLogs, search]);
 
   const showMemberColumn = scope !== "personal";
+
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
+  const totalRows = filteredLogs.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  // Clamp rather than trust `page`: the row count changes under it whenever a
+  // filter or the 5s refresh lands.
+  const currentPage = Math.min(page, totalPages);
+  const firstRow = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const lastRow = Math.min(currentPage * pageSize, totalRows);
+
+  const pageRows = useMemo(
+    () => filteredLogs.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filteredLogs, currentPage, pageSize]
+  );
+
+  useEffect(() => {
+    setPage(1);
+    setExpandedKey(null);
+  }, [search, scope, range, selectedMemberId, pageSize]);
+
+  // A short sliding window of page numbers, so 40 pages does not wrap the bar.
+  const pageWindow = useMemo(() => {
+    const span = 5;
+    let start = Math.max(1, currentPage - Math.floor(span / 2));
+    const end = Math.min(totalPages, start + span - 1);
+    start = Math.max(1, end - span + 1);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [currentPage, totalPages]);
+
+  const columnCount = showMemberColumn ? 7 : 6;
 
   const resetWizard = () => {
     setStep(1);
@@ -296,85 +366,228 @@ export default function DailyLogClient({
           </div>
         </div>
 
-        <div className="max-h-[620px] overflow-auto">
-          <table className="w-full min-w-[900px]">
-            <thead className="sticky top-0 z-10 bg-white dark:bg-black/80">
+        <div className="overflow-x-auto">
+          {/* Fixed layout + colgroup: without it the columns re-measure on every
+              page change and the whole table visibly jumps. */}
+          <table className="w-full min-w-[1000px] table-fixed">
+            <colgroup>
+              <col className="w-[132px]" />
+              {showMemberColumn ? <col className="w-[150px]" /> : null}
+              <col className="w-[180px]" />
+              <col className="w-[210px]" />
+              <col />
+              <col className="w-[104px]" />
+              <col className="w-[116px]" />
+            </colgroup>
+            <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-[#141414]">
               <tr className="border-b border-gray-100 text-left text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 dark:border-white/10">
-                <th className="px-5 py-3">Logged At</th>
-                {showMemberColumn ? <th className="px-5 py-3">Member</th> : null}
-                <th className="px-5 py-3">Project</th>
-                <th className="px-5 py-3">Task</th>
-                <th className="px-5 py-3">What Was Done</th>
-                <th className="px-5 py-3">Source</th>
-                <th className="px-5 py-3">Result</th>
+                <th className="px-5 py-3 font-black">Logged At</th>
+                {showMemberColumn ? <th className="px-5 py-3 font-black">Member</th> : null}
+                <th className="px-5 py-3 font-black">Project</th>
+                <th className="px-5 py-3 font-black">Task</th>
+                <th className="px-5 py-3 font-black">What Was Done</th>
+                <th className="px-5 py-3 text-center font-black">Source</th>
+                <th className="px-5 py-3 text-center font-black">Result</th>
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length === 0 ? (
+              {pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={showMemberColumn ? 7 : 6} className="px-5 py-12 text-center text-sm font-semibold text-gray-500 dark:text-zinc-400">
-                    No daily logs found for this filter.
+                  <td colSpan={columnCount} className="px-5 py-16 text-center">
+                    <p className="text-sm font-bold text-gray-600 dark:text-zinc-300">No daily logs found</p>
+                    <p className="mt-1 text-xs font-semibold text-gray-400 dark:text-zinc-500">
+                      {search.trim()
+                        ? "Try a different search term."
+                        : range === "all"
+                        ? "Completed cards, checklist items and tasks will appear here."
+                        : "Nothing logged in this period. Try a wider range."}
+                    </p>
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((row) => (
-                  <tr key={row.key} className="border-b border-gray-100 align-top dark:border-white/10">
-                    <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
-                      {new Date(row.loggedAt).toLocaleString()}
-                    </td>
-                    {showMemberColumn ? (
-                      <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">
-                        {row.userName}
-                        {row.userId === currentUserId ? (
-                          <span className="ml-1 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">(me)</span>
+                pageRows.map((row) => {
+                  const stamp = formatLoggedAt(row.loggedAt);
+                  const preview = toPreviewText(row.note);
+                  const isExpanded = expandedKey === row.key;
+                  const isLong = preview.length > 90;
+
+                  return (
+                    <tr
+                      key={row.key}
+                      onClick={() => setExpandedKey(isExpanded ? null : row.key)}
+                      className={cn(
+                        "cursor-pointer border-b border-gray-100 align-top transition-colors dark:border-white/10",
+                        isExpanded
+                          ? "bg-gray-50 dark:bg-white/5"
+                          : "hover:bg-gray-50/70 dark:hover:bg-white/[0.03]"
+                      )}
+                    >
+                      <td className="whitespace-nowrap px-5 py-3.5">
+                        <p className="text-[13px] font-bold text-gray-900 dark:text-white">{stamp.day}</p>
+                        <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-gray-400 dark:text-zinc-500">
+                          {stamp.time}
+                        </p>
+                      </td>
+
+                      {showMemberColumn ? (
+                        <td className="px-5 py-3.5">
+                          <p className="truncate text-[13px] font-bold text-gray-900 dark:text-white" title={row.userName}>
+                            {row.userName}
+                          </p>
+                          {row.userId === currentUserId ? (
+                            <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">You</p>
+                          ) : null}
+                        </td>
+                      ) : null}
+
+                      <td className="px-5 py-3.5">
+                        <p
+                          className={cn("text-[13px] font-semibold text-gray-700 dark:text-zinc-300", !isExpanded && "truncate")}
+                          title={row.projectTitle || "General"}
+                        >
+                          {row.projectTitle || "General"}
+                        </p>
+                      </td>
+
+                      <td className="px-5 py-3.5">
+                        <p
+                          className={cn("text-[13px] font-semibold text-gray-900 dark:text-white", !isExpanded && "truncate")}
+                          title={row.taskTitle || undefined}
+                        >
+                          {row.taskTitle || "—"}
+                        </p>
+                        {row.parentTaskTitle && row.parentTaskTitle !== row.taskTitle ? (
+                          <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 dark:text-zinc-500">
+                            {row.parentTaskTitle}
+                          </p>
                         ) : null}
                       </td>
-                    ) : null}
-                    <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{row.projectTitle || "General"}</td>
-                    <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
-                      <p>{row.taskTitle || "—"}</p>
-                      {row.parentTaskTitle && row.parentTaskTitle !== row.taskTitle ? (
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
-                          Parent: {row.parentTaskTitle}
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="px-5 py-3 text-sm text-gray-600 dark:text-zinc-300">
-                      <MarkdownRenderer content={row.note} />
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                          row.source === "board"
-                            ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-                            : row.source === "subtask"
-                            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
-                            : row.source === "task"
-                            ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                            : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-400"
+
+                      <td className="px-5 py-3.5">
+                        {isExpanded ? (
+                          <div className="text-[13px] text-gray-600 dark:text-zinc-300">
+                            <MarkdownRenderer content={row.note} />
+                          </div>
+                        ) : (
+                          <p className="truncate text-[13px] text-gray-600 dark:text-zinc-300" title={preview}>
+                            {preview || "—"}
+                          </p>
                         )}
-                      >
-                        {LOG_SOURCE_LABELS[row.source]}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
-                          row.markCompleted
-                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                            : "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
-                        )}
-                      >
-                        {row.markCompleted ? "Completed" : "Progress"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                        {isLong ? (
+                          <span className="mt-1 inline-block text-[10px] font-black uppercase tracking-[0.14em] text-[#c91f41]">
+                            {isExpanded ? "Show less" : "Show more"}
+                          </span>
+                        ) : null}
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]",
+                            row.source === "board"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                              : row.source === "subtask"
+                              ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
+                              : row.source === "task"
+                              ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                              : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-400"
+                          )}
+                        >
+                          {LOG_SOURCE_LABELS[row.source]}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-3.5 text-center">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em]",
+                            row.markCompleted
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                              : "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
+                          )}
+                        >
+                          {row.markCompleted ? "Completed" : "Progress"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-3.5 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400 dark:text-zinc-500">
+              Rows
+              <span className="relative">
+                <select
+                  value={pageSize}
+                  onChange={(event) => setPageSize(Number(event.target.value))}
+                  className="h-8 appearance-none rounded-lg border border-gray-200 bg-white pl-2.5 pr-7 text-[11px] font-bold text-gray-900 outline-none focus:ring-2 focus:ring-[#c91f41]/20 dark:border-white/10 dark:bg-white/5 dark:text-white"
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                <ArrowDown01Icon className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 text-gray-400" />
+              </span>
+            </label>
+
+            <p className="text-[11px] font-bold text-gray-500 dark:text-zinc-400">
+              {totalRows === 0 ? "No entries" : `${firstRow}–${lastRow} of ${totalRows}`}
+            </p>
+          </div>
+
+          {totalPages > 1 ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(currentPage - 1)}
+                disabled={currentPage <= 1}
+                aria-label="Previous page"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-zinc-400 dark:hover:text-white"
+              >
+                <ArrowLeft01Icon className="h-4 w-4" />
+              </button>
+
+              {pageWindow[0] > 1 ? (
+                <span className="px-1 text-[11px] font-bold text-gray-300 dark:text-zinc-600">...</span>
+              ) : null}
+
+              {pageWindow.map((number) => (
+                <button
+                  key={number}
+                  onClick={() => setPage(number)}
+                  aria-current={number === currentPage ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-[11px] font-black tabular-nums transition",
+                    number === currentPage
+                      ? "bg-[#c91f41] text-white"
+                      : "border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-900 dark:border-white/10 dark:text-zinc-400 dark:hover:text-white"
+                  )}
+                >
+                  {number}
+                </button>
+              ))}
+
+              {pageWindow[pageWindow.length - 1] < totalPages ? (
+                <span className="px-1 text-[11px] font-bold text-gray-300 dark:text-zinc-600">...</span>
+              ) : null}
+
+              <button
+                onClick={() => setPage(currentPage + 1)}
+                disabled={currentPage >= totalPages}
+                aria-label="Next page"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition hover:border-gray-300 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-zinc-400 dark:hover:text-white"
+              >
+                <ArrowRight01Icon className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -45,3 +45,6 @@ prisma/seed.active-testdata.js
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Pre-migration export of removed UserPrivilege grants
+user-privileges-backup.json
