@@ -216,7 +216,6 @@ export default function ReportsClient({
   const [activeReportTab, setActiveReportTab] = useState<"company" | "employee">(initialReportTab);
   const [customStart, setCustomStart] = useState(meta.startDate);
   const [customEnd, setCustomEnd] = useState(meta.endDate);
-  const [trendMode, setTrendMode] = useState<"monthly" | "quarterly">("monthly");
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(null);
   const [docsEmployee, setDocsEmployee] = useState<{ name: string; docs: { id: number; name: string; url: string }[] } | null>(null);
@@ -346,7 +345,7 @@ export default function ReportsClient({
 
   const filteredEmployees = useMemo(() => {
     const needle = employeeSearch.trim().toLowerCase();
-    if (!needle) return [];
+    if (!needle) return employeeReports;
     return employeeReports.filter((employee) => {
       return (
         employee.name.toLowerCase().includes(needle) ||
@@ -359,7 +358,8 @@ export default function ReportsClient({
   const selectedEmployee = useMemo(() => {
     if (!filteredEmployees.length) return null;
     const explicit = filteredEmployees.find((employee) => employee.id === selectedEmployeeId);
-    return explicit ?? filteredEmployees[0];
+    if (explicit) return explicit;
+    return filteredEmployees.length === 1 ? filteredEmployees[0] : null;
   }, [filteredEmployees, selectedEmployeeId]);
 
   const selectedEmployeeTasks = useMemo(() => {
@@ -455,18 +455,24 @@ export default function ReportsClient({
   }, [openedLogId, filteredSelectedEmployeeLogs]);
 
   return (
-    <div className="space-y-8 bg-[#f5f7fc] dark:bg-black -mx-8 -mt-8 px-8 py-8 lg:px-10 min-h-screen">
-      <section className="space-y-2 max-w-3xl">
-        <h1 className="text-[31px] leading-none font-black tracking-tight text-[#495f85] dark:text-white">Reports</h1>
-      </section>
+    <div className="mx-auto max-w-[1400px] space-y-6 px-4 pb-8">
+      <div className="flex flex-col gap-4 border-b border-gray-100 pb-5 dark:border-white/10 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#c91f41]">Performance</p>
+          <h1 className="mt-1 text-3xl md:text-4xl font-black tracking-tight text-gray-900 dark:text-white">Reports</h1>
+          <p className="mt-2 text-sm font-semibold text-gray-500 dark:text-zinc-400">
+            SLA compliance, department throughput and per-employee activity.
+          </p>
+        </div>
+      </div>
 
-      <section className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
+      <div className="inline-flex flex-wrap items-center gap-1 rounded-2xl border border-gray-100 bg-white p-1.5 dark:border-white/10 dark:bg-[#111111]">
         <button
           onClick={() => switchReportTab("company")}
           className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
             activeReportTab === "company"
-              ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
-              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+              ? "bg-[#c91f41] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#c91f41] dark:hover:text-rose-300"
           }`}
         >
           Company Report
@@ -475,18 +481,17 @@ export default function ReportsClient({
           onClick={() => switchReportTab("employee")}
           className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
             activeReportTab === "employee"
-              ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
-              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+              ? "bg-[#c91f41] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+              : "text-[#6d7893] dark:text-zinc-400 hover:text-[#c91f41] dark:hover:text-rose-300"
           }`}
         >
           Employee Report
         </button>
-      </section>
+      </div>
 
       {activeReportTab === "company" ? (
         <>
-          <section className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-white/80 dark:bg-[#111111] border border-white dark:border-white/10 p-1.5 shadow-sm w-fit">
+          <div className="inline-flex flex-wrap items-center gap-1 rounded-2xl border border-gray-100 bg-white p-1.5 dark:border-white/10 dark:bg-[#111111]">
               {([
                 { key: "today", label: "Today" },
                 { key: "7d", label: "7D" },
@@ -499,8 +504,8 @@ export default function ReportsClient({
                   onClick={() => setRange(item.key)}
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.18em] transition-all ${
                     meta.activeRange === item.key
-                      ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
-                      : "text-[#6d7893] dark:text-zinc-400 hover:text-[#cf2145] dark:hover:text-rose-300"
+                      ? "bg-[#c91f41] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+                      : "text-[#6d7893] dark:text-zinc-400 hover:text-[#c91f41] dark:hover:text-rose-300"
                   }`}
                 >
                   {item.label}
@@ -509,11 +514,10 @@ export default function ReportsClient({
                   )}
                 </button>
               ))}
-            </div>
-          </section>
+          </div>
 
           {meta.activeRange === "custom" ? (
-            <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-white bg-white/80 dark:bg-[#111111] dark:border-white/10 p-4 shadow-sm">
+            <section className="flex flex-wrap items-center gap-3 rounded-3xl border border-gray-100 bg-white dark:bg-[#111111] dark:border-white/10 p-4 shadow-sm">
               <input
                 type="date"
                 value={customStart}
@@ -528,7 +532,7 @@ export default function ReportsClient({
               />
               <button
                 onClick={applyCustomRange}
-                className="h-11 rounded-2xl bg-[#cf2145] px-5 text-[10px] font-black uppercase tracking-[0.18em] text-white"
+                className="h-11 rounded-2xl bg-[#c91f41] px-5 text-[10px] font-black uppercase tracking-[0.18em] text-white"
               >
                 Apply Range
               </button>
@@ -577,7 +581,7 @@ export default function ReportsClient({
           </section>
 
           <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-        <div className="xl:col-span-4 rounded-[28px] bg-[#eef2fb] dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
+            <div className="xl:col-span-4 rounded-[28px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Clients Health</h2>
           </div>
@@ -601,7 +605,7 @@ export default function ReportsClient({
                 <Link key={slice.label} href={slice.href} className="flex items-center justify-between gap-4 text-sm group">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
-                    <span className="font-semibold text-[#49566f] dark:text-zinc-300 group-hover:text-[#cf2145]">{slice.label}</span>
+                    <span className="font-semibold text-[#49566f] dark:text-zinc-300 group-hover:text-[#c91f41]">{slice.label}</span>
                   </div>
                   <span className="font-black text-[#182845] dark:text-white">{slice.value}</span>
                 </Link>
@@ -610,25 +614,11 @@ export default function ReportsClient({
           </div>
         </div>
 
-        <div className="xl:col-span-8 rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm overflow-hidden">
+        <div className="xl:col-span-8 rounded-[28px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7 shadow-sm overflow-hidden">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">SLA Trend</h2>
-              <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">Performance trajectory over the last 6 months</p>
-            </div>
-            <div className="inline-flex rounded-full bg-[#f6e9ed] dark:bg-[#2a1a20] p-1 text-[10px] font-black uppercase tracking-[0.12em]">
-              <button
-                onClick={() => setTrendMode("monthly")}
-                className={`rounded-full px-3 py-1 transition-all ${trendMode === "monthly" ? "bg-[#cf2145] text-white" : "text-[#8d6f7c] dark:text-zinc-400"}`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setTrendMode("quarterly")}
-                className={`rounded-full px-3 py-1 transition-all ${trendMode === "quarterly" ? "bg-[#cf2145] text-white" : "text-[#8d6f7c] dark:text-zinc-400"}`}
-              >
-                Quarterly
-              </button>
+              <p className="mt-2 text-xs text-[#8d97aa] dark:text-zinc-500">On-time completion rate across {meta.rangeLabel}</p>
             </div>
           </div>
 
@@ -646,10 +636,10 @@ export default function ReportsClient({
                 />
               ))}
               <path d={lineArea} fill="rgba(207,33,69,0.08)" />
-              <polyline fill="none" stroke="#cf2145" strokeWidth="3.5" points={linePolyline} />
+              <polyline fill="none" stroke="#c91f41" strokeWidth="3.5" points={linePolyline} />
               {linePoints.map((point, index) => (
                 <Link key={trend[index].label} href={trend[index].href}>
-                  <circle cx={point.x} cy={point.y} r="5" fill="#cf2145" className="cursor-pointer" />
+                  <circle cx={point.x} cy={point.y} r="5" fill="#c91f41" className="cursor-pointer" />
                 </Link>
               ))}
               {trend.map((point, index) => {
@@ -665,7 +655,7 @@ export default function ReportsClient({
         </div>
           </section>
 
-          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm">
+          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">Department Performance</h2>
@@ -673,9 +663,9 @@ export default function ReportsClient({
           </div>
           <button
             onClick={exportCsv}
-            className="flex items-center gap-1.5 rounded-2xl border border-[#ead9df] dark:border-[#5e2c39] bg-white dark:bg-[#181114] px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#cf2145] dark:text-rose-300"
+            className="flex items-center gap-1.5 rounded-2xl border border-[#c91f41]/25 bg-white dark:bg-[#c91f41]/10 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-[#c91f41] dark:text-rose-300"
           >
-            <Upload01Icon className="h-3.5 w-3.5 text-[#cf2145] dark:text-rose-300" />
+            <Upload01Icon className="h-3.5 w-3.5 text-[#c91f41] dark:text-rose-300" />
             Export Dataset
           </button>
         </div>
@@ -712,11 +702,11 @@ export default function ReportsClient({
                   </td>
                   <td className="px-3 py-5 text-sm font-bold text-[#22314b] dark:text-zinc-200">{row.completed}</td>
                   <td className="px-3 py-5 text-sm font-bold text-[#22314b] dark:text-zinc-200">{row.met}</td>
-                  <td className="px-3 py-5 text-sm font-bold text-[#cf2145] dark:text-rose-300">{row.missed}</td>
+                  <td className="px-3 py-5 text-sm font-bold text-[#c91f41] dark:text-rose-300">{row.missed}</td>
                   <td className="px-3 py-5 w-[220px]">
                     <div className="space-y-1.5">
                       <div className="h-1.5 rounded-full bg-[#f0f2f7] dark:bg-zinc-800">
-                        <div className="h-full rounded-full bg-[#cf2145]" style={{ width: `${Math.min(100, Math.max(0, row.onTimeRate))}%` }} />
+                        <div className="h-full rounded-full bg-[#c91f41]" style={{ width: `${Math.min(100, Math.max(0, row.onTimeRate))}%` }} />
                       </div>
                       <p className="text-[11px] font-black text-[#22314b] dark:text-zinc-300">{row.onTimeRate}%</p>
                     </div>
@@ -731,7 +721,7 @@ export default function ReportsClient({
         </>
       ) : (
         <>
-          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-5 shadow-sm space-y-4">
+          <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-5 shadow-sm space-y-4">
             <div className="relative">
               <Search01Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#8d97aa]" />
               <input
@@ -744,18 +734,32 @@ export default function ReportsClient({
             </div>
           </section>
 
+          {filteredEmployees.length > 0 ? (
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-gray-400 dark:text-zinc-500">
+              {filteredEmployees.length} {filteredEmployees.length === 1 ? "employee" : "employees"}
+            </p>
+          ) : null}
+
           <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredEmployees.map((employee) => {
               const isActive = selectedEmployee?.id === employee.id;
               return (
-                <button
+                <div
                   key={employee.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedEmployeeId(employee.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedEmployeeId(employee.id);
+                    }
+                  }}
                   className={cn(
-                    "text-left rounded-[24px] border bg-white p-5 shadow-sm transition-all dark:bg-[#111111]",
+                    "cursor-pointer text-left rounded-[24px] border bg-white p-5 shadow-sm transition-all hover:border-[#c91f41]/40 dark:bg-[#111111]",
                     isActive
-                      ? "border-[#cf2145] ring-1 ring-[#cf2145]/20 dark:border-[#cf2145]"
-                      : "border-white dark:border-white/10"
+                      ? "border-[#c91f41] ring-1 ring-[#c91f41]/20 dark:border-[#c91f41]"
+                      : "border-gray-100 dark:border-white/10"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -763,8 +767,8 @@ export default function ReportsClient({
                       <p className="text-lg font-black text-[#182845] dark:text-white">{employee.name}</p>
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#8f98aa]">{employee.role}</p>
                     </div>
-                    <div className="h-10 w-10 rounded-xl bg-[#fde8ed] dark:bg-[#2b1a20] flex items-center justify-center">
-                      <UserIcon className="h-5 w-5 text-[#cf2145]" />
+                    <div className="h-10 w-10 rounded-xl bg-[#c91f41]/10 dark:bg-[#c91f41]/15 flex items-center justify-center">
+                      <UserIcon className="h-5 w-5 text-[#c91f41]" />
                     </div>
                   </div>
                   <div className="mt-4 space-y-2 text-sm text-[#51607a] dark:text-zinc-300">
@@ -774,19 +778,19 @@ export default function ReportsClient({
                   {employee.personalDocuments.length > 0 && (
                     <button
                       onClick={(e) => { e.stopPropagation(); setDocsEmployee({ name: employee.name, docs: employee.personalDocuments }); }}
-                      className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#fef5f7] dark:bg-[#2b1a20] border border-[#f3d8de] dark:border-[#cf2145]/20 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#cf2145] hover:bg-[#fde8ed] dark:hover:bg-[#3b1f2a] transition-colors cursor-pointer"
+                      className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#c91f41]/5 dark:bg-[#c91f41]/10 border border-[#c91f41]/20 px-3 py-2 text-xs font-black uppercase tracking-[0.12em] text-[#c91f41] hover:bg-[#c91f41]/15 transition-colors cursor-pointer"
                     >
                       <FileText className="h-3.5 w-3.5" />
                       Documents
                     </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </section>
 
           {selectedEmployee ? (
-            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-7 shadow-sm space-y-6">
+            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 p-7 shadow-sm space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-[21px] leading-none font-black tracking-tight text-[#11203a] dark:text-white">
@@ -809,7 +813,7 @@ export default function ReportsClient({
                       className={cn(
                         "px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.14em] transition-all",
                         employeeDateRange === item.key
-                          ? "bg-[#cf2145] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
+                          ? "bg-[#c91f41] text-white shadow-[0_8px_18px_rgba(207,33,69,0.22)]"
                           : "bg-[#f5f7fc] text-[#6d7893] dark:bg-[#181818] dark:text-zinc-400"
                       )}
                     >
@@ -841,48 +845,48 @@ export default function ReportsClient({
                   label="Tasks Completed"
                   value={String(totalCompletedTaskCount)}
                   chip={employeeRangeBounds?.label ?? "All Time"}
-                  chipTone="bg-sky-50 text-sky-700"
+                  chipTone="bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
                   icon={TaskDone01Icon}
-                  iconBgClass="bg-sky-100"
-                  iconClass="text-sky-700"
+                  iconBgClass="bg-sky-100 dark:bg-sky-900/35"
+                  iconClass="text-sky-700 dark:text-sky-300"
                 />
                 <MetricCard
                   label="Daily Logs"
                   value={String(filteredSelectedEmployeeLogs.length)}
                   chip={employeeRangeBounds?.label ?? "All Time"}
-                  chipTone="bg-blue-50 text-blue-700"
+                  chipTone="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                   icon={NoteIcon}
-                  iconBgClass="bg-blue-100"
-                  iconClass="text-blue-700"
+                  iconBgClass="bg-blue-100 dark:bg-blue-900/35"
+                  iconClass="text-blue-700 dark:text-blue-300"
                 />
                 <MetricCard
                   label="Completed in Logs"
                   value={String(selectedEmployeeCompletedLogCount)}
                   chip={employeeRangeBounds?.label ?? "Marked Complete"}
-                  chipTone="bg-emerald-50 text-emerald-700"
+                  chipTone="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                   icon={CheckmarkCircle01Icon}
-                  iconBgClass="bg-emerald-100"
-                  iconClass="text-emerald-700"
+                  iconBgClass="bg-emerald-100 dark:bg-emerald-900/35"
+                  iconClass="text-emerald-700 dark:text-emerald-300"
                 />
                 {!selectedEmployeeAnnualLeave ? (
                   <MetricCard
                     label="Annual Leave Left"
                     value="N/A"
                     chip="No Policy"
-                    chipTone="bg-slate-50 text-slate-500"
+                    chipTone="bg-slate-100 text-slate-500 dark:bg-white/10 dark:text-zinc-400"
                     icon={Calendar01Icon}
-                    iconBgClass="bg-slate-100"
-                    iconClass="text-slate-500"
+                    iconBgClass="bg-slate-100 dark:bg-white/10"
+                    iconClass="text-slate-500 dark:text-zinc-400"
                   />
                 ) : (
                   <MetricCard
                     label="Annual Leave Left"
                     value={formatDecimal(selectedEmployeeAnnualLeave.remainingDays)}
                     chip="Current Year"
-                    chipTone="bg-emerald-50 text-emerald-700"
+                    chipTone="bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
                     icon={Calendar01Icon}
-                    iconBgClass="bg-emerald-100"
-                    iconClass="text-emerald-700"
+                    iconBgClass="bg-emerald-100 dark:bg-emerald-900/35"
+                    iconClass="text-emerald-700 dark:text-emerald-300"
                   />
                 )}
               </div>
@@ -934,7 +938,7 @@ export default function ReportsClient({
                               {row.source === "DAILY_LOG" && row.logId ? (
                                 <button
                                   onClick={() => setOpenedLogId(row.logId)}
-                                  className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] bg-[#fde8ed] text-[#cf2145] dark:bg-[#2b1a20] dark:text-rose-300"
+                                  className="rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] bg-[#fde8ed] text-[#c91f41] dark:bg-[#2b1a20] dark:text-rose-300"
                                 >
                                   View Log
                                 </button>
@@ -954,7 +958,7 @@ export default function ReportsClient({
 
           {selectedEmployee && openedLog ? (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-              <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-white dark:bg-[#111111] p-6 shadow-2xl">
+              <div className="w-full max-w-2xl rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#111111]">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-2xl font-black tracking-tight text-[#11203a] dark:text-white">Daily Log Details</h3>
@@ -1008,13 +1012,18 @@ export default function ReportsClient({
             </div>
           ) : null}
 
-          {employeeSearch.trim().length === 0 ? (
-            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-8 text-sm font-semibold text-[#7f8aa1]">
-              Type in the search box to show employee cards.
+          {filteredEmployees.length === 0 ? (
+            <section className="rounded-[28px] border border-gray-100 bg-white p-10 text-center dark:border-white/10 dark:bg-[#111111]">
+              <p className="text-sm font-bold text-gray-600 dark:text-zinc-300">No employees match your search</p>
+              <p className="mt-1 text-xs font-semibold text-gray-400 dark:text-zinc-500">
+                Try a different name, email or department.
+              </p>
             </section>
-          ) : filteredEmployees.length === 0 ? (
-            <section className="rounded-[28px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 p-8 text-sm font-semibold text-[#7f8aa1]">
-              No employees match your search.
+          ) : !selectedEmployee ? (
+            <section className="rounded-[28px] border border-dashed border-gray-200 bg-white/60 p-8 text-center dark:border-white/10 dark:bg-[#111111]/60">
+              <p className="text-xs font-semibold text-gray-400 dark:text-zinc-500">
+                Select an employee above to see their tasks, logs and leave balance.
+              </p>
             </section>
           ) : null}
         </>
@@ -1025,7 +1034,7 @@ export default function ReportsClient({
           <div className="bg-white dark:bg-[#111111] rounded-3xl border border-gray-200 dark:border-white/10 shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#cf2145]">Documents</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#c91f41]">Documents</p>
                 <h3 className="text-lg font-black text-gray-900 dark:text-white">{docsEmployee.name}</h3>
               </div>
               <button onClick={() => setDocsEmployee(null)} className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
@@ -1039,13 +1048,13 @@ export default function ReportsClient({
                   href={doc.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-[#fef5f7] dark:hover:bg-[#2b1a20] hover:border-[#f3d8de] dark:hover:border-[#cf2145]/20 transition-all"
+                  className="group flex items-center gap-3 px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 hover:bg-[#fef5f7] dark:hover:bg-[#2b1a20] hover:border-[#f3d8de] dark:hover:border-[#c91f41]/20 transition-all"
                 >
-                  <div className="h-9 w-9 rounded-xl bg-[#fef5f7] dark:bg-[#2b1a20] flex items-center justify-center shrink-0 group-hover:bg-[#fde8ed] dark:group-hover:bg-[#3b1f2a] transition-colors">
-                    <FileText className="h-4 w-4 text-[#cf2145]" />
+                  <div className="h-9 w-9 rounded-xl bg-[#c91f41]/5 dark:bg-[#c91f41]/10 flex items-center justify-center shrink-0 group-hover:bg-[#fde8ed] dark:group-hover:bg-[#3b1f2a] transition-colors">
+                    <FileText className="h-4 w-4 text-[#c91f41]" />
                   </div>
-                  <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#cf2145] dark:group-hover:text-[#cf2145] transition-colors truncate">{doc.name}</span>
-                  <ExternalLink className="h-3.5 w-3.5 ml-auto text-gray-300 dark:text-zinc-600 group-hover:text-[#cf2145] dark:group-hover:text-[#cf2145] transition-colors shrink-0" />
+                  <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#c91f41] dark:group-hover:text-[#c91f41] transition-colors truncate">{doc.name}</span>
+                  <ExternalLink className="h-3.5 w-3.5 ml-auto text-gray-300 dark:text-zinc-600 group-hover:text-[#c91f41] dark:group-hover:text-[#c91f41] transition-colors shrink-0" />
                 </a>
               ))}
             </div>
@@ -1078,7 +1087,7 @@ function MetricCard({
   iconClass: string;
 }) {
   return (
-    <div className={`rounded-[26px] bg-white dark:bg-[#111111] border border-white dark:border-white/10 px-6 py-5 shadow-sm ${accent ? "ring-1 ring-inset ring-[#cf2145]/15" : ""}`}>
+    <div className={`rounded-[26px] bg-white dark:bg-[#111111] border border-gray-100 dark:border-white/10 px-6 py-5 shadow-sm ${accent ? "ring-1 ring-inset ring-[#c91f41]/15" : ""}`}>
       <div className="flex items-start justify-between gap-4">
         <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center", iconBgClass)}>
           <Icon className={cn("h-5 w-5", iconClass)} />
@@ -1087,7 +1096,7 @@ function MetricCard({
           {chip}
         </span>
       </div>
-      <p className="mt-6 text-[10px] font-black uppercase tracking-[0.18em] text-[#98a2b5]">{label}</p>
+      <p className="mt-6 text-[10px] font-black uppercase tracking-[0.18em] text-[#98a2b5] dark:text-zinc-500">{label}</p>
       <div className="mt-2 flex items-end gap-1.5">
         <p className="text-[42px] leading-none font-black text-[#11203a] dark:text-white">{value}</p>
         {unit ? <span className="pb-1 text-sm font-bold text-[#7e879b] dark:text-zinc-400">{unit}</span> : null}
