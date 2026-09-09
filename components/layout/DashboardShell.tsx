@@ -11,7 +11,7 @@ interface DashboardShellProps {
     email: string;
     role: string;
     departmentSlug: string | null;
-    privileges?: string[];
+    canViewEmployees?: boolean;
   };
   platformLinks: any[];
   isAdmin: boolean;
@@ -40,7 +40,7 @@ export default function DashboardShell({
           name: user.name,
           role: user.role,
           departmentSlug: user.departmentSlug,
-          privileges: user.privileges,
+          canViewEmployees: user.canViewEmployees,
         }}
         canAccessEquipment={canAccessEquipment}
         logos={logos}

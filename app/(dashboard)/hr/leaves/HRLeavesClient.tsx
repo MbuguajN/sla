@@ -60,7 +60,7 @@ export default function HRLeavesClient({ initialLeaves, viewOnly = false }: Prop
     CANCELLED: "secondary",
   };
 
-  const statuses = ["ALL", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"];
+  const statuses = ["ALL", "PENDING", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"];
 
   return (
     <div className="space-y-6">

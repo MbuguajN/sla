@@ -1,7 +1,16 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { getCurrentUser, canManageLeaves, canViewHRData, canViewSuggestions, DEPARTMENTS } from "@/lib/permissions";
+import {
+  getCurrentUser,
+  canManageLeaves,
+  canApproveLeaveAsManager,
+  canFinalizeLeaveAsHR,
+  canViewHRData,
+  canViewSuggestions,
+  DEPARTMENTS,
+} from "@/lib/permissions";
+import { getLeaveEntitlements, getLeaveUsage } from "@/lib/leaveBalance";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "./notificationActions";
 import { sendNotificationEmail } from "@/lib/email";
@@ -21,6 +30,48 @@ type LeaveHandoverInput = {
   taskId: number;
   delegateUserId: number;
 };
+
+function formatLeaveDate(value: Date) {
+  return new Date(value).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+type LeaveReviewer = { id: number; email: string | null };
+
+/**
+ * Fans a leave event out to reviewers as both an in-app notification and an
+ * email, in one pass.
+ *
+ * Previously each site queried the reviewer list twice (once for ids, once for
+ * emails) and tagged every non-final notification as REQUISITION_UPDATED, so
+ * "New Leave Request" arrived in the bell typed as a requisition update.
+ * Delivery stays best-effort: a dead mail server must not fail the action.
+ */
+async function notifyLeaveReviewers(
+  reviewers: LeaveReviewer[],
+  type: string,
+  title: string,
+  message: string,
+  emailBody: string,
+  emailSubject: string,
+  link: string
+) {
+  if (reviewers.length === 0) return;
+
+  await Promise.allSettled([
+    ...reviewers.map((reviewer) =>
+      createNotification(reviewer.id, type, title, message, link)
+    ),
+    ...reviewers
+      .filter((reviewer) => Boolean(reviewer.email))
+      .map((reviewer) =>
+        sendNotificationEmail(reviewer.email as string, emailSubject, title, emailBody, link)
+      ),
+  ]);
+}
 
 async function validateLeaveHandoversForUser(
   user: { id: number; departmentId: number | null },
@@ -172,6 +223,12 @@ export async function createLeave(data: {
     throw new Error("Half-day requests are only supported for annual and sickness leave");
   }
 
+  // A half-day is half of ONE day. Without this, a Mon-Fri half-day request was
+  // accepted and billed as 2.5 days, with a start/end time window that made no sense.
+  if (data.duration !== "FULL_DAY" && start.getTime() !== end.getTime()) {
+    throw new Error("Half-day leave must start and end on the same day");
+  }
+
   // Fetch public holidays for exclusion
   const publicHolidays = await db.publicHoliday.findMany();
   const holidaySet = new Set(
@@ -200,41 +257,19 @@ export async function createLeave(data: {
 
   const userRole = user.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
 
-  const policyCandidates = await db.leavePolicy.findMany({
-    where: {
-      role: userRole,
-      leaveType: data.type,
-    },
-    orderBy: { leaveType: "asc" },
-  });
+  const [entitlements, usage] = await Promise.all([
+    getLeaveEntitlements(user.id, userRole),
+    getLeaveUsage(user.id),
+  ]);
 
-  const leavePolicy = policyCandidates.find((policy) => policy.leaveType === data.type) ?? null;
+  const daysAllowed = entitlements.get(data.type);
 
-  if (!leavePolicy) {
+  if (daysAllowed === undefined) {
     throw new Error("This leave type is not configured for your role");
   }
 
-  const currentYear = new Date().getFullYear();
-  const yearStart = new Date(currentYear, 0, 1);
-  const yearEnd = new Date(currentYear, 11, 31, 23, 59, 59, 999);
-
-  const consumed = await db.leave.aggregate({
-    where: {
-      userId: user.id,
-      type: data.type,
-      status: { in: ["PENDING", "APPROVED"] },
-      startDate: {
-        gte: yearStart,
-        lte: yearEnd,
-      },
-    },
-    _sum: {
-      totalDays: true,
-    },
-  });
-
-  const usedDays = consumed._sum.totalDays ?? 0;
-  const remainingDays = Math.max(leavePolicy.daysAllowed - usedDays, 0);
+  const usedDays = usage.get(data.type) ?? 0;
+  const remainingDays = Math.max(daysAllowed - usedDays, 0);
 
   if (totalDays > remainingDays) {
     throw new Error(
@@ -242,143 +277,109 @@ export async function createLeave(data: {
     );
   }
 
+  const { startHour, endHour } = getLeaveTimeWindow(data.duration);
+  const leaveStartUtc = toUtcDateTime(start, startHour);
+  const leaveEndUtc = toUtcDateTime(end, endHour);
+
+  // Overlap was only ever checked for delegates, never for the requester, so a
+  // user could stack several requests covering the same dates.
+  const overlapping = await db.leave.findFirst({
+    where: {
+      userId: user.id,
+      status: { in: ["PENDING", "PENDING_HR", "APPROVED"] },
+      startDate: { lte: leaveEndUtc },
+      endDate: { gte: leaveStartUtc },
+    },
+    select: { id: true },
+  });
+
+  if (overlapping) {
+    throw new Error("You already have a leave request covering these dates");
+  }
+
   const validatedHandovers = await validateLeaveHandoversForUser(
     user,
     data.handovers,
-    toUtcDateTime(start, getLeaveTimeWindow(data.duration).startHour),
-    toUtcDateTime(end, getLeaveTimeWindow(data.duration).endHour)
+    leaveStartUtc,
+    leaveEndUtc
   );
 
-  const { startHour, endHour } = getLeaveTimeWindow(data.duration);
-  const leaveStartDateTime = toUtcDateTime(start, startHour);
-  const leaveEndDateTime = toUtcDateTime(end, endHour);
-
-  // General Staff leaves go directly to HR, skipping manager approval
+  // General Staff skip the manager stage. So does anyone whose department has no
+  // active manager to review them — otherwise the request sat in PENDING forever:
+  // /hr/leaves filters PENDING out, and /manager/leaves needs a manager to exist.
   const isGeneralStaff = user.departmentSlug === DEPARTMENTS.GENERAL;
-  const initialStatus = isGeneralStaff ? "PENDING_HR" : "PENDING";
 
-  const leave = await db.leave.create({
-    data: {
-      userId: user.id,
-      type: data.type,
-      duration: data.duration,
-      startDate: leaveStartDateTime,
-      endDate: leaveEndDateTime,
-      totalDays,
-      reason: data.reason,
-      status: initialStatus,
-    },
+  const departmentManagers = user.departmentId
+    ? await db.user.findMany({
+        where: {
+          role: "MANAGER",
+          isActive: true,
+          departmentId: user.departmentId,
+          id: { not: user.id },
+        },
+        select: { id: true, email: true },
+      })
+    : [];
+
+  const goesToManager = !isGeneralStaff && departmentManagers.length > 0;
+  const initialStatus = goesToManager ? "PENDING" : "PENDING_HR";
+
+  // Leave and its handovers are created together: a failure part-way through
+  // previously left a leave with silently missing handovers.
+  const leave = await db.$transaction(async (tx) => {
+    const created = await tx.leave.create({
+      data: {
+        userId: user.id,
+        type: data.type,
+        duration: data.duration,
+        startDate: leaveStartUtc,
+        endDate: leaveEndUtc,
+        totalDays,
+        reason: data.reason,
+        status: initialStatus,
+      },
+    });
+
+    if (validatedHandovers.length > 0) {
+      await tx.leaveTaskHandover.createMany({
+        data: validatedHandovers.map((handover) => ({
+          leaveId: created.id,
+          taskId: handover.taskId,
+          originalAssigneeId: user.id,
+          delegateUserId: handover.delegateUserId,
+          status: "PENDING_TRANSFER" as const,
+        })),
+      });
+    }
+
+    return created;
   });
 
-  if (isGeneralStaff) {
-    // General Staff: notify HR directly
-    const hrReviewers = await db.user.findMany({
-      where: {
-        OR: [
-          { role: "ADMIN" },
-          { role: "CEO" },
-          { department: { slug: DEPARTMENTS.HR } },
-        ],
-        isActive: true,
-      },
-      select: { id: true },
-    });
-    await Promise.allSettled(
-      hrReviewers.map((reviewer) =>
-        createNotification(
-          reviewer.id,
-          "REQUISITION_UPDATED",
-          "New Leave Request",
-          `${user.name} submitted a ${data.type.toLowerCase()} leave request for your review`,
-          "/hr/leaves"
-        )
-      )
-    );
-    // Email HR reviewers
-    const leaveStart = new Date(leaveStartDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const leaveEnd = new Date(leaveEndDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const hrEmails = await db.user.findMany({
-      where: {
-        OR: [
-          { role: "ADMIN" },
-          { role: "CEO" },
-          { department: { slug: DEPARTMENTS.HR } },
-        ],
-        isActive: true,
-      },
-      select: { email: true },
-    });
-    await Promise.allSettled(
-      hrEmails.map((r) =>
-        sendNotificationEmail(
-          r.email,
-          `Leave Application — ${user.name}`,
-          "New Leave Request",
-          `${user.name} has applied for leave from ${leaveStart} to ${leaveEnd}. Please action this on Operations Control.`,
-          "/hr/leaves"
-        )
-      )
-    );
-  } else {
-    // Other roles: notify only managers in the same department
-    const managers = await db.user.findMany({
-      where: {
-        role: "MANAGER",
-        isActive: true,
-        departmentId: user.departmentId,
-      },
-      select: { id: true },
-    });
-    await Promise.allSettled(
-      managers
-        .filter((reviewer) => reviewer.id !== user.id)
-        .map((reviewer) =>
-          createNotification(
-            reviewer.id,
-            "REQUISITION_UPDATED",
-            "New Leave Request",
-            `${user.name} submitted a ${data.type.toLowerCase()} leave request for your review`,
-            "/manager/leaves"
-          )
-        )
-    );
-    // Email managers
-    const leaveStart2 = new Date(leaveStartDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const leaveEnd2 = new Date(leaveEndDateTime).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    const managerEmails = await db.user.findMany({
-      where: {
-        role: "MANAGER",
-        isActive: true,
-        departmentId: user.departmentId,
-      },
-      select: { email: true },
-    });
-    await Promise.allSettled(
-      managerEmails
-        .filter((r) => r.email !== user.email)
-        .map((r) =>
-          sendNotificationEmail(
-            r.email,
-            `Leave Application — ${user.name}`,
-            "New Leave Request",
-            `${user.name} has applied for leave from ${leaveStart2} to ${leaveEnd2}. Please action this on Operations Control.`,
-            "/manager/leaves"
-          )
-        )
-    );
-  }
+  const leaveStartLabel = formatLeaveDate(leaveStartUtc);
+  const leaveEndLabel = formatLeaveDate(leaveEndUtc);
 
-  if (validatedHandovers.length > 0) {
-    await db.leaveTaskHandover.createMany({
-      data: validatedHandovers.map((handover) => ({
-        leaveId: leave.id,
-        taskId: handover.taskId,
-        originalAssigneeId: user.id,
-        delegateUserId: handover.delegateUserId,
-        status: "PENDING_TRANSFER",
-      })),
-    });
-  }
+  const reviewers = goesToManager
+    ? departmentManagers
+    : await db.user.findMany({
+        where: {
+          OR: [{ role: "ADMIN" }, { role: "CEO" }, { department: { slug: DEPARTMENTS.HR } }],
+          isActive: true,
+          id: { not: user.id },
+        },
+        select: { id: true, email: true },
+      });
+
+  const reviewLink = goesToManager ? "/manager/leaves" : "/hr/leaves";
+
+  await notifyLeaveReviewers(
+    reviewers,
+    "LEAVE_SUBMITTED",
+    "New Leave Request",
+    `${user.name} submitted a ${getLeaveTypeLabel(data.type).toLowerCase()} request for your review`,
+    `${user.name} has applied for leave from ${leaveStartLabel} to ${leaveEndLabel}. Please action this on Operations Control.`,
+    `Leave Application — ${user.name}`,
+    reviewLink
+  );
 
   revalidatePath("/leave");
   revalidatePath("/hr/leaves");
@@ -394,132 +395,117 @@ export async function reviewLeave(
     const user = await getCurrentUser();
     if (!user || !canManageLeaves(user)) throw new Error("Unauthorized");
 
-    const leave = await db.leave.findUnique({ where: { id: leaveId } });
+    const leave = await db.leave.findUnique({
+      where: { id: leaveId },
+      include: { user: { select: { id: true, name: true, email: true, departmentId: true } } },
+    });
     if (!leave) throw new Error("Leave not found");
 
-    // Manager reviewing: only PENDING leaves go through manager first
-    const isManager = user.role === "MANAGER";
-    const isHrOrAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === DEPARTMENTS.HR;
+    const applicant = leave.user;
 
-    if (isManager && leave.status === "PENDING") {
+    // Which stage is this? A MANAGER may only act on their own department's
+    // PENDING requests; only HR/CEO/ADMIN may take the final decision. Previously
+    // canManageLeaves() alone gated both, so any manager could fall through into
+    // the HR branch and finalise any employee's leave company-wide — and could
+    // approve their own request, which appears on their own team list.
+    const isManagerStage = leave.status === "PENDING";
+
+    if (isManagerStage) {
+      if (
+        !canApproveLeaveAsManager(user, {
+          userId: applicant.id,
+          userDepartmentId: applicant.departmentId,
+        })
+      ) {
+        throw new Error("Only a manager of this employee's department can review this request");
+      }
+
+      const nextStatus = decision === "DENIED" ? "DENIED" : "PENDING_HR";
+
+      // Conditional update: two reviewers (or a double-click) could both pass the
+      // status check above and both fire notifications.
+      const applied = await db.leave.updateMany({
+        where: { id: leaveId, status: "PENDING" },
+        data: {
+          status: nextStatus,
+          managerReviewedBy: user.id,
+          managerReviewNote: reviewNote || null,
+          managerReviewedAt: new Date(),
+          ...(decision === "DENIED" ? { reviewedBy: user.id, reviewNote: reviewNote || null } : {}),
+        },
+      });
+
+      if (applied.count === 0) {
+        throw new Error("This request has already been reviewed");
+      }
+
       if (decision === "DENIED") {
-        const updated = await db.leave.update({
-          where: { id: leaveId },
-          data: {
-            status: "DENIED",
-            reviewedBy: user.id,
-            reviewNote: reviewNote || null,
-          },
-        });
-        try {
-          await createNotification(
-            leave.userId,
+        await Promise.allSettled([
+          createNotification(
+            applicant.id,
             "LEAVE_DENIED",
             "Leave Denied",
-            `Your leave request has been denied by your manager. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
+            `Your leave request has been denied by your manager.${reviewNote ? ` Reason: ${reviewNote}` : ""}`,
             "/leave"
-          );
-        } catch (e) {
-          console.error("Failed to create leave notification:", e);
-        }
-        // Email employee
-        try {
-          const deniedUser = await db.user.findUnique({ where: { id: leave.userId }, select: { email: true, name: true } });
-          if (deniedUser) {
-            await sendNotificationEmail(
-              deniedUser.email,
-              "Leave Denied",
-              "Leave Request Denied",
-              `Hi ${deniedUser.name}, your leave request has been denied by your manager. ${reviewNote ? `Reason: ${reviewNote}` : ""}`,
-              "/leave"
-            );
-          }
-        } catch (e) {
-          console.error("Failed to send leave denial email:", e);
-        }
-        revalidatePath("/leave");
-        revalidatePath("/hr/leaves");
-        revalidatePath("/manager/leaves");
-        return { ok: true, id: updated.id, status: updated.status };
-      }
-      // Manager approves → advance to PENDING_HR
-      const updated = await db.leave.update({
-        where: { id: leaveId },
-        data: {
-          status: "PENDING_HR",
-          reviewNote: reviewNote || null,
-        },
-      });
-      // Notify HR reviewers
-      const hrReviewers = await db.user.findMany({
-        where: {
-          OR: [
-            { role: "ADMIN" },
-            { role: "CEO" },
-            { department: { slug: DEPARTMENTS.HR } },
-          ],
-          isActive: true,
-        },
-        select: { id: true },
-      });
-      await Promise.allSettled(
-        hrReviewers.map((reviewer) =>
-          createNotification(
-            reviewer.id,
-            "REQUISITION_UPDATED",
-            "Leave Pending HR Approval",
-            `A leave request has been approved by the manager and is pending your approval`,
-            "/hr/leaves"
-          )
-        )
-      );
-      // Email HR reviewers
-      const leaveApplicant = await db.user.findUnique({ where: { id: leave.userId }, select: { name: true } });
-      const applicantName = leaveApplicant?.name || "An employee";
-      const hrEmails2 = await db.user.findMany({
-        where: {
-          OR: [
-            { role: "ADMIN" },
-            { role: "CEO" },
-            { department: { slug: DEPARTMENTS.HR } },
-          ],
-          isActive: true,
-        },
-        select: { email: true },
-      });
-      await Promise.allSettled(
-        hrEmails2.map((r) =>
-          sendNotificationEmail(
-            r.email,
-            `Leave Approved by Manager — ${applicantName}`,
-            "Leave Pending HR Approval",
-            `Leave applied by ${applicantName} has been approved by the manager. Please action this on Operations Control.`,
-            "/hr/leaves"
-          )
-        )
-      );
-      try {
-        await createNotification(
-          leave.userId,
-          "REQUISITION_UPDATED",
-          "Leave Forwarded to HR",
-          `Your leave request has been approved by your manager and is now pending HR approval`,
-          "/leave"
+          ),
+          applicant.email
+            ? sendNotificationEmail(
+                applicant.email,
+                "Leave Denied",
+                "Leave Request Denied",
+                `Hi ${applicant.name}, your leave request has been denied by your manager.${reviewNote ? ` Reason: ${reviewNote}` : ""}`,
+                "/leave"
+              )
+            : Promise.resolve(),
+        ]);
+      } else {
+        const hrReviewers = await db.user.findMany({
+          where: {
+            OR: [{ role: "ADMIN" }, { role: "CEO" }, { department: { slug: DEPARTMENTS.HR } }],
+            isActive: true,
+            id: { not: user.id },
+          },
+          select: { id: true, email: true },
+        });
+
+        await notifyLeaveReviewers(
+          hrReviewers,
+          "LEAVE_PENDING_HR",
+          "Leave Pending HR Approval",
+          `${applicant.name}'s leave was approved by their manager and is pending your approval`,
+          `Leave applied by ${applicant.name} has been approved by the manager. Please action this on Operations Control.`,
+          `Leave Approved by Manager — ${applicant.name}`,
+          "/hr/leaves"
         );
-      } catch (e) {
-        console.error("Failed to create leave notification:", e);
+
+        await Promise.allSettled([
+          createNotification(
+            applicant.id,
+            "LEAVE_PENDING_HR",
+            "Leave Forwarded to HR",
+            "Your leave request has been approved by your manager and is now pending HR approval",
+            "/leave"
+          ),
+        ]);
       }
+
       revalidatePath("/leave");
       revalidatePath("/hr/leaves");
       revalidatePath("/manager/leaves");
-      return { ok: true, id: updated.id, status: updated.status };
+      return { ok: true, id: leaveId, status: nextStatus };
     }
 
-    // HR/Admin reviewing: must be PENDING_HR only
-    if (leave.status !== "PENDING_HR") throw new Error("Leave is not pending HR review. Only leaves approved by a manager can be reviewed by HR.");
+    // ---- Final HR decision --------------------------------------------------
+    if (leave.status !== "PENDING_HR") {
+      throw new Error("Leave is not pending HR review. Only leaves approved by a manager can be reviewed by HR.");
+    }
 
-    const updated = await db.leave.update({
-      where: { id: leaveId },
+    if (!canFinalizeLeaveAsHR(user, { userId: applicant.id })) {
+      throw new Error("Only HR can take the final decision on a leave request");
+    }
+
+    const applied = await db.leave.updateMany({
+      where: { id: leaveId, status: "PENDING_HR" },
       data: {
         status: decision,
         reviewedBy: user.id,
@@ -527,27 +513,38 @@ export async function reviewLeave(
       },
     });
 
-    const notificationType = decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED";
-    const message = decision === "APPROVED"
-      ? `Your leave request has been approved by HR`
-      : `Your leave request has been denied by HR. ${reviewNote ? `Reason: ${reviewNote}` : ""}`;
+    if (applied.count === 0) {
+      throw new Error("This request has already been reviewed");
+    }
 
-    try {
-      await createNotification(
-        leave.userId,
-        notificationType,
+    const message =
+      decision === "APPROVED"
+        ? "Your leave request has been approved by HR"
+        : `Your leave request has been denied by HR.${reviewNote ? ` Reason: ${reviewNote}` : ""}`;
+
+    await Promise.allSettled([
+      createNotification(
+        applicant.id,
+        decision === "APPROVED" ? "LEAVE_APPROVED" : "LEAVE_DENIED",
         `Leave ${decision}`,
         message,
         "/leave"
-      );
-    } catch (e) {
-      console.error("Failed to create leave notification:", e);
-    }
+      ),
+      // The final decision previously sent no email at all, only an in-app bell.
+      applicant.email
+        ? sendNotificationEmail(
+            applicant.email,
+            `Leave ${decision === "APPROVED" ? "Approved" : "Denied"}`,
+            `Leave Request ${decision === "APPROVED" ? "Approved" : "Denied"}`,
+            `Hi ${applicant.name}, ${message.charAt(0).toLowerCase()}${message.slice(1)}`,
+            "/leave"
+          )
+        : Promise.resolve(),
+    ]);
 
     if (decision === "APPROVED") {
       try {
-  await (await import("./leaveHandoverActions")).processLeaveTaskHandovers();
-
+        await (await import("./leaveHandoverActions")).processLeaveTaskHandovers();
       } catch (e) {
         console.error("Failed to process leave task handovers:", e);
       }
@@ -556,7 +553,7 @@ export async function reviewLeave(
     revalidatePath("/leave");
     revalidatePath("/hr/leaves");
     revalidatePath("/manager/leaves");
-    return { ok: true, id: updated.id, status: updated.status };
+    return { ok: true, id: leaveId, status: decision };
   } catch (error) {
     console.error("reviewLeave error:", error);
     return { ok: false, error: error instanceof Error ? error.message : "Unknown error occurred" };
@@ -580,10 +577,7 @@ export async function updateLeaveHandovers(leaveId: number, handovers: LeaveHand
 
   if (!leave) throw new Error("Leave not found");
   if (leave.userId !== user.id) throw new Error("Unauthorized");
-  if (![
-    "PENDING",
-    "APPROVED",
-  ].includes(leave.status)) {
+  if (!["PENDING", "PENDING_HR", "APPROVED"].includes(leave.status)) {
     throw new Error("Handover can only be edited for pending or approved leave");
   }
 
@@ -632,65 +626,51 @@ export async function cancelLeave(leaveId: number) {
   if (leave.userId !== user.id) throw new Error("Unauthorized");
   if (leave.status !== "PENDING" && leave.status !== "PENDING_HR") throw new Error("Only pending leaves can be cancelled");
 
-  const updated = await db.leave.update({
-    where: { id: leaveId },
-    data: { status: "CANCELLED" },
+  const updated = await db.$transaction(async (tx) => {
+    const cancelled = await tx.leave.update({
+      where: { id: leaveId },
+      data: { status: "CANCELLED" },
+    });
+
+    // Otherwise these sit at PENDING_TRANSFER forever and are rescanned on every read.
+    await tx.leaveTaskHandover.updateMany({
+      where: { leaveId, status: "PENDING_TRANSFER" },
+      data: { status: "NOT_NEEDED" },
+    });
+
+    return cancelled;
   });
 
-  // Notify relevant parties about cancellation
-  const cancelMsg = `${user.name} has cancelled their ${leave.type.toLowerCase()} leave request`;
-  if (leave.status === "PENDING") {
-    // Was pending manager approval — notify managers
-    const managers = await db.user.findMany({
-      where: { role: "MANAGER", isActive: true, departmentId: user.departmentId },
-      select: { id: true, email: true },
-    });
-    await Promise.allSettled(
-      managers.map((m) =>
-        createNotification(m.id, "REQUISITION_UPDATED", "Leave Cancelled", cancelMsg, "/manager/leaves")
-      )
-    );
-    await Promise.allSettled(
-      managers.map((m) =>
-        sendNotificationEmail(
-          m.email,
-          `Leave Cancelled — ${user.name}`,
-          "Leave Request Cancelled",
-          `${cancelMsg}. Please action this on Operations Control.`,
-          "/manager/leaves"
-        )
-      )
-    );
-  } else if (leave.status === "PENDING_HR") {
-    // Was pending HR — notify HR
-    const hrReviewers = await db.user.findMany({
-      where: {
-        OR: [
-          { role: "ADMIN" },
-          { role: "CEO" },
-          { department: { slug: DEPARTMENTS.HR } },
-        ],
-        isActive: true,
-      },
-      select: { id: true, email: true },
-    });
-    await Promise.allSettled(
-      hrReviewers.map((r) =>
-        createNotification(r.id, "REQUISITION_UPDATED", "Leave Cancelled", cancelMsg, "/hr/leaves")
-      )
-    );
-    await Promise.allSettled(
-      hrReviewers.map((r) =>
-        sendNotificationEmail(
-          r.email,
-          `Leave Cancelled — ${user.name}`,
-          "Leave Request Cancelled",
-          `${cancelMsg}. Please action this on Operations Control.`,
-          "/hr/leaves"
-        )
-      )
-    );
-  }
+  // Notify whoever was holding the request, with a leave-specific type rather
+  // than REQUISITION_UPDATED.
+  const cancelMsg = `${user.name} has cancelled their ${getLeaveTypeLabel(leave.type).toLowerCase()} request`;
+
+  const reviewers =
+    leave.status === "PENDING"
+      ? await db.user.findMany({
+          where: { role: "MANAGER", isActive: true, departmentId: user.departmentId, id: { not: user.id } },
+          select: { id: true, email: true },
+        })
+      : await db.user.findMany({
+          where: {
+            OR: [{ role: "ADMIN" }, { role: "CEO" }, { department: { slug: DEPARTMENTS.HR } }],
+            isActive: true,
+            id: { not: user.id },
+          },
+          select: { id: true, email: true },
+        });
+
+  const cancelLink = leave.status === "PENDING" ? "/manager/leaves" : "/hr/leaves";
+
+  await notifyLeaveReviewers(
+    reviewers,
+    "LEAVE_CANCELLED",
+    "Leave Cancelled",
+    cancelMsg,
+    `${cancelMsg}. No further action is needed.`,
+    `Leave Cancelled — ${user.name}`,
+    cancelLink
+  );
 
   revalidatePath("/leave");
   revalidatePath("/hr/leaves");
@@ -840,7 +820,7 @@ export async function createSuggestion(data: {
       .map((reviewer) =>
         createNotification(
           reviewer.id,
-          "REQUISITION_UPDATED",
+          "SUGGESTION_SUBMITTED",
           "New Suggestion Submitted",
           `A new ${data.category.toLowerCase()} suggestion is awaiting review`,
           "/hr/suggestions"
@@ -871,7 +851,7 @@ export async function reviewSuggestion(
 
   await createNotification(
     suggestion.userId,
-    "REQUISITION_UPDATED",
+    "SUGGESTION_UPDATED",
     "Suggestion Status Updated",
     `Your suggestion is now marked as ${status.replaceAll("_", " ").toLowerCase()}`,
     "/suggestions"

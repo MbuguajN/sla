@@ -9,7 +9,7 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { sendInviteEmail } from "@/lib/email";
 import { validateEmailDomain } from "@/lib/validators";
-import { Privilege, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
 
@@ -52,6 +52,7 @@ export async function createUser(data: {
   password?: string;
   name: string;
   role: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
+  isGeneralManager?: boolean;
   departmentId?: number;
 }) {
   const user = await getCurrentUser();
@@ -85,6 +86,7 @@ export async function createUser(data: {
           password: hashedPassword,
           name: data.name,
           role: data.role,
+          isGeneralManager: data.isGeneralManager ?? false,
           departmentId: data.departmentId || null,
           passwordSetupRequired: true,
           firstLoginAt: null,
@@ -150,6 +152,7 @@ export async function updateUser(
     email?: string;
     name?: string;
     role?: "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
+    isGeneralManager?: boolean;
     departmentId?: number | null;
     isActive?: boolean;
     password?: string;
@@ -174,6 +177,7 @@ export async function updateUser(
   if (data.email) updateData.email = data.email;
   if (data.name) updateData.name = data.name;
   if (data.role) updateData.role = data.role;
+  if (data.isGeneralManager !== undefined) updateData.isGeneralManager = data.isGeneralManager;
   if (data.departmentId !== undefined) updateData.departmentId = data.departmentId;
   if (data.isActive !== undefined) updateData.isActive = data.isActive;
   if (data.password) {
@@ -237,73 +241,6 @@ export async function deleteUser(userId: number, handoverUserId?: number) {
   });
 
   revalidatePath("/admin/users");
-}
-
-export async function getUserPrivileges(userId: number) {
-  const user = await getCurrentUser();
-  if (!user || !canManageUsers(user)) {
-    throw new Error("Unauthorized");
-  }
-
-  const privileges = await db.userPrivilege.findMany({
-    where: { userId },
-    select: { privilege: true },
-  });
-
-  return privileges.map((entry) => entry.privilege);
-}
-
-export async function grantUserPrivilege(userId: number, privilege: Privilege) {
-  const user = await getCurrentUser();
-  if (!user || !canManageUsers(user)) {
-    throw new Error("Unauthorized");
-  }
-
-  if (userId === user.id) {
-    throw new Error("You cannot modify your own privilege grants");
-  }
-
-  await db.userPrivilege.upsert({
-    where: {
-      userId_privilege: {
-        userId,
-        privilege,
-      },
-    },
-    update: {
-      grantedById: user.id,
-      grantedAt: new Date(),
-    },
-    create: {
-      userId,
-      privilege,
-      grantedById: user.id,
-    },
-  });
-
-  revalidatePath("/admin/users");
-  return { ok: true };
-}
-
-export async function revokeUserPrivilege(userId: number, privilege: Privilege) {
-  const user = await getCurrentUser();
-  if (!user || !canManageUsers(user)) {
-    throw new Error("Unauthorized");
-  }
-
-  if (userId === user.id) {
-    throw new Error("You cannot modify your own privilege grants");
-  }
-
-  await db.userPrivilege.deleteMany({
-    where: {
-      userId,
-      privilege,
-    },
-  });
-
-  revalidatePath("/admin/users");
-  return { ok: true };
 }
 
 // ============== DEPARTMENT MANAGEMENT ==============

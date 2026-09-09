@@ -22,8 +22,6 @@ export default function NotificationDropdown() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
-  const lastUnreadCountRef = useRef(0);
-  const hasLoadedOnceRef = useRef(false);
 
   const syncPermissionState = () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -51,37 +49,6 @@ export default function NotificationDropdown() {
     }
   };
 
-  const maybeShowBrowserNotification = (
-    latestNotification: Notification | undefined,
-    previousUnreadCount: number,
-    currentUnreadCount: number
-  ) => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      return;
-    }
-
-    if (document.visibilityState === "visible") {
-      return;
-    }
-
-    if (notificationPermission !== "granted") {
-      return;
-    }
-
-    if (currentUnreadCount <= previousUnreadCount || !latestNotification) {
-      return;
-    }
-
-    try {
-      new Notification(latestNotification.title, {
-        body: latestNotification.message,
-        tag: `sla-notification-${latestNotification.id}`,
-      });
-    } catch (error) {
-      console.error("Failed to show browser notification:", error);
-    }
-  };
-
   useEffect(() => {
     syncPermissionState();
     loadNotifications();
@@ -98,19 +65,11 @@ export default function NotificationDropdown() {
 
   const loadNotifications = async () => {
     try {
-      const previousUnreadCount = lastUnreadCountRef.current;
       const [unread, count] = await Promise.all([
         getUnreadNotifications(),
         getUnreadCount(),
       ]);
 
-      if (hasLoadedOnceRef.current) {
-        maybeShowBrowserNotification(unread[0], previousUnreadCount, count);
-      } else {
-        hasLoadedOnceRef.current = true;
-      }
-
-      lastUnreadCountRef.current = count;
       setNotifications(unread);
       setUnreadCount(count);
     } catch (error) {

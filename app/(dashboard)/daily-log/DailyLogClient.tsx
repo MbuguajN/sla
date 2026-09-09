@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { createDailyLogs } from "@/app/actions/dailyLogActions";
 import { Calendar01Icon, Add01Icon, Search01Icon, Tick01Icon, Cancel01Icon } from "@hugeicons/react";
 import { cn } from "@/lib/utils";
 import RichTextEditor from "@/components/RichTextEditor";
+import MarkdownRenderer from "@/components/MarkdownRenderer";
+import {
+  LOG_RANGES,
+  LOG_SOURCE_LABELS,
+  type LogRange,
+  type LogSource,
+} from "@/lib/dailyLog";
+import type { LogScope } from "@/lib/permissions";
 
 type TaskOption = {
   id: number;
@@ -21,8 +29,10 @@ type ProjectOption = {
 };
 
 type DailyLogRow = {
-  id: number;
+  key: string;
   loggedAt: string;
+  userId: number | null;
+  userName: string;
   projectId: number | null;
   projectTitle: string;
   taskId: number | null;
@@ -30,45 +40,53 @@ type DailyLogRow = {
   parentTaskTitle?: string;
   note: string;
   markCompleted: boolean;
-  source?: "wizard" | "task" | "board";
+  source: LogSource;
 };
 
-type FilterMode = "daily" | "weekly" | "all";
+type MemberOption = { id: number; name: string };
+
+const SCOPE_LABELS: Record<LogScope, string> = {
+  personal: "Personal",
+  team: "Team",
+  company: "Company",
+};
 
 interface Props {
   projects: ProjectOption[];
   initialLogs: DailyLogRow[];
+  scope: LogScope;
+  availableScopes: LogScope[];
+  members: MemberOption[];
+  selectedMemberId: number | null;
+  range: LogRange;
+  currentUserId: number;
 }
 
-function isInRange(date: Date, mode: FilterMode) {
-  const now = new Date();
-
-  if (mode === "daily") {
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth() &&
-      date.getDate() === now.getDate()
-    );
-  }
-
-  if (mode === "weekly") {
-    const start = new Date(now);
-    const day = start.getDay();
-    const offset = day === 0 ? -6 : 1 - day;
-    start.setDate(start.getDate() + offset);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(end.getDate() + 7);
-
-    return date >= start && date < end;
-  }
-
-  return true;
-}
-
-export default function DailyLogClient({ projects, initialLogs }: Props) {
+export default function DailyLogClient({
+  projects,
+  initialLogs,
+  scope,
+  availableScopes,
+  members,
+  selectedMemberId,
+  range,
+  currentUserId,
+}: Props) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+
+  // Scope / range / member live in the URL so the server does the filtering —
+  // company-wide history is far too large to ship to the browser and filter there.
+  const updateParams = (next: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value === null) params.delete(key);
+      else params.set(key, value);
+    }
+    startTransition(() => router.push(`${pathname}?${params.toString()}`));
+  };
 
   const [showWizard, setShowWizard] = useState(false);
   const [step, setStep] = useState(1);
@@ -76,7 +94,6 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
   const [error, setError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [filterMode, setFilterMode] = useState<FilterMode>("daily");
 
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
@@ -97,20 +114,18 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
 
   const filteredLogs = useMemo(() => {
     const needle = search.trim().toLowerCase();
+    if (!needle) return initialLogs;
 
-    return initialLogs.filter((row) => {
-      const date = new Date(row.loggedAt);
-      if (!isInRange(date, filterMode)) return false;
-
-      if (!needle) return true;
-
-      return (
+    return initialLogs.filter(
+      (row) =>
         row.projectTitle.toLowerCase().includes(needle) ||
         row.taskTitle.toLowerCase().includes(needle) ||
+        row.userName.toLowerCase().includes(needle) ||
         row.note.toLowerCase().includes(needle)
-      );
-    });
-  }, [initialLogs, filterMode, search]);
+    );
+  }, [initialLogs, search]);
+
+  const showMemberColumn = scope !== "personal";
 
   const resetWizard = () => {
     setStep(1);
@@ -222,25 +237,62 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
             />
           </div>
 
-          <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-white/10 dark:bg-white/5">
-            {([
-              { key: "daily", label: "Daily" },
-              { key: "weekly", label: "Weekly" },
-              { key: "all", label: "All" },
-            ] as const).map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setFilterMode(item.key)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
-                  filterMode === item.key
-                    ? "bg-[#c91f41] text-white"
-                    : "text-gray-500 hover:text-[#c91f41] dark:text-zinc-400"
-                )}
+          <div className={cn("flex flex-wrap items-center gap-3", isPending && "opacity-60")}>
+            {availableScopes.length > 1 ? (
+              <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-white/10 dark:bg-white/5">
+                {availableScopes.map((item) => (
+                  <button
+                    key={item}
+                    onClick={() => updateParams({ scope: item, member: null })}
+                    className={cn(
+                      "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                      scope === item
+                        ? "bg-gray-900 text-white dark:bg-white dark:text-black"
+                        : "text-gray-500 hover:text-gray-900 dark:text-zinc-400 dark:hover:text-white"
+                    )}
+                  >
+                    {SCOPE_LABELS[item]}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-white/10 dark:bg-white/5">
+              {LOG_RANGES.map((item) => (
+                <button
+                  key={item.key}
+                  onClick={() => updateParams({ range: item.key })}
+                  className={cn(
+                    "rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] transition",
+                    range === item.key
+                      ? "bg-[#c91f41] text-white"
+                      : "text-gray-500 hover:text-[#c91f41] dark:text-zinc-400"
+                  )}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+
+            {showMemberColumn && members.length > 0 ? (
+              <select
+                value={selectedMemberId ?? ""}
+                onChange={(event) =>
+                  updateParams({ member: event.target.value || null })
+                }
+                className="h-9 rounded-xl border border-gray-200 bg-white px-3 text-[11px] font-bold text-gray-900 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white"
               >
-                {item.label}
-              </button>
-            ))}
+                <option value="">
+                  All {scope === "company" ? "employees" : "team members"} ({members.length})
+                </option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                    {member.id === currentUserId ? " (me)" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : null}
           </div>
         </div>
 
@@ -249,6 +301,7 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
             <thead className="sticky top-0 z-10 bg-white dark:bg-black/80">
               <tr className="border-b border-gray-100 text-left text-[10px] font-black uppercase tracking-[0.16em] text-gray-400 dark:border-white/10">
                 <th className="px-5 py-3">Logged At</th>
+                {showMemberColumn ? <th className="px-5 py-3">Member</th> : null}
                 <th className="px-5 py-3">Project</th>
                 <th className="px-5 py-3">Task</th>
                 <th className="px-5 py-3">What Was Done</th>
@@ -259,16 +312,24 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
             <tbody>
               {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-sm font-semibold text-gray-500 dark:text-zinc-400">
+                  <td colSpan={showMemberColumn ? 7 : 6} className="px-5 py-12 text-center text-sm font-semibold text-gray-500 dark:text-zinc-400">
                     No daily logs found for this filter.
                   </td>
                 </tr>
               ) : (
                 filteredLogs.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100 align-top dark:border-white/10">
+                  <tr key={row.key} className="border-b border-gray-100 align-top dark:border-white/10">
                     <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
                       {new Date(row.loggedAt).toLocaleString()}
                     </td>
+                    {showMemberColumn ? (
+                      <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">
+                        {row.userName}
+                        {row.userId === currentUserId ? (
+                          <span className="ml-1 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">(me)</span>
+                        ) : null}
+                      </td>
+                    ) : null}
                     <td className="px-5 py-3 text-sm font-bold text-gray-900 dark:text-white">{row.projectTitle || "General"}</td>
                     <td className="px-5 py-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">
                       <p>{row.taskTitle || "—"}</p>
@@ -278,19 +339,23 @@ export default function DailyLogClient({ projects, initialLogs }: Props) {
                         </p>
                       ) : null}
                     </td>
-                    <td className="px-5 py-3 text-sm text-gray-600 dark:text-zinc-300">{row.note}</td>
+                    <td className="px-5 py-3 text-sm text-gray-600 dark:text-zinc-300">
+                      <MarkdownRenderer content={row.note} />
+                    </td>
                     <td className="px-5 py-3">
                       <span
                         className={cn(
                           "inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em]",
                           row.source === "board"
                             ? "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                            : row.source === "subtask"
+                            ? "bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300"
                             : row.source === "task"
                             ? "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300"
                             : "bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-zinc-400"
                         )}
                       >
-                        {row.source === "board" ? "Board" : row.source === "task" ? "Task" : "Log"}
+                        {LOG_SOURCE_LABELS[row.source]}
                       </span>
                     </td>
                     <td className="px-5 py-3">

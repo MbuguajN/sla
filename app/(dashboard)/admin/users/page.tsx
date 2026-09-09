@@ -10,7 +10,7 @@ export default async function UsersPage() {
 
   const [users, departments] = await Promise.all([
     db.user.findMany({
-      include: { department: true, heldPrivileges: true },
+      include: { department: true },
       orderBy: { createdAt: "desc" },
     }),
     db.department.findMany({
@@ -27,7 +27,7 @@ export default async function UsersPage() {
         role: u.role,
         departmentId: u.departmentId,
         departmentName: u.department?.name || null,
-        privileges: u.heldPrivileges.map((entry) => entry.privilege),
+        isGeneralManager: u.isGeneralManager,
         isActive: u.isActive,
         createdAt: u.createdAt.toISOString(),
       }))}

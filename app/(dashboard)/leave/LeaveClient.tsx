@@ -444,7 +444,7 @@ export default function LeaveClient({ initialLeaves, leaveBalances, holidayDates
                   const start = new Date(item.startDate);
                   const end = new Date(item.endDate);
                   const canEditHandover =
-                    ["PENDING", "APPROVED"].includes(item.status) && new Date() < start;
+                    ["PENDING", "PENDING_HR", "APPROVED"].includes(item.status) && new Date() < start;
                   const statusColors: Record<string, string> = {
                     APPROVED:
                       "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/20",

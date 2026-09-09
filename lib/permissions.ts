@@ -20,21 +20,16 @@ export type UserWithDepartment = {
   email: string;
   name: string;
   role: string;
+  isGeneralManager: boolean;
   departmentId: number | null;
   departmentSlug: string | null;
   isActive: boolean;
-  privileges: string[];
 };
 
 type PermissionContext = {
   role: string;
   departmentSlug: string | null;
-  privileges?: string[];
 };
-
-function hasPrivilege(user: { privileges?: string[] }, privilege: string) {
-  return Boolean(user.privileges?.includes(privilege));
-}
 
 // Get current user from session
 export async function getCurrentUser(): Promise<UserWithDepartment | null> {
@@ -43,7 +38,7 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
 
   const user = await db.user.findUnique({
     where: { id: parseInt(session.user.id) },
-    include: { department: true, heldPrivileges: true },
+    include: { department: true },
   });
 
   if (!user || !user.isActive) return null;
@@ -53,10 +48,10 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
     email: user.email,
     name: user.name,
     role: user.role,
+    isGeneralManager: user.isGeneralManager,
     departmentId: user.departmentId,
     departmentSlug: user.department?.slug || null,
     isActive: user.isActive,
-    privileges: user.heldPrivileges.map((entry) => entry.privilege),
   };
 }
 
@@ -64,7 +59,6 @@ export async function getCurrentUser(): Promise<UserWithDepartment | null> {
 // Only Business Development can onboard (create) clients
 export function canOnboardClient(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
-  if (hasPrivilege(user, "CAN_CREATE_CLIENTS")) return true;
   return user.departmentSlug === DEPARTMENTS.BUSINESS_DEV;
 }
 
@@ -96,7 +90,6 @@ export function canCreateProject(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
   if (user.role === "CEO") return true;
   if (user.role === "MANAGER") return true;
-  if (hasPrivilege(user, "CAN_CREATE_PROJECTS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV
@@ -163,7 +156,6 @@ export function canCreateTask(user: PermissionContext): boolean {
   if (user.role === "ADMIN") return true;
   if (user.role === "CEO") return true;
   if (user.role === "MANAGER") return true;
-  if (hasPrivilege(user, "CAN_CREATE_TASKS")) return true;
   return (
     user.departmentSlug === DEPARTMENTS.CLIENT_SERVICE ||
     user.departmentSlug === DEPARTMENTS.BUSINESS_DEV ||
@@ -221,15 +213,127 @@ export function canRequestRevision(
   return user.id === taskCreatorId;
 }
 
+// ============== GENERAL MANAGER ==============
+// A General Manager keeps their underlying Role (usually MANAGER) and gains
+// company-wide visibility on top of it. It is a flag, not a role, so none of the
+// existing `role === "MANAGER"` checks change behaviour.
+export function isGeneralManager(user: { isGeneralManager?: boolean }): boolean {
+  return Boolean(user.isGeneralManager);
+}
+
+// ============== DAILY LOG SCOPES ==============
+export type LogScope = "personal" | "team" | "company";
+
+// Managers see their department; GM/ADMIN/CEO also qualify.
+export function canViewTeamLogs(user: { role: string; isGeneralManager?: boolean }): boolean {
+  return (
+    user.role === "ADMIN" ||
+    user.role === "CEO" ||
+    user.role === "MANAGER" ||
+    isGeneralManager(user)
+  );
+}
+
+// Only a General Manager (or ADMIN/CEO) sees the whole company.
+export function canViewCompanyLogs(user: { role: string; isGeneralManager?: boolean }): boolean {
+  return user.role === "ADMIN" || user.role === "CEO" || isGeneralManager(user);
+}
+
+export function allowedLogScopes(user: {
+  role: string;
+  isGeneralManager?: boolean;
+  departmentId?: number | null;
+}): LogScope[] {
+  const scopes: LogScope[] = ["personal"];
+  if (canViewTeamLogs(user) && user.departmentId) scopes.push("team");
+  if (canViewCompanyLogs(user)) scopes.push("company");
+  return scopes;
+}
+
+/**
+ * Resolves which users' logs the viewer may read for a requested scope.
+ * Always falls back to the viewer alone rather than throwing, so a hand-edited
+ * `?scope=company` URL silently degrades to personal instead of leaking.
+ */
+export async function resolveLogAudience(
+  user: { id: number; name?: string; role: string; isGeneralManager?: boolean; departmentId: number | null },
+  scope: LogScope
+): Promise<{ scope: LogScope; members: { id: number; name: string }[] }> {
+  const permitted = allowedLogScopes(user);
+  const effective: LogScope = permitted.includes(scope) ? scope : "personal";
+
+  if (effective === "personal") {
+    return { scope: "personal", members: [{ id: user.id, name: user.name ?? "Me" }] };
+  }
+
+  const members = await db.user.findMany({
+    where: {
+      isActive: true,
+      ...(effective === "team" ? { departmentId: user.departmentId } : {}),
+    },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  return { scope: effective, members };
+}
+
 // ============== HR PERMISSIONS ==============
 export function canViewHRData(user: { role: string; departmentSlug: string | null }): boolean {
   if (user.role === "ADMIN" || user.role === "CEO") return true;
   return user.departmentSlug === DEPARTMENTS.HR;
 }
 
+// Can reach the leave review screens at all (manager stage or HR stage).
 export function canManageLeaves(user: { role: string; departmentSlug: string | null }): boolean {
   if (user.role === "ADMIN" || user.role === "CEO" || user.role === "MANAGER") return true;
   return user.departmentSlug === DEPARTMENTS.HR;
+}
+
+// Stage 1: a department manager approving/denying their own department's request.
+// Mirrors canApproveRequisitionAsManager — a manager may not review their own leave.
+export function canApproveLeaveAsManager(
+  user: { id: number; role: string; departmentId: number | null },
+  leave: { userId: number; userDepartmentId: number | null }
+): boolean {
+  if (user.role !== "MANAGER") return false;
+  if (leave.userId === user.id) return false;
+  if (!user.departmentId) return false;
+  return user.departmentId === leave.userDepartmentId;
+}
+
+// Stage 2: the final decision. Restricted to HR / CEO / ADMIN — a MANAGER must
+// never be able to finalise a request, and nobody may finalise their own.
+export function canFinalizeLeaveAsHR(
+  user: { id: number; role: string; departmentSlug: string | null },
+  leave: { userId: number }
+): boolean {
+  if (leave.userId === user.id) return false;
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  return user.departmentSlug === DEPARTMENTS.HR;
+}
+
+// ============== EMPLOYEE DIRECTORY ==============
+// Who may hand out directory access (was: who could grant CAN_VIEW_EMPLOYEES).
+export function canManageEmployeeDirectoryAccess(user: { role: string; departmentSlug: string | null }): boolean {
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  return user.departmentSlug === DEPARTMENTS.HR;
+}
+
+// Who may read the directory: HR/leadership by default, plus explicit grants.
+export async function canViewEmployeeDirectory(user: {
+  id: number;
+  role: string;
+  departmentSlug: string | null;
+}): Promise<boolean> {
+  if (canManageEmployeeDirectoryAccess(user)) return true;
+
+  const grant = await db.employeeDirectoryViewer.findUnique({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+
+  return Boolean(grant);
 }
 
 export function canViewSuggestions(user: { role: string; departmentSlug: string | null }): boolean {

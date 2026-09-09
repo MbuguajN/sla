@@ -58,7 +58,7 @@ export default async function ProfilePage() {
     db.leave.findMany({
       where: {
         userId: user.id,
-        status: { in: ["APPROVED", "PENDING"] },
+        status: { in: ["APPROVED", "PENDING", "PENDING_HR"] },
         startDate: { gte: yearStart },
       },
       select: { type: true, status: true, totalDays: true },

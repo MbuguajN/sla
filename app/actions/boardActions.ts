@@ -7,6 +7,7 @@ import { BoardVisibility } from "@prisma/client";
 import { createNotification } from "./notificationActions";
 import { sendNotificationEmail } from "@/lib/email";
 import { syncCardToTask, syncChecklistItemToSubtask } from "./boardTaskSync";
+import { cardCompletionBlocker, checklistItemCompletionBlocker } from "@/lib/boardRules";
 
 /**
  * FETCHING
@@ -526,13 +527,14 @@ export async function toggleCardComplete(cardId: number) {
   const newCompleted = !card.isCompleted;
 
   if (newCompleted) {
-    if (!card.assignedToUserId) throw new Error("Card must be assigned before marking as done");
-    if (card.assignedToUserId !== user.id) throw new Error("Only the assigned member can mark this card as done");
-
-    const allItems = card.checklists.flatMap(cl => cl.items);
-    if (allItems.length > 0 && !allItems.every(i => i.isDone)) {
-      throw new Error("All checklist items must be completed before marking this card as done");
-    }
+    const blocker = cardCompletionBlocker(
+      {
+        assignedToUserId: card.assignedToUserId,
+        checklistItems: card.checklists.flatMap((cl) => cl.items),
+      },
+      user.id
+    );
+    if (blocker) throw new Error(blocker);
 
     await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: true } });
 
@@ -543,33 +545,35 @@ export async function toggleCardComplete(cardId: number) {
       }).catch(() => {});
     }
 
-    if (card.includeInLogs) {
-      const boardTitle = card.list.board.title;
-      const workspaceName = card.list.board.workspace?.name || boardTitle;
-      await db.activityLog.create({
-        data: {
-          type: "COMMENTED",
-          description: "Board card completed",
-          userId: card.assignedToUserId,
-          metadata: JSON.stringify({
-            kind: "DAILY_LOG",
-            note: `Completed board task: ${card.title}`,
-            markCompleted: true,
-            taskTitle: card.title,
-            parentTaskTitle: boardTitle,
-            projectTitle: workspaceName,
-            source: "BOARD_CARD",
-          }),
-        }
-      });
-    }
+    const boardTitle = card.list.board.title;
+    const workspaceName = card.list.board.workspace?.name || boardTitle;
+    await db.activityLog.create({
+      data: {
+        type: "COMMENTED",
+        description: "Board card completed",
+        userId: card.assignedToUserId,
+        metadata: JSON.stringify({
+          kind: "DAILY_LOG",
+          note: `Completed board task: ${card.title}`,
+          markCompleted: true,
+          taskTitle: card.title,
+          parentTaskTitle: boardTitle,
+          projectTitle: workspaceName,
+          source: "BOARD_CARD",
+        }),
+      }
+    });
   } else {
     await db.boardCard.update({ where: { id: cardId }, data: { isCompleted: false } });
 
     if (card.taskId) {
       await db.task.update({
         where: { id: card.taskId },
-        data: { status: "ASSIGNED", completedAt: null },
+        // Reopening must not claim the task is assigned when it has no assignee.
+        data: {
+          status: card.assignedToUserId ? "ASSIGNED" : "UNASSIGNED",
+          completedAt: null,
+        },
       }).catch(() => {});
     }
   }
@@ -578,15 +582,6 @@ export async function toggleCardComplete(cardId: number) {
   revalidatePath("/daily-log");
   revalidatePath("/reports");
   return { isCompleted: newCompleted };
-}
-
-export async function setIncludeInLogs(cardId: number, include: boolean) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  await db.boardCard.update({ where: { id: cardId }, data: { includeInLogs: include } });
-  revalidatePath("/board");
-  return { includeInLogs: include };
 }
 
 export async function setCardAssignee(cardId: number, userId: number | null) {
@@ -668,7 +663,8 @@ export async function moveCard(cardId: number, targetListId: number, newPosition
   if (!user) throw new Error("Unauthorized");
 
   const targetList = await db.boardList.findUnique({ where: { id: targetListId } });
-  if (!targetList) throw new Error("Target list is restricted");
+  if (!targetList) throw new Error("Target list not found");
+  if (targetList.isRestricted) throw new Error("This list is restricted");
 
   const card = await db.boardCard.findUnique({ where: { id: cardId } });
   if (!card) throw new Error("Card not found");
@@ -840,11 +836,17 @@ export async function toggleChecklistItem(itemId: number) {
   });
   if (!item) throw new Error("Item not found");
 
-  if (item.assignedUserId && item.assignedUserId !== user.id) {
-    throw new Error("Only the assigned person can mark this item as done");
+  const newDone = !item.isDone;
+
+  // Only enforce ownership when completing; anyone may reopen a mistake.
+  if (newDone) {
+    const blocker = checklistItemCompletionBlocker(
+      { assignedUserId: item.assignedUserId },
+      user.id
+    );
+    if (blocker) throw new Error(blocker);
   }
 
-  const newDone = !item.isDone;
   await db.boardChecklistItem.update({ where: { id: itemId }, data: { isDone: newDone } });
 
   if (item.subtaskId) {
@@ -857,7 +859,7 @@ export async function toggleChecklistItem(itemId: number) {
   if (newDone) {
     const card = item.checklist.card;
     const logUserId = item.assignedUserId || card.assignedToUserId;
-    if (card.includeInLogs && logUserId) {
+    if (logUserId) {
       const boardTitle = card.list.board.title;
       const workspaceName = card.list.board.workspace?.name || boardTitle;
       await db.activityLog.create({
@@ -891,6 +893,75 @@ export async function deleteChecklistItem(itemId: number) {
 
   await db.boardChecklistItem.delete({ where: { id: itemId } });
   revalidatePath("/board");
+}
+
+/**
+ * Reassign an existing checklist item. Without this, an item created with no
+ * assignee (or inherited from a synced subtask) could never be completed, since
+ * completion now requires one.
+ */
+export async function setChecklistItemAssignee(itemId: number, userId: number | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const item = await db.boardChecklistItem.findUnique({
+    where: { id: itemId },
+    include: { checklist: { include: { card: true } } },
+  });
+  if (!item) throw new Error("Item not found");
+
+  if (userId) {
+    const assignee = await db.user.findFirst({
+      where: { id: userId, isActive: true },
+      select: { id: true, name: true, email: true },
+    });
+    if (!assignee) throw new Error("Assignee not found");
+
+    await db.boardChecklistItem.update({
+      where: { id: itemId },
+      data: { assignedUserId: userId },
+    });
+
+    // Same notify + email shape as addChecklistItem, skipped for self-assignment.
+    if (userId !== user.id) {
+      const cardTitle = item.checklist.card.title;
+
+      await createNotification(
+        userId,
+        "TASK_ASSIGNED",
+        "Checklist Item Assigned",
+        `${user.name} assigned you: "${item.title}" on card "${cardTitle}"`,
+        `/board`
+      ).catch((e) => console.error("Failed to notify checklist assignee:", e));
+
+      if (assignee.email) {
+        await sendNotificationEmail(
+          assignee.email,
+          `Checklist Item Assigned: ${item.title}`,
+          "Checklist Item Assigned",
+          `<strong>${user.name}</strong> assigned you a checklist item on card <strong>"${cardTitle}"</strong>: <strong>${item.title}</strong>.`,
+          `/board`
+        );
+      }
+    }
+  } else {
+    // Clearing the assignee also reopens the item — an unassigned item must not
+    // stay in a completed state it can no longer be credited to anyone.
+    await db.boardChecklistItem.update({
+      where: { id: itemId },
+      data: { assignedUserId: null, isDone: false },
+    });
+
+    if (item.subtaskId) {
+      await db.subtask
+        .update({ where: { id: item.subtaskId }, data: { status: "PENDING" } })
+        .catch(() => {});
+    }
+  }
+
+  revalidatePath("/board");
+  revalidatePath("/daily-log");
+  return { assignedUserId: userId };
 }
 
 export async function updateChecklistItem(itemId: number, title: string) {

@@ -2,6 +2,9 @@
 
 import db from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
+import { NotificationType } from "@prisma/client";
+
+const VALID_TYPES = new Set(Object.values(NotificationType) as string[]);
 
 export async function createNotification(
   userId: number,
@@ -10,10 +13,17 @@ export async function createNotification(
   message: string,
   link?: string
 ) {
+  // Callers pass the type as a plain string. An unknown value used to reach
+  // Prisma and throw, taking down whatever action was creating the notification.
+  const safeType = (VALID_TYPES.has(type) ? type : "SYSTEM") as NotificationType;
+  if (safeType !== type) {
+    console.warn(`Unknown notification type "${type}" — falling back to SYSTEM`);
+  }
+
   const result = await db.notification.create({
     data: {
       userId,
-      type: type as any,
+      type: safeType,
       title,
       message,
       link,

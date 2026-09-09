@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { isModernLeaveType } from "@/lib/leave";
 
 export async function getUserProfile() {
   const user = await getCurrentUser();
@@ -201,15 +202,26 @@ export async function updateUserLeaveOverride(targetUserId: number, leaveType: s
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
-  const isHr = user.role === "ADMIN" || user.departmentSlug === "human-resources";
+  // CEO was omitted here while every other HR check in the codebase includes it.
+  const isHr =
+    user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
   if (!isHr) throw new Error("Unauthorized - Only HR can adjust leave days");
 
-  if (daysAllowed < 0) throw new Error("Days allowed cannot be negative");
+  if (!Number.isFinite(daysAllowed) || daysAllowed < 0) {
+    throw new Error("Days allowed must be zero or more");
+  }
+
+  // Was cast straight to `any`, so a bad string reached Prisma as a raw error.
+  if (!isModernLeaveType(leaveType)) {
+    throw new Error("Unsupported leave type");
+  }
+
+  const type = leaveType;
 
   await db.userLeaveOverride.upsert({
-    where: { userId_leaveType: { userId: targetUserId, leaveType: leaveType as any } },
+    where: { userId_leaveType: { userId: targetUserId, leaveType: type } },
     update: { daysAllowed },
-    create: { userId: targetUserId, leaveType: leaveType as any, daysAllowed },
+    create: { userId: targetUserId, leaveType: type, daysAllowed },
   });
 
   revalidatePath("/profile");

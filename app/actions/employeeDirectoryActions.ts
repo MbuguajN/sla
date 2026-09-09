@@ -1,19 +1,25 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser, canManageEmployeeDirectoryAccess } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
-export async function getEmployeesAccessList() {
+async function requireDirectoryAdmin() {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
+  if (!canManageEmployeeDirectoryAccess(user)) throw new Error("Unauthorized");
+  return user;
+}
 
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
-  if (!isAdmin) throw new Error("Unauthorized");
+export async function getEmployeesAccessList() {
+  await requireDirectoryAdmin();
 
-  const granted = await db.userPrivilege.findMany({
-    where: { privilege: "CAN_VIEW_EMPLOYEES" },
-    include: { user: { select: { id: true, name: true, email: true, role: true, department: { select: { name: true } } } } },
+  const granted = await db.employeeDirectoryViewer.findMany({
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, role: true, department: { select: { name: true } } },
+      },
+    },
   });
 
   return granted.map((g) => ({
@@ -22,58 +28,33 @@ export async function getEmployeesAccessList() {
     email: g.user.email,
     role: g.user.role,
     department: g.user.department?.name || null,
-    privilegeId: g.id,
+    grantId: g.id,
   }));
 }
 
 export async function grantEmployeesAccess(targetUserId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const user = await requireDirectoryAdmin();
 
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
-  if (!isAdmin) throw new Error("Unauthorized");
-
-  const existing = await db.userPrivilege.findUnique({
-    where: { userId_privilege: { userId: targetUserId, privilege: "CAN_VIEW_EMPLOYEES" } },
-  });
-
-  if (existing) return existing;
-
-  const privilege = await db.userPrivilege.create({
-    data: {
-      userId: targetUserId,
-      privilege: "CAN_VIEW_EMPLOYEES",
-      grantedById: user.id,
-    },
+  const grant = await db.employeeDirectoryViewer.upsert({
+    where: { userId: targetUserId },
+    update: {},
+    create: { userId: targetUserId, grantedById: user.id },
   });
 
   revalidatePath("/employees");
-  return privilege;
+  return grant;
 }
 
 export async function revokeEmployeesAccess(targetUserId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await requireDirectoryAdmin();
 
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
-  if (!isAdmin) throw new Error("Unauthorized");
-
-  await db.userPrivilege.deleteMany({
-    where: {
-      userId: targetUserId,
-      privilege: "CAN_VIEW_EMPLOYEES",
-    },
-  });
+  await db.employeeDirectoryViewer.deleteMany({ where: { userId: targetUserId } });
 
   revalidatePath("/employees");
 }
 
 export async function searchUsersForAccess(query: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO" || user.departmentSlug === "human-resources";
-  if (!isAdmin) throw new Error("Unauthorized");
+  const user = await requireDirectoryAdmin();
 
   const users = await db.user.findMany({
     where: {
@@ -92,10 +73,7 @@ export async function searchUsersForAccess(query: string) {
       email: true,
       role: true,
       department: { select: { name: true } },
-      heldPrivileges: {
-        where: { privilege: "CAN_VIEW_EMPLOYEES" },
-        select: { id: true },
-      },
+      directoryViewAccess: { select: { id: true } },
     },
     orderBy: { name: "asc" },
     take: 50,
@@ -107,6 +85,6 @@ export async function searchUsersForAccess(query: string) {
     email: u.email,
     role: u.role,
     department: u.department?.name || null,
-    hasAccess: u.heldPrivileges.length > 0,
+    hasAccess: Boolean(u.directoryViewAccess),
   }));
 }

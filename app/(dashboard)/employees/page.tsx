@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser, canViewEmployeeDirectory, canManageEmployeeDirectoryAccess } from "@/lib/permissions";
 import EmployeesClient from "./EmployeesClient";
 
 export const dynamic = "force-dynamic";
@@ -9,18 +9,10 @@ export default async function EmployeesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const canAccess =
-    user.role === "ADMIN" ||
-    user.role === "CEO" ||
-    user.departmentSlug === "human-resources" ||
-    user.privileges.includes("CAN_VIEW_EMPLOYEES");
-
+  const canAccess = await canViewEmployeeDirectory(user);
   if (!canAccess) redirect("/dashboard");
 
-  const canManageAccess =
-    user.role === "ADMIN" ||
-    user.role === "CEO" ||
-    user.departmentSlug === "human-resources";
+  const canManageAccess = canManageEmployeeDirectoryAccess(user);
 
   const employees = await db.user.findMany({
     where: { isActive: true },
@@ -45,7 +37,7 @@ export default async function EmployeesPage() {
       by: ["userId", "status"],
       where: {
         userId: { in: employeeIds },
-        status: { in: ["APPROVED", "PENDING"] },
+        status: { in: ["APPROVED", "PENDING", "PENDING_HR"] },
         startDate: { gte: new Date(new Date().getFullYear(), 0, 1) },
       },
       _count: { id: true },

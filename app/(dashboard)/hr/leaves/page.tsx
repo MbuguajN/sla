@@ -11,7 +11,9 @@ export default async function HRLeavesPage() {
 
   const leaves = await db.leave.findMany({
     where: {
-      status: { in: ["PENDING_HR", "APPROVED", "DENIED", "CANCELLED"] },
+      // PENDING included so a request still awaiting a manager is visible to HR
+      // rather than silently invisible on every screen.
+      status: { in: ["PENDING", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"] },
     },
     include: { user: { include: { department: true } } },
     orderBy: { createdAt: "desc" },

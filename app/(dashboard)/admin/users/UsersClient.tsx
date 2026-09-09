@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createUser, updateUser, deleteUser, grantUserPrivilege, revokeUserPrivilege } from "@/app/actions/adminActions";
+import { createUser, updateUser, deleteUser } from "@/app/actions/adminActions";
 import {
   Users,
   Plus,
@@ -42,18 +42,10 @@ type UserItem = {
   role: string;
   departmentId: number | null;
   departmentName: string | null;
-  privileges: string[];
+  isGeneralManager: boolean;
   isActive: boolean;
   createdAt: string;
 };
-
-const PRIVILEGE_OPTIONS = [
-  { key: "CAN_CREATE_CLIENTS", label: "Can Create Clients" },
-  { key: "CAN_CREATE_PROJECTS", label: "Can Create Projects" },
-  { key: "CAN_CREATE_TASKS", label: "Can Create Tasks" },
-] as const;
-
-type PrivilegeKey = (typeof PRIVILEGE_OPTIONS)[number]["key"];
 
 type Department = {
   id: number;
@@ -73,7 +65,6 @@ export default function UsersClient({ initialUsers, departments }: Props) {
   const [editingUser, setEditingUser] = useState<UserItem | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [selectedPrivileges, setSelectedPrivileges] = useState<PrivilegeKey[]>([]);
   const [showFormPassword, setShowFormPassword] = useState(false);
 
   // Deletion state
@@ -88,6 +79,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
     password: "",
     role: "EMPLOYEE" as string,
     departmentId: "" as string,
+    isGeneralManager: false,
   });
 
   const roles = ["ADMIN", "CEO", "MANAGER", "EMPLOYEE"];
@@ -112,8 +104,8 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       password: "",
       role: "EMPLOYEE",
       departmentId: "",
+      isGeneralManager: false,
     });
-    setSelectedPrivileges([]);
     setShowFormPassword(false);
     setError("");
     setShowModal(true);
@@ -127,8 +119,8 @@ export default function UsersClient({ initialUsers, departments }: Props) {
       password: "",
       role: user.role,
       departmentId: user.departmentId?.toString() || "",
+      isGeneralManager: Boolean(user.isGeneralManager),
     });
-    setSelectedPrivileges((user.privileges || []) as PrivilegeKey[]);
     setShowFormPassword(false);
     setError("");
     setShowModal(true);
@@ -147,17 +139,9 @@ export default function UsersClient({ initialUsers, departments }: Props) {
           email: formData.email,
           role: formData.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE",
           departmentId: formData.departmentId ? parseInt(formData.departmentId) : null,
+          isGeneralManager: formData.isGeneralManager,
           ...(formData.password ? { password: formData.password } : {}),
         });
-
-        const existingPrivileges = (editingUser.privileges || []) as PrivilegeKey[];
-        const toGrant = selectedPrivileges.filter((value) => !existingPrivileges.includes(value));
-        const toRevoke = existingPrivileges.filter((value) => !selectedPrivileges.includes(value));
-
-        await Promise.all([
-          ...toGrant.map((privilege) => grantUserPrivilege(editingUser.id, privilege)),
-          ...toRevoke.map((privilege) => revokeUserPrivilege(editingUser.id, privilege)),
-        ]);
 
         setUsers((prev) =>
           prev.map((u) =>
@@ -171,7 +155,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                   departmentName:
                     departments.find((d) => d.id.toString() === formData.departmentId)?.name ||
                     null,
-                  privileges: selectedPrivileges,
+                  isGeneralManager: formData.isGeneralManager,
                 }
               : u
           )
@@ -190,6 +174,7 @@ export default function UsersClient({ initialUsers, departments }: Props) {
           password: formData.password,
           role: formData.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE",
           departmentId: formData.departmentId ? parseInt(formData.departmentId) : undefined,
+          isGeneralManager: formData.isGeneralManager,
         });
 
         if (!result.success) {
@@ -249,12 +234,6 @@ export default function UsersClient({ initialUsers, departments }: Props) {
     CEO: "info",
     MANAGER: "success",
     EMPLOYEE: "secondary",
-  };
-
-  const togglePrivilege = (value: PrivilegeKey) => {
-    setSelectedPrivileges((prev) =>
-      prev.includes(value) ? prev.filter((entry) => entry !== value) : [...prev, value]
-    );
   };
 
   const stats = [
@@ -351,6 +330,11 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                       )}>
                         {user.role === "CEO" ? "DIRECTOR" : user.role}
                       </span>
+                      {user.isGeneralManager && (
+                        <span className="ml-2 px-3 py-1 text-[9px] font-black rounded-lg border border-current uppercase tracking-wider text-[#c91f41] bg-[#c91f41]/10">
+                          GM
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <span className="text-[11px] font-black text-gray-600 dark:text-gray-400 uppercase italic">
@@ -505,33 +489,52 @@ export default function UsersClient({ initialUsers, departments }: Props) {
                   </div>
                 </div>
 
-                {editingUser && (
-                  <div>
-                    <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">
-                      Extra Privileges
-                    </label>
-                    <div className="space-y-2">
-                      {PRIVILEGE_OPTIONS.map((option) => {
-                        const active = selectedPrivileges.includes(option.key);
-                        return (
-                          <button
-                            key={option.key}
-                            type="button"
-                            onClick={() => togglePrivilege(option.key)}
-                            className={cn(
-                              "w-full h-11 px-4 rounded-xl border-2 text-left text-[11px] font-black uppercase tracking-wide transition-all",
-                              active
-                                ? "bg-[#c91f41]/10 border-[#c91f41] text-[#c91f41]"
-                                : "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/10 text-gray-600 dark:text-zinc-400"
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[10px] font-black text-[#c91f41] uppercase tracking-[0.2em] mb-2 px-1">
+                    General Manager
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData({ ...formData, isGeneralManager: !formData.isGeneralManager })
+                    }
+                    aria-pressed={formData.isGeneralManager}
+                    className={cn(
+                      "w-full px-4 py-3 rounded-2xl border-2 text-left transition-all",
+                      formData.isGeneralManager
+                        ? "bg-[#c91f41]/10 border-[#c91f41]"
+                        : "bg-gray-50 dark:bg-white/5 border-gray-100 dark:border-white/10"
+                    )}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span
+                        className={cn(
+                          "h-5 w-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all",
+                          formData.isGeneralManager
+                            ? "bg-[#c91f41] border-[#c91f41]"
+                            : "border-gray-300 dark:border-white/20"
+                        )}
+                      >
+                        {formData.isGeneralManager && <Check className="h-3 w-3 text-white" strokeWidth={4} />}
+                      </span>
+                      <span>
+                        <span
+                          className={cn(
+                            "block text-[11px] font-black uppercase tracking-wide",
+                            formData.isGeneralManager
+                              ? "text-[#c91f41]"
+                              : "text-gray-600 dark:text-zinc-400"
+                          )}
+                        >
+                          Make General Manager
+                        </span>
+                        <span className="block text-[10px] font-semibold text-gray-400 dark:text-zinc-500 mt-0.5 normal-case tracking-normal">
+                          Adds a company-wide view on the Daily Log, alongside personal and team.
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                </div>
 
                 <div className="flex gap-4 pt-4">
                   <button

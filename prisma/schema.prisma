@@ -8,54 +8,55 @@ datasource db {
 }
 
 model User {
-  id                        Int                     @id @default(autoincrement())
-  email                     String                  @unique
+  id                        Int                       @id @default(autoincrement())
+  email                     String                    @unique
   password                  String
   name                      String
   role                      Role
+  isGeneralManager          Boolean                   @default(false)
   departmentId              Int?
-  isActive                  Boolean                 @default(true)
+  isActive                  Boolean                   @default(true)
   currentSessionId          String?
-  authVersion               Int                     @default(0)
-  createdAt                 DateTime                @default(now())
-  updatedAt                 DateTime                @updatedAt
+  authVersion               Int                       @default(0)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
   firstLoginAt              DateTime?
-  passwordSetupRequired     Boolean                 @default(false)
+  passwordSetupRequired     Boolean                   @default(false)
   activityLogs              ActivityLog[]
-  collectionBoardsOwned     CollectionBoard[]       @relation("CollectionBoardOwner")
+  collectionBoardsOwned     CollectionBoard[]         @relation("CollectionBoardOwner")
   collectionBoardAccesses   CollectionBoardAccess[]
-  collectionCardsAssignedBy CollectionBoardCard[]   @relation("CollectionCardAssignedBy")
+  collectionCardsAssignedBy CollectionBoardCard[]     @relation("CollectionCardAssignedBy")
   collectionBoardMembers    CollectionBoardMember[]
-  departmentHead            Department?             @relation("DepartmentHead")
-  equipmentOwned            EquipmentItem[]         @relation("EquipmentOwner")
-  equipmentViewerGrants     EquipmentViewer[]       @relation("EquipmentViewerGrantedBy")
-  equipmentViewAccess       EquipmentViewer?        @relation("EquipmentViewerUser")
-  itTicketsAssigned         ITTicket[]              @relation("TicketAssignee")
-  itTicketsCreated          ITTicket[]              @relation("TicketCreator")
+  departmentHead            Department?               @relation("DepartmentHead")
+  equipmentOwned            EquipmentItem[]           @relation("EquipmentOwner")
+  equipmentViewerGrants     EquipmentViewer[]         @relation("EquipmentViewerGrantedBy")
+  equipmentViewAccess       EquipmentViewer?          @relation("EquipmentViewerUser")
+  directoryViewerGrants     EmployeeDirectoryViewer[] @relation("DirectoryViewerGrantedBy")
+  directoryViewAccess       EmployeeDirectoryViewer?  @relation("DirectoryViewerUser")
+  itTicketsAssigned         ITTicket[]                @relation("TicketAssignee")
+  itTicketsCreated          ITTicket[]                @relation("TicketCreator")
   leaves                    Leave[]
-  leaveHandoversAsDelegate  LeaveTaskHandover[]     @relation("LeaveHandoverDelegate")
-  leaveHandoversAsOriginal  LeaveTaskHandover[]     @relation("LeaveHandoverOriginalAssignee")
+  leaveHandoversAsDelegate  LeaveTaskHandover[]       @relation("LeaveHandoverDelegate")
+  leaveHandoversAsOriginal  LeaveTaskHandover[]       @relation("LeaveHandoverOriginalAssignee")
   loginAttempts             LoginAttempt[]
   notifications             Notification[]
-  boardCardsAssignedBy      PersonalBoardCard[]     @relation("BoardCardAssignedBy")
-  boardCardsOwned           PersonalBoardCard[]     @relation("BoardCardOwner")
+  boardCardsAssignedBy      PersonalBoardCard[]       @relation("BoardCardAssignedBy")
+  boardCardsOwned           PersonalBoardCard[]       @relation("BoardCardOwner")
   boardColumns              PersonalBoardColumn[]
   refunds                   Refund[]
   requisitions              Requisition[]
   suggestions               Suggestion[]
-  tasksAssigned             Task[]                  @relation("TaskAssignee")
-  tasksCreated              Task[]                  @relation("TaskCreator")
-  department                Department?             @relation("DepartmentMembers", fields: [departmentId], references: [id])
+  tasksAssigned             Task[]                    @relation("TaskAssignee")
+  tasksCreated              Task[]                    @relation("TaskCreator")
+  department                Department?               @relation("DepartmentMembers", fields: [departmentId], references: [id])
   UserInviteToken           UserInviteToken?
-  grantedPrivileges         UserPrivilege[]         @relation("GrantedPrivileges")
-  heldPrivileges            UserPrivilege[]         @relation("HeldPrivileges")
-  workspacesOwned           Workspace[]             @relation("WorkspaceOwner")
+  workspacesOwned           Workspace[]               @relation("WorkspaceOwner")
   workspaceMembers          WorkspaceMember[]
   boardMembers              BoardMember[]
   boardListsCreated         BoardList[]
   boardChecklistAssignments BoardChecklistItem[]
   boardCardMembers          BoardCardMember[]
-  boardCardsAssigned        BoardCard[]         @relation("BoardCardAssignee")
+  boardCardsAssigned        BoardCard[]               @relation("BoardCardAssignee")
   dailyLogs                 DailyLog[]
   personalDocuments         PersonalDocument[]
   boardVisits               BoardVisit[]
@@ -64,15 +65,15 @@ model User {
   pulseComments             PulseComment[]
   leaveOverrides            UserLeaveOverride[]
 
-  employmentDate            DateTime?
-  maritalStatus             String?
-  gender                    String?
-  phoneNumber               String?
-  address                   String?
-  dateOfBirth               DateTime?
-  emergencyContactName      String?
-  emergencyContactPhone     String?
-  emergencyContactRelation  String?
+  employmentDate           DateTime?
+  maritalStatus            String?
+  gender                   String?
+  phoneNumber              String?
+  address                  String?
+  dateOfBirth              DateTime?
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
 }
 
 model Workspace {
@@ -104,18 +105,18 @@ model WorkspaceMember {
 }
 
 model Board {
-  id          Int              @id @default(autoincrement())
+  id          Int             @id @default(autoincrement())
   workspaceId Int
   title       String
-  background  String           @default("bg-sky-600")
-  isStarred   Boolean          @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  visibility  BoardVisibility  @default(WORKSPACE)
-  type        BoardType        @default(STANDALONE)
-  projectId   Int?             @unique
-  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  background  String          @default("bg-sky-600")
+  isStarred   Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  visibility  BoardVisibility @default(WORKSPACE)
+  type        BoardType       @default(STANDALONE)
+  projectId   Int?            @unique
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   lists       BoardList[]
   members     BoardMember[]
   visits      BoardVisit[]
@@ -136,13 +137,13 @@ model BoardVisit {
 }
 
 model BoardMember {
-  id        Int      @id @default(autoincrement())
-  boardId   Int
-  userId    Int
-  role      String   @default("MEMBER")
+  id       Int      @id @default(autoincrement())
+  boardId  Int
+  userId   Int
+  role     String   @default("MEMBER")
   joinedAt DateTime @default(now())
-  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([boardId, userId])
   @@index([userId])
@@ -165,26 +166,26 @@ model BoardList {
 }
 
 model BoardCard {
-  id            Int                   @id @default(autoincrement())
-  listId        Int
-  title         String
-  description   String?
-  position      Int                   @default(0)
-  dueDate       DateTime?
-  isCompleted   Boolean               @default(false)
-  includeInLogs Boolean               @default(true)
+  id               Int                   @id @default(autoincrement())
+  listId           Int
+  title            String
+  description      String?
+  position         Int                   @default(0)
+  dueDate          DateTime?
+  isCompleted      Boolean               @default(false)
+  includeInLogs    Boolean               @default(true)
   assignedToUserId Int?
-  taskId        Int?                  @unique
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  list        BoardList             @relation(fields: [listId], references: [id], onDelete: Cascade)
-  assignedUser User?                 @relation("BoardCardAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  task        Task?                 @relation("BoardCardTask")
-  labels      BoardCardLabel[]
-  members     BoardCardMember[]
-  checklists  BoardChecklist[]
-  attachments BoardCardAttachment[]
-  activity    BoardCardActivity[]
+  taskId           Int?                  @unique
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  list             BoardList             @relation(fields: [listId], references: [id], onDelete: Cascade)
+  assignedUser     User?                 @relation("BoardCardAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  task             Task?                 @relation("BoardCardTask")
+  labels           BoardCardLabel[]
+  members          BoardCardMember[]
+  checklists       BoardChecklist[]
+  attachments      BoardCardAttachment[]
+  activity         BoardCardActivity[]
 
   @@index([listId, position])
 }
@@ -226,57 +227,43 @@ model BoardChecklist {
 }
 
 model BoardChecklistItem {
-  id               Int             @id @default(autoincrement())
-  checklistId      Int
-  title            String
-  isDone           Boolean         @default(false)
-  assignedUserId   Int?
-  position         Int             @default(0)
-  subtaskId        Int?            @unique
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  checklist        BoardChecklist  @relation(fields: [checklistId], references: [id], onDelete: Cascade)
-  assignedUser     User?           @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
-  subtask          Subtask?        @relation("ChecklistItemSubtask")
+  id             Int            @id @default(autoincrement())
+  checklistId    Int
+  title          String
+  isDone         Boolean        @default(false)
+  assignedUserId Int?
+  position       Int            @default(0)
+  subtaskId      Int?           @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  checklist      BoardChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  assignedUser   User?          @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  subtask        Subtask?       @relation("ChecklistItemSubtask")
 
   @@index([checklistId])
 }
 
 model BoardCardAttachment {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   cardId    Int
   name      String
   url       String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   card      BoardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@index([cardId])
 }
 
 model BoardCardActivity {
-  id          Int      @id @default(autoincrement())
-  cardId      Int
-  type        String
-  actorName   String
-  message     String
-  createdAt   DateTime @default(now())
-  card        BoardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  id        Int       @id @default(autoincrement())
+  cardId    Int
+  type      String
+  actorName String
+  message   String
+  createdAt DateTime  @default(now())
+  card      BoardCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@index([cardId])
-}
-
-model UserPrivilege {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  privilege   Privilege
-  grantedById Int
-  grantedAt   DateTime  @default(now())
-  grantedBy   User      @relation("GrantedPrivileges", fields: [grantedById], references: [id], onDelete: Cascade)
-  user        User      @relation("HeldPrivileges", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, privilege])
-  @@index([userId])
-  @@index([grantedById])
 }
 
 model LoginAttempt {
@@ -407,40 +394,40 @@ model ProjectDepartment {
 }
 
 model Task {
-  id                      Int                   @id @default(autoincrement())
-  projectId               Int
-  title                   String
-  description             String?
-  status                  TaskStatus            @default(UNASSIGNED)
-  priority                Priority              @default(MEDIUM)
-  deptId                  Int?
-  assignedUserId          Int?
-  createdById             Int?
-  slaHours                Int?
-  slaStartedAt            DateTime?
-  startedAt               DateTime?
-  slaPausedAt             DateTime?
-  slaPausedDuration       Int?                  @default(0)
-  confirmedAt             DateTime?
-  submittedAt             DateTime?
-  completedAt             DateTime?
-  createdAt               DateTime              @default(now())
-  updatedAt               DateTime              @updatedAt
-  briefCategory           BriefCategory?
-  briefReceivedAt         DateTime?
-  source                  TaskSource            @default(STANDARD)
-  workspaceBoardCardId    Int?                  @unique
-  activityLog             ActivityLog[]
-  collectionCards         CollectionBoardCard[]
-  leaveHandovers          LeaveTaskHandover[]
-  boardCard               PersonalBoardCard?
-  workspaceBoardCard      BoardCard?            @relation("BoardCardTask", fields: [workspaceBoardCardId], references: [id], onDelete: SetNull)
-  subtasks                Subtask[]
-  assignedTo              User?                 @relation("TaskAssignee", fields: [assignedUserId], references: [id])
-  createdBy               User?                 @relation("TaskCreator", fields: [createdById], references: [id])
-  assignedDepartment      Department?           @relation(fields: [deptId], references: [id])
-  project                 Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  links                   TaskLink[]
+  id                   Int                   @id @default(autoincrement())
+  projectId            Int
+  title                String
+  description          String?
+  status               TaskStatus            @default(UNASSIGNED)
+  priority             Priority              @default(MEDIUM)
+  deptId               Int?
+  assignedUserId       Int?
+  createdById          Int?
+  slaHours             Int?
+  slaStartedAt         DateTime?
+  startedAt            DateTime?
+  slaPausedAt          DateTime?
+  slaPausedDuration    Int?                  @default(0)
+  confirmedAt          DateTime?
+  submittedAt          DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  briefCategory        BriefCategory?
+  briefReceivedAt      DateTime?
+  source               TaskSource            @default(STANDARD)
+  workspaceBoardCardId Int?                  @unique
+  activityLog          ActivityLog[]
+  collectionCards      CollectionBoardCard[]
+  leaveHandovers       LeaveTaskHandover[]
+  boardCard            PersonalBoardCard?
+  workspaceBoardCard   BoardCard?            @relation("BoardCardTask", fields: [workspaceBoardCardId], references: [id], onDelete: SetNull)
+  subtasks             Subtask[]
+  assignedTo           User?                 @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+  createdBy            User?                 @relation("TaskCreator", fields: [createdById], references: [id])
+  assignedDepartment   Department?           @relation(fields: [deptId], references: [id])
+  project              Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  links                TaskLink[]
 
   @@index([status])
   @@index([assignedUserId])
@@ -588,16 +575,16 @@ model CollectionBoardAccess {
 }
 
 model Subtask {
-  id               Int                    @id @default(autoincrement())
-  taskId           Int
-  title            String
-  description      String?
-  status           SubtaskStatus          @default(PENDING)
-  checklistItemId  Int?                   @unique
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  task             Task                   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  checklistItem    BoardChecklistItem?    @relation("ChecklistItemSubtask", fields: [checklistItemId], references: [id], onDelete: SetNull)
+  id              Int                 @id @default(autoincrement())
+  taskId          Int
+  title           String
+  description     String?
+  status          SubtaskStatus       @default(PENDING)
+  checklistItemId Int?                @unique
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  task            Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  checklistItem   BoardChecklistItem? @relation("ChecklistItemSubtask", fields: [checklistItemId], references: [id], onDelete: SetNull)
 }
 
 model ActivityLog {
@@ -618,26 +605,33 @@ model ActivityLog {
   @@index([taskId])
   @@index([projectId])
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model Leave {
-  id         Int                 @id @default(autoincrement())
-  userId     Int
-  type       LeaveType
-  startDate  DateTime
-  endDate    DateTime
-  totalDays  Float
-  reason     String
-  status     LeaveStatus         @default(PENDING)
-  reviewedBy Int?
-  reviewNote String?
-  createdAt  DateTime            @default(now())
-  updatedAt  DateTime            @updatedAt
-  duration   LeaveDuration       @default(FULL_DAY)
-  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  handovers  LeaveTaskHandover[]
+  id                Int                 @id @default(autoincrement())
+  userId            Int
+  type              LeaveType
+  startDate         DateTime
+  endDate           DateTime
+  totalDays         Float
+  reason            String
+  status            LeaveStatus         @default(PENDING)
+  reviewedBy        Int?
+  reviewNote        String?
+  managerReviewedBy Int?
+  managerReviewNote String?
+  managerReviewedAt DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  duration          LeaveDuration       @default(FULL_DAY)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handovers         LeaveTaskHandover[]
 
   @@index([status])
+  @@index([userId])
+  @@index([userId, type, startDate])
+  @@index([startDate])
 }
 
 model LeaveTaskHandover {
@@ -672,7 +666,6 @@ model LeavePolicy {
   updatedAt   DateTime  @updatedAt
 
   @@unique([role, leaveType])
-  @@unique([role, leaveType], map: "LeavePolicy_role_leaveType_unique_v2")
 }
 
 model PublicHoliday {
@@ -811,6 +804,17 @@ model EquipmentViewer {
   @@index([grantedById])
 }
 
+model EmployeeDirectoryViewer {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  grantedById Int?
+  createdAt   DateTime @default(now())
+  grantedBy   User?    @relation("DirectoryViewerGrantedBy", fields: [grantedById], references: [id])
+  user        User     @relation("DirectoryViewerUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([grantedById])
+}
+
 model Notification {
   id        Int              @id @default(autoincrement())
   userId    Int
@@ -849,13 +853,6 @@ enum Role {
   CEO
   MANAGER
   EMPLOYEE
-}
-
-enum Privilege {
-  CAN_CREATE_CLIENTS
-  CAN_CREATE_PROJECTS
-  CAN_CREATE_TASKS
-  CAN_VIEW_EMPLOYEES
 }
 
 enum LoginAttemptStatus {
@@ -1025,6 +1022,11 @@ enum NotificationType {
   TASK_COMPLETED
   LEAVE_APPROVED
   LEAVE_DENIED
+  LEAVE_SUBMITTED
+  LEAVE_PENDING_HR
+  LEAVE_CANCELLED
+  SUGGESTION_SUBMITTED
+  SUGGESTION_UPDATED
   REQUISITION_SUBMITTED
   REQUISITION_APPROVED
   REQUISITION_DENIED
@@ -1041,28 +1043,28 @@ enum NotificationType {
 }
 
 model DailyLog {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  date      DateTime @default(now())
-  cardId    Int?
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  date            DateTime @default(now())
+  cardId          Int?
   checklistItemId Int?
-  title     String
-  type      String   @default("CARD_COMPLETED")
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  title           String
+  type            String   @default("CARD_COMPLETED")
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
 }
 
 model PersonalDocument {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  name       String
-  url        String
-  category   String   @default("General")
-  accessLevel String  @default("Restricted")
-  createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  name        String
+  url         String
+  category    String   @default("General")
+  accessLevel String   @default("Restricted")
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
@@ -1077,30 +1079,30 @@ model PlatformLink {
 }
 
 model MeetingRoom {
-  id        Int      @id @default(autoincrement())
-  name      String   @unique
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
   location  String?
-  isActive  Boolean  @default(true)
+  isActive  Boolean          @default(true)
   createdBy Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  creator   User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  creator   User             @relation(fields: [createdBy], references: [id])
   bookings  MeetingBooking[]
 }
 
 model MeetingBooking {
-  id                Int       @id @default(autoincrement())
+  id                Int         @id @default(autoincrement())
   roomId            Int
   bookedByUserId    Int
   title             String
   startTime         DateTime
   endTime           DateTime
-  isRecurring       Boolean   @default(false)
+  isRecurring       Boolean     @default(false)
   recurrenceType    String?
   recurrenceEndDate DateTime?
   recurrenceGroupId String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
   room              MeetingRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
   bookedBy          User        @relation(fields: [bookedByUserId], references: [id])
 
@@ -1120,13 +1122,13 @@ model PulseComment {
 }
 
 model UserLeaveOverride {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  leaveType  LeaveType
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  leaveType   LeaveType
   daysAllowed Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, leaveType])
   @@index([userId])

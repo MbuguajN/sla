@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { canViewEquipment, getCurrentUser, isAdmin } from "@/lib/permissions";
+import { canViewEquipment, getCurrentUser, isAdmin , canViewEmployeeDirectory } from "@/lib/permissions";
 import DashboardShell from "@/components/layout/DashboardShell";
 import { getCompanyLogos } from "@/app/actions/adminActions";
 import { getPlatformLinks } from "@/app/actions/platformActions";
@@ -24,6 +24,7 @@ export default async function DashboardLayout({
   }
 
   const canAccessEquipment = await canViewEquipment({ id: user.id, role: user.role });
+  const canViewEmployees = await canViewEmployeeDirectory(user);
 
   return (
     <>
@@ -36,7 +37,7 @@ export default async function DashboardLayout({
           email: user.email,
           role: user.role,
           departmentSlug: user.departmentSlug,
-          privileges: user.privileges,
+          canViewEmployees,
         }}
         platformLinks={platformLinks}
         isAdmin={isAdmin(user)}

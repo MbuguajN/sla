@@ -367,7 +367,7 @@ export default async function ReportsPage({
       db.leave.findMany({
         where: {
           userId: { in: employeeIds },
-          status: { in: ["PENDING", "APPROVED"] },
+          status: { in: ["PENDING", "PENDING_HR", "APPROVED"] },
           startDate: { gte: yearStart, lte: yearEnd },
         },
         select: {

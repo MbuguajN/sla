@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/permissions";
 import { db } from "@/lib/db";
+import { getLeaveEntitlements, getLeaveUsage } from "@/lib/leaveBalance";
+import type { Role } from "@prisma/client";
 import LeaveClient from "./LeaveClient";
 import { processLeaveTaskHandovers } from "@/app/actions/leaveHandoverActions";
 import RealtimeRefresh from "@/components/RealtimeRefresh";
@@ -15,7 +17,7 @@ export default async function LeavePage() {
 
   const userRole = user.role as "ADMIN" | "CEO" | "MANAGER" | "EMPLOYEE";
 
-  const [leaves, leavePolicies, publicHolidays, activeTasks, departmentMembers] = await Promise.all([
+  const [leaves, publicHolidays, activeTasks, departmentMembers] = await Promise.all([
     db.leave.findMany({
       where: { userId: user.id },
       select: {
@@ -38,10 +40,6 @@ export default async function LeavePage() {
         },
       },
       orderBy: { createdAt: "desc" },
-    }),
-    db.leavePolicy.findMany({
-      where: { role: userRole },
-      orderBy: { leaveType: "asc" },
     }),
     db.publicHoliday.findMany({
       orderBy: { date: "asc" },
@@ -68,23 +66,22 @@ export default async function LeavePage() {
         })
       : Promise.resolve([]),
   ]);
-  const currentYear = new Date().getFullYear();
+  // Entitlements and usage come from the same helpers createLeave enforces, so
+  // the balance shown here can never disagree with what the form accepts:
+  // per-user overrides are honoured, and PENDING_HR counts as committed.
+  const [entitlements, usage] = await Promise.all([
+    getLeaveEntitlements(user.id, user.role as Role),
+    getLeaveUsage(user.id),
+  ]);
 
-  const leaveBalances = leavePolicies.map((policy) => {
-    const usedDays = leaves
-      .filter(
-        (leave) =>
-          leave.type === policy.leaveType &&
-          ["PENDING", "APPROVED"].includes(leave.status) &&
-          leave.startDate.getFullYear() === currentYear
-      )
-      .reduce((acc, leave) => acc + leave.totalDays, 0);
+  const leaveBalances = Array.from(entitlements.entries()).map(([type, daysAllowed]) => {
+    const usedDays = usage.get(type) ?? 0;
 
     return {
-      type: policy.leaveType,
-      daysAllowed: policy.daysAllowed,
+      type,
+      daysAllowed,
       usedDays,
-      remainingDays: Math.max(policy.daysAllowed - usedDays, 0),
+      remainingDays: Math.max(daysAllowed - usedDays, 0),
     };
   });
 

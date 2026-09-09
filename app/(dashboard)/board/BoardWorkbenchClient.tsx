@@ -3,9 +3,10 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cardCompletionBlocker, checklistItemCompletionBlocker } from "@/lib/boardRules";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setIncludeInLogs, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist } from "@/app/actions/boardActions";
+import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist, setChecklistItemAssignee } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
 
@@ -733,10 +734,18 @@ export default function BoardWorkbenchClient({
     }
   }, [cardWarningId, cardDetailWarning]);
 
-  const canMarkCardComplete = (card: CardData) => {
-    if (!card.checklists || card.checklists.length === 0) return true;
-    return card.checklists.every(cl => cl.items.every(i => i.done));
-  };
+  // Delegates to the same policy the server enforces, so the UI can never show
+  // a control the action would reject (or vice versa).
+  const cardBlocker = (card: CardData) =>
+    cardCompletionBlocker(
+      {
+        assignedToUserId: card.assignedToUserId,
+        checklistItems: (card.checklists || []).flatMap(cl =>
+          cl.items.map(i => ({ isDone: i.done }))
+        ),
+      },
+      currentUser.id
+    );
 
   const toggleCardCompletion = async (listId: string, cardId: string) => {
     if (!activeBoardId) return;
@@ -746,15 +755,9 @@ export default function BoardWorkbenchClient({
     if (!card) return;
 
     if (!card.isCompleted) {
-      if (!card.assignedToUserId) {
-        setCardDetailWarning("Assign someone to this card first!");
-        return;
-      }
-      if (card.assignedToUserId !== currentUser.id) {
-        setCardDetailWarning("Only the assigned member can mark this card as done!");
-        return;
-      }
-      if (!canMarkCardComplete(card)) {
+      const blocker = cardBlocker(card);
+      if (blocker) {
+        setCardDetailWarning(blocker);
         setCardWarningId(cardId);
         return;
       }
@@ -1983,9 +1986,19 @@ export default function BoardWorkbenchClient({
                             <div key={it.id} className="flex items-start gap-4 group">
                                 <button 
                                  onClick={async () => {
-                                   if (it.assignedMemberId && it.assignedMemberId !== selfMemberId) {
-                                     setCardDetailWarning("Only the assigned person can mark this item!");
-                                     return;
+                                   if (!it.done) {
+                                     const blocker = checklistItemCompletionBlocker(
+                                       {
+                                         assignedUserId: it.assignedMemberId
+                                           ? Number(it.assignedMemberId.replace("u-", ""))
+                                           : null,
+                                       },
+                                       currentUser.id
+                                     );
+                                     if (blocker) {
+                                       setCardDetailWarning(blocker);
+                                       return;
+                                     }
                                    }
                                    const itemDbId = Number(it.id.replace("ci-", ""));
                                    try { await toggleChecklistItem(itemDbId); } catch (err: any) { setCardDetailWarning(err.message || "Failed to update item"); return; }
@@ -1997,7 +2010,8 @@ export default function BoardWorkbenchClient({
                                     } : cList)
                                   }));
                                 }}
-                                className={cn("h-6 w-6 shrink-0 rounded-lg border-2 border-zinc-200 flex items-center justify-center transition-all", it.done ? "bg-emerald-500 border-emerald-500 text-white" : (it.assignedMemberId && it.assignedMemberId !== selfMemberId) ? "bg-zinc-100 border-zinc-200 text-zinc-300 cursor-not-allowed" : "bg-white hover:border-zinc-400")}
+                                title={it.done ? "Reopen item" : (checklistItemCompletionBlocker({ assignedUserId: it.assignedMemberId ? Number(it.assignedMemberId.replace("u-", "")) : null }, currentUser.id) || "Mark done")}
+                                className={cn("h-6 w-6 shrink-0 rounded-lg border-2 border-zinc-200 flex items-center justify-center transition-all", it.done ? "bg-emerald-500 border-emerald-500 text-white" : (!it.assignedMemberId || it.assignedMemberId !== selfMemberId) ? "bg-zinc-100 border-zinc-200 text-zinc-300 cursor-not-allowed" : "bg-white hover:border-zinc-400")}
                               >
                                 {it.done && <Check className="h-4 w-4 stroke-[3]" />}
                               </button>
@@ -2034,14 +2048,51 @@ export default function BoardWorkbenchClient({
                                     title="Double-click to rename"
                                   >{it.title}</p>
                                 )}
-                                {it.assignedMemberId && (
-                                   <div className="flex items-center gap-1.5 mt-1.5">
-                                      <div className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-black text-white", getUserColor(Number(it.assignedMemberId.replace('u-', '')), members.find(m => m.id === it.assignedMemberId)?.name || ''))}>
-                                        {initials(members.find(m => m.id === it.assignedMemberId)?.name || "?")}
-                                      </div>
-                                      <span className="text-[10px] font-bold text-zinc-400 italic">assigned to {members.find(m => m.id === it.assignedMemberId)?.name}</span>
-                                   </div>
-                                )}
+                                <div className="flex items-center gap-1.5 mt-1.5">
+                                   {it.assignedMemberId ? (
+                                     <div className={cn("h-5 w-5 rounded-full flex items-center justify-center text-[8px] font-black text-white", getUserColor(Number(it.assignedMemberId.replace('u-', '')), members.find(m => m.id === it.assignedMemberId)?.name || ''))}>
+                                       {initials(members.find(m => m.id === it.assignedMemberId)?.name || "?")}
+                                     </div>
+                                   ) : null}
+                                   <select
+                                     value={it.assignedMemberId || ""}
+                                     onChange={async (e) => {
+                                       const raw = e.target.value;
+                                       const uid = raw ? Number(raw.replace("u-", "")) : null;
+                                       const prev = it.assignedMemberId;
+                                       updateActiveCard(c => ({
+                                         ...c,
+                                         checklists: c.checklists.map(cList => cList.id === cl.id ? {
+                                           ...cList,
+                                           items: cList.items.map(item => item.id === it.id
+                                             ? { ...item, assignedMemberId: raw || undefined, done: uid ? item.done : false }
+                                             : item)
+                                         } : cList)
+                                       }));
+                                       try {
+                                         await setChecklistItemAssignee(Number(it.id.replace("ci-", "")), uid);
+                                       } catch (err: any) {
+                                         setCardDetailWarning(err.message || "Failed to assign item");
+                                         updateActiveCard(c => ({
+                                           ...c,
+                                           checklists: c.checklists.map(cList => cList.id === cl.id ? {
+                                             ...cList,
+                                             items: cList.items.map(item => item.id === it.id ? { ...item, assignedMemberId: prev } : item)
+                                           } : cList)
+                                         }));
+                                       }
+                                     }}
+                                     className={cn(
+                                       "text-[10px] font-bold italic bg-transparent outline-none cursor-pointer rounded px-1 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-600",
+                                       it.assignedMemberId ? "text-zinc-400" : "text-amber-600 dark:text-amber-400"
+                                     )}
+                                   >
+                                     <option value="">Unassigned — assign to complete</option>
+                                     {members.map(m => (
+                                       <option key={m.id} value={m.id}>assigned to {m.name}</option>
+                                     ))}
+                                   </select>
+                                </div>
                               </div>
                                <button 
                                 onClick={async () => {
@@ -2244,16 +2295,9 @@ export default function BoardWorkbenchClient({
                         onClick={async () => {
                           if (activeCardRange && activeBoardId) {
                             if (!activeCard.card.isCompleted) {
-                              if (!activeCard.card.assignedToUserId) {
-                                setCardDetailWarning("Assign someone to this card first!");
-                                return;
-                              }
-                              if (activeCard.card.assignedToUserId !== currentUser.id) {
-                                setCardDetailWarning("Only the assigned member can mark this card as done!");
-                                return;
-                              }
-                              if (!canMarkCardComplete(activeCard.card)) {
-                                setCardDetailWarning("Complete all checklist items first!");
+                              const blocker = cardBlocker(activeCard.card);
+                              if (blocker) {
+                                setCardDetailWarning(blocker);
                                 return;
                               }
                             }
@@ -2272,23 +2316,6 @@ export default function BoardWorkbenchClient({
                       {cardDetailWarning && (
                         <p className="text-[9px] text-red-500 font-bold px-3 animate-bounce">{cardDetailWarning}</p>
                       )}
-                      <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-zinc-200/60">
-                        <div className="flex items-center gap-2.5">
-                          <BookOpen className="h-3.5 w-3.5 text-zinc-600" />
-                          <span className="font-bold text-xs text-zinc-600">Include in Logs</span>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                            const newVal = !activeCard.card.includeInLogs;
-                            updateActiveCard(c => ({ ...c, includeInLogs: newVal }));
-                            try { await setIncludeInLogs(cardDbId, newVal); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, includeInLogs: !newVal })); alert("Failed to save. Make sure the dev server has been restarted after schema changes."); }
-                          }}
-                          className={cn("relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-200 cursor-pointer", activeCard.card.includeInLogs ? "bg-sky-500" : "bg-zinc-300")}
-                        >
-                          <span className={cn("inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200", activeCard.card.includeInLogs ? "translate-x-[18px]" : "translate-x-[2px]")} />
-                        </button>
-                      </div>
                       {canEdit && (
                       <button 
                         onClick={async () => {

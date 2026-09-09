@@ -6,6 +6,9 @@ import { getUnreadNotifications } from "@/app/actions/notificationActions";
 export default function BrowserNotifications() {
   const shownIds = useRef<Set<number>>(new Set());
   const permissionGranted = useRef(false);
+  // The first poll only records what is already unread. Without this, opening
+  // any page fired a desktop toast for every backlogged notification at once.
+  const seeded = useRef(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -35,6 +38,13 @@ export default function BrowserNotifications() {
 
       try {
         const unread = await getUnreadNotifications();
+
+        if (!seeded.current) {
+          for (const n of unread) shownIds.current.add(n.id);
+          seeded.current = true;
+          return;
+        }
+
         for (const n of unread) {
           if (shownIds.current.has(n.id)) continue;
           shownIds.current.add(n.id);
@@ -49,7 +59,9 @@ export default function BrowserNotifications() {
 
             if (n.link) {
               notif.onclick = () => {
-                window.open(n.link!, "_blank");
+                // Reuse this tab rather than opening a new one for an in-app link.
+                window.focus();
+                window.location.href = n.link!;
                 notif.close();
               };
             }

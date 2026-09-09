@@ -55,7 +55,7 @@ export default function ManagerLeavesClient({ initialLeaves }: Props) {
     return matchSearch && matchStatus;
   });
 
-  const statuses = ["ALL", "PENDING", "PENDING_HR", "APPROVED", "DENIED"];
+  const statuses = ["ALL", "PENDING", "PENDING_HR", "APPROVED", "DENIED", "CANCELLED"];
 
   const statusToBadgeVariant: Record<string, string> = {
     PENDING: "warning",
@@ -77,7 +77,7 @@ export default function ManagerLeavesClient({ initialLeaves }: Props) {
         alert(result.error || "Action failed");
         return;
       }
-      setLeaves(prev => prev.map(l => l.id === leaveId ? { ...l, status: decision === "APPROVED" ? "PENDING_HR" : "DENIED" } : l));
+      setLeaves(prev => prev.map(l => l.id === leaveId ? { ...l, status: result.status ?? (decision === "APPROVED" ? "PENDING_HR" : "DENIED") } : l));
       setReviewNote("");
       setExpandedId(null);
       router.refresh();

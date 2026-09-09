@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { getCurrentUser } from "@/lib/permissions";
+import { getCurrentUser, canViewEmployeeDirectory } from "@/lib/permissions";
 import EmployeeProfileClient from "./EmployeeProfileClient";
 
 export const dynamic = "force-dynamic";
@@ -35,12 +35,7 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
 
   if (!employee) notFound();
 
-  const canAccess =
-    user.role === "ADMIN" ||
-    user.role === "CEO" ||
-    user.departmentSlug === "human-resources" ||
-    user.privileges.includes("CAN_VIEW_EMPLOYEES") ||
-    user.id === employeeId;
+  const canAccess = user.id === employeeId || (await canViewEmployeeDirectory(user));
 
   if (!canAccess) redirect("/dashboard");
 
@@ -74,7 +69,7 @@ export default async function EmployeeProfilePage({ params }: { params: { id: st
     db.leave.findMany({
       where: {
         userId: employeeId,
-        status: { in: ["APPROVED", "PENDING"] },
+        status: { in: ["APPROVED", "PENDING", "PENDING_HR"] },
         startDate: { gte: yearStart },
       },
       select: { type: true, status: true, totalDays: true },
