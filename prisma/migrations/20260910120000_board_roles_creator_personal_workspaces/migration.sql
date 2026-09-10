@@ -40,10 +40,18 @@ ALTER TABLE "Board"
 CREATE INDEX "Board_createdById_idx" ON "Board"("createdById");
 
 -- Best available guess for boards that predate the column: the workspace owner.
+--
+-- Deliberately skipped for PROJECT boards. Those are created by the system from
+-- a project, and their client workspace's owner is whichever active user
+-- happened to be first when the workspace was auto-provisioned. Naming that
+-- person the board's creator, and so its OWNER, would be inventing authority
+-- from an implementation detail. They keep workspace-owner rights either way.
 UPDATE "Board" b
 SET "createdById" = w."ownerId"
 FROM "Workspace" w
-WHERE b."workspaceId" = w."id" AND b."createdById" IS NULL;
+WHERE b."workspaceId" = w."id"
+  AND b."createdById" IS NULL
+  AND b."type" <> 'PROJECT';
 
 -- The creator owns their board. Promote an existing membership if there is one…
 UPDATE "BoardMember" m
