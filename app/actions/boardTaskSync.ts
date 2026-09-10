@@ -87,7 +87,7 @@ export async function ensureProjectBoard(projectId: number) {
 
   const userIds = await getAllActiveUserIds();
   await db.boardMember.createMany({
-    data: userIds.map((uid) => ({ boardId: board.id, userId: uid, role: "MEMBER" })),
+    data: userIds.map((uid) => ({ boardId: board.id, userId: uid, role: "EDITOR" as const })),
     skipDuplicates: true,
   });
 
@@ -182,7 +182,7 @@ export async function syncTaskToCard(taskId: number) {
   if (task.assignedUserId) {
     await db.boardMember.upsert({
       where: { boardId_userId: { boardId: board.id, userId: task.assignedUserId } },
-      create: { boardId: board.id, userId: task.assignedUserId, role: "MEMBER" },
+      create: { boardId: board.id, userId: task.assignedUserId, role: "EDITOR" },
       update: {},
     });
   }
@@ -336,7 +336,7 @@ export async function syncChecklistItemToSubtask(checklistItemId: number) {
 export async function addBoardMemberForAssignee(boardId: number, userId: number) {
   await db.boardMember.upsert({
     where: { boardId_userId: { boardId, userId } },
-    create: { boardId, userId, role: "MEMBER" },
+    create: { boardId, userId, role: "EDITOR" },
     update: {},
   });
 }

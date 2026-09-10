@@ -46,7 +46,7 @@ async function main() {
     });
 
     await db.boardMember.createMany({
-      data: allUserIds.map((uid) => ({ boardId: board.id, userId: uid, role: "MEMBER" })),
+      data: allUserIds.map((uid) => ({ boardId: board.id, userId: uid, role: "EDITOR" as const })),
       skipDuplicates: true,
     });
 
@@ -96,7 +96,7 @@ async function main() {
     if (task.assignedUserId) {
       await db.boardMember.upsert({
         where: { boardId_userId: { boardId: board.id, userId: task.assignedUserId } },
-        create: { boardId: board.id, userId: task.assignedUserId, role: "MEMBER" },
+        create: { boardId: board.id, userId: task.assignedUserId, role: "EDITOR" },
         update: {},
       });
     }

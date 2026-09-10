@@ -1,12 +1,12 @@
 ﻿"use client";
 
 import { useMemo, useState, useEffect, useRef } from "react";
-import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
+import { Search, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cardCompletionBlocker, checklistItemCompletionBlocker } from "@/lib/boardRules";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
-import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist, setChecklistItemAssignee } from "@/app/actions/boardActions";
+import { createWorkspace, createBoard, getBoardData, getWorkspaces, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, deleteWorkspace, deleteBoard, updateBoardVisibility, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist, setChecklistItemAssignee, inviteToWorkspace, removeWorkspaceMember, setBoardMemberRole, removeBoardMember, leaveBoard } from "@/app/actions/boardActions";
 import { createNotification } from "@/app/actions/notificationActions";
 import { formatDistanceToNow } from "date-fns";
 
@@ -18,6 +18,21 @@ type SystemUser = {
   id: number;
   name: string;
   email: string;
+};
+
+type BoardMemberRole = "OWNER" | "EDITOR" | "VIEWER";
+
+type BoardMemberEntry = {
+  id: number;
+  name: string;
+  email: string;
+  role: BoardMemberRole;
+};
+
+const ROLE_COPY: Record<BoardMemberRole, { label: string; desc: string }> = {
+  OWNER: { label: "Owner", desc: "Full control, including visibility and deletion" },
+  EDITOR: { label: "Editor", desc: "Can add and change lists and cards" },
+  VIEWER: { label: "Viewer", desc: "Read only" },
 };
 
 type WorkspaceData = {
@@ -143,6 +158,24 @@ const BOARD_COLORS = [
   { name: "Stone", bg: "bg-stone-600" },
 ];
 
+const VISIBILITY_COPY: Record<BoardData["visibility"], { label: string; desc: string; help: string }> = {
+  PRIVATE: {
+    label: "Private",
+    desc: "Only people invited to this board",
+    help: "Only you and the people you invite to this board can open it.",
+  },
+  WORKSPACE: {
+    label: "Workspace",
+    desc: "Everyone in this workspace",
+    help: "Every member of this workspace can open and edit this board.",
+  },
+  PUBLIC: {
+    label: "Public",
+    desc: "Anyone at the company can view",
+    help: "Anyone with an account can find and read this board. Only members can change it.",
+  },
+};
+
 const BOARD_LABELS: Label[] = [
   { id: "l-blue", name: "Design", color: "bg-sky-500" },
   { id: "l-green", name: "Development", color: "bg-emerald-500" },
@@ -243,7 +276,7 @@ export default function BoardWorkbenchClient({
   const [showCreateBoard, setShowCreateBoard] = useState(false);
   const [newWsName, setNewWsName] = useState("");
   const [newBoardTitle, setNewBoardTitle] = useState("");
-  const [newBoardWsId, setNewBoardWsId] = useState<number | "">(initialWorkspaces[0]?.id || "");
+  const [newBoardWsId, setNewBoardWsId] = useState<number | "personal" | "">(initialWorkspaces[0]?.id || "personal");
   const [newBoardVisibility, setNewBoardVisibility] = useState<BoardData["visibility"]>("WORKSPACE");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -278,7 +311,23 @@ export default function BoardWorkbenchClient({
   const [activeListMenuId, setActiveListMenuId] = useState<string | null>(null);
   const [showBoardMenu, setShowBoardMenu] = useState(false);
   const [showBoardSettings, setShowBoardSettings] = useState(false);
-  const [boardMembers, setBoardMembers] = useState<Record<string, string[]>>({});
+
+  // What the current viewer is allowed to do on the active board, as resolved
+  // server-side by lib/boardAccess.ts.
+  const [viewerCanEdit, setViewerCanEdit] = useState(false);
+  const [viewerCanAdmin, setViewerCanAdmin] = useState(false);
+
+  // Transient error/info toast, instead of a blocking browser dialog.
+  const [notice, setNotice] = useState<string | null>(null);
+  const showNotice = (message: string) => setNotice(message);
+
+  // Board members with their roles, for the settings pane.
+  const [boardMemberEntries, setBoardMemberEntries] = useState<BoardMemberEntry[]>([]);
+  const [inviteRole, setInviteRole] = useState<BoardMemberRole>("EDITOR");
+
+  // Card popup: assignee dropdown + due-date draft.
+  const [isAssigneePickerOpen, setIsAssigneePickerOpen] = useState(false);
+  const [dueDateDraft, setDueDateDraft] = useState<string>("");
 
   // Auto-close popups on outside click
   useEffect(() => {
@@ -292,30 +341,25 @@ export default function BoardWorkbenchClient({
         setIsDateSelectionOpen(false);
         setIsAddingFile(false);
         setActiveListMenuId(null);
+        setIsAssigneePickerOpen(false);
       }
     };
-    if (isMemberSearchOpen || isLabelEditorOpen || isChecklistAddOpen || isDateSelectionOpen || isAddingFile || activeListMenuId) {
+    if (isMemberSearchOpen || isLabelEditorOpen || isChecklistAddOpen || isDateSelectionOpen || isAddingFile || activeListMenuId || isAssigneePickerOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isMemberSearchOpen, isLabelEditorOpen, isChecklistAddOpen, isDateSelectionOpen, isAddingFile, activeListMenuId]);
+  }, [isMemberSearchOpen, isLabelEditorOpen, isChecklistAddOpen, isDateSelectionOpen, isAddingFile, activeListMenuId, isAssigneePickerOpen]);
 
   const [draggedCard, setDraggedCard] = useState<{ listId: string; cardId: string } | null>(null);
   const [draggedListId, setDraggedListId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<{ listId: string; index: number } | null>(null);
-
-  const activeWorkspace = useMemo(() => {
-    if (!activeBoardId) return null;
-    const boardDbId = Number(activeBoardId.replace("b-", ""));
-    return workspaces.find(ws => ws.boards.some((b: any) => b.id === boardDbId));
-  }, [workspaces, activeBoardId]);
 
   useEffect(() => {
     const allBoards: BoardData[] = workspaces.flatMap(ws => ws.boards.map((b: any) => {
       const bId = `b-${b.id}`;
       const wsMemberIds = ws.members.map((m: any) => `u-${m.user?.id || m.userId || m.id}`) || [];
       const defaultMembers = wsMemberIds.length > 0 ? wsMemberIds : [selfMemberId];
-      const savedMembers = boardMembers[bId] || b.memberIds || defaultMembers;
+      const savedMembers = b.memberIds || defaultMembers;
       const uniqueMembers = Array.from(new Set([...savedMembers, selfMemberId]));
       const lastVisited = b.visits?.[0]?.visitedAt ? new Date(b.visits[0].visitedAt).getTime() : 0;
       return {
@@ -346,7 +390,7 @@ export default function BoardWorkbenchClient({
     } else if (allBoards.length > 0 && !activeBoardId) {
       setActiveBoardId(allBoards[0].id);
     }
-  }, [workspaces, selfMemberId, boardMembers, boardTeamMembers, activeBoardId, initialActiveBoardId]);
+  }, [workspaces, selfMemberId, boardTeamMembers, activeBoardId, initialActiveBoardId]);
 
   const activeBoard = useMemo(() => boards.find(b => b.id === activeBoardId), [boards, activeBoardId]);
   const currentLists = useMemo(() => (activeBoardId ? listsByBoard[activeBoardId] || [] : []), [listsByBoard, activeBoardId]);
@@ -357,6 +401,9 @@ export default function BoardWorkbenchClient({
     try {
       const data = await getBoardData(dbId);
       if (!data) return;
+
+      setViewerCanEdit(Boolean((data as any).viewerCanEdit));
+      setViewerCanAdmin(Boolean((data as any).viewerCanAdmin));
       
       const listData: ListData[] = data.lists.map((l: any) => ({
         id: `l-${l.id}`,
@@ -392,6 +439,15 @@ export default function BoardWorkbenchClient({
       }));
 
       setListsByBoard(prev => ({ ...prev, [boardIdStr]: listData }));
+      setBoardMemberEntries(
+        (data.members || []).map((m: any) => ({
+          id: m.user.id,
+          name: m.user.name,
+          email: m.user.email,
+          role: (m.role || "EDITOR") as BoardMemberRole,
+        }))
+      );
+
       const teamMembers = data.members.map((m: any) => m.user);
       const wsMembers = (data.workspace?.members || []).map((m: any) => m.user).filter(Boolean);
       const allTeamMembers = [...teamMembers];
@@ -428,10 +484,25 @@ export default function BoardWorkbenchClient({
     }
   }, [activeBoardId]);
 
+  // Pause the refresh whenever the user is mid-edit, otherwise a poll lands on
+  // top of whatever they are typing and discards it.
+  const suspendPollRef = useRef(false);
+  useEffect(() => {
+    suspendPollRef.current = Boolean(
+      activeCardRange ||
+      isDescriptionEditing ||
+      editingItemId ||
+      addingCardToListId ||
+      addingList ||
+      activeComment.trim()
+    );
+  }, [activeCardRange, isDescriptionEditing, editingItemId, addingCardToListId, addingList, activeComment]);
+
   // Polling for realtime updates (every 10s)
   useEffect(() => {
     if (!activeBoardId) return;
     const interval = setInterval(() => {
+      if (suspendPollRef.current) return;
       fetchBoardData(activeBoardId);
     }, 10000);
     return () => clearInterval(interval);
@@ -492,7 +563,7 @@ export default function BoardWorkbenchClient({
     setIsSubmitting(true);
     try {
       const ws = await createWorkspace({ name: newWsName.trim() });
-      setWorkspaces(prev => [...prev, { ...ws, boards: [], members: [] }]);
+      setWorkspaces(prev => [...prev, { ...ws, boards: [] }]);
       setNewWsName("");
       setShowCreateWs(false);
       setNewBoardWsId(ws.id);
@@ -502,20 +573,29 @@ export default function BoardWorkbenchClient({
 
   const handleCreateBoard = async () => {
     if (!newBoardTitle.trim()) return;
-    const wsId = Number(newBoardWsId);
-    if (!wsId || isNaN(wsId)) { alert("Please select a workspace."); return; }
+    const isPersonal = newBoardWsId === "personal";
+    const wsId = isPersonal ? null : Number(newBoardWsId);
+    if (!isPersonal && (!wsId || isNaN(wsId))) { showNotice("Please select a workspace."); return; }
     setIsSubmitting(true);
     try {
-      const board = await createBoard({ 
-        workspaceId: wsId, 
+      const board = await createBoard({
+        ...(isPersonal ? { personal: true } : { workspaceId: wsId! }),
         title: newBoardTitle.trim(),
         visibility: newBoardVisibility as any
       });
-      setWorkspaces(prev => prev.map(ws => ws.id === wsId ? { ...ws, boards: [...ws.boards, board] } : ws));
+
+      if (isPersonal) {
+        // The personal space may have just been created, so re-read the list.
+        const fresh = await getWorkspaces();
+        setWorkspaces(JSON.parse(JSON.stringify(fresh)));
+      } else {
+        setWorkspaces(prev => prev.map(ws => ws.id === wsId ? { ...ws, boards: [...ws.boards, board] } : ws));
+      }
+
       setNewBoardTitle("");
       setShowCreateBoard(false);
       setActiveBoardId(`b-${board.id}`);
-    } catch (e: any) { console.error(e); alert(e?.message || "Failed to create board. Please try again."); } finally { setIsSubmitting(false); }
+    } catch (e: any) { console.error(e); showNotice(e?.message || "Failed to create board. Please try again."); } finally { setIsSubmitting(false); }
   };
 
   const handleAddList = async () => {
@@ -537,7 +617,7 @@ export default function BoardWorkbenchClient({
       }));
       setNewListTitle("");
       setAddingList(false);
-    } catch (e: any) { alert(e.message || "Failed to create list"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to create list"); }
   };
 
   const handleDeleteList = async (listId: string) => {
@@ -549,7 +629,7 @@ export default function BoardWorkbenchClient({
         ...prev,
         [activeBoardId]: (prev[activeBoardId] || []).filter(l => l.id !== listId)
       }));
-    } catch (e: any) { alert(e.message || "Failed to delete list"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to delete list"); }
     setActiveListMenuId(null);
   };
 
@@ -564,7 +644,7 @@ export default function BoardWorkbenchClient({
           l.id === listId ? { ...l, restricted: !l.restricted } : l
         )
       }));
-    } catch (e: any) { alert(e.message || "Failed to update list"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to update list"); }
     setActiveListMenuId(null);
   };
 
@@ -572,7 +652,7 @@ export default function BoardWorkbenchClient({
     if (!title.trim() || !activeBoardId) return;
     const targetList = (listsByBoard[activeBoardId] || []).find(l => l.id === listId);
     if (targetList?.restricted) {
-      alert("This list is restricted!");
+      showNotice("This list is restricted!");
       return;
     }
     const dbId = Number(listId.replace("l-", ""));
@@ -593,14 +673,14 @@ export default function BoardWorkbenchClient({
         ...prev,
         [activeBoardId]: (prev[activeBoardId] || []).map(l => l.id === listId ? { ...l, cards: [...l.cards, newCard] } : l)
       }));
-    } catch (e: any) { alert(e.message || "Failed to create card"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to create card"); }
   };
 
   const updateActiveCard = (updater: (card: CardData) => CardData) => {
     if (!activeCardRange || !activeBoardId) return;
     const targetList = (listsByBoard[activeBoardId] || []).find(l => l.id === activeCardRange.listId);
     if (targetList?.restricted) {
-      alert("This list is restricted and cannot be modified!");
+      showNotice("This list is restricted and cannot be modified!");
       return;
     }
     setListsByBoard(prev => ({
@@ -638,10 +718,10 @@ export default function BoardWorkbenchClient({
           "BOARD_UPDATED",
           "Card Update",
           `${currentUser.name} ${isCurrentlyAssigned ? "removed you from" : "assigned you to"} "${activeCard?.card.title}"`,
-          ""
+          activeBoard ? `/board?active=${activeBoard.id}` : "/board"
         );
       } catch (e) { console.error(e); }
-    } catch (e: any) { alert(e.message || "Failed to update card member"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to update card member"); }
   };
 
   const handleInviteToWorkspace = async (wsId: number, uId: number) => {
@@ -653,17 +733,42 @@ export default function BoardWorkbenchClient({
     const userToAdd = systemUsers.find(su => su.id === uId);
     if (!userToAdd) return;
 
-    setWorkspaces(prev => prev.map(w => w.id === wsId ? { ...w, members: [...w.members, { id: Date.now(), userId: uId, user: userToAdd }] } : w));
+    // Optimistic, then reconciled with what the server actually stored.
+    setWorkspaces(prev => prev.map(w => w.id === wsId
+      ? { ...w, members: [...w.members, { id: `pending-${uId}`, userId: uId, user: userToAdd }] }
+      : w));
 
     try {
-      await createNotification(
-        uId,
-        "WORKSPACE_INVITE",
-        "Workspace Invite",
-        `${currentUser.name} added you to workspace "${ws.name}"`,
-        ""
-      );
-    } catch (e) { console.error(e); }
+      const member = await inviteToWorkspace(wsId, uId);
+      setWorkspaces(prev => prev.map(w => w.id === wsId
+        ? { ...w, members: w.members.map(m => m.id === `pending-${uId}` ? member : m) }
+        : w));
+    } catch (e: any) {
+      // Roll back so the UI never shows a member the server rejected.
+      setWorkspaces(prev => prev.map(w => w.id === wsId
+        ? { ...w, members: w.members.filter(m => m.id !== `pending-${uId}`) }
+        : w));
+      showNotice(e?.message || "Failed to add member to workspace");
+    }
+  };
+
+  const handleRemoveWorkspaceMember = async (wsId: number, uId: number) => {
+    const ws = workspaces.find(w => w.id === wsId);
+    if (!ws) return;
+    const target = systemUsers.find(su => su.id === uId);
+    if (!confirm(`Remove ${target?.name || "this member"} from "${ws.name}"?`)) return;
+
+    const snapshot = ws.members;
+    setWorkspaces(prev => prev.map(w => w.id === wsId
+      ? { ...w, members: w.members.filter(m => (m.user?.id || m.userId || m.id) !== uId) }
+      : w));
+
+    try {
+      await removeWorkspaceMember(wsId, uId);
+    } catch (e: any) {
+      setWorkspaces(prev => prev.map(w => w.id === wsId ? { ...w, members: snapshot } : w));
+      showNotice(e?.message || "Failed to remove member");
+    }
   };
 
   const handleInviteToBoard = async (uId: number) => {
@@ -673,26 +778,17 @@ export default function BoardWorkbenchClient({
     if (activeBoard.memberIds.includes(memberId)) return;
 
     try {
-      await inviteToBoard(boardDbId, uId);
+      await inviteToBoard(boardDbId, uId, inviteRole);
       setWorkspaces(prev => prev.map(ws => ({
         ...ws,
         boards: ws.boards.map((b: any) => b.id === boardDbId ? { ...b, memberIds: [...(b.memberIds || [selfMemberId]), memberId] } : b)
       })));
       // Refresh board data to get the updated member list
       fetchBoardData(activeBoard.id);
-
-      try {
-        await createNotification(
-          uId,
-          "BOARD_INVITE",
-          "Invited to Board",
-          `${currentUser.name} invited you to join the board "${activeBoard.title}"`,
-          `/board?active=${activeBoard.id}`
-        );
-      } catch (e) { console.error(e); }
+      // inviteToBoard already sends the notification + email server-side.
     } catch (e: any) {
       console.error(e);
-      alert(e.message || "Failed to send invite. Please try again.");
+      showNotice(e?.message || "Failed to send invite. Please try again.");
     }
   };
 
@@ -716,11 +812,18 @@ export default function BoardWorkbenchClient({
         ]
       }));
       setActiveComment("");
-    } catch (e: any) { alert(e.message || "Failed to add comment"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to add comment"); }
   };
 
   const [cardWarningId, setCardWarningId] = useState<string | null>(null);
   const [cardDetailWarning, setCardDetailWarning] = useState<string | null>(null);
+
+  // Clear the toast after a few seconds
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   // Clear warning after 3 seconds
   useEffect(() => {
@@ -773,7 +876,7 @@ export default function BoardWorkbenchClient({
           cards: l.cards.map(c => c.id === cardId ? { ...c, isCompleted: !c.isCompleted } : c)
         } : l)
       }));
-    } catch (e: any) { alert(e.message || "Failed to update card"); }
+    } catch (e: any) { showNotice(e?.message || "Failed to update card"); }
   };
 
   const onDragStartCard = (e: React.DragEvent, listId: string, cardId: string) => {
@@ -804,7 +907,7 @@ export default function BoardWorkbenchClient({
       const targetListDbId = Number(targetListId.replace("l-", ""));
       try {
         await moveCard(cardDbId, targetListDbId, targetIndex);
-      } catch (err: any) { alert(err.message || "Failed to move card"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
+      } catch (err: any) { showNotice(err?.message || "Failed to move card"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
 
       setListsByBoard(prev => {
         const boardLists = [...(prev[activeBoardId] || [])];
@@ -830,7 +933,7 @@ export default function BoardWorkbenchClient({
 
     if (type === "list" && draggedListId) {
        const listDbId = Number(draggedListId.replace("l-", ""));
-       try { await moveList(listDbId, targetIndex); } catch (err: any) { alert(err.message || "Failed to move list"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
+       try { await moveList(listDbId, targetIndex); } catch (err: any) { showNotice(err?.message || "Failed to move list"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
        setListsByBoard(prev => {
          const boardLists = [...(prev[activeBoardId] || [])];
          const sourceIdx = boardLists.findIndex(l => l.id === draggedListId);
@@ -845,15 +948,7 @@ export default function BoardWorkbenchClient({
     setDropIndicator(null);
   };
 
-  const canEdit = useMemo(() => {
-    if (!activeBoard) return false;
-    return activeBoard.memberIds.includes(selfMemberId);
-  }, [activeBoard, selfMemberId]);
-
-  const filteredBoards = useMemo(() => {
-    const term = (switcherSearch || "").toLowerCase().trim();
-    return boards.filter(b => b.title.toLowerCase().includes(term));
-  }, [boards, switcherSearch]);
+  const canEdit = viewerCanEdit;
 
   const workspaceToDisplay = useMemo(() => {
     if (!selectedWsId) return null;
@@ -866,6 +961,41 @@ export default function BoardWorkbenchClient({
     const card = list?.cards.find(c => c.id === activeCardRange.cardId);
     return card && list ? { list, card } : null;
   }, [activeCardRange, currentLists]);
+
+  // The board presets plus any custom label already saved on this card.
+  // Persisted labels come back with a `lb-<id>`, so they are matched on
+  // name + color rather than on id.
+  const cardLabelOptions = useMemo(() => {
+    const options: Label[] = [...BOARD_LABELS];
+    for (const lab of activeCard?.card.labels || []) {
+      if (!options.some(o => o.name === lab.name && o.color === lab.color)) options.push(lab);
+    }
+    return options;
+  }, [activeCard]);
+
+  const handleToggleCardLabel = async (name: string, color: string) => {
+    if (!activeCardRange || !activeCard) return;
+    const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
+    const existing = activeCard.card.labels.find(lab => lab.name === name && lab.color === color);
+
+    if (existing) {
+      updateActiveCard(c => ({ ...c, labels: c.labels.filter(lab => lab.id !== existing.id) }));
+      try {
+        await removeCardLabel(Number(existing.id.replace("lb-", "")));
+      } catch (err: any) {
+        showNotice(err?.message || "Failed to remove label");
+        if (activeBoardId) fetchBoardData(activeBoardId);
+      }
+      return;
+    }
+
+    try {
+      const created = await addCardLabel(cardDbId, name, color);
+      updateActiveCard(c => ({ ...c, labels: [...c.labels, { id: `lb-${created.id}`, name, color }] }));
+    } catch (err: any) {
+      showNotice(err?.message || "Failed to add label");
+    }
+  };
 
   const AvatarPile = ({ ids, size = "h-7 w-7", max = 4 }: { ids: string[]; size?: string; max?: number }) => {
     const visible = ids.slice(0, max);
@@ -951,14 +1081,27 @@ export default function BoardWorkbenchClient({
             <span className="hidden sm:inline text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] truncate max-w-[140px]" title={activeBoard.workspaceName}>{activeBoard.workspaceName}</span>
             <div className="hidden sm:block h-6 w-[2px] bg-zinc-200 dark:bg-white/10 mx-2 shrink-0" />
             
-            <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shrink-0">
+            <div
+              className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-100/80 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-500 shrink-0"
+              title={VISIBILITY_COPY[activeBoard.visibility].help}
+            >
                {activeBoard.visibility === "PRIVATE" ? <Lock className="h-3 w-3" /> : activeBoard.visibility === "PUBLIC" ? <Globe className="h-3 w-3" /> : <Users className="h-3 w-3" />}
-               {activeBoard.visibility}
+               {VISIBILITY_COPY[activeBoard.visibility].label}
             </div>
             
             <div className="hidden md:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1 shrink-0" />
             
             <h1 className="text-base md:text-xl font-black tracking-tight text-zinc-800 dark:text-white truncate min-w-0" title={activeBoard.title}>{activeBoard.title}</h1>
+
+            {!viewerCanEdit && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400 shrink-0"
+                title="You can read this board but not change it. Ask a member to add you if you need to edit."
+              >
+                <Eye className="h-3 w-3" />
+                <span className="hidden sm:inline">Read only</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 md:gap-6">
@@ -967,6 +1110,7 @@ export default function BoardWorkbenchClient({
               <AvatarPile ids={activeBoard.memberIds} size="h-9 w-9" max={6} />
             </div>
 
+            {viewerCanEdit && (
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -978,6 +1122,7 @@ export default function BoardWorkbenchClient({
               <UserPlus className="h-4 w-4 stroke-[2.5]" />
               <span className="hidden sm:inline">Invite</span>
             </button>
+            )}
 
             <div className="h-8 w-px bg-zinc-200 dark:bg-white/10" />
             
@@ -1006,13 +1151,13 @@ export default function BoardWorkbenchClient({
 
       {showBoardSettings && activeBoard && (
         <div className="fixed inset-0 z-[400] bg-black/40 backdrop-blur-md flex items-center justify-center p-6" onClick={() => setShowBoardSettings(false)}>
-          <div className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-md max-h-[85vh] overflow-y-auto bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl shadow-2xl p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-black text-zinc-800 dark:text-white">Board Settings</h3>
               <button onClick={() => setShowBoardSettings(false)} className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-400"><X className="h-4 w-4" /></button>
             </div>
             <div className="space-y-4">
-              {(activeWorkspace?.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
+              {viewerCanAdmin && (
               <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">Board Visibility</label>
                 <div className="flex gap-2">
@@ -1024,7 +1169,7 @@ export default function BoardWorkbenchClient({
                         try {
                           await updateBoardVisibility(dbId, v);
                           setBoards(prev => prev.map(b => b.id === activeBoard.id ? { ...b, visibility: v } : b));
-                        } catch (err: any) { alert(err.message || "Failed to update visibility"); }
+                        } catch (err: any) { showNotice(err?.message || "Failed to update visibility"); }
                       }}
                       className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
@@ -1036,7 +1181,7 @@ export default function BoardWorkbenchClient({
                       {v === "PRIVATE" && <Lock className="h-3 w-3 inline mr-1" />}
                       {v === "WORKSPACE" && <Users className="h-3 w-3 inline mr-1" />}
                       {v === "PUBLIC" && <Globe className="h-3 w-3 inline mr-1" />}
-                      {v}
+                      {VISIBILITY_COPY[v].label}
                     </button>
                   ))}
                 </div>
@@ -1058,7 +1203,7 @@ export default function BoardWorkbenchClient({
                             ...ws,
                             boards: ws.boards.map((b: any) => b.id === dbId ? { ...b, background: c.bg } : b)
                           })));
-                        } catch (err: any) { alert(err.message || "Failed to update color"); }
+                        } catch (err: any) { showNotice(err?.message || "Failed to update color"); }
                       }}
                       className={cn(
                         "h-10 w-full rounded-xl transition-all border-2",
@@ -1070,7 +1215,129 @@ export default function BoardWorkbenchClient({
                 </div>
               </div>
               <div className="h-px bg-zinc-100 dark:bg-white/10" />
-              {(activeWorkspace?.ownerId === currentUser.id || currentUser.role === "ADMIN") && (
+
+              <div>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 block">
+                  Members ({boardMemberEntries.length})
+                </label>
+                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+                  {boardMemberEntries.map(m => {
+                    const isSelf = m.id === currentUser.id;
+                    return (
+                      <div key={m.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-zinc-50 dark:bg-white/5">
+                        <div className={cn("h-8 w-8 shrink-0 rounded-full flex items-center justify-center text-[9px] font-black text-white", getUserColor(m.id, m.name))}>
+                          {initials(m.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-zinc-700 dark:text-zinc-200 truncate">
+                            {m.name}{isSelf && " (you)"}
+                          </p>
+                          <p className="text-[9px] font-bold text-zinc-400 truncate">{ROLE_COPY[m.role].desc}</p>
+                        </div>
+                        {viewerCanAdmin ? (
+                          <>
+                            <select
+                              value={m.role}
+                              onChange={async (e) => {
+                                const next = e.target.value as BoardMemberRole;
+                                const dbId = Number(activeBoard.id.replace("b-", ""));
+                                const previous = m.role;
+                                setBoardMemberEntries(prev => prev.map(x => x.id === m.id ? { ...x, role: next } : x));
+                                try {
+                                  await setBoardMemberRole(dbId, m.id, next);
+                                  if (isSelf) fetchBoardData(activeBoard.id);
+                                } catch (err: any) {
+                                  setBoardMemberEntries(prev => prev.map(x => x.id === m.id ? { ...x, role: previous } : x));
+                                  showNotice(err?.message || "Failed to change role");
+                                }
+                              }}
+                              className="h-8 px-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-300 outline-none"
+                            >
+                              {(["OWNER", "EDITOR", "VIEWER"] as const).map(r => (
+                                <option key={r} value={r}>{ROLE_COPY[r].label}</option>
+                              ))}
+                            </select>
+                            <button
+                              title="Remove from board"
+                              onClick={async () => {
+                                const dbId = Number(activeBoard.id.replace("b-", ""));
+                                if (!confirm(`Remove ${m.name} from this board?`)) return;
+                                const snapshot = boardMemberEntries;
+                                setBoardMemberEntries(prev => prev.filter(x => x.id !== m.id));
+                                try {
+                                  await removeBoardMember(dbId, m.id);
+                                } catch (err: any) {
+                                  setBoardMemberEntries(snapshot);
+                                  showNotice(err?.message || "Failed to remove member");
+                                }
+                              }}
+                              className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-zinc-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-all"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 shrink-0">
+                            {ROLE_COPY[m.role].label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {boardMemberEntries.length === 0 && (
+                    <p className="text-[10px] font-bold text-zinc-400 italic py-2">No explicit members yet.</p>
+                  )}
+                </div>
+
+                {viewerCanEdit && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <select
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value as BoardMemberRole)}
+                      className="h-9 px-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-300 outline-none"
+                    >
+                      {(["EDITOR", "VIEWER", "OWNER"] as const).map(r => (
+                        <option key={r} value={r}>Invite as {ROLE_COPY[r].label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowBoardSettings(false);
+                        setMemberSearchContext("BOARD");
+                        setIsMemberSearchOpen(true);
+                      }}
+                      className="popup-trigger flex-1 h-9 rounded-lg bg-zinc-100 dark:bg-white/5 text-[10px] font-black uppercase tracking-widest text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
+                    >
+                      Add people
+                    </button>
+                  </div>
+                )}
+
+                {boardMemberEntries.some(m => m.id === currentUser.id) && (
+                  <button
+                    onClick={async () => {
+                      const dbId = Number(activeBoard.id.replace("b-", ""));
+                      if (!confirm(`Leave "${activeBoard.title}"?`)) return;
+                      try {
+                        await leaveBoard(dbId);
+                        setShowBoardSettings(false);
+                        const fresh = await getWorkspaces();
+                        setWorkspaces(JSON.parse(JSON.stringify(fresh)));
+                        setActiveBoardId(null);
+                      } catch (err: any) {
+                        showNotice(err?.message || "Failed to leave board");
+                      }
+                    }}
+                    className="mt-2 w-full h-9 rounded-lg text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/5 transition-all"
+                  >
+                    Leave this board
+                  </button>
+                )}
+              </div>
+
+              <div className="h-px bg-zinc-100 dark:bg-white/10" />
+              {viewerCanAdmin && (
               <button
                 onClick={async () => {
                   const dbId = Number(activeBoard.id.replace("b-", ""));
@@ -1082,7 +1349,7 @@ export default function BoardWorkbenchClient({
                     const remaining = workspaces.flatMap(ws => ws.boards.filter((b: any) => b.id !== dbId));
                     setActiveBoardId(remaining.length > 0 ? `b-${remaining[0].id}` : null);
                     setShowBoardSettings(false);
-                  } catch (err: any) { alert(err.message || "Failed to delete board"); }
+                  } catch (err: any) { showNotice(err?.message || "Failed to delete board"); }
                 }}
                 className="w-full py-3 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all"
               >
@@ -1158,7 +1425,7 @@ export default function BoardWorkbenchClient({
                             const lists = prev[boardIdStr] || [];
                             return { ...prev, [boardIdStr]: lists.map((l: any) => l.id === list.id ? { ...l, title: newTitle } : l) };
                           });
-                        } catch (err: any) { alert(err.message || "Failed to rename list"); }
+                        } catch (err: any) { showNotice(err?.message || "Failed to rename list"); }
                       }
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
@@ -1329,7 +1596,7 @@ export default function BoardWorkbenchClient({
                        <button onClick={() => setAddingCardToListId(null)} className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-zinc-200 dark:hover:bg-white/5 text-zinc-400"><X className="h-4 w-4" /></button>
                     </div>
                   </div>
-                ) : (
+                ) : viewerCanEdit ? (
                   <button 
                     onClick={() => setAddingCardToListId(list.id)}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-zinc-500 text-xs font-black uppercase tracking-wider hover:bg-zinc-200 dark:hover:bg-white/5 transition-colors"
@@ -1337,12 +1604,12 @@ export default function BoardWorkbenchClient({
                     <Plus className="h-3.5 w-3.5 stroke-[3]" />
                     Add a card
                   </button>
-                )}
+                ) : null}
               </footer>
             </div>
           ))}
 
-          <div className="w-[240px] md:w-[272px] shrink-0">
+          <div className={cn("w-[240px] md:w-[272px] shrink-0", !viewerCanEdit && "hidden")}>
             {addingList ? (
                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-white/10 rounded-2xl p-2.5 shadow-xl">
                  <input 
@@ -1525,12 +1792,20 @@ export default function BoardWorkbenchClient({
                         <div className="space-y-8">
                           {filteredWs.map(ws => (
                             <div key={ws.id}>
-                              <div className="flex items-center gap-3 mb-3">
+                              <button
+                                onClick={() => setSelectedWsId(ws.id)}
+                                className="flex items-center gap-3 mb-3 group rounded-lg pr-3 -ml-1 pl-1 py-1 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors"
+                                title={`Open ${ws.name}`}
+                              >
                                 <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0", getUserColor(ws.ownerId, ws.name))}>
                                   {ws.name[0]?.toUpperCase()}
                                 </div>
-                                <span className="text-base font-bold text-[#0d1c2f] dark:text-white truncate max-w-[200px]" title={ws.name}>{ws.name}</span>
-                              </div>
+                                <span className="text-base font-bold text-[#0d1c2f] dark:text-white truncate max-w-[200px]">{ws.name}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[#c91f41] opacity-0 group-hover:opacity-100 transition-opacity">
+                                  Manage
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-[#c91f41] opacity-0 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
+                              </button>
                               <div className="flex flex-wrap gap-4">
                                 {ws.boards.slice(0, wsBoardsPage * BOARDS_PER_PAGE).map((b: any) => (
                                   <button
@@ -1593,7 +1868,7 @@ export default function BoardWorkbenchClient({
                                       await deleteWorkspace(selectedWs.id);
                                       setWorkspaces(prev => prev.filter(ws => ws.id !== selectedWs.id));
                                       setSelectedWsId(null);
-                                    } catch (err: any) { alert(err.message || "Failed to delete workspace"); }
+                                    } catch (err: any) { showNotice(err?.message || "Failed to delete workspace"); }
                                   }}
                                   className="h-12 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-rose-700 active:scale-95 transition-all"
                                 >
@@ -1634,13 +1909,26 @@ export default function BoardWorkbenchClient({
                               {selectedWs.members.map((m: any) => {
                                 const uObj = m.user || m;
                                 const uId = uObj.id || m.userId;
+                                const isWsOwner = selectedWs.ownerId === uId;
+                                const canManageMembers = selectedWs.ownerId === currentUser.id || currentUser.role === "ADMIN" || currentUser.role === "CEO";
                                 return (
-                                  <div key={m.id || uId} className="flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-[#e2bebe] dark:border-white/10 shadow-sm">
+                                  <div key={m.id || uId} className="group flex items-center gap-3 p-4 bg-white dark:bg-zinc-800 rounded-2xl border border-[#e2bebe] dark:border-white/10 shadow-sm">
                                     <div className={cn("h-10 w-10 rounded-full flex items-center justify-center text-[11px] font-black text-white shadow-sm shrink-0", getUserColor(uId, uObj.name))}>{initials(uObj.name)}</div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-black truncate text-[#0d1c2f] dark:text-white">{uObj.name}</p>
-                                      <p className="text-[10px] font-bold text-[#5a4041] dark:text-zinc-400 truncate uppercase tracking-tight">{uObj.email}</p>
+                                      <p className="text-[10px] font-bold text-[#5a4041] dark:text-zinc-400 truncate uppercase tracking-tight">
+                                        {isWsOwner ? "Owner" : uObj.email}
+                                      </p>
                                     </div>
+                                    {canManageMembers && !isWsOwner && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleRemoveWorkspaceMember(selectedWs.id, uId); }}
+                                        title="Remove from workspace"
+                                        className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-zinc-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -1744,7 +2032,7 @@ export default function BoardWorkbenchClient({
                                   onClick={async () => {
                                     const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
                                     updateActiveCard(c => ({ ...c, assignedToUserId: null }));
-                                    try { await setCardAssignee(cardDbId, null); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: activeCard.card.assignedToUserId })); alert("Failed to save. Make sure the dev server has been restarted after schema changes."); }
+                                    try { await setCardAssignee(cardDbId, null); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: activeCard.card.assignedToUserId })); showNotice("Could not save your change. Please try again."); }
                                   }}
                                   className="h-4 w-4 rounded-full hover:bg-sky-200 dark:hover:bg-sky-500/30 flex items-center justify-center text-sky-400 hover:text-sky-600 transition-all"
                                 >
@@ -1757,18 +2045,18 @@ export default function BoardWorkbenchClient({
                           <span className="text-[10px] font-bold text-zinc-400 italic">No one assigned</span>
                         )}
                         {activeCard.card.memberIds.length > 0 && (
-                          <div className="relative" id="assignee-picker">
+                          <div className="relative">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const el = document.getElementById('assignee-picker-dropdown');
-                                if (el) el.classList.toggle('hidden');
+                                setIsAssigneePickerOpen(open => !open);
                               }}
-                              className="h-7 w-7 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors text-xs font-bold"
+                              className="popup-trigger h-7 w-7 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-500 hover:bg-zinc-200 transition-colors text-xs font-bold"
                             >
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
-                            <div id="assignee-picker-dropdown" className="hidden absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl z-50 p-2 min-w-[160px]">
+                            {isAssigneePickerOpen && (
+                            <div className="popup-content absolute top-full left-0 mt-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-white/10 rounded-xl shadow-xl z-50 p-2 min-w-[160px]">
                               {activeCard.card.memberIds.map(mId => {
                                 const m = members.find(u => u.id === mId);
                                 const isAssigned = activeCard.card.assignedToUserId === Number(mId.replace('u-', ''));
@@ -1781,8 +2069,8 @@ export default function BoardWorkbenchClient({
                                       const uid = Number(mId.replace('u-', ''));
                                       const prevAssigned = activeCard.card.assignedToUserId;
                                       updateActiveCard(c => ({ ...c, assignedToUserId: uid }));
-                                      document.getElementById('assignee-picker-dropdown')?.classList.add('hidden');
-                                      try { await setCardAssignee(cardDbId, uid); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: prevAssigned })); alert("Failed to save. Make sure the dev server has been restarted after schema changes."); }
+                                      setIsAssigneePickerOpen(false);
+                                      try { await setCardAssignee(cardDbId, uid); } catch (err: any) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: prevAssigned })); showNotice(err?.message || "Could not save the assignee. Please try again."); }
                                     }}
                                     className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all", isAssigned ? "bg-sky-50 text-sky-600" : "hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300")}
                                   >
@@ -1795,6 +2083,7 @@ export default function BoardWorkbenchClient({
                                 );
                               })}
                             </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1919,7 +2208,7 @@ export default function BoardWorkbenchClient({
                               await deleteCardAttachment(attDbId);
                               updateActiveCard(c => ({ ...c, attachments: c.attachments.filter(a => a.id !== att.id) }));
                             } catch (err: any) {
-                              alert(err.message || "Failed to delete attachment");
+                              showNotice(err?.message || "Failed to delete attachment");
                             }
                           }}
                           className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
@@ -1957,7 +2246,7 @@ export default function BoardWorkbenchClient({
                                   ...c,
                                   checklists: c.checklists.map(cList => cList.id === cl.id ? { ...cList, title: newTitle } : cList)
                                 }));
-                              } catch (err: any) { alert(err.message || "Failed to rename checklist"); }
+                              } catch (err: any) { showNotice(err?.message || "Failed to rename checklist"); }
                             }
                           }}
                           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -1974,7 +2263,7 @@ export default function BoardWorkbenchClient({
                               ...c,
                               checklists: c.checklists.filter(cList => cList.id !== cl.id)
                             }));
-                          } catch (err: any) { alert(err.message || "Failed to delete checklist"); }
+                          } catch (err: any) { showNotice(err?.message || "Failed to delete checklist"); }
                         }}
                         className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-rose-500"
                       >Delete</button>
@@ -2024,7 +2313,7 @@ export default function BoardWorkbenchClient({
                                     onBlur={async () => {
                                       const trimmed = editingItemTitle.trim();
                                       if (trimmed && trimmed !== it.title) {
-                                        try { await updateChecklistItem(Number(it.id.replace("ci-", "")), trimmed); } catch (e: any) { alert(e.message || "Failed to rename"); }
+                                        try { await updateChecklistItem(Number(it.id.replace("ci-", "")), trimmed); } catch (e: any) { showNotice(e?.message || "Failed to rename"); }
                                         updateActiveCard(c => ({
                                           ...c,
                                           checklists: c.checklists.map(cList => cList.id === cl.id ? {
@@ -2096,7 +2385,7 @@ export default function BoardWorkbenchClient({
                               </div>
                                <button 
                                 onClick={async () => {
-                                  try { await deleteChecklistItem(Number(it.id.replace("ci-", ""))); } catch (e: any) { alert(e.message || "Failed to delete item"); return; }
+                                  try { await deleteChecklistItem(Number(it.id.replace("ci-", ""))); } catch (e: any) { showNotice(e?.message || "Failed to delete item"); return; }
                                   updateActiveCard(c => ({
                                     ...c,
                                     checklists: c.checklists.map(cList => cList.id === cl.id ? {
@@ -2269,6 +2558,7 @@ export default function BoardWorkbenchClient({
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
+                        setDueDateDraft(activeCard.card.dueDate ? new Date(activeCard.card.dueDate).toISOString().split('T')[0] : "");
                         setIsDateSelectionOpen(true);
                       }}
                       className="popup-trigger w-full h-9 flex items-center gap-2.5 px-3 rounded-xl bg-zinc-200/60 hover:bg-zinc-200 text-zinc-600 transition-all font-bold text-xs"
@@ -2322,7 +2612,7 @@ export default function BoardWorkbenchClient({
                           if (!activeCardRange || !activeBoardId) return;
                           if (confirm("Are you sure you want to delete this card?")) {
                             const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
-                            try { await deleteCard(cardDbId); } catch (e: any) { alert(e.message || "Failed to delete card"); return; }
+                            try { await deleteCard(cardDbId); } catch (e: any) { showNotice(e?.message || "Failed to delete card"); return; }
                             setListsByBoard(prev => ({
                               ...prev,
                               [activeBoardId]: prev[activeBoardId].map(l => l.id === activeCardRange.listId ? {
@@ -2429,26 +2719,12 @@ export default function BoardWorkbenchClient({
           {labelEditorMode === "SELECT" ? (
             <div className="space-y-4">
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {BOARD_LABELS.map(l => {
-                  const isAdded = activeCard.card.labels.some(lab => lab.id === l.id);
+                {cardLabelOptions.map(l => {
+                  const isAdded = activeCard.card.labels.some(lab => lab.name === l.name && lab.color === l.color);
                   return (
                     <button 
-                      key={l.id}
-                      onClick={async () => {
-                        if (!activeCardRange) return;
-                        const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
-                        if (isAdded) {
-                          const existingLabel = activeCard.card.labels.find(lab => lab.id === l.id);
-                          if (existingLabel) {
-                            const labelDbId = Number(existingLabel.id.replace("lb-", ""));
-                            try { await removeCardLabel(labelDbId); } catch (err) { console.error(err); }
-                          }
-                          updateActiveCard(c => ({ ...c, labels: c.labels.filter(lab => lab.id !== l.id) }));
-                        } else {
-                          try { await addCardLabel(cardDbId, l.name, l.color); } catch (err) { console.error(err); }
-                          updateActiveCard(c => ({ ...c, labels: [...c.labels, l] }));
-                        }
-                      }}
+                      key={`${l.name}-${l.color}`}
+                      onClick={() => handleToggleCardLabel(l.name, l.color)}
                       className={cn("w-full h-9 rounded-lg flex items-center px-3 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:scale-[1.02]", l.color)}
                     >
                       <span className="flex-1 text-left">{l.name}</span>
@@ -2492,11 +2768,10 @@ export default function BoardWorkbenchClient({
                  <button onClick={() => setLabelEditorMode("SELECT")} className="flex-1 h-9 rounded-lg bg-zinc-100 text-[10px] font-black uppercase tracking-widest text-zinc-400">Back</button>
                  <button 
                   disabled={!newLabelName.trim()}
-                  onClick={() => {
-                    updateActiveCard(c => ({
-                      ...c,
-                      labels: [...c.labels, { id: createId("l"), name: newLabelName.trim(), color: newLabelColor }]
-                    }));
+                  onClick={async () => {
+                    const name = newLabelName.trim();
+                    if (!name) return;
+                    await handleToggleCardLabel(name, newLabelColor);
                     setNewLabelName("");
                     setLabelEditorMode("SELECT");
                   }}
@@ -2571,7 +2846,7 @@ export default function BoardWorkbenchClient({
                         attachments: [...c.attachments, { id: `at-${att.id}`, name: newFileName, url: newFileUrl, createdAt: new Date().toISOString() }]
                       }));
                     } catch (err: any) {
-                      alert(err.message || "Failed to add attachment");
+                      showNotice(err?.message || "Failed to add attachment");
                     }
                     setNewFileName("");
                     setNewFileUrl("");
@@ -2597,23 +2872,35 @@ export default function BoardWorkbenchClient({
             <input 
               type="date"
               className="w-full h-11 px-4 mb-4 bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded-xl text-sm font-bold outline-none focus:border-sky-500"
-              defaultValue={activeCard.card.dueDate ? new Date(activeCard.card.dueDate).toISOString().split('T')[0] : ""}
-              onChange={e => {
-                const val = e.target.value;
-                updateActiveCard(c => ({ ...c, dueDate: val }));
-              }}
+              value={dueDateDraft}
+              onChange={e => setDueDateDraft(e.target.value)}
             />
             <div className="flex gap-2">
               <button onClick={async () => { 
                 const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                try { await setCardDueDate(cardDbId, activeCard!.card.dueDate || null); } catch (err) { console.error(err); }
-                setIsDateSelectionOpen(false); 
+                const next = dueDateDraft || null;
+                const previous = activeCard.card.dueDate;
+                updateActiveCard(c => ({ ...c, dueDate: next ? new Date(next).toISOString() : undefined }));
+                setIsDateSelectionOpen(false);
+                try {
+                  await setCardDueDate(cardDbId, next);
+                } catch (err: any) {
+                  updateActiveCard(c => ({ ...c, dueDate: previous }));
+                  showNotice(err?.message || "Failed to set the due date");
+                }
               }} className="flex-1 h-9 bg-sky-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest">Save</button>
               <button onClick={async () => { 
                 const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                try { await setCardDueDate(cardDbId, null); } catch (err) { console.error(err); }
-                updateActiveCard(c => ({ ...c, dueDate: undefined })); 
-                setIsDateSelectionOpen(false); 
+                const previous = activeCard.card.dueDate;
+                updateActiveCard(c => ({ ...c, dueDate: undefined }));
+                setDueDateDraft("");
+                setIsDateSelectionOpen(false);
+                try {
+                  await setCardDueDate(cardDbId, null);
+                } catch (err: any) {
+                  updateActiveCard(c => ({ ...c, dueDate: previous }));
+                  showNotice(err?.message || "Failed to clear the due date");
+                }
               }} className="flex-1 h-9 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">Remove</button>
             </div>
          </div>
@@ -2635,18 +2922,36 @@ export default function BoardWorkbenchClient({
                    <input autoFocus value={newBoardTitle} onChange={e => setNewBoardTitle(e.target.value)} className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:border-[#c91f41] font-bold placeholder:text-zinc-400 dark:placeholder:text-zinc-500" placeholder="Sales Tracker..." />
                </div>
                <div>
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Workspace</label>
-                  <select value={newBoardWsId} onChange={e => setNewBoardWsId(Number(e.target.value))} className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none font-bold">
-                    {workspaces.map(ws => <option key={ws.id} value={ws.id}>{ws.name}</option>)}
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Where</label>
+                  <select
+                    value={newBoardWsId}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === "personal") {
+                        setNewBoardWsId("personal");
+                        setNewBoardVisibility("PRIVATE");
+                      } else {
+                        setNewBoardWsId(Number(val));
+                      }
+                    }}
+                    className="w-full h-12 px-4 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none font-bold"
+                  >
+                    <option value="personal">My personal space</option>
+                    {workspaces.filter(ws => !(ws as any).isPersonal).map(ws => <option key={ws.id} value={ws.id}>{ws.name}</option>)}
                   </select>
+                  {newBoardWsId === "personal" && (
+                    <p className="mt-2 text-[10px] font-bold text-zinc-400">
+                      Yours alone. Nobody else sees it — not even an admin — until you invite them.
+                    </p>
+                  )}
                </div>
                <div>
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">Visibility</label>
                   <div className="grid grid-cols-1 gap-2">
                     {[
-                      { val: "PRIVATE", label: "Private", desc: "Explicit members only", icon: Lock },
-                      { val: "WORKSPACE", label: "Workspace", desc: "Everyone in your Workspace", icon: Users },
-                      { val: "PUBLIC", label: "Public", desc: "Anyone can view", icon: Globe }
+                      { val: "PRIVATE" as const, icon: Lock },
+                      { val: "WORKSPACE" as const, icon: Users },
+                      { val: "PUBLIC" as const, icon: Globe }
                     ].map(v => (
                       <button 
                         key={v.val}
@@ -2655,8 +2960,8 @@ export default function BoardWorkbenchClient({
                       >
                          <v.icon className={cn("h-5 w-5", newBoardVisibility === v.val ? "text-[#c91f41]" : "text-zinc-400")} />
                          <div>
-                            <p className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">{v.label}</p>
-                            <p className="text-[10px] text-zinc-400 font-bold">{v.desc}</p>
+                            <p className="text-xs font-black uppercase tracking-wider text-zinc-900 dark:text-white">{VISIBILITY_COPY[v.val].label}</p>
+                            <p className="text-[10px] text-zinc-400 font-bold">{VISIBILITY_COPY[v.val].desc}</p>
                          </div>
                       </button>
                     ))}
@@ -2667,6 +2972,20 @@ export default function BoardWorkbenchClient({
                <button onClick={() => setShowCreateBoard(false)} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-zinc-400 bg-zinc-100 dark:bg-white/10 dark:hover:bg-white/15">Cancel</button>
                 <button disabled={isSubmitting || !newBoardTitle.trim()} onClick={handleCreateBoard} className="flex-1 h-12 rounded-2xl font-black uppercase text-xs text-white bg-[#c91f41] shadow-lg shadow-[#c91f41]/30">Create</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {notice && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[600] max-w-[90vw] animate-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-2xl">
+            <span className="text-xs font-bold">{notice}</span>
+            <button
+              onClick={() => setNotice(null)}
+              className="h-6 w-6 shrink-0 flex items-center justify-center rounded-lg hover:bg-white/15 dark:hover:bg-black/10"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
       )}

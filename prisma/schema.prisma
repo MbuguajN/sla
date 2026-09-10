@@ -53,6 +53,7 @@ model User {
   workspacesOwned           Workspace[]               @relation("WorkspaceOwner")
   workspaceMembers          WorkspaceMember[]
   boardMembers              BoardMember[]
+  boardsCreated             Board[]                 @relation("BoardCreator")
   boardListsCreated         BoardList[]
   boardChecklistAssignments BoardChecklistItem[]
   boardCardMembers          BoardCardMember[]
@@ -81,6 +82,7 @@ model Workspace {
   name        String
   description String?
   ownerId     Int
+  isPersonal  Boolean           @default(false)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   boards      Board[]
@@ -92,11 +94,11 @@ model Workspace {
 }
 
 model WorkspaceMember {
-  id          Int       @id @default(autoincrement())
+  id          Int                 @id @default(autoincrement())
   workspaceId Int
   userId      Int
-  role        String    @default("MEMBER")
-  joinedAt    DateTime  @default(now())
+  role        WorkspaceMemberRole @default(MEMBER)
+  joinedAt    DateTime            @default(now())
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -110,18 +112,21 @@ model Board {
   title       String
   background  String          @default("bg-sky-600")
   isStarred   Boolean         @default(false)
+  createdById Int?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   visibility  BoardVisibility @default(WORKSPACE)
   type        BoardType       @default(STANDALONE)
   projectId   Int?            @unique
   workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy   User?           @relation("BoardCreator", fields: [createdById], references: [id], onDelete: SetNull)
   project     Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
   lists       BoardList[]
   members     BoardMember[]
   visits      BoardVisit[]
 
   @@index([workspaceId])
+  @@index([createdById])
 }
 
 model BoardVisit {
@@ -137,13 +142,13 @@ model BoardVisit {
 }
 
 model BoardMember {
-  id       Int      @id @default(autoincrement())
+  id       Int             @id @default(autoincrement())
   boardId  Int
   userId   Int
-  role     String   @default("MEMBER")
-  joinedAt DateTime @default(now())
-  board    Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     BoardMemberRole @default(EDITOR)
+  joinedAt DateTime        @default(now())
+  board    Board           @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([boardId, userId])
   @@index([userId])
@@ -841,6 +846,19 @@ enum BoardVisibility {
   PRIVATE
   WORKSPACE
   PUBLIC
+}
+
+/// What a member may do on a board. Visibility decides who can open a board;
+/// this decides who can change it.
+enum BoardMemberRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  MEMBER
 }
 
 enum BoardType {

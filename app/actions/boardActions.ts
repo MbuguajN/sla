@@ -3,11 +3,52 @@
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
-import { BoardVisibility } from "@prisma/client";
+import { BoardMemberRole, BoardVisibility } from "@prisma/client";
 import { createNotification } from "./notificationActions";
 import { sendNotificationEmail } from "@/lib/email";
 import { syncCardToTask, syncChecklistItemToSubtask } from "./boardTaskSync";
 import { cardCompletionBlocker, checklistItemCompletionBlocker } from "@/lib/boardRules";
+import {
+  assertBoardAccess,
+  assertCardAccess,
+  assertCardAttachmentAccess,
+  assertCardLabelAccess,
+  assertChecklistAccess,
+  assertChecklistItemAccess,
+  assertListAccess,
+  assertWorkspaceAccess,
+  getBoardAccess,
+  hasLevel,
+} from "@/lib/boardAccess";
+
+/** Deep link to a board. The client keys boards as `b-<id>`, so links must match. */
+function boardLink(boardId: number) {
+  return `/board?active=b-${boardId}`;
+}
+
+/**
+ * A user's personal space: the home for boards that are theirs alone. Created on
+ * first use so nobody has to pick a workspace to make a private board.
+ */
+export async function ensurePersonalWorkspace() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const existing = await db.workspace.findFirst({
+    where: { ownerId: user.id, isPersonal: true },
+  });
+  if (existing) return existing;
+
+  return db.workspace.create({
+    data: {
+      name: `${user.name}'s space`,
+      description: "Your personal boards. Only you can see these unless you share them.",
+      ownerId: user.id,
+      isPersonal: true,
+      members: { create: { userId: user.id, role: "OWNER" } },
+    },
+  });
+}
 
 /**
  * FETCHING
@@ -17,88 +58,64 @@ export async function getWorkspaces() {
   const user = await getCurrentUser();
   if (!user) return [];
 
+  const isPlatformAdmin = user.role === "ADMIN" || user.role === "CEO";
+
+  // Which boards this user may see. Mirrors lib/boardAccess.ts.
+  const boardWhere = isPlatformAdmin
+    ? {}
+    : {
+        OR: [
+          { workspace: { ownerId: user.id } },
+          { members: { some: { userId: user.id } } },
+          { visibility: BoardVisibility.WORKSPACE, workspace: { members: { some: { userId: user.id } } } },
+          { visibility: BoardVisibility.PUBLIC },
+        ],
+      };
+
+  // Which workspaces to surface: ones the user belongs to, plus any that hold a
+  // board they can reach (board membership or an org-wide PUBLIC board).
+  const reachableWorkspaces = isPlatformAdmin
+    ? {}
+    : {
+        OR: [
+          { ownerId: user.id },
+          { members: { some: { userId: user.id } } },
+          { boards: { some: { members: { some: { userId: user.id } } } } },
+          { boards: { some: { visibility: BoardVisibility.PUBLIC } } },
+        ],
+      };
+
+  // Someone else's personal space is never listed, not even for admins.
+  const workspaceWhere = {
+    AND: [
+      reachableWorkspaces,
+      { OR: [{ isPersonal: false }, { ownerId: user.id }] },
+    ],
+  };
+
   const workspaces = await db.workspace.findMany({
-    where: {
-      OR: [
-        { ownerId: user.id },
-        { members: { some: { userId: user.id } } },
-        { boards: { some: { members: { some: { userId: user.id } } } } }
-      ]
-    },
+    where: workspaceWhere,
     include: {
       boards: {
         orderBy: { updatedAt: "desc" },
-        where: {
-          OR: [
-            { workspace: { ownerId: user.id } },
-            { members: { some: { userId: user.id } } },
-            { visibility: "WORKSPACE", workspace: { members: { some: { userId: user.id } } } },
-            { visibility: "PUBLIC" }
-          ]
-        },
+        where: boardWhere,
         include: {
           visits: {
             where: { userId: user.id },
             take: 1,
             orderBy: { visitedAt: "desc" },
-            select: { visitedAt: true }
-          }
-        }
+            select: { visitedAt: true },
+          },
+        },
       },
       members: {
-        include: { user: true }
-      }
+        include: { user: { select: { id: true, name: true, email: true } } },
+      },
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { createdAt: "desc" },
   });
 
   return workspaces;
-}
-
-export async function getBoard(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  // Check board exists and user has access via workspace
-  const board = await db.board.findUnique({
-    where: { id: boardId },
-    include: {
-      workspace: {
-        include: {
-          members: { where: { userId: user.id } }
-        }
-      },
-      lists: {
-        orderBy: { position: "asc" },
-        include: {
-          cards: {
-            orderBy: { position: "asc" },
-            include: {
-              labels: true,
-              members: true,
-              task: {
-                select: {
-                  id: true,
-                  status: true,
-                  assignedUserId: true,
-                },
-              },
-            }
-          }
-        }
-      }
-    }
-  });
-
-  if (!board) return null;
-
-  const isOwner = board.workspace.ownerId === user.id;
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO";
-  const isMember = board.workspace.members.length > 0;
-
-  if (!isOwner && !isAdmin && !isMember) throw new Error("Unauthorized");
-
-  return board;
 }
 
 /**
@@ -120,7 +137,8 @@ export async function createWorkspace(data: { name: string; description?: string
           role: "OWNER"
         }
       }
-    }
+    },
+    include: { members: { include: { user: { select: { id: true, name: true, email: true } } } } }
   });
 
   revalidatePath("/board");
@@ -128,46 +146,49 @@ export async function createWorkspace(data: { name: string; description?: string
 }
 
 export async function deleteWorkspace(workspaceId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const ws = await db.workspace.findUnique({ where: { id: workspaceId } });
-  if (!ws) throw new Error("Workspace not found");
-  if (ws.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the owner can delete a workspace");
+  await assertWorkspaceAccess(workspaceId, "ADMIN");
 
   await db.workspace.delete({ where: { id: workspaceId } });
   revalidatePath("/board");
 }
 
 export async function createBoard(data: {
-  workspaceId: number; 
-  title: string; 
-  background?: string; 
-  visibility?: BoardVisibility 
+  workspaceId?: number;
+  personal?: boolean;
+  title: string;
+  background?: string;
+  visibility?: BoardVisibility
 }) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  let workspaceId: number;
+  let userId: number;
+  let visibility = data.visibility || BoardVisibility.WORKSPACE;
 
-  // Verify access to workspace
-  const ws = await db.workspace.findFirst({
-    where: {
-      id: data.workspaceId,
-      OR: [
-        { ownerId: user.id },
-        { members: { some: { userId: user.id } } }
-      ]
-    }
-  });
-
-  if (!ws) throw new Error("You are not a member of this workspace");
+  if (data.personal) {
+    // A personal board lives in the caller's own space and starts out private.
+    const workspace = await ensurePersonalWorkspace();
+    workspaceId = workspace.id;
+    userId = workspace.ownerId;
+    visibility = data.visibility || BoardVisibility.PRIVATE;
+  } else {
+    if (!data.workspaceId) throw new Error("Choose a workspace for this board");
+    const { user } = await assertWorkspaceAccess(data.workspaceId, "MEMBER");
+    workspaceId = data.workspaceId;
+    userId = user.id;
+  }
 
   const board = await db.board.create({
     data: {
-      workspaceId: data.workspaceId,
+      workspaceId,
       title: data.title,
       background: data.background || "bg-sky-600",
-      visibility: data.visibility || BoardVisibility.WORKSPACE
-    }
+      visibility,
+      createdById: userId,
+      // The creator owns the board. Without this a PRIVATE board would be
+      // invisible to the person who just made it.
+      members: {
+        create: { userId, role: BoardMemberRole.OWNER },
+      },
+    },
   });
 
   revalidatePath("/board");
@@ -175,12 +196,64 @@ export async function createBoard(data: {
 }
 
 /**
+ * WORKSPACE MEMBERS
+ */
+
+export async function inviteToWorkspace(workspaceId: number, userId: number) {
+  const { user, workspace } = await assertWorkspaceAccess(workspaceId, "MEMBER");
+
+  const existing = await db.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+  if (existing) return existing;
+
+  const member = await db.workspaceMember.create({
+    data: { workspaceId, userId, role: "MEMBER" },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  });
+
+  if (userId !== user.id) {
+    await createNotification(
+      userId,
+      "WORKSPACE_INVITE",
+      "Workspace Invite",
+      `${user.name} added you to workspace "${workspace.name}"`,
+      "/board"
+    );
+
+    if (member.user.email) {
+      await sendNotificationEmail(
+        member.user.email,
+        `You've been added to workspace "${workspace.name}"`,
+        "Workspace Invite",
+        `<strong>${user.name}</strong> added you to the workspace <strong>"${workspace.name}"</strong>.`,
+        "/board"
+      );
+    }
+  }
+
+  revalidatePath("/board");
+  return member;
+}
+
+export async function removeWorkspaceMember(workspaceId: number, userId: number) {
+  const { workspace } = await assertWorkspaceAccess(workspaceId, "ADMIN");
+
+  if (workspace.ownerId === userId) {
+    throw new Error("The workspace owner cannot be removed");
+  }
+
+  await db.workspaceMember.delete({ where: { workspaceId_userId: { workspaceId, userId } } });
+  revalidatePath("/board");
+}
+
+/**
  * BOARD MEMBERS
  */
 
 export async function getBoardMembers(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertBoardAccess(boardId, "VIEW");
 
   const members = await db.boardMember.findMany({
     where: { boardId },
@@ -190,42 +263,52 @@ export async function getBoardMembers(boardId: number) {
   return members;
 }
 
-export async function inviteToBoard(boardId: number, userId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
-  if (!board) throw new Error("Board not found");
-
-  const isWsOwner = board.workspace.ownerId === user.id;
-  const isWsMember = await db.workspaceMember.findFirst({ where: { workspaceId: board.workspaceId, userId: user.id } });
-  if (!isWsOwner && !isWsMember) throw new Error("Unauthorized");
+export async function inviteToBoard(
+  boardId: number,
+  userId: number,
+  role: BoardMemberRole = BoardMemberRole.EDITOR
+) {
+  // On a private board only its owners may hand out access; on shared boards
+  // anyone who can edit may invite.
+  const access = await getBoardAccess(boardId);
+  if (!access) throw new Error("Board not found");
+  const required = access.visibility === BoardVisibility.PRIVATE ? "ADMIN" : "EDIT";
+  if (!hasLevel(access, required)) {
+    throw new Error(
+      required === "ADMIN"
+        ? "Only the board owner can invite people to a private board"
+        : "You do not have permission to invite people to this board"
+    );
+  }
+  const user = access.user;
 
   const existing = await db.boardMember.findUnique({ where: { boardId_userId: { boardId, userId } } });
   if (existing) return existing;
 
   const member = await db.boardMember.create({
-    data: { boardId, userId },
+    data: { boardId, userId, role },
     include: { user: { select: { id: true, name: true, email: true } } },
   });
+
+  const roleWord = role === BoardMemberRole.VIEWER ? "as a viewer" : "";
 
   // In-app notification
   await createNotification(
     userId,
     "BOARD_INVITE",
     "Board Invite",
-    `${user.name} added you to board "${board.title}"`,
-    `/board?active=${boardId}`
+    `${user.name} added you to board "${access.title}" ${roleWord}`.trim(),
+    boardLink(boardId)
   );
 
   // Email notification
   if (member.user.email) {
     await sendNotificationEmail(
       member.user.email,
-      `You've been added to board "${board.title}"`,
+      `You've been added to board "${access.title}"`,
       "Board Invite",
-      `<strong>${user.name}</strong> added you to the board <strong>"${board.title}"</strong> in workspace <strong>"${board.workspace.name}"</strong>.`,
-      `/board?active=${boardId}`
+      `<strong>${user.name}</strong> added you to the board <strong>"${access.title}"</strong> in workspace <strong>"${access.workspaceName}"</strong>.`,
+      boardLink(boardId)
     );
   }
 
@@ -234,15 +317,53 @@ export async function inviteToBoard(boardId: number, userId: number) {
 }
 
 export async function removeBoardMember(boardId: number, userId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertBoardAccess(boardId, "ADMIN");
 
-  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
-  if (!board) throw new Error("Board not found");
-
-  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Unauthorized");
+  const owners = await db.boardMember.count({ where: { boardId, role: BoardMemberRole.OWNER } });
+  const target = await db.boardMember.findUnique({ where: { boardId_userId: { boardId, userId } } });
+  if (!target) return;
+  if (target.role === BoardMemberRole.OWNER && owners <= 1) {
+    throw new Error("A board needs at least one owner. Promote someone else first.");
+  }
 
   await db.boardMember.delete({ where: { boardId_userId: { boardId, userId } } });
+  revalidatePath("/board");
+}
+
+export async function setBoardMemberRole(boardId: number, userId: number, role: BoardMemberRole) {
+  await assertBoardAccess(boardId, "ADMIN");
+
+  const target = await db.boardMember.findUnique({ where: { boardId_userId: { boardId, userId } } });
+  if (!target) throw new Error("That person is not a member of this board");
+  if (target.role === role) return target;
+
+  // Do not let the last owner demote themselves and lock the board.
+  if (target.role === BoardMemberRole.OWNER) {
+    const owners = await db.boardMember.count({ where: { boardId, role: BoardMemberRole.OWNER } });
+    if (owners <= 1) throw new Error("A board needs at least one owner. Promote someone else first.");
+  }
+
+  const updated = await db.boardMember.update({
+    where: { boardId_userId: { boardId, userId } },
+    data: { role },
+  });
+
+  revalidatePath("/board");
+  return updated;
+}
+
+export async function leaveBoard(boardId: number) {
+  const access = await assertBoardAccess(boardId, "VIEW");
+  if (!access.isBoardMember) throw new Error("You are not a member of this board");
+
+  if (access.boardMemberRole === BoardMemberRole.OWNER) {
+    const owners = await db.boardMember.count({ where: { boardId, role: BoardMemberRole.OWNER } });
+    if (owners <= 1) throw new Error("You are the only owner. Promote someone else before leaving.");
+  }
+
+  await db.boardMember.delete({
+    where: { boardId_userId: { boardId, userId: access.user.id } },
+  });
   revalidatePath("/board");
 }
 
@@ -251,8 +372,7 @@ export async function removeBoardMember(boardId: number, userId: number) {
  */
 
 export async function getBoardData(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const access = await assertBoardAccess(boardId, "VIEW");
 
   const board = await db.board.findUnique({
     where: { id: boardId },
@@ -279,6 +399,9 @@ export async function getBoardData(boardId: number) {
               },
               attachments: true,
               activity: { orderBy: { createdAt: "desc" } },
+              task: {
+                select: { id: true, status: true, assignedUserId: true },
+              },
             }
           }
         }
@@ -288,25 +411,15 @@ export async function getBoardData(boardId: number) {
 
   if (!board) return null;
 
-  const isOwner = board.workspace.ownerId === user.id;
-  const isAdmin = user.role === "ADMIN" || user.role === "CEO";
-  const isWsMember = board.workspace.members.some((m: any) => m.userId === user.id);
-  const isBoardMember = board.members.some((m: any) => m.userId === user.id);
-
-  // Workspace owner or admin always has access
-  if (isOwner || isAdmin) return board;
-
-  // Board members always have access
-  if (isBoardMember) return board;
-
-  // PUBLIC visibility: any workspace member can view
-  if (board.visibility === "PUBLIC" && isWsMember) return board;
-
-  // WORKSPACE visibility: workspace members can view
-  if (board.visibility === "WORKSPACE" && isWsMember) return board;
-
-  // Otherwise: no access
-  throw new Error("Unauthorized");
+  // The client uses this to decide what to render as editable.
+  return {
+    ...board,
+    viewerLevel: access.level,
+    viewerRole: access.boardMemberRole,
+    viewerCanEdit: hasLevel(access, "EDIT"),
+    viewerCanAdmin: hasLevel(access, "ADMIN"),
+    isPersonalWorkspace: access.isPersonalWorkspace,
+  };
 }
 
 /**
@@ -314,25 +427,26 @@ export async function getBoardData(boardId: number) {
  */
 
 export async function recordBoardVisit(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) return;
+  const access = await getBoardAccess(boardId);
+  if (!access || !hasLevel(access, "VIEW")) return;
 
   await db.boardVisit.upsert({
-    where: { boardId_userId: { boardId, userId: user.id } },
+    where: { boardId_userId: { boardId, userId: access.user.id } },
     update: { visitedAt: new Date() },
-    create: { boardId, userId: user.id },
+    create: { boardId, userId: access.user.id },
   });
 }
 
 /**
  * TOGGLE BOARD STAR
+ *
+ * NOTE: Board.isStarred is a single board-wide flag, so this is shared by every
+ * member rather than per-viewer. Making stars personal needs a BoardStar table.
  */
-
 export async function toggleBoardStar(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertBoardAccess(boardId, "EDIT");
 
-  const board = await db.board.findUnique({ where: { id: boardId } });
+  const board = await db.board.findUnique({ where: { id: boardId }, select: { isStarred: true } });
   if (!board) throw new Error("Board not found");
 
   await db.board.update({ where: { id: boardId }, data: { isStarred: !board.isStarred } });
@@ -341,24 +455,24 @@ export async function toggleBoardStar(boardId: number) {
 }
 
 export async function deleteBoard(boardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
-  if (!board) throw new Error("Board not found");
-  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the workspace owner can delete a board");
+  await assertBoardAccess(boardId, "ADMIN");
 
   await db.board.delete({ where: { id: boardId } });
   revalidatePath("/board");
 }
 
-export async function updateBoardVisibility(boardId: number, visibility: BoardVisibility) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+export async function renameBoard(boardId: number, title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) throw new Error("Board title cannot be empty");
 
-  const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
-  if (!board) throw new Error("Board not found");
-  if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw new Error("Only the workspace owner can change board visibility");
+  await assertBoardAccess(boardId, "ADMIN");
+  await db.board.update({ where: { id: boardId }, data: { title: trimmed } });
+  revalidatePath("/board");
+  return { title: trimmed };
+}
+
+export async function updateBoardVisibility(boardId: number, visibility: BoardVisibility) {
+  await assertBoardAccess(boardId, "ADMIN");
 
   await db.board.update({ where: { id: boardId }, data: { visibility } });
   revalidatePath("/board");
@@ -369,14 +483,13 @@ export async function updateBoardVisibility(boardId: number, visibility: BoardVi
  */
 
 export async function createList(boardId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const access = await assertBoardAccess(boardId, "EDIT");
 
   const maxPos = await db.boardList.aggregate({ where: { boardId }, _max: { position: true } });
   const nextPos = (maxPos._max.position ?? -1) + 1;
 
   const list = await db.boardList.create({
-    data: { boardId, title, position: nextPos, createdById: user.id },
+    data: { boardId, title, position: nextPos, createdById: access.user.id },
   });
 
   revalidatePath("/board");
@@ -384,49 +497,32 @@ export async function createList(boardId: number, title: string) {
 }
 
 export async function renameList(listId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const list = await db.boardList.findUnique({ where: { id: listId } });
-  if (!list) throw new Error("List not found");
+  const { list, access } = await assertListAccess(listId, "EDIT");
   if (list.isRestricted) throw new Error("This list is restricted");
 
-  const isCreator = list.createdById === user.id;
-  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+  const isCreator = list.createdById === access.user.id;
+  if (!isCreator && !hasLevel(access, "ADMIN")) throw new Error("Only the list creator or a board owner can rename this list");
 
   await db.boardList.update({ where: { id: listId }, data: { title } });
   revalidatePath("/board");
 }
 
 export async function deleteList(listId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { list, access } = await assertListAccess(listId, "EDIT");
+  if (list.isRestricted) throw new Error("This list is restricted");
 
-  const list = await db.boardList.findUnique({ where: { id: listId } });
-  if (!list) throw new Error("List not found");
-
-  const isCreator = list.createdById === user.id;
-  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+  const isCreator = list.createdById === access.user.id;
+  if (!isCreator && !hasLevel(access, "ADMIN")) throw new Error("Only the list creator or a board owner can delete this list");
 
   await db.boardList.delete({ where: { id: listId } });
   revalidatePath("/board");
 }
 
 export async function toggleListRestrict(listId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { list, access } = await assertListAccess(listId, "EDIT");
 
-  const list = await db.boardList.findUnique({ where: { id: listId } });
-  if (!list) throw new Error("List not found");
-
-  const isCreator = list.createdById === user.id;
-  const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-  const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-  if (!isCreator && !isWsOwner) throw new Error("Unauthorized");
+  const isCreator = list.createdById === access.user.id;
+  if (!isCreator && !hasLevel(access, "ADMIN")) throw new Error("Only the list creator or a board owner can restrict this list");
 
   await db.boardList.update({ where: { id: listId }, data: { isRestricted: !list.isRestricted } });
   revalidatePath("/board");
@@ -434,11 +530,7 @@ export async function toggleListRestrict(listId: number) {
 }
 
 export async function moveList(listId: number, newPosition: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const list = await db.boardList.findUnique({ where: { id: listId } });
-  if (!list) throw new Error("List not found");
+  const { list } = await assertListAccess(listId, "EDIT");
 
   const allLists = await db.boardList.findMany({
     where: { boardId: list.boardId },
@@ -447,11 +539,13 @@ export async function moveList(listId: number, newPosition: number) {
   });
 
   const ids = allLists.map(l => l.id).filter(id => id !== listId);
-  ids.splice(newPosition, 0, listId);
+  const target = Math.max(0, Math.min(newPosition, ids.length));
+  ids.splice(target, 0, listId);
 
-  for (let idx = 0; idx < ids.length; idx++) {
-    await db.boardList.update({ where: { id: ids[idx] }, data: { position: idx } });
-  }
+  // One transaction so a concurrent drag cannot interleave with this reindex.
+  await db.$transaction(
+    ids.map((id, idx) => db.boardList.update({ where: { id }, data: { position: idx } }))
+  );
 
   revalidatePath("/board");
 }
@@ -461,11 +555,7 @@ export async function moveList(listId: number, newPosition: number) {
  */
 
 export async function createCard(listId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const list = await db.boardList.findUnique({ where: { id: listId } });
-  if (!list) throw new Error("List not found");
+  const { list, access } = await assertListAccess(listId, "EDIT");
   if (list.isRestricted) throw new Error("This list is restricted");
 
   const maxPos = await db.boardCard.aggregate({ where: { listId }, _max: { position: true } });
@@ -476,18 +566,18 @@ export async function createCard(listId: number, title: string) {
   });
 
   await db.boardCardMember.create({
-    data: { cardId: card.id, userId: user.id },
+    data: { cardId: card.id, userId: access.user.id },
   });
 
   await db.boardCardActivity.create({
     data: { cardId: card.id, type: "SYSTEM", actorName: "System", message: "Card created" },
   });
 
-  const fullCard = await db.boardCard.findUnique({
-    where: { id: card.id },
-    include: { list: { include: { board: true } } },
+  const board = await db.board.findUnique({
+    where: { id: list.boardId },
+    select: { projectId: true },
   });
-  if (fullCard?.list.board.projectId) {
+  if (board?.projectId) {
     await syncCardToTask(card.id).catch(() => {});
   }
 
@@ -496,24 +586,24 @@ export async function createCard(listId: number, title: string) {
 }
 
 export async function updateCardTitle(cardId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
 
   await db.boardCard.update({ where: { id: cardId }, data: { title } });
   revalidatePath("/board");
 }
 
 export async function updateCardDescription(cardId: number, description: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
 
   await db.boardCard.update({ where: { id: cardId }, data: { description } });
   revalidatePath("/board");
 }
 
 export async function toggleCardComplete(cardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { access } = await assertCardAccess(cardId, "EDIT");
+  const user = access.user;
 
   const card = await db.boardCard.findUnique({
     where: { id: cardId },
@@ -578,6 +668,15 @@ export async function toggleCardComplete(cardId: number) {
     }
   }
 
+  await db.boardCardActivity.create({
+    data: {
+      cardId,
+      type: "SYSTEM",
+      actorName: user.name,
+      message: newCompleted ? "marked this card complete" : "reopened this card",
+    },
+  });
+
   revalidatePath("/board");
   revalidatePath("/daily-log");
   revalidatePath("/reports");
@@ -585,42 +684,51 @@ export async function toggleCardComplete(cardId: number) {
 }
 
 export async function setCardAssignee(cardId: number, userId: number | null) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card, access } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
+  const user = access.user;
 
   await db.boardCard.update({ where: { id: cardId }, data: { assignedToUserId: userId } });
 
   // Sync assignee to linked Task
   try {
-    const cardWithBoard = await db.boardCard.findUnique({
-      where: { id: cardId },
-      include: { list: { include: { board: { select: { projectId: true } } } } },
-    });
-    if (cardWithBoard?.taskId) {
+    if (card.taskId) {
       await db.task.update({
-        where: { id: cardWithBoard.taskId },
+        where: { id: card.taskId },
         data: { assignedUserId: userId },
       });
-      if (cardWithBoard.list.board.projectId) {
-        revalidatePath(`/projects/${cardWithBoard.list.board.projectId}`);
+      const board = await db.board.findUnique({
+        where: { id: access.boardId },
+        select: { projectId: true },
+      });
+      if (board?.projectId) {
+        revalidatePath(`/projects/${board.projectId}`);
       }
     }
   } catch (e) {
     console.error("Failed to sync assignee to task:", e);
   }
 
+  await db.boardCardActivity.create({
+    data: {
+      cardId,
+      type: "SYSTEM",
+      actorName: user.name,
+      message: userId ? "changed the assignee" : "cleared the assignee",
+    },
+  });
+
   // Notify + email when assigning to someone else
   if (userId && userId !== user.id) {
     const assignee = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
-    const card = await db.boardCard.findUnique({ where: { id: cardId }, select: { title: true } });
 
-    if (assignee && card) {
+    if (assignee) {
       await createNotification(
         userId,
         "TASK_ASSIGNED",
         "Card Assigned",
         `${user.name} assigned you card "${card.title}"`,
-        `/board`
+        boardLink(access.boardId)
       );
 
       if (assignee.email) {
@@ -628,8 +736,8 @@ export async function setCardAssignee(cardId: number, userId: number | null) {
           assignee.email,
           `Card Assigned: ${card.title}`,
           "Card Assigned",
-          `<strong>${user.name}</strong> assigned you the card <strong>"${card.title}"</strong>.`,
-          `/board`
+          `<strong>${user.name}</strong> assigned you the card <strong>"${card.title}"</strong> on board <strong>"${access.title}"</strong>.`,
+          boardLink(access.boardId)
         );
       }
     }
@@ -640,8 +748,8 @@ export async function setCardAssignee(cardId: number, userId: number | null) {
 }
 
 export async function setCardDueDate(cardId: number, dueDate: string | null) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
 
   await db.boardCard.update({
     where: { id: cardId },
@@ -651,52 +759,53 @@ export async function setCardDueDate(cardId: number, dueDate: string | null) {
 }
 
 export async function deleteCard(cardId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
 
   await db.boardCard.delete({ where: { id: cardId } });
   revalidatePath("/board");
 }
 
 export async function moveCard(cardId: number, targetListId: number, newPosition: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card, access } = await assertCardAccess(cardId, "EDIT");
+  if (card.list.isRestricted) throw new Error("This list is restricted");
 
-  const targetList = await db.boardList.findUnique({ where: { id: targetListId } });
+  const targetList = await db.boardList.findUnique({
+    where: { id: targetListId },
+    select: { id: true, boardId: true, isRestricted: true },
+  });
   if (!targetList) throw new Error("Target list not found");
-  if (targetList.isRestricted) throw new Error("This list is restricted");
-
-  const card = await db.boardCard.findUnique({ where: { id: cardId } });
-  if (!card) throw new Error("Card not found");
+  if (targetList.isRestricted) throw new Error("The target list is restricted");
+  if (targetList.boardId !== access.boardId) throw new Error("Cannot move a card to a different board");
 
   const sourceListId = card.listId;
 
-  // Move the card
-  await db.boardCard.update({ where: { id: cardId }, data: { listId: targetListId, position: newPosition } });
-
-  // Reindex source list (if different)
-  if (sourceListId !== targetListId) {
-    const sourceCards = await db.boardCard.findMany({
-      where: { listId: sourceListId },
-      orderBy: { position: "asc" },
-      select: { id: true },
-    });
-    for (let idx = 0; idx < sourceCards.length; idx++) {
-      await db.boardCard.update({ where: { id: sourceCards[idx].id }, data: { position: idx } });
-    }
-  }
-
-  // Reindex target list
   const targetCards = await db.boardCard.findMany({
     where: { listId: targetListId },
     orderBy: { position: "asc" },
     select: { id: true },
   });
   const targetIds = targetCards.map(c => c.id).filter(id => id !== cardId);
-  targetIds.splice(newPosition, 0, cardId);
-  for (let idx = 0; idx < targetIds.length; idx++) {
-    await db.boardCard.update({ where: { id: targetIds[idx] }, data: { position: idx } });
-  }
+  const insertAt = Math.max(0, Math.min(newPosition, targetIds.length));
+  targetIds.splice(insertAt, 0, cardId);
+
+  const sourceIds =
+    sourceListId === targetListId
+      ? []
+      : (
+          await db.boardCard.findMany({
+            where: { listId: sourceListId, id: { not: cardId } },
+            orderBy: { position: "asc" },
+            select: { id: true },
+          })
+        ).map(c => c.id);
+
+  // Move + reindex both lists atomically.
+  await db.$transaction([
+    db.boardCard.update({ where: { id: cardId }, data: { listId: targetListId } }),
+    ...sourceIds.map((id, idx) => db.boardCard.update({ where: { id }, data: { position: idx } })),
+    ...targetIds.map((id, idx) => db.boardCard.update({ where: { id }, data: { position: idx } })),
+  ]);
 
   revalidatePath("/board");
 }
@@ -706,17 +815,24 @@ export async function moveCard(cardId: number, targetListId: number, newPosition
  */
 
 export async function addCardLabel(cardId: number, name: string, color: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardAccess(cardId, "EDIT");
 
-  const label = await db.boardCardLabel.create({ data: { cardId, name, color } });
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error("Label name cannot be empty");
+
+  // Adding a label the card already carries is a no-op rather than a duplicate.
+  const existing = await db.boardCardLabel.findFirst({
+    where: { cardId, name: trimmed, color },
+  });
+  if (existing) return existing;
+
+  const label = await db.boardCardLabel.create({ data: { cardId, name: trimmed, color } });
   revalidatePath("/board");
   return label;
 }
 
 export async function removeCardLabel(labelId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardLabelAccess(labelId, "EDIT");
 
   await db.boardCardLabel.delete({ where: { id: labelId } });
   revalidatePath("/board");
@@ -727,8 +843,15 @@ export async function removeCardLabel(labelId: number) {
  */
 
 export async function addCardMember(cardId: number, userId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { access } = await assertCardAccess(cardId, "EDIT");
+
+  // A card member who cannot open the board would see nothing, so joining a
+  // card grants board membership too.
+  await db.boardMember.upsert({
+    where: { boardId_userId: { boardId: access.boardId, userId } },
+    create: { boardId: access.boardId, userId, role: BoardMemberRole.EDITOR },
+    update: {},
+  });
 
   const existing = await db.boardCardMember.findUnique({ where: { cardId_userId: { cardId, userId } } });
   if (existing) return existing;
@@ -739,8 +862,7 @@ export async function addCardMember(cardId: number, userId: number) {
 }
 
 export async function removeCardMember(cardId: number, userId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardAccess(cardId, "EDIT");
 
   await db.boardCardMember.delete({ where: { cardId_userId: { cardId, userId } } });
   revalidatePath("/board");
@@ -751,8 +873,7 @@ export async function removeCardMember(cardId: number, userId: number) {
  */
 
 export async function addChecklist(cardId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardAccess(cardId, "EDIT");
 
   const maxPos = await db.boardChecklist.aggregate({ where: { cardId }, _max: { position: true } });
   const nextPos = (maxPos._max.position ?? -1) + 1;
@@ -766,16 +887,15 @@ export async function addChecklist(cardId: number, title: string) {
 }
 
 export async function deleteChecklist(checklistId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertChecklistAccess(checklistId, "EDIT");
 
   await db.boardChecklist.delete({ where: { id: checklistId } });
   revalidatePath("/board");
 }
 
 export async function addChecklistItem(checklistId: number, title: string, assignedUserId?: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { checklist, access } = await assertChecklistAccess(checklistId, "EDIT");
+  const user = access.user;
 
   const assigneeId = assignedUserId || user.id;
 
@@ -789,8 +909,7 @@ export async function addChecklistItem(checklistId: number, title: string, assig
   // Notify + email only when assigning to someone else
   if (assigneeId !== user.id) {
     const assignee = await db.user.findUnique({ where: { id: assigneeId }, select: { name: true, email: true } });
-    const checklist = await db.boardChecklist.findUnique({ where: { id: checklistId }, include: { card: true } });
-    const cardTitle = checklist?.card?.title || "a card";
+    const cardTitle = checklist.card.title || "a card";
 
     if (assignee) {
       await createNotification(
@@ -798,7 +917,7 @@ export async function addChecklistItem(checklistId: number, title: string, assig
         "TASK_ASSIGNED",
         "Checklist Item Assigned",
         `${user.name} assigned you: "${title}" on card "${cardTitle}"`,
-        `/board`
+        boardLink(access.boardId)
       );
 
       if (assignee.email) {
@@ -807,7 +926,7 @@ export async function addChecklistItem(checklistId: number, title: string, assig
           `Checklist Item Assigned: ${title}`,
           "Checklist Item Assigned",
           `<strong>${user.name}</strong> assigned you a checklist item on card <strong>"${cardTitle}"</strong>: <strong>${title}</strong>.`,
-          `/board`
+          boardLink(access.boardId)
         );
       }
     }
@@ -815,11 +934,7 @@ export async function addChecklistItem(checklistId: number, title: string, assig
 
   revalidatePath("/board");
 
-  const fullItem = await db.boardChecklistItem.findUnique({
-    where: { id: item.id },
-    include: { checklist: { include: { card: true } } },
-  });
-  if (fullItem?.checklist.card.taskId) {
+  if (checklist.card.taskId) {
     await syncChecklistItemToSubtask(item.id).catch(() => {});
   }
 
@@ -827,14 +942,8 @@ export async function addChecklistItem(checklistId: number, title: string, assig
 }
 
 export async function toggleChecklistItem(itemId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
-
-  const item = await db.boardChecklistItem.findUnique({
-    where: { id: itemId },
-    include: { checklist: { include: { card: { include: { list: { include: { board: { include: { workspace: true } } } } } } } } }
-  });
-  if (!item) throw new Error("Item not found");
+  const { item, access } = await assertChecklistItemAccess(itemId, "EDIT");
+  const user = access.user;
 
   const newDone = !item.isDone;
 
@@ -857,9 +966,17 @@ export async function toggleChecklistItem(itemId: number) {
   }
 
   if (newDone) {
-    const card = item.checklist.card;
-    const logUserId = item.assignedUserId || card.assignedToUserId;
-    if (logUserId) {
+    const card = await db.boardCard.findUnique({
+      where: { id: item.checklist.card.id },
+      select: {
+        title: true,
+        assignedToUserId: true,
+        list: { select: { board: { select: { title: true, workspace: { select: { name: true } } } } } },
+      },
+    });
+
+    const logUserId = item.assignedUserId || card?.assignedToUserId;
+    if (card && logUserId) {
       const boardTitle = card.list.board.title;
       const workspaceName = card.list.board.workspace?.name || boardTitle;
       await db.activityLog.create({
@@ -888,8 +1005,7 @@ export async function toggleChecklistItem(itemId: number) {
 }
 
 export async function deleteChecklistItem(itemId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertChecklistItemAccess(itemId, "EDIT");
 
   await db.boardChecklistItem.delete({ where: { id: itemId } });
   revalidatePath("/board");
@@ -965,8 +1081,7 @@ export async function setChecklistItemAssignee(itemId: number, userId: number | 
 }
 
 export async function updateChecklistItem(itemId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertChecklistItemAccess(itemId, "EDIT");
 
   await db.boardChecklistItem.update({ where: { id: itemId }, data: { title: title.trim() } });
   revalidatePath("/board");
@@ -977,8 +1092,7 @@ export async function updateChecklistItem(itemId: number, title: string) {
  */
 
 export async function addCardAttachment(cardId: number, name: string, url: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardAccess(cardId, "EDIT");
 
   const attachment = await db.boardCardAttachment.create({ data: { cardId, name, url } });
   revalidatePath("/board");
@@ -986,8 +1100,7 @@ export async function addCardAttachment(cardId: number, name: string, url: strin
 }
 
 export async function deleteCardAttachment(attachmentId: number) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertCardAttachmentAccess(attachmentId, "EDIT");
 
   await db.boardCardAttachment.delete({ where: { id: attachmentId } });
   revalidatePath("/board");
@@ -998,12 +1111,32 @@ export async function deleteCardAttachment(attachmentId: number) {
  */
 
 export async function addCardActivity(cardId: number, message: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  const { card, access } = await assertCardAccess(cardId, "EDIT");
+  const user = access.user;
 
   const activity = await db.boardCardActivity.create({
     data: { cardId, type: "COMMENT", actorName: user.name, message },
   });
+
+  // Tell the people attached to the card that it was commented on.
+  const watchers = await db.boardCardMember.findMany({
+    where: { cardId, userId: { not: user.id } },
+    select: { userId: true },
+  });
+  const recipientIds = new Set(watchers.map(w => w.userId));
+  if (card.assignedToUserId && card.assignedToUserId !== user.id) {
+    recipientIds.add(card.assignedToUserId);
+  }
+
+  for (const userId of recipientIds) {
+    await createNotification(
+      userId,
+      "BOARD_UPDATED",
+      "New Comment",
+      `${user.name} commented on "${card.title}"`,
+      boardLink(access.boardId)
+    ).catch(() => {});
+  }
 
   revalidatePath("/board");
   return activity;
@@ -1013,8 +1146,7 @@ export async function addCardActivity(cardId: number, message: string) {
  * BOARD BACKGROUND
  */
 export async function updateBoardBackground(boardId: number, background: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertBoardAccess(boardId, "EDIT");
 
   await db.board.update({ where: { id: boardId }, data: { background } });
   revalidatePath("/board");
@@ -1024,8 +1156,7 @@ export async function updateBoardBackground(boardId: number, background: string)
  * CHECKLIST RENAME
  */
 export async function renameChecklist(checklistId: number, title: string) {
-  const user = await getCurrentUser();
-  if (!user) throw new Error("Unauthorized");
+  await assertChecklistAccess(checklistId, "EDIT");
 
   await db.boardChecklist.update({ where: { id: checklistId }, data: { title } });
   revalidatePath("/board");
