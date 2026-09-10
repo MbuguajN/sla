@@ -47,6 +47,7 @@ model User {
   requisitions              Requisition[]
   suggestions               Suggestion[]
   tasksAssigned             Task[]                    @relation("TaskAssignee")
+  subtasksAssigned          Subtask[]                 @relation("SubtaskAssignee")
   tasksCreated              Task[]                    @relation("TaskCreator")
   department                Department?               @relation("DepartmentMembers", fields: [departmentId], references: [id])
   UserInviteToken           UserInviteToken?
@@ -324,6 +325,7 @@ model Department {
   head      User?               @relation("DepartmentHead", fields: [headId], references: [id])
   projects  ProjectDepartment[]
   tasks     Task[]
+  subtasks  Subtask[]           @relation("SubtaskDepartment")
   members   User[]              @relation("DepartmentMembers")
 }
 
@@ -408,6 +410,7 @@ model Task {
   deptId               Int?
   assignedUserId       Int?
   createdById          Int?
+  assignedAt           DateTime?
   slaHours             Int?
   slaStartedAt         DateTime?
   startedAt            DateTime?
@@ -585,11 +588,19 @@ model Subtask {
   title           String
   description     String?
   status          SubtaskStatus       @default(PENDING)
+  deptId          Int?
+  assignedUserId  Int?
   checklistItemId Int?                @unique
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   task            Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  department      Department?         @relation("SubtaskDepartment", fields: [deptId], references: [id], onDelete: SetNull)
+  assignedTo      User?               @relation("SubtaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
   checklistItem   BoardChecklistItem? @relation("ChecklistItemSubtask", fields: [checklistItemId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([deptId, status])
+  @@index([assignedUserId])
 }
 
 model ActivityLog {
@@ -942,6 +953,8 @@ enum SubtaskStatus {
 enum ActivityType {
   CREATED
   ASSIGNED
+  REASSIGNED
+  DECLINED
   CONFIRMED
   STATUS_CHANGED
   COMMENTED
@@ -1036,7 +1049,14 @@ enum EquipmentStatus {
 
 enum NotificationType {
   TASK_ASSIGNED
+  TASK_REASSIGNED
+  TASK_DECLINED
   TASK_CONFIRMED
+  TASK_STARTED
+  TASK_PAUSED
+  TASK_SUBMITTED
+  TASK_REVISION_REQUESTED
+  TASK_CANCELLED
   TASK_COMPLETED
   LEAVE_APPROVED
   LEAVE_DENIED

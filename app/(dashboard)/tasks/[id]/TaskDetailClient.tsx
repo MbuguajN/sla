@@ -7,7 +7,6 @@ import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import {
   assignTask,
-  confirmTask,
   startTask,
   pauseTask,
   resumeTask,
@@ -18,6 +17,8 @@ import {
   addSubtask,
   updateSubtaskStatus,
   deleteSubtask,
+  declineTask,
+  setSubtaskAssignee,
   addTaskComment,
   addTaskLink,
   deleteTaskLink,
@@ -46,6 +47,10 @@ type Subtask = {
   title: string;
   status: string;
   description?: string | null;
+  deptId?: number | null;
+  departmentName?: string | null;
+  assignedUserId?: number | null;
+  assigneeName?: string | null;
 };
 
 type TaskLink = {
@@ -90,6 +95,7 @@ type Task = {
   assignedUserId: number | null;
   assigneeName: string | null;
   createdById: number | null;
+  creatorDepartmentId?: number | null;
   creatorName: string;
   slaHours: number | null;
   slaStartedAt: string | null;
@@ -114,7 +120,8 @@ type CurrentUser = {
 interface Props {
   task: Task;
   currentUser: CurrentUser;
-  departmentMembers: { id: number; name: string; role: string }[];
+  departmentMembers: { id: number; name: string; role: string; departmentId?: number | null }[];
+  subtaskAssignees?: { id: number; name: string; departmentId: number | null }[];
 }
 
 function calculateTaskProgress(task: Task) {
@@ -147,7 +154,7 @@ function parseMetadata(raw: string | null): ActivityMetadata {
   try { return JSON.parse(raw) as ActivityMetadata; } catch { return {}; }
 }
 
-export default function TaskDetailClient({ task: initialTask, currentUser, departmentMembers }: Props) {
+export default function TaskDetailClient({ task: initialTask, currentUser, departmentMembers, subtaskAssignees = [] }: Props) {
   const router = useRouter();
   const [task, setTask] = useState(initialTask);
   const [loading, setLoading] = useState<string | null>(null);
@@ -156,6 +163,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [newSubtask, setNewSubtask] = useState("");
   const [newSubtaskDesc, setNewSubtaskDesc] = useState("");
   const [commentText, setCommentText] = useState("");
@@ -179,20 +187,42 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
 
   const canAddLink = isCreator && !isTaskClosed; 
   const canAddSubtask = isCreator && !isTaskClosed;
-  const canToggleSubtaskDone = isAssignee && !isTaskClosed;
+  // A subtask with its own assignee belongs to that person; otherwise it falls
+  // to the task's assignee. Routed work is completed by whoever owes it.
+  const subtaskOwnerId = (sub: Subtask) => sub.assignedUserId ?? task.assignedUserId;
+  const canToggleSubtask = (sub: Subtask) => !isTaskClosed && subtaskOwnerId(sub) === currentUser.id;
+  const canAssignSubtask = (sub: Subtask) =>
+    !isTaskClosed &&
+    (isCreator ||
+      isAssignee ||
+      isAdmin ||
+      (currentUser.role === "MANAGER" &&
+        !!currentUser.departmentId &&
+        (currentUser.departmentId === sub.deptId || currentUser.departmentId === task.deptId)));
   const canDeleteSubtask = (isCreator || isAdmin || isManager) && !isTaskClosed;
   const canPostUpdate = !isTaskClosed;
 
   const canAssign = (isManager || isAdmin) && task.status === "UNASSIGNED";
-  const canReassign = (isManager || isAdmin) && task.status === "ASSIGNED";
-  const canConfirm = isAssignee && task.status === "ASSIGNED";
+  // Reassignment stays available until the task closes, so a department head is
+  // never stuck with work parked on someone who cannot finish it.
+  const canReassign = (isManager || isAdmin) && !isTaskClosed && task.status !== "UNASSIGNED";
+  // Accepting and starting is one action; a separate confirm click carried no
+  // information the activity log did not already have.
+  const canAcceptAndStart = isAssignee && task.status === "ASSIGNED";
+  const canDecline = isAssignee && (task.status === "ASSIGNED" || task.status === "CONFIRMED");
   const canStart = isAssignee && (task.status === "CONFIRMED" || task.status === "REVISION");
   const canPause = isAssignee && task.status === "IN_PROGRESS";
   const canResume = isAssignee && task.status === "PAUSED";
   const hasAllSubtasksDone = !task.subtasks || task.subtasks.length === 0 || task.subtasks.every(s => s.status === "DONE");
   const canSubmit = isAssignee && task.status === "IN_PROGRESS" && hasAllSubtasksDone;
-  const canRequestRevision = (isCreator || isAdmin) && task.status === "SUBMITTED";
-  const canComplete = (isCreator || isAdmin) && task.status === "SUBMITTED";
+  // Closing is no longer the initiator's alone: their department peers can do it
+  // too, so delivered work does not wait on one person's inbox. The server
+  // decides for real; this mirrors it.
+  const isInitiatingTeam =
+    isCreator ||
+    (!!currentUser.departmentId && currentUser.departmentId === task.creatorDepartmentId);
+  const canRequestRevision = (isInitiatingTeam || isAdmin) && task.status === "SUBMITTED";
+  const canComplete = (isInitiatingTeam || isAdmin) && task.status === "SUBMITTED";
   const canCancel = (isCreator || isAdmin) && !["DONE", "CANCELLED"].includes(task.status);
 
   const timeline = useMemo<TimelineItem[]>(
@@ -329,10 +359,19 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                 PAUSE TASK
               </button>
             )}
-            {(canStart || canResume || canConfirm || canSubmit || canComplete) && (
+            {canDecline && (
+              <button
+                onClick={() => setShowDeclineModal(true)}
+                className="flex-1 h-[44px] bg-white dark:bg-white/5 text-slate-600 dark:text-zinc-300 rounded-lg font-bold text-[11px] uppercase tracking-wider hover:bg-slate-50 dark:hover:bg-white/10 transition-colors border border-slate-200 dark:border-white/15"
+                title="Hand this back to your department head"
+              >
+                DECLINE
+              </button>
+            )}
+            {(canStart || canResume || canAcceptAndStart || canSubmit || canComplete) && (
               <button 
                 onClick={() => {
-                  if (canConfirm) handleAction(() => confirmTask(task.id), "confirm");
+                  if (canAcceptAndStart) handleAction(() => startTask(task.id), "start");
                   else if (canStart) handleAction(() => startTask(task.id), "start");
                   else if (canResume) handleAction(() => resumeTask(task.id), "resume");
                   else if (canSubmit) handleAction(() => submitTask(task.id), "submit");
@@ -340,7 +379,7 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                 }}
                 className="flex-1 h-[44px] bg-[#c91f41] text-white rounded-lg font-bold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-[#a61835] transition-all shadow-md active:scale-95"
               >
-                {canComplete ? "COMPLETE" : canSubmit ? "SUBMIT" : canStart ? "START" : canConfirm ? "CONFIRM" : "RESUME"}
+                {canComplete ? "COMPLETE" : canSubmit ? "SUBMIT" : canAcceptAndStart ? "ACCEPT & START" : canStart ? "START" : "RESUME"}
                 {canComplete && <Check className="h-3.5 w-3.5" strokeWidth={4} />}
               </button>
             )}
@@ -452,8 +491,11 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                   <div key={sub.id} className={`bg-white dark:bg-white/5 rounded-xl border p-5 transition-all ${isDone ? "border-slate-100 dark:border-white/10 bg-slate-50/50 dark:bg-white/5" : "border-slate-200 dark:border-white/15 shadow-sm"}`}>
                     <div className="flex items-center gap-4">
                       <button 
-                         onClick={() => updateSubtaskStatus(sub.id, isDone ? "PENDING" : "DONE").then(res => setTask(p => ({ ...p, subtasks: p.subtasks.map(s => s.id === res.id ? { ...s, status: res.status } : s) })))}
-                         disabled={!canToggleSubtaskDone}
+                         onClick={() => updateSubtaskStatus(sub.id, isDone ? "PENDING" : "DONE")
+                           .then(res => setTask(p => ({ ...p, subtasks: p.subtasks.map(s => s.id === res.id ? { ...s, status: res.status } : s) })))
+                           .catch(err => alert(err instanceof Error ? err.message : "Failed to update subtask"))}
+                         disabled={!canToggleSubtask(sub)}
+                         title={canToggleSubtask(sub) ? (isDone ? "Reopen" : "Mark done") : sub.assigneeName ? `Only ${sub.assigneeName} can complete this` : "Only the assignee can complete this"}
                          className={`w-6 h-6 rounded-md flex items-center justify-center border-2 transition-all flex-shrink-0 ${isDone ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white dark:bg-white/10 border-slate-200 dark:border-white/20 hover:border-[#c91f41]"}`}
                       >
                         {isDone && <Check className="h-3.5 w-3.5" strokeWidth={4} />}
@@ -467,8 +509,66 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
                             <MarkdownRenderer content={sub.description} className="[&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
                           </div>
                         )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          {sub.departmentName && (
+                            <span className="px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-500/10 text-[9px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-300">
+                              {sub.departmentName}
+                            </span>
+                          )}
+                          {sub.assigneeName ? (
+                            <span className="text-[10px] font-bold text-slate-500 dark:text-zinc-400">
+                              {sub.assigneeName}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 italic">
+                              Unassigned
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {canAssignSubtask(sub) && (() => {
+                          // Candidates: the routed department when there is one,
+                          // otherwise whoever can be assigned on this task.
+                          const candidates = sub.deptId
+                            ? subtaskAssignees.filter(u => u.departmentId === sub.deptId)
+                            : departmentMembers;
+                          if (candidates.length === 0) return null;
+                          return (
+                            <select
+                              value={sub.assignedUserId ?? ""}
+                              onChange={async (e) => {
+                                const raw = e.target.value;
+                                const nextId = raw ? Number(raw) : null;
+                                const previous = { id: sub.assignedUserId ?? null, name: sub.assigneeName ?? null };
+                                const nextName = candidates.find(c => c.id === nextId)?.name ?? null;
+                                setTask(p => ({
+                                  ...p,
+                                  subtasks: p.subtasks.map(x => x.id === sub.id
+                                    ? { ...x, assignedUserId: nextId, assigneeName: nextName, status: nextId ? x.status : "PENDING" }
+                                    : x),
+                                }));
+                                try {
+                                  await setSubtaskAssignee(sub.id, nextId);
+                                } catch (err) {
+                                  setTask(p => ({
+                                    ...p,
+                                    subtasks: p.subtasks.map(x => x.id === sub.id
+                                      ? { ...x, assignedUserId: previous.id, assigneeName: previous.name }
+                                      : x),
+                                  }));
+                                  alert(err instanceof Error ? err.message : "Failed to assign subtask");
+                                }
+                              }}
+                              className="h-8 px-2 rounded-lg border border-slate-200 dark:border-white/15 bg-white dark:bg-white/5 text-[10px] font-bold text-slate-600 dark:text-zinc-300 outline-none max-w-[130px]"
+                            >
+                              <option value="">Unassigned</option>
+                              {candidates.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                         {canDeleteSubtask && <button onClick={() => deleteSubtask(sub.id).then(() => setTask(p => ({...p, subtasks: p.subtasks.filter(s => s.id !== sub.id)})))} className="text-slate-300 dark:text-zinc-500 hover:text-red-500 transition-colors flex-shrink-0"><Trash2 className="h-4 w-4" /></button>}
                       </div>
                     </div>
@@ -626,6 +726,16 @@ export default function TaskDetailClient({ task: initialTask, currentUser, depar
 
       {showPauseModal && (
         <ReasonModal title="PAUSE REASON" placeholder="Please explain why work is pausing..." buttonText="PAUSE TASK" onClose={() => setShowPauseModal(false)} onSubmit={r => { handleAction(() => pauseTask(task.id, r), "pause"); setShowPauseModal(false); }} />
+      )}
+
+      {showDeclineModal && (
+        <ReasonModal
+          title="DECLINE TASK"
+          placeholder="Why can you not take this on? Your department head sees this."
+          buttonText="DECLINE & HAND BACK"
+          onClose={() => setShowDeclineModal(false)}
+          onSubmit={r => { handleAction(() => declineTask(task.id, r), "decline"); setShowDeclineModal(false); }}
+        />
       )}
     </div>
   );

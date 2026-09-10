@@ -195,6 +195,9 @@ export default async function TasksPage({
     createdAt: subtask.updatedAt.toISOString(),
     isSubtaskCompletion: true,
     type: "TASK" as const,
+    assignedUserId: null as number | null,
+    createdById: null as number | null,
+    deptId: null as number | null,
     dueDate: null as string | null,
     boardName: null as string | null,
     checklistName: null as string | null,
@@ -222,6 +225,9 @@ export default async function TasksPage({
     dueDate: null as string | null,
     boardName: null as string | null,
     checklistName: null as string | null,
+    assignedUserId: t.assignedUserId,
+    createdById: t.createdById,
+    deptId: t.deptId,
   }));
 
   const [boardCards, checklistItems] = await Promise.all([
@@ -269,6 +275,9 @@ export default async function TasksPage({
     createdAt: c.createdAt.toISOString(),
     isSubtaskCompletion: false,
     type: "BOARD_CARD" as const,
+    assignedUserId: null as number | null,
+    createdById: null as number | null,
+    deptId: null as number | null,
     dueDate: c.dueDate?.toISOString() || null,
     boardName: c.list.board.title,
     checklistName: null,
@@ -293,6 +302,9 @@ export default async function TasksPage({
     createdAt: item.createdAt.toISOString(),
     isSubtaskCompletion: false,
     type: "CHECKLIST_ITEM" as const,
+    assignedUserId: null as number | null,
+    createdById: null as number | null,
+    deptId: null as number | null,
     dueDate: null,
     boardName: item.checklist.card.list.board.title,
     checklistName: item.checklist.title,
@@ -306,6 +318,8 @@ export default async function TasksPage({
         canCreate={canCreateTask(user)}
         userRole={user.role}
         userDepartmentSlug={user.departmentSlug}
+        currentUserId={user.id}
+        currentUserDepartmentId={user.departmentId}
       />
     </>
   );

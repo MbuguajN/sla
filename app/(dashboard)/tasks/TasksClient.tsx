@@ -34,6 +34,9 @@ type TaskItem = {
   dueDate: string | null;
   boardName: string | null;
   checklistName: string | null;
+  assignedUserId?: number | null;
+  createdById?: number | null;
+  deptId?: number | null;
 };
 
 interface Props {
@@ -41,6 +44,44 @@ interface Props {
   canCreate: boolean;
   userRole?: string;
   userDepartmentSlug?: string | null;
+  currentUserId?: number;
+  currentUserDepartmentId?: number | null;
+}
+
+/**
+ * Whether this row is waiting on the viewer.
+ *
+ * The workflow is a relay, so at any moment a task belongs to exactly one of:
+ * the department head who has to assign it, the assignee who has to accept or
+ * finish it, or the initiator who has to review it.
+ */
+function needsAction(
+  task: TaskItem,
+  viewer: { id?: number; departmentId?: number | null; role?: string }
+): false | string {
+  if (task.type !== "TASK" || task.isSubtaskCompletion || !viewer.id) return false;
+
+  if (task.assignedUserId === viewer.id) {
+    if (task.status === "ASSIGNED") return "Accept or decline";
+    if (task.status === "CONFIRMED") return "Start work";
+    if (task.status === "REVISION") return "Revise";
+    if (task.status === "PAUSED") return "Paused — resume";
+  }
+
+  if (task.createdById === viewer.id && task.status === "SUBMITTED") return "Review";
+
+  const managesDept =
+    viewer.role === "ADMIN" ||
+    viewer.role === "CEO" ||
+    (viewer.role === "MANAGER" && !!viewer.departmentId && viewer.departmentId === task.deptId);
+  if (managesDept && task.status === "UNASSIGNED") return "Assign to someone";
+
+  return false;
+}
+
+/** How long a row has been sitting where it is, in whole hours. */
+function waitingHours(task: TaskItem): number {
+  return Math.max(0, Math.round((Date.now() - new Date(task.createdAt).getTime()) / 3_600_000));
 }
 
 function calculateDueDate(task: TaskItem): Date | null {
@@ -96,14 +137,14 @@ function formatRemaining(ms: number | null) {
   return `${hours}h ${minutes}m`;
 }
 
-export default function TasksClient({ initialTasks, canCreate, userRole, userDepartmentSlug }: Props) {
+export default function TasksClient({ initialTasks, canCreate, userRole, userDepartmentSlug, currentUserId, currentUserDepartmentId }: Props) {
   const router = useRouter();
   const tableScrollRef = useRef<HTMLDivElement | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
-  const [activeTab, setActiveTab] = useState<"ACTIVE" | "ARCHIVE">("ACTIVE");
+  const [activeTab, setActiveTab] = useState<"NEEDS_YOU" | "ACTIVE" | "ARCHIVE">("ACTIVE");
   const [dueFilter, setDueFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH">("ALL");
   const [departmentFilter, setDepartmentFilter] = useState<string>("ALL");
   const [itemsDisplayed, setItemsDisplayed] = useState(10);
@@ -145,6 +186,15 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
     [tasks]
   );
 
+  const viewer = useMemo(
+    () => ({ id: currentUserId, departmentId: currentUserDepartmentId, role: userRole }),
+    [currentUserId, currentUserDepartmentId, userRole]
+  );
+  const needsYouCount = useMemo(
+    () => tasks.filter((t) => needsAction(t, viewer)).length,
+    [tasks, viewer]
+  );
+
   const filteredTasks = useMemo(() => {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -169,7 +219,12 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
       const matchesStatus = statusFilter === "ALL" || t.status === statusFilter;
       const matchesPriority = priorityFilter === "ALL" || t.priority === priorityFilter;
       const isArchived = t.status === "DONE" || t.status === "CANCELLED";
-      const matchesTab = activeTab === "ACTIVE" ? !isArchived : isArchived;
+      const matchesTab =
+        activeTab === "NEEDS_YOU"
+          ? Boolean(needsAction(t, viewer))
+          : activeTab === "ACTIVE"
+            ? !isArchived
+            : isArchived;
       
       const matchesDepartment = departmentFilter === "ALL" || t.departmentName === departmentFilter;
 
@@ -197,12 +252,18 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
         return matchesSearch && matchesStatus && matchesPriority && matchesTab && matchesDepartment && matchesDueDate;
       })
       .sort((left, right) => {
+        // In the action queue, the oldest wait comes first: that is the one
+        // costing the client time.
+        if (activeTab === "NEEDS_YOU") {
+          const diff = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+          if (diff !== 0) return diff;
+        }
         const leftDue = left.dueDate ? new Date(left.dueDate).getTime() : (calculateDueDate(left)?.getTime() ?? Number.POSITIVE_INFINITY);
         const rightDue = right.dueDate ? new Date(right.dueDate).getTime() : (calculateDueDate(right)?.getTime() ?? Number.POSITIVE_INFINITY);
         if (leftDue !== rightDue) return leftDue - rightDue;
         return left.id - right.id;
       });
-  }, [tasks, search, statusFilter, priorityFilter, activeTab, dueFilter, departmentFilter]);
+  }, [tasks, search, statusFilter, priorityFilter, activeTab, dueFilter, departmentFilter, viewer]);
 
   const displayedTasks = filteredTasks.slice(0, itemsDisplayed);
   const hasMore = itemsDisplayed < filteredTasks.length;
@@ -268,6 +329,21 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
       <section className="rounded-3xl border border-gray-100 dark:border-white/10 bg-white dark:bg-[#111111] overflow-hidden">
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 dark:border-white/10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="inline-flex rounded-2xl bg-gray-100 dark:bg-white/10 p-1 w-fit">
+            <button
+              onClick={() => setActiveTab("NEEDS_YOU")}
+              className={`px-4 py-1.5 text-xs font-bold rounded-xl transition inline-flex items-center gap-2 ${
+                activeTab === "NEEDS_YOU"
+                  ? "bg-[#ffe8ec] text-[#c91f41]"
+                      : "text-gray-500 dark:text-zinc-400 hover:text-gray-700 dark:hover:text-white"
+              }`}
+            >
+              Needs You
+              {needsYouCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-[#c91f41] text-white text-[9px] font-black tabular-nums">
+                  {needsYouCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => setActiveTab("ACTIVE")}
               className={`px-4 py-1.5 text-xs font-bold rounded-xl transition ${
@@ -452,6 +528,23 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black tracking-wide ${statusPill[task.status] || "bg-gray-100 text-gray-600"}`}>
                           {task.status.replace("_", " ")}
                         </span>
+                        {(() => {
+                          const action = needsAction(task, viewer);
+                          if (!action) return null;
+                          const hours = waitingHours(task);
+                          return (
+                            <div className="mt-1.5 flex flex-col gap-0.5">
+                              <span className="text-[9px] font-black uppercase tracking-wider text-[#c91f41]">
+                                {action}
+                              </span>
+                              {hours >= 1 && (
+                                <span className="text-[9px] font-bold text-gray-400 dark:text-zinc-500">
+                                  waiting {hours >= 48 ? `${Math.round(hours / 24)}d` : `${hours}h`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 align-top">
                         {task.type === "BOARD_CARD" || task.type === "CHECKLIST_ITEM" ? (
@@ -510,7 +603,9 @@ export default function TasksClient({ initialTasks, canCreate, userRole, userDep
               </div>
               <p className="text-base font-semibold text-gray-900 dark:text-white">No tasks found</p>
               <p className="text-sm text-gray-500 dark:text-zinc-500 mt-2">
-                {activeTab === "ACTIVE"
+                {activeTab === "NEEDS_YOU"
+                  ? "Nothing is waiting on you"
+                  : activeTab === "ACTIVE"
                   ? "No active tasks match this filter"
                   : "No archived tasks match this filter"}
               </p>

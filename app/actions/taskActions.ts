@@ -9,8 +9,6 @@ import {
   canConfirmTask,
   canPauseTask,
   canSubmitTask,
-  canMarkTaskDone,
-  canRequestRevision,
 } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { syncTaskToCard, syncSubtaskToChecklistItem, addBoardMemberForAssignee, syncChecklistItemToSubtask, syncCardToTask } from "./boardTaskSync";
@@ -19,6 +17,109 @@ import { sendNotificationEmail } from "@/lib/email";
 import { mkdir, writeFile } from "fs/promises";
 import { extname, join } from "path";
 import { isUserCurrentlyOnApprovedLeave, processLeaveTaskHandovers } from "./leaveHandoverActions";
+
+/**
+ * HANDOFF NOTIFICATIONS
+ *
+ * The workflow is a relay: intake -> department head -> assignee -> back to the
+ * initiator. Every hop announces itself here, so nobody has to poll the app to
+ * discover it is their turn.
+ */
+
+type TaskAudience = {
+  initiatorId: number | null;
+  assigneeId: number | null;
+  managerIds: number[];
+};
+
+async function getTaskAudience(task: {
+  createdById: number | null;
+  assignedUserId: number | null;
+  deptId: number | null;
+}): Promise<TaskAudience> {
+  const managers = task.deptId
+    ? await db.user.findMany({
+        where: { departmentId: task.deptId, role: "MANAGER", isActive: true },
+        select: { id: true },
+      })
+    : [];
+
+  return {
+    initiatorId: task.createdById,
+    assigneeId: task.assignedUserId,
+    managerIds: managers.map((m) => m.id),
+  };
+}
+
+/**
+ * Notify a set of people once each, skipping the actor and any duplicates.
+ * Failures never block the transition that triggered them.
+ */
+async function notifyTaskParties(params: {
+  userIds: (number | null | undefined)[];
+  actorId: number;
+  type: string;
+  title: string;
+  message: string;
+  taskId: number;
+  email?: { subject: string; heading: string; body: string };
+}) {
+  const link = `/tasks/${params.taskId}`;
+  const recipients = [...new Set(params.userIds.filter((id): id is number => !!id))]
+    .filter((id) => id !== params.actorId);
+  if (recipients.length === 0) return;
+
+  const users = await db.user.findMany({
+    where: { id: { in: recipients }, isActive: true },
+    select: { id: true, email: true },
+  });
+
+  for (const recipient of users) {
+    await createNotification(
+      recipient.id,
+      params.type,
+      params.title,
+      params.message,
+      link
+    ).catch((e) => console.error("Task notification failed:", e));
+
+    if (params.email && recipient.email) {
+      await sendNotificationEmail(
+        recipient.email,
+        params.email.subject,
+        params.email.heading,
+        params.email.body,
+        link
+      ).catch((e) => console.error("Task email failed:", e));
+    }
+  }
+}
+
+/**
+ * Who may close or bounce back submitted work.
+ *
+ * The initiator first, but never only the initiator: delivered work must not sit
+ * in SUBMITTED because one person is on leave. Their department peers and their
+ * manager can close it too, and the activity log records who did.
+ */
+async function canCloseTask(
+  user: { id: number; role: string; departmentId: number | null; isGeneralManager?: boolean },
+  task: { createdById: number | null }
+): Promise<boolean> {
+  if (user.role === "ADMIN" || user.role === "CEO") return true;
+  if (user.isGeneralManager) return true;
+  if (task.createdById === user.id) return true;
+  if (!task.createdById) return true;
+
+  const initiator = await db.user.findUnique({
+    where: { id: task.createdById },
+    select: { departmentId: true },
+  });
+  if (!initiator?.departmentId || !user.departmentId) return false;
+
+  // A peer in the initiating department, or that department's manager.
+  return initiator.departmentId === user.departmentId;
+}
 
 const MAX_TASK_RESOURCE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -382,6 +483,10 @@ export async function createTask(data: {
       briefReceivedAt,
       briefCategory,
       status: "UNASSIGNED",
+      // The clock starts when the work arrives. Waiting for a department head
+      // to assign it, and for the assignee to accept, is part of the turnaround
+      // the client experiences.
+      slaStartedAt: new Date(),
       ...(validLinks.length > 0 && {
         links: {
           create: validLinks.map(l => ({ name: l.name, url: l.url })),
@@ -433,9 +538,10 @@ export async function createTask(data: {
       await db.subtask.create({
         data: {
           taskId: task.id,
-          title: `[${targetDepartment.name}] ${routed.title}`,
+          title: routed.title,
           description: routed.description || null,
           status: "PENDING",
+          deptId: targetDepartment.id,
         },
       });
 
@@ -468,7 +574,7 @@ export async function createTask(data: {
 
 // ============== TASK ASSIGNMENT (Manager assigns to employee) ==============
 
-export async function assignTask(taskId: number, assignedUserId: number) {
+export async function assignTask(taskId: number, assignedUserId: number, reason?: string) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -486,9 +592,19 @@ export async function assignTask(taskId: number, assignedUserId: number) {
     throw new Error("Unauthorized - Only the CEO, managers, or admins can assign tasks");
   }
 
-  if (task.status !== "UNASSIGNED" && task.status !== "ASSIGNED") {
-    throw new Error("Task can only be assigned while UNASSIGNED or ASSIGNED");
+  // Reassignment stays possible until the task is closed. Freezing it at
+  // CONFIRMED meant a confirmed task could never be handed over when the
+  // assignee fell ill, short of the leave-handover job.
+  if (task.status === "DONE" || task.status === "CANCELLED") {
+    throw new Error("A closed task cannot be reassigned");
   }
+
+  if (task.assignedUserId === assignedUserId) {
+    throw new Error("That person is already assigned to this task");
+  }
+
+  const previousAssigneeId = task.assignedUserId;
+  const isReassignment = Boolean(previousAssigneeId);
 
   // Verify assignee is in the same department
   const assignee = await db.user.findUnique({
@@ -517,6 +633,11 @@ export async function assignTask(taskId: number, assignedUserId: number) {
     data: {
       assignedUserId,
       status: "ASSIGNED",
+      assignedAt: new Date(),
+      // The new assignee has not accepted yet, so any prior acceptance and
+      // in-progress state is cleared.
+      confirmedAt: null,
+      slaPausedAt: null,
     },
     include: { assignedTo: true, project: { include: { client: true } } },
   });
@@ -524,34 +645,55 @@ export async function assignTask(taskId: number, assignedUserId: number) {
   // Create activity log
   await db.activityLog.create({
     data: {
-      type: "ASSIGNED",
-      description: `Task assigned to ${assignee.name}`,
+      type: isReassignment ? "REASSIGNED" : "ASSIGNED",
+      description: isReassignment
+        ? `Task reassigned to ${assignee.name}${reason ? `: ${reason}` : ""}`
+        : `Task assigned to ${assignee.name}`,
       taskId,
       projectId: task.projectId,
       userId: user.id,
+      ...(reason ? { metadata: JSON.stringify({ reason }) } : {}),
     },
   });
 
-  // Create notification
-  await createNotification(
-    assignedUserId,
-    "TASK_ASSIGNED",
-    "Task Assigned",
-    `You have been assigned: ${task.title}`,
-    `/tasks/${taskId}`
-  );
+  const clientName = updatedTask.project?.client?.name || "a project";
+  const audience = await getTaskAudience({ ...task, assignedUserId });
 
-  // Send email notification
-  if (assignee.email) {
-    const clientName = updatedTask.project?.client?.name || "a project";
-    await sendNotificationEmail(
-      assignee.email,
-      `Task Assigned: ${task.title}`,
-      "Task Assigned",
-      `You have been assigned a new task in <strong>${clientName}</strong>: <strong>${task.title}</strong>.`,
-      `/tasks/${taskId}`
-    );
+  // The new assignee.
+  await notifyTaskParties({
+    userIds: [assignedUserId],
+    actorId: user.id,
+    type: "TASK_ASSIGNED",
+    title: "Task Assigned",
+    message: `You have been assigned: ${task.title}`,
+    taskId,
+    email: {
+      subject: `Task Assigned: ${task.title}`,
+      heading: "Task Assigned",
+      body: `You have been assigned a task in <strong>${clientName}</strong>: <strong>${task.title}</strong>.`,
+    },
+  });
+
+  // The person losing it, and whoever raised it.
+  if (isReassignment) {
+    await notifyTaskParties({
+      userIds: [previousAssigneeId],
+      actorId: user.id,
+      type: "TASK_REASSIGNED",
+      title: "Task Reassigned",
+      message: `"${task.title}" was reassigned to ${assignee.name}${reason ? `: ${reason}` : ""}`,
+      taskId,
+    });
   }
+
+  await notifyTaskParties({
+    userIds: [audience.initiatorId],
+    actorId: user.id,
+    type: isReassignment ? "TASK_REASSIGNED" : "TASK_ASSIGNED",
+    title: isReassignment ? "Task Reassigned" : "Task Assigned",
+    message: `${user.name} ${isReassignment ? "reassigned" : "assigned"} "${task.title}" to ${assignee.name}`,
+    taskId,
+  });
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
@@ -573,6 +715,80 @@ export async function assignTask(taskId: number, assignedUserId: number) {
   return updatedTask;
 }
 
+// ============== DECLINE TASK (Assignee cannot take it) ==============
+
+/**
+ * The assignee hands the task back to their department head instead of sitting
+ * on work they cannot do. Without this the only way to say no was out of band.
+ */
+export async function declineTask(taskId: number, reason: string) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) throw new Error("Please say why you cannot take this task");
+
+  const task = await db.task.findUnique({ where: { id: taskId } });
+  if (!task) throw new Error("Task not found");
+
+  if (task.assignedUserId !== user.id) {
+    throw new Error("Unauthorized - Only the assignee can decline this task");
+  }
+
+  if (task.status !== "ASSIGNED" && task.status !== "CONFIRMED") {
+    throw new Error("A task can only be declined before work starts");
+  }
+
+  const audience = await getTaskAudience(task);
+
+  const updatedTask = await db.task.update({
+    where: { id: taskId },
+    data: {
+      assignedUserId: null,
+      status: "UNASSIGNED",
+      assignedAt: null,
+      confirmedAt: null,
+    },
+  });
+
+  await db.activityLog.create({
+    data: {
+      type: "DECLINED",
+      description: `${user.name} declined the task: ${trimmedReason}`,
+      taskId,
+      projectId: task.projectId,
+      userId: user.id,
+      metadata: JSON.stringify({ reason: trimmedReason }),
+    },
+  });
+
+  // Straight back to the people who can reassign it, plus the initiator.
+  await notifyTaskParties({
+    userIds: [...audience.managerIds, audience.initiatorId],
+    actorId: user.id,
+    type: "TASK_DECLINED",
+    title: "Task Declined",
+    message: `${user.name} declined "${task.title}": ${trimmedReason}. It needs reassigning.`,
+    taskId,
+    email: {
+      subject: `Task Declined: ${task.title}`,
+      heading: "Task Declined — needs reassigning",
+      body: `<strong>${user.name}</strong> declined <strong>"${task.title}"</strong>.<br/><br/>Reason: ${trimmedReason}`,
+    },
+  });
+
+  if (task.workspaceBoardCardId) {
+    await db.boardCard.update({
+      where: { id: task.workspaceBoardCardId },
+      data: { assignedToUserId: null },
+    }).catch(() => {});
+  }
+
+  revalidatePath("/tasks");
+  revalidatePath(`/tasks/${taskId}`);
+  return updatedTask;
+}
+
 // ============== CONFIRM TASK (Assignee confirms receipt) ==============
 
 export async function confirmTask(taskId: number) {
@@ -590,24 +806,35 @@ export async function confirmTask(taskId: number) {
     throw new Error("Task must be in ASSIGNED status to confirm");
   }
 
-  // Start SLA timer
   const updatedTask = await db.task.update({
     where: { id: taskId },
     data: {
       status: "CONFIRMED",
       confirmedAt: new Date(),
-      slaStartedAt: new Date(),
+      // The clock already started at intake; keep the earlier of the two so a
+      // late acceptance cannot reset the client's turnaround.
+      slaStartedAt: task.slaStartedAt ?? new Date(),
     },
   });
 
   await db.activityLog.create({
     data: {
       type: "CONFIRMED",
-      description: "Task confirmed and SLA timer started",
+      description: "Task accepted by assignee",
       taskId,
       projectId: task.projectId,
       userId: user.id,
     },
+  });
+
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.initiatorId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_CONFIRMED",
+    title: "Task Accepted",
+    message: `${user.name} accepted "${task.title}"`,
+    taskId,
   });
 
   revalidatePath("/tasks");
@@ -628,26 +855,42 @@ export async function startTask(taskId: number) {
     throw new Error("Unauthorized - Only the assignee can start the task");
   }
 
-  if (task.status !== "CONFIRMED" && task.status !== "REVISION") {
-    throw new Error("Task must be CONFIRMED or in REVISION to start");
+  // ASSIGNED is allowed so the assignee can accept and start in one action
+  // rather than clicking a confirmation that carries no other information.
+  if (task.status !== "ASSIGNED" && task.status !== "CONFIRMED" && task.status !== "REVISION") {
+    throw new Error("Task must be assigned, accepted, or in revision to start");
   }
+
+  const acceptedNow = task.status === "ASSIGNED";
 
   const updatedTask = await db.task.update({
     where: { id: taskId },
     data: {
       status: "IN_PROGRESS",
       ...(task.startedAt ? {} : { startedAt: new Date() }),
+      ...(task.confirmedAt ? {} : { confirmedAt: new Date() }),
+      ...(task.slaStartedAt ? {} : { slaStartedAt: new Date() }),
     },
   });
 
   await db.activityLog.create({
     data: {
-      type: "STATUS_CHANGED",
-      description: "Work started on task",
+      type: acceptedNow ? "CONFIRMED" : "STATUS_CHANGED",
+      description: acceptedNow ? "Task accepted and started" : "Work started on task",
       taskId,
       projectId: task.projectId,
       userId: user.id,
     },
+  });
+
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.initiatorId],
+    actorId: user.id,
+    type: "TASK_STARTED",
+    title: "Work Started",
+    message: `${user.name} started work on "${task.title}"`,
+    taskId,
   });
 
   revalidatePath("/tasks");
@@ -689,6 +932,16 @@ export async function pauseTask(taskId: number, reason: string) {
       userId: user.id,
       metadata: JSON.stringify({ reason }),
     },
+  });
+
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.initiatorId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_PAUSED",
+    title: "Task Paused",
+    message: `${user.name} paused "${task.title}": ${reason}`,
+    taskId,
   });
 
   revalidatePath("/tasks");
@@ -739,6 +992,16 @@ export async function resumeTask(taskId: number) {
     },
   });
 
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.initiatorId],
+    actorId: user.id,
+    type: "TASK_STARTED",
+    title: "Task Resumed",
+    message: `${user.name} resumed work on "${task.title}"`,
+    taskId,
+  });
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
   return updatedTask;
@@ -779,6 +1042,29 @@ export async function submitTask(taskId: number) {
     },
   });
 
+  // The initiator is the only person who can close or bounce this back, so they
+  // are the one who has to hear about it.
+  const audience = await getTaskAudience(task);
+  const taskWithProject = await db.task.findUnique({
+    where: { id: taskId },
+    select: { project: { select: { client: { select: { name: true } } } } },
+  });
+  const clientName = taskWithProject?.project?.client?.name || "a project";
+
+  await notifyTaskParties({
+    userIds: [audience.initiatorId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_SUBMITTED",
+    title: "Task Submitted For Review",
+    message: `${user.name} submitted "${task.title}" for your review`,
+    taskId,
+    email: {
+      subject: `Ready for review: ${task.title}`,
+      heading: "Task Submitted For Review",
+      body: `<strong>${user.name}</strong> submitted <strong>"${task.title}"</strong> (${clientName}) for review.<br/><br/>Please mark it complete or request a revision.`,
+    },
+  });
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
   return updatedTask;
@@ -793,8 +1079,8 @@ export async function requestRevision(taskId: number, reason: string) {
   const task = await db.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error("Task not found");
 
-  if (!canRequestRevision(user, task.createdById)) {
-    throw new Error("Unauthorized - Only the task initiator can request revision");
+  if (!(await canCloseTask(user, task))) {
+    throw new Error("Unauthorized - Only the initiating team can request a revision");
   }
 
   if (task.status !== "SUBMITTED") {
@@ -817,6 +1103,21 @@ export async function requestRevision(taskId: number, reason: string) {
     },
   });
 
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.assigneeId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_REVISION_REQUESTED",
+    title: "Revision Requested",
+    message: `${user.name} requested changes on "${task.title}": ${reason}`,
+    taskId,
+    email: {
+      subject: `Revision requested: ${task.title}`,
+      heading: "Revision Requested",
+      body: `<strong>${user.name}</strong> requested changes on <strong>"${task.title}"</strong>.<br/><br/>Reason: ${reason}`,
+    },
+  });
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
   return updatedTask;
@@ -831,8 +1132,8 @@ export async function completeTask(taskId: number) {
   const task = await db.task.findUnique({ where: { id: taskId } });
   if (!task) throw new Error("Task not found");
 
-  if (!canMarkTaskDone(user, task.createdById)) {
-    throw new Error("Unauthorized - Only the task initiator can mark as done");
+  if (!(await canCloseTask(user, task))) {
+    throw new Error("Unauthorized - Only the initiating team can mark this as done");
   }
 
   if (task.status !== "SUBMITTED") {
@@ -865,16 +1166,15 @@ export async function completeTask(taskId: number) {
     },
   });
 
-  // Create notification for assignee
-  if (task.assignedUserId) {
-    await createNotification(
-      task.assignedUserId,
-      "TASK_COMPLETED",
-      "Task Completed",
-      `Your task has been marked as complete`,
-      `/tasks/${taskId}`
-    );
-  }
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.assigneeId, audience.initiatorId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_COMPLETED",
+    title: "Task Completed",
+    message: `${user.name} marked "${task.title}" complete`,
+    taskId,
+  });
 
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
@@ -911,6 +1211,16 @@ export async function cancelTask(taskId: number, reason: string) {
     },
   });
 
+  const audience = await getTaskAudience(task);
+  await notifyTaskParties({
+    userIds: [audience.assigneeId, ...audience.managerIds],
+    actorId: user.id,
+    type: "TASK_CANCELLED",
+    title: "Task Cancelled",
+    message: `${user.name} cancelled "${task.title}": ${reason}`,
+    taskId,
+  });
+
   revalidatePath("/tasks");
   revalidatePath(`/tasks/${taskId}`);
   return updatedTask;
@@ -918,7 +1228,12 @@ export async function cancelTask(taskId: number, reason: string) {
 
 // ============== SUBTASK MANAGEMENT ==============
 
-export async function addSubtask(taskId: number, title: string, description?: string) {
+export async function addSubtask(
+  taskId: number,
+  title: string,
+  description?: string,
+  options?: { deptId?: number | null; assignedUserId?: number | null }
+) {
   const user = await getCurrentUser();
   if (!user) throw new Error("Unauthorized");
 
@@ -930,22 +1245,122 @@ export async function addSubtask(taskId: number, title: string, description?: st
     throw new Error("Unauthorized - Only the task initiator can add subtasks");
   }
 
+  const data = {
+    taskId,
+    title,
+    description,
+    status: "PENDING" as const,
+    deptId: options?.deptId ?? null,
+    assignedUserId: options?.assignedUserId ?? null,
+  };
+
   let subtask;
   if (task.status === "SUBMITTED") {
     // Re-open: atomically revert status to IN_PROGRESS, then create subtask
     const [, created] = await db.$transaction([
       db.task.update({ where: { id: taskId }, data: { status: "IN_PROGRESS" } }),
-      db.subtask.create({ data: { taskId, title, description, status: "PENDING" } }),
+      db.subtask.create({ data }),
     ]);
     subtask = created;
   } else {
-    subtask = await db.subtask.create({
-      data: { taskId, title, description, status: "PENDING" },
+    subtask = await db.subtask.create({ data });
+  }
+
+  if (options?.assignedUserId) {
+    await notifyTaskParties({
+      userIds: [options.assignedUserId],
+      actorId: user.id,
+      type: "TASK_ASSIGNED",
+      title: "Subtask Assigned",
+      message: `${user.name} assigned you "${title}" on task "${task.title}"`,
+      taskId,
+    });
+  } else if (options?.deptId) {
+    const managers = await db.user.findMany({
+      where: { departmentId: options.deptId, role: "MANAGER", isActive: true },
+      select: { id: true },
+    });
+    await notifyTaskParties({
+      userIds: managers.map((m) => m.id),
+      actorId: user.id,
+      type: "TASK_ASSIGNED",
+      title: "Subtask Routed To Your Department",
+      message: `${user.name} routed "${title}" under "${task.title}" to your department. Please assign it.`,
+      taskId,
     });
   }
 
   revalidatePath(`/tasks/${taskId}`);
   return subtask;
+}
+
+/**
+ * Give a routed subtask an owner.
+ *
+ * Cross-department work used to be a title prefix that only the parent task's
+ * assignee could tick off — so the person who owed the work could not close it,
+ * and the person who could was not doing it.
+ */
+export async function setSubtaskAssignee(subtaskId: number, assignedUserId: number | null) {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const subtask = await db.subtask.findUnique({
+    where: { id: subtaskId },
+    include: { task: { select: { id: true, title: true, deptId: true, createdById: true, assignedUserId: true } } },
+  });
+  if (!subtask) throw new Error("Subtask not found");
+
+  const isTaskInitiator = subtask.task.createdById === user.id;
+  const isTaskAssignee = subtask.task.assignedUserId === user.id;
+  const isPlatformAdmin = user.role === "ADMIN" || user.role === "CEO";
+  // The manager of whichever department owns the work.
+  const isOwningManager =
+    user.role === "MANAGER" &&
+    !!user.departmentId &&
+    (user.departmentId === subtask.deptId || user.departmentId === subtask.task.deptId);
+
+  if (!isTaskInitiator && !isTaskAssignee && !isPlatformAdmin && !isOwningManager) {
+    throw new Error("Only the task's team or the owning department's manager can assign this");
+  }
+
+  if (assignedUserId) {
+    const assignee = await db.user.findFirst({
+      where: { id: assignedUserId, isActive: true },
+      select: { id: true, departmentId: true },
+    });
+    if (!assignee) throw new Error("Assignee must be an active user");
+  }
+
+  const updated = await db.subtask.update({
+    where: { id: subtaskId },
+    data: {
+      assignedUserId,
+      // An unassigned subtask must not stay in a state nobody can be credited for.
+      ...(assignedUserId ? {} : { status: "PENDING" as const }),
+    },
+  });
+
+  if (subtask.checklistItemId) {
+    await db.boardChecklistItem.update({
+      where: { id: subtask.checklistItemId },
+      data: { assignedUserId, ...(assignedUserId ? {} : { isDone: false }) },
+    }).catch(() => {});
+  }
+
+  if (assignedUserId) {
+    await notifyTaskParties({
+      userIds: [assignedUserId],
+      actorId: user.id,
+      type: "TASK_ASSIGNED",
+      title: "Subtask Assigned",
+      message: `${user.name} assigned you "${subtask.title}" on task "${subtask.task.title}"`,
+      taskId: subtask.taskId,
+    });
+  }
+
+  revalidatePath(`/tasks/${subtask.taskId}`);
+  return updated;
 }
 
 export async function updateSubtaskStatus(
@@ -968,9 +1383,15 @@ export async function updateSubtaskStatus(
 
   if (!subtask) throw new Error("Subtask not found");
 
-  // Only assignee can mark subtasks complete/incomplete.
-  if (subtask.task.assignedUserId !== user.id) {
-    throw new Error("Unauthorized - Only the assignee can mark subtasks complete");
+  // The subtask's own assignee owns it; otherwise it falls to the parent task's
+  // assignee. Routed work is completed by the department doing it.
+  const owner = subtask.assignedUserId ?? subtask.task.assignedUserId;
+  if (owner !== user.id) {
+    throw new Error(
+      subtask.assignedUserId
+        ? "Only the person this subtask is assigned to can complete it"
+        : "Unauthorized - Only the assignee can mark subtasks complete"
+    );
   }
 
   const normalizedStatus = status === "DONE" ? "DONE" : "PENDING";

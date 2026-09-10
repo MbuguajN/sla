@@ -22,7 +22,13 @@ export default async function TaskDetailPage({
       assignedTo: true,
       assignedDepartment: true,
       createdBy: true,
-      subtasks: { orderBy: { createdAt: "asc" } },
+      subtasks: {
+        orderBy: { createdAt: "asc" },
+        include: {
+          department: { select: { id: true, name: true } },
+          assignedTo: { select: { id: true, name: true } },
+        },
+      },
       links: { orderBy: { createdAt: "asc" } },
       activityLog: {
         include: { user: true },
@@ -49,25 +55,38 @@ export default async function TaskDetailPage({
   }
 
   // Get department members for assignment (if manager)
-  let departmentMembers: { id: number; name: string; role: string }[] = [];
+  let departmentMembers: { id: number; name: string; role: string; departmentId: number | null }[] = [];
   if (user.role === "MANAGER" && user.departmentId === task.deptId && task.deptId) {
     const members = await db.user.findMany({
       where: {
         departmentId: task.deptId,
         isActive: true,
       },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, departmentId: true },
       orderBy: { name: "asc" },
     });
     departmentMembers = members;
   } else if (user.role === "CEO" || user.role === "ADMIN") {
     const members = await db.user.findMany({
       where: { isActive: true },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, departmentId: true },
       orderBy: { name: "asc" },
     });
     departmentMembers = members;
   }
+
+  // Anyone who could own a routed subtask: the task's own department plus every
+  // department a subtask was routed to.
+  const subtaskDeptIds = [
+    ...new Set(task.subtasks.map((s) => s.deptId).filter((id): id is number => !!id)),
+  ];
+  const subtaskAssignees = subtaskDeptIds.length
+    ? await db.user.findMany({
+        where: { departmentId: { in: subtaskDeptIds }, isActive: true },
+        select: { id: true, name: true, departmentId: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
 
   return (
     <TaskDetailClient
@@ -87,6 +106,7 @@ export default async function TaskDetailPage({
         assignedUserId: task.assignedUserId,
         assigneeName: task.assignedTo?.name || null,
         createdById: task.createdById,
+        creatorDepartmentId: task.createdBy?.departmentId ?? null,
         creatorName: task.createdBy?.name || "Deleted User",
         slaHours: task.slaHours,
         slaStartedAt: task.slaStartedAt?.toISOString() || null,
@@ -101,6 +121,10 @@ export default async function TaskDetailPage({
           title: s.title,
           description: s.description,
           status: s.status,
+          deptId: s.deptId,
+          departmentName: s.department?.name || null,
+          assignedUserId: s.assignedUserId,
+          assigneeName: s.assignedTo?.name || null,
         })),
         links: task.links.map((l) => ({
           id: l.id,
@@ -123,6 +147,7 @@ export default async function TaskDetailPage({
         departmentSlug: user.departmentSlug,
       }}
       departmentMembers={departmentMembers}
+      subtaskAssignees={subtaskAssignees}
     />
   );
 }
