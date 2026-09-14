@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { Search, Star, Plus, MoreHorizontal, CalendarDays, Paperclip, CheckSquare, AlignLeft, UserPlus, X, Check, Layout, Settings, Users, Briefcase, Globe, Lock, Eye, Clock, Hash, Trash2, Copy, FileText, Archive, ChevronDown, List as ListIcon, MessageSquare, ChevronRight, Share2, Filter, Menu, Circle, CheckCircle2, BookOpen, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cardCompletionBlocker, checklistItemCompletionBlocker } from "@/lib/boardRules";
+import type { ActionResult, ActionSeverity } from "@/lib/actionResult";
 import RichTextEditor from "@/components/RichTextEditor";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { createWorkspace, createBoard, getBoardData, inviteToBoard, createList, deleteList, toggleListRestrict, createCard, toggleCardComplete, deleteCard, moveCard, addCardLabel, removeCardLabel, addCardMember, removeCardMember, addChecklist, deleteChecklist, addChecklistItem, toggleChecklistItem, deleteChecklistItem, updateChecklistItem, addCardAttachment, deleteCardAttachment, addCardActivity, updateCardTitle, updateCardDescription, setCardDueDate, renameList, moveList, toggleBoardStar, deleteWorkspace, deleteBoard, updateBoardVisibility, setCardAssignee, recordBoardVisit, updateBoardBackground, renameChecklist, setChecklistItemAssignee } from "@/app/actions/boardActions";
@@ -355,7 +356,9 @@ export default function BoardWorkbenchClient({
   const fetchBoardData = async (boardIdStr: string) => {
     const dbId = Number(boardIdStr.replace("b-", ""));
     try {
-      const data = await getBoardData(dbId);
+      const result = await run(getBoardData(dbId));
+      if (!result.ok) return;
+      const data = result.data;
       if (!data) return;
       
       const listData: ListData[] = data.lists.map((l: any) => ({
@@ -484,45 +487,54 @@ export default function BoardWorkbenchClient({
     setActiveBoardId(id);
     setShowSwitcher(false);
     const dbId = Number(id.replace("b-", ""));
-    if (dbId) recordBoardVisit(dbId).catch(() => {});
+    if (dbId) void recordBoardVisit(dbId).catch(() => {});
   };
 
   const handleCreateWorkspace = async () => {
     if (!newWsName.trim()) return;
     setIsSubmitting(true);
     try {
-      const ws = await createWorkspace({ name: newWsName.trim() });
+      const result = await run(createWorkspace({ name: newWsName.trim() }));
+      if (!result.ok) return;
+      const ws = result.data;
       setWorkspaces(prev => [...prev, { ...ws, boards: [], members: [] }]);
       setNewWsName("");
       setShowCreateWs(false);
       setNewBoardWsId(ws.id);
       setShowCreateBoard(true);
-    } catch (e) { console.error(e); } finally { setIsSubmitting(false); }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleCreateBoard = async () => {
     if (!newBoardTitle.trim()) return;
     const wsId = Number(newBoardWsId);
-    if (!wsId || isNaN(wsId)) { alert("Please select a workspace."); return; }
+    if (!wsId || isNaN(wsId)) {
+      setToast({ message: "Choose a workspace for this board first.", severity: "warning" });
+      return;
+    }
     setIsSubmitting(true);
     try {
-      const board = await createBoard({ 
-        workspaceId: wsId, 
+      const result = await run(createBoard({
+        workspaceId: wsId,
         title: newBoardTitle.trim(),
         visibility: newBoardVisibility as any
-      });
+      }));
+      if (!result.ok) return;
+      const board = result.data;
       setWorkspaces(prev => prev.map(ws => ws.id === wsId ? { ...ws, boards: [...ws.boards, board] } : ws));
       setNewBoardTitle("");
       setShowCreateBoard(false);
       setActiveBoardId(`b-${board.id}`);
-    } catch (e: any) { console.error(e); alert(e?.message || "Failed to create board. Please try again."); } finally { setIsSubmitting(false); }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleAddList = async () => {
     if (!newListTitle.trim() || !activeBoardId) return;
     const dbId = Number(activeBoardId.replace("b-", ""));
-    try {
-      const list = await createList(dbId, newListTitle.trim());
+    {
+      const result = await run(createList(dbId, newListTitle.trim()));
+      if (!result.ok) return;
+      const list = result.data;
       const newList: ListData = {
         id: `l-${list.id}`,
         title: list.title,
@@ -537,34 +549,34 @@ export default function BoardWorkbenchClient({
       }));
       setNewListTitle("");
       setAddingList(false);
-    } catch (e: any) { alert(e.message || "Failed to create list"); }
+    }
   };
 
   const handleDeleteList = async (listId: string) => {
     if (!activeBoardId) return;
     const dbId = Number(listId.replace("l-", ""));
-    try {
-      await deleteList(dbId);
+    const result = await run(deleteList(dbId));
+    if (result.ok) {
       setListsByBoard(prev => ({
         ...prev,
         [activeBoardId]: (prev[activeBoardId] || []).filter(l => l.id !== listId)
       }));
-    } catch (e: any) { alert(e.message || "Failed to delete list"); }
+    }
     setActiveListMenuId(null);
   };
 
   const handleToggleListRestriction = async (listId: string) => {
     if (!activeBoardId) return;
     const dbId = Number(listId.replace("l-", ""));
-    try {
-      await toggleListRestrict(dbId);
+    const result = await run(toggleListRestrict(dbId));
+    if (result.ok) {
       setListsByBoard(prev => ({
         ...prev,
-        [activeBoardId]: (prev[activeBoardId] || []).map(l => 
+        [activeBoardId]: (prev[activeBoardId] || []).map(l =>
           l.id === listId ? { ...l, restricted: !l.restricted } : l
         )
       }));
-    } catch (e: any) { alert(e.message || "Failed to update list"); }
+    }
     setActiveListMenuId(null);
   };
 
@@ -572,12 +584,14 @@ export default function BoardWorkbenchClient({
     if (!title.trim() || !activeBoardId) return;
     const targetList = (listsByBoard[activeBoardId] || []).find(l => l.id === listId);
     if (targetList?.restricted) {
-      alert("This list is restricted!");
+      setToast({ message: "This list is locked. Unlock it from the list menu before adding cards.", severity: "warning" });
       return;
     }
     const dbId = Number(listId.replace("l-", ""));
-    try {
-      const card = await createCard(dbId, title.trim());
+    {
+      const result = await run(createCard(dbId, title.trim()));
+      if (!result.ok) return;
+      const card = result.data;
       const newCard: CardData = {
         id: `c-${card.id}`,
         title: card.title,
@@ -593,14 +607,14 @@ export default function BoardWorkbenchClient({
         ...prev,
         [activeBoardId]: (prev[activeBoardId] || []).map(l => l.id === listId ? { ...l, cards: [...l.cards, newCard] } : l)
       }));
-    } catch (e: any) { alert(e.message || "Failed to create card"); }
+    }
   };
 
   const updateActiveCard = (updater: (card: CardData) => CardData) => {
     if (!activeCardRange || !activeBoardId) return;
     const targetList = (listsByBoard[activeBoardId] || []).find(l => l.id === activeCardRange.listId);
     if (targetList?.restricted) {
-      alert("This list is restricted and cannot be modified!");
+      setToast({ message: "This list is locked, so its cards cannot be changed.", severity: "warning" });
       return;
     }
     setListsByBoard(prev => ({
@@ -622,9 +636,11 @@ export default function BoardWorkbenchClient({
     
     try {
       if (isCurrentlyAssigned) {
-        await removeCardMember(cardDbId, uId);
+        const removedMember = await run(removeCardMember(cardDbId, uId));
+        if (!removedMember.ok) return;
       } else {
-        await addCardMember(cardDbId, uId);
+        const added = await run(addCardMember(cardDbId, uId));
+        if (!added.ok) return;
       }
       updateActiveCard(c => ({
         ...c,
@@ -641,7 +657,10 @@ export default function BoardWorkbenchClient({
           ""
         );
       } catch (e) { console.error(e); }
-    } catch (e: any) { alert(e.message || "Failed to update card member"); }
+    } catch (e) {
+      console.error(e);
+      setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" });
+    }
   };
 
   const handleInviteToWorkspace = async (wsId: number, uId: number) => {
@@ -673,7 +692,8 @@ export default function BoardWorkbenchClient({
     if (activeBoard.memberIds.includes(memberId)) return;
 
     try {
-      await inviteToBoard(boardDbId, uId);
+      const invited = await run(inviteToBoard(boardDbId, uId));
+      if (!invited.ok) return;
       setWorkspaces(prev => prev.map(ws => ({
         ...ws,
         boards: ws.boards.map((b: any) => b.id === boardDbId ? { ...b, memberIds: [...(b.memberIds || [selfMemberId]), memberId] } : b)
@@ -690,9 +710,9 @@ export default function BoardWorkbenchClient({
           `/board?active=${activeBoard.id}`
         );
       } catch (e) { console.error(e); }
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      alert(e.message || "Failed to send invite. Please try again.");
+      setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" });
     }
   };
 
@@ -701,7 +721,8 @@ export default function BoardWorkbenchClient({
     const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
     
     try {
-      await addCardActivity(cardDbId, activeComment.trim());
+      const commented = await run(addCardActivity(cardDbId, activeComment.trim()));
+      if (!commented.ok) return;
       updateActiveCard(c => ({
         ...c,
         activity: [
@@ -716,7 +737,10 @@ export default function BoardWorkbenchClient({
         ]
       }));
       setActiveComment("");
-    } catch (e: any) { alert(e.message || "Failed to add comment"); }
+    } catch (e) {
+      console.error(e);
+      setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" });
+    }
   };
 
   const [cardWarningId, setCardWarningId] = useState<string | null>(null);
@@ -733,6 +757,36 @@ export default function BoardWorkbenchClient({
       return () => clearTimeout(t);
     }
   }, [cardWarningId, cardDetailWarning]);
+
+  // ---------------------------------------------------------------- feedback
+  const [toast, setToast] = useState<{ message: string; severity: ActionSeverity; ref?: string } | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    // Errors stay longer than "you can't do that" warnings.
+    const t = setTimeout(() => setToast(null), toast.severity === "error" ? 8000 : 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  /**
+   * Awaits a board action and surfaces its message.
+   *
+   * Board actions return their failures rather than throwing, because Next
+   * strips thrown messages out of production builds. A rejection here therefore
+   * means the request never completed — a network or session problem — not a
+   * rule the server enforced.
+   */
+  const run = async <T,>(promise: Promise<ActionResult<T>>): Promise<ActionResult<T>> => {
+    try {
+      const result = await promise;
+      if (!result.ok) setToast({ message: result.error, severity: result.severity, ref: result.ref });
+      return result;
+    } catch {
+      const message = "Could not reach the server. Check your connection and try again.";
+      setToast({ message, severity: "error" });
+      return { ok: false, error: message, code: "UNEXPECTED", severity: "error" };
+    }
+  };
 
   // Delegates to the same policy the server enforces, so the UI can never show
   // a control the action would reject (or vice versa).
@@ -764,16 +818,21 @@ export default function BoardWorkbenchClient({
     }
 
     const dbId = Number(cardId.replace("c-", ""));
-    try {
-      await toggleCardComplete(dbId);
-      setListsByBoard(prev => ({
-        ...prev,
-        [activeBoardId]: (prev[activeBoardId] || []).map(l => l.id === listId ? {
-          ...l,
-          cards: l.cards.map(c => c.id === cardId ? { ...c, isCompleted: !c.isCompleted } : c)
-        } : l)
-      }));
-    } catch (e: any) { alert(e.message || "Failed to update card"); }
+    const result = await run(toggleCardComplete(dbId));
+    if (!result.ok) {
+      // The server is the authority on the completion rules; mirror its wording
+      // into the card's own warning slot as well as the toast.
+      setCardDetailWarning(result.error);
+      setCardWarningId(cardId);
+      return;
+    }
+    setListsByBoard(prev => ({
+      ...prev,
+      [activeBoardId]: (prev[activeBoardId] || []).map(l => l.id === listId ? {
+        ...l,
+        cards: l.cards.map(c => c.id === cardId ? { ...c, isCompleted: result.data.isCompleted } : c)
+      } : l)
+    }));
   };
 
   const onDragStartCard = (e: React.DragEvent, listId: string, cardId: string) => {
@@ -803,8 +862,9 @@ export default function BoardWorkbenchClient({
       const cardDbId = Number(draggedCard.cardId.replace("c-", ""));
       const targetListDbId = Number(targetListId.replace("l-", ""));
       try {
-        await moveCard(cardDbId, targetListDbId, targetIndex);
-      } catch (err: any) { alert(err.message || "Failed to move card"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
+        const movedCard = await run(moveCard(cardDbId, targetListDbId, targetIndex));
+        if (!movedCard.ok) { setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
+      } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
 
       setListsByBoard(prev => {
         const boardLists = [...(prev[activeBoardId] || [])];
@@ -830,7 +890,7 @@ export default function BoardWorkbenchClient({
 
     if (type === "list" && draggedListId) {
        const listDbId = Number(draggedListId.replace("l-", ""));
-       try { await moveList(listDbId, targetIndex); } catch (err: any) { alert(err.message || "Failed to move list"); setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; }
+       { const moved = await run(moveList(listDbId, targetIndex)); if (!moved.ok) { setDraggedCard(null); setDraggedListId(null); setDropIndicator(null); return; } }
        setListsByBoard(prev => {
          const boardLists = [...(prev[activeBoardId] || [])];
          const sourceIdx = boardLists.findIndex(l => l.id === draggedListId);
@@ -906,6 +966,63 @@ export default function BoardWorkbenchClient({
 
   return (
     <div className="-m-4 md:-m-8 h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] overflow-hidden bg-zinc-100 dark:bg-zinc-950 flex flex-col">
+      {/* Action feedback. Replaces the blocking alert() dialogs the board used
+          to throw, and carries the server's own wording. */}
+      {toast && (
+        <div
+          role={toast.severity === "error" ? "alert" : "status"}
+          aria-live={toast.severity === "error" ? "assertive" : "polite"}
+          className="pointer-events-none fixed inset-x-0 top-4 z-[600] flex justify-center px-4"
+        >
+          <div
+            className={cn(
+              "pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur",
+              toast.severity === "error"
+                ? "border-rose-200 bg-rose-50/95 dark:border-rose-500/30 dark:bg-rose-950/90"
+                : "border-amber-200 bg-amber-50/95 dark:border-amber-500/30 dark:bg-amber-950/90"
+            )}
+          >
+            <div
+              className={cn(
+                "mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full",
+                toast.severity === "error" ? "bg-rose-500" : "bg-amber-500"
+              )}
+            >
+              <span className="text-[11px] font-black leading-none text-white">!</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <p
+                className={cn(
+                  "text-[13px] font-semibold leading-snug",
+                  toast.severity === "error"
+                    ? "text-rose-900 dark:text-rose-100"
+                    : "text-amber-900 dark:text-amber-100"
+                )}
+              >
+                {toast.message}
+              </p>
+              {toast.ref && (
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-rose-500/80 dark:text-rose-300/70">
+                  Quote reference {toast.ref} if you report this
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              aria-label="Dismiss"
+              className={cn(
+                "flex-none rounded-lg p-1 transition-colors",
+                toast.severity === "error"
+                  ? "text-rose-400 hover:bg-rose-100 hover:text-rose-700 dark:hover:bg-rose-900/50"
+                  : "text-amber-500 hover:bg-amber-100 hover:text-amber-700 dark:hover:bg-amber-900/50"
+              )}
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-none h-14 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-white/10 flex items-center justify-between px-3 md:px-5">
         <div className="flex items-center gap-2 md:gap-4">
           <button onClick={() => setShowSwitcher(prev => !prev)} className="flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-xs font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100">
@@ -1022,9 +1139,9 @@ export default function BoardWorkbenchClient({
                       onClick={async () => {
                         const dbId = Number(activeBoard.id.replace("b-", ""));
                         try {
-                          await updateBoardVisibility(dbId, v);
+                          { const r = await run(updateBoardVisibility(dbId, v)); if (!r.ok) return; }
                           setBoards(prev => prev.map(b => b.id === activeBoard.id ? { ...b, visibility: v } : b));
-                        } catch (err: any) { alert(err.message || "Failed to update visibility"); }
+                        } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                       }}
                       className={cn(
                         "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
@@ -1052,13 +1169,13 @@ export default function BoardWorkbenchClient({
                       onClick={async () => {
                         const dbId = Number(activeBoard.id.replace("b-", ""));
                         try {
-                          await updateBoardBackground(dbId, c.bg);
+                          { const r = await run(updateBoardBackground(dbId, c.bg)); if (!r.ok) return; }
                           setBoards(prev => prev.map(b => b.id === activeBoard.id ? { ...b, background: c.bg } : b));
                           setWorkspaces(prev => prev.map(ws => ({
                             ...ws,
                             boards: ws.boards.map((b: any) => b.id === dbId ? { ...b, background: c.bg } : b)
                           })));
-                        } catch (err: any) { alert(err.message || "Failed to update color"); }
+                        } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                       }}
                       className={cn(
                         "h-10 w-full rounded-xl transition-all border-2",
@@ -1076,13 +1193,13 @@ export default function BoardWorkbenchClient({
                   const dbId = Number(activeBoard.id.replace("b-", ""));
                   if (!confirm(`Delete board "${activeBoard.title}"? This cannot be undone.`)) return;
                   try {
-                    await deleteBoard(dbId);
+                    { const r = await run(deleteBoard(dbId)); if (!r.ok) return; }
                     setWorkspaces(prev => prev.map(ws => ({ ...ws, boards: ws.boards.filter((b: any) => b.id !== dbId) })));
                     setListsByBoard(prev => { const next = { ...prev }; delete next[activeBoardId!]; return next; });
                     const remaining = workspaces.flatMap(ws => ws.boards.filter((b: any) => b.id !== dbId));
                     setActiveBoardId(remaining.length > 0 ? `b-${remaining[0].id}` : null);
                     setShowBoardSettings(false);
-                  } catch (err: any) { alert(err.message || "Failed to delete board"); }
+                  } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                 }}
                 className="w-full py-3 rounded-xl bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all"
               >
@@ -1151,14 +1268,14 @@ export default function BoardWorkbenchClient({
                       if (newTitle && newTitle !== list.title) {
                         const listDbId = Number(list.id.replace("l-", ""));
                         try {
-                          await renameList(listDbId, newTitle);
+                          { const r = await run(renameList(listDbId, newTitle)); if (!r.ok) return; }
                           setListsByBoard(prev => {
                             const boardIdStr = activeBoard?.id;
                             if (!boardIdStr) return prev;
                             const lists = prev[boardIdStr] || [];
                             return { ...prev, [boardIdStr]: lists.map((l: any) => l.id === list.id ? { ...l, title: newTitle } : l) };
                           });
-                        } catch (err: any) { alert(err.message || "Failed to rename list"); }
+                        } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                       }
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
@@ -1590,10 +1707,10 @@ export default function BoardWorkbenchClient({
                                     e.stopPropagation();
                                     if (!confirm(`Delete workspace "${selectedWs.name}"? This will remove all boards and data.`)) return;
                                     try {
-                                      await deleteWorkspace(selectedWs.id);
+                                      { const r = await run(deleteWorkspace(selectedWs.id)); if (!r.ok) return; }
                                       setWorkspaces(prev => prev.filter(ws => ws.id !== selectedWs.id));
                                       setSelectedWsId(null);
-                                    } catch (err: any) { alert(err.message || "Failed to delete workspace"); }
+                                    } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                                   }}
                                   className="h-12 px-6 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-rose-700 active:scale-95 transition-all"
                                 >
@@ -1681,7 +1798,7 @@ export default function BoardWorkbenchClient({
                         const val = e.target.value.trim();
                         if (val && val !== activeCard.card.title) {
                           const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                          try { await updateCardTitle(cardDbId, val); } catch (err) { console.error(err); }
+                          await run(updateCardTitle(cardDbId, val));
                           updateActiveCard(c => ({ ...c, title: val }));
                         }
                       }}
@@ -1744,7 +1861,7 @@ export default function BoardWorkbenchClient({
                                   onClick={async () => {
                                     const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
                                     updateActiveCard(c => ({ ...c, assignedToUserId: null }));
-                                    try { await setCardAssignee(cardDbId, null); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: activeCard.card.assignedToUserId })); alert("Failed to save. Make sure the dev server has been restarted after schema changes."); }
+                                    { const cleared = await run(setCardAssignee(cardDbId, null)); if (!cleared.ok) updateActiveCard(c => ({ ...c, assignedToUserId: activeCard.card.assignedToUserId })); }
                                   }}
                                   className="h-4 w-4 rounded-full hover:bg-sky-200 dark:hover:bg-sky-500/30 flex items-center justify-center text-sky-400 hover:text-sky-600 transition-all"
                                 >
@@ -1782,7 +1899,7 @@ export default function BoardWorkbenchClient({
                                       const prevAssigned = activeCard.card.assignedToUserId;
                                       updateActiveCard(c => ({ ...c, assignedToUserId: uid }));
                                       document.getElementById('assignee-picker-dropdown')?.classList.add('hidden');
-                                      try { await setCardAssignee(cardDbId, uid); } catch (err) { console.error(err); updateActiveCard(c => ({ ...c, assignedToUserId: prevAssigned })); alert("Failed to save. Make sure the dev server has been restarted after schema changes."); }
+                                      { const assigned = await run(setCardAssignee(cardDbId, uid)); if (!assigned.ok) updateActiveCard(c => ({ ...c, assignedToUserId: prevAssigned })); }
                                     }}
                                     className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all", isAssigned ? "bg-sky-50 text-sky-600" : "hover:bg-zinc-100 dark:hover:bg-white/5 text-zinc-700 dark:text-zinc-300")}
                                   >
@@ -1809,7 +1926,7 @@ export default function BoardWorkbenchClient({
                               <button
                                 onClick={async () => {
                                   const labelDbId = Number(l.id.replace("lb-", ""));
-                                  try { await removeCardLabel(labelDbId); } catch (err) { console.error(err); }
+                                  await run(removeCardLabel(labelDbId));
                                   updateActiveCard(c => ({ ...c, labels: c.labels.filter(lbl => lbl.id !== l.id) }));
                                 }}
                                 className="h-3.5 w-3.5 rounded-full bg-white/20 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-white/40 transition-all"
@@ -1858,7 +1975,7 @@ export default function BoardWorkbenchClient({
                              onClick={async () => {
                                const val = descriptionValue.trim();
                                const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                               try { await updateCardDescription(cardDbId, val); } catch (err) { console.error(err); }
+                               await run(updateCardDescription(cardDbId, val));
                                updateActiveCard(c => ({ ...c, description: val }));
                                setIsDescriptionEditing(false);
                              }}
@@ -1916,10 +2033,10 @@ export default function BoardWorkbenchClient({
                             e.stopPropagation();
                             const attDbId = Number(att.id.replace("at-", ""));
                             try {
-                              await deleteCardAttachment(attDbId);
+                              { const r = await run(deleteCardAttachment(attDbId)); if (!r.ok) return; }
                               updateActiveCard(c => ({ ...c, attachments: c.attachments.filter(a => a.id !== att.id) }));
                             } catch (err: any) {
-                              alert(err.message || "Failed to delete attachment");
+                              setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" });
                             }
                           }}
                           className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-rose-50 text-zinc-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
@@ -1952,12 +2069,12 @@ export default function BoardWorkbenchClient({
                             if (newTitle && newTitle !== cl.title) {
                               const clDbId = Number(cl.id.replace("cl-", ""));
                               try {
-                                await renameChecklist(clDbId, newTitle);
+                                { const r = await run(renameChecklist(clDbId, newTitle)); if (!r.ok) return; }
                                 updateActiveCard(c => ({
                                   ...c,
                                   checklists: c.checklists.map(cList => cList.id === cl.id ? { ...cList, title: newTitle } : cList)
                                 }));
-                              } catch (err: any) { alert(err.message || "Failed to rename checklist"); }
+                              } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                             }
                           }}
                           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
@@ -1969,12 +2086,12 @@ export default function BoardWorkbenchClient({
                           const clDbId = Number(cl.id.replace("cl-", ""));
                           if (!confirm(`Delete checklist "${cl.title}"?`)) return;
                           try {
-                            await deleteChecklist(clDbId);
+                            { const r = await run(deleteChecklist(clDbId)); if (!r.ok) return; }
                             updateActiveCard(c => ({
                               ...c,
                               checklists: c.checklists.filter(cList => cList.id !== cl.id)
                             }));
-                          } catch (err: any) { alert(err.message || "Failed to delete checklist"); }
+                          } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
                         }}
                         className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-rose-500"
                       >Delete</button>
@@ -2001,7 +2118,7 @@ export default function BoardWorkbenchClient({
                                      }
                                    }
                                    const itemDbId = Number(it.id.replace("ci-", ""));
-                                   try { await toggleChecklistItem(itemDbId); } catch (err: any) { setCardDetailWarning(err.message || "Failed to update item"); return; }
+                                   { const r = await run(toggleChecklistItem(itemDbId)); if (!r.ok) { setCardDetailWarning(r.error); return; } }
                                   updateActiveCard(c => ({
                                     ...c,
                                     checklists: c.checklists.map(cList => cList.id === cl.id ? {
@@ -2024,7 +2141,7 @@ export default function BoardWorkbenchClient({
                                     onBlur={async () => {
                                       const trimmed = editingItemTitle.trim();
                                       if (trimmed && trimmed !== it.title) {
-                                        try { await updateChecklistItem(Number(it.id.replace("ci-", "")), trimmed); } catch (e: any) { alert(e.message || "Failed to rename"); }
+                                        { const renamed = await run(updateChecklistItem(Number(it.id.replace("ci-", "")), trimmed)); if (!renamed.ok) return; }
                                         updateActiveCard(c => ({
                                           ...c,
                                           checklists: c.checklists.map(cList => cList.id === cl.id ? {
@@ -2070,7 +2187,7 @@ export default function BoardWorkbenchClient({
                                          } : cList)
                                        }));
                                        try {
-                                         await setChecklistItemAssignee(Number(it.id.replace("ci-", "")), uid);
+                                         { const r = await run(setChecklistItemAssignee(Number(it.id.replace("ci-", "")), uid)); if (!r.ok) throw new Error(r.error); }
                                        } catch (err: any) {
                                          setCardDetailWarning(err.message || "Failed to assign item");
                                          updateActiveCard(c => ({
@@ -2096,7 +2213,7 @@ export default function BoardWorkbenchClient({
                               </div>
                                <button 
                                 onClick={async () => {
-                                  try { await deleteChecklistItem(Number(it.id.replace("ci-", ""))); } catch (e: any) { alert(e.message || "Failed to delete item"); return; }
+                                  { const removed = await run(deleteChecklistItem(Number(it.id.replace("ci-", "")))); if (!removed.ok) return; }
                                   updateActiveCard(c => ({
                                     ...c,
                                     checklists: c.checklists.map(cList => cList.id === cl.id ? {
@@ -2122,20 +2239,22 @@ export default function BoardWorkbenchClient({
                                     if (val) {
                                       const clDbId = Number(cl.id.replace("cl-", ""));
                                       const assigneeId = checklistAssigneeId ? Number(checklistAssigneeId.replace("u-", "")) : currentUser.id;
-                                      addChecklistItem(clDbId, val, assigneeId).then((item) => {
+                                      run(addChecklistItem(clDbId, val, assigneeId)).then((result) => {
+                                        if (!result.ok) return;
+                                        const item = result.data;
                                         updateActiveCard(c => ({
                                           ...c,
                                           checklists: c.checklists.map(cList => cList.id === cl.id ? {
                                             ...cList,
-                                            items: [...cList.items, { 
-                                              id: `ci-${item.id}`, 
-                                              title: val, 
+                                            items: [...cList.items, {
+                                              id: `ci-${item.id}`,
+                                              title: val,
                                               done: false,
                                               assignedMemberId: checklistAssigneeId || selfMemberId
                                             }]
                                           } : cList)
                                         }));
-                                      }).catch(err => console.error(err));
+                                      });
                                       e.currentTarget.value = "";
                                       setChecklistAssigneeId(null);
                                     }
@@ -2322,7 +2441,7 @@ export default function BoardWorkbenchClient({
                           if (!activeCardRange || !activeBoardId) return;
                           if (confirm("Are you sure you want to delete this card?")) {
                             const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
-                            try { await deleteCard(cardDbId); } catch (e: any) { alert(e.message || "Failed to delete card"); return; }
+                            { const removed = await run(deleteCard(cardDbId)); if (!removed.ok) return; }
                             setListsByBoard(prev => ({
                               ...prev,
                               [activeBoardId]: prev[activeBoardId].map(l => l.id === activeCardRange.listId ? {
@@ -2441,11 +2560,11 @@ export default function BoardWorkbenchClient({
                           const existingLabel = activeCard.card.labels.find(lab => lab.id === l.id);
                           if (existingLabel) {
                             const labelDbId = Number(existingLabel.id.replace("lb-", ""));
-                            try { await removeCardLabel(labelDbId); } catch (err) { console.error(err); }
+                            await run(removeCardLabel(labelDbId));
                           }
                           updateActiveCard(c => ({ ...c, labels: c.labels.filter(lab => lab.id !== l.id) }));
                         } else {
-                          try { await addCardLabel(cardDbId, l.name, l.color); } catch (err) { console.error(err); }
+                          await run(addCardLabel(cardDbId, l.name, l.color));
                           updateActiveCard(c => ({ ...c, labels: [...c.labels, l] }));
                         }
                       }}
@@ -2528,12 +2647,13 @@ export default function BoardWorkbenchClient({
                   const val = (e.currentTarget as HTMLInputElement).value.trim();
                   if (val && activeCardRange) {
                     const cardDbId = Number(activeCardRange.cardId.replace("c-", ""));
-                    addChecklist(cardDbId, val).then((cl) => {
+                    run(addChecklist(cardDbId, val)).then((result) => {
+                      if (!result.ok) return;
                       updateActiveCard(c => ({
                         ...c,
-                        checklists: [...c.checklists, { id: `cl-${cl.id}`, title: val, items: [] }]
+                        checklists: [...c.checklists, { id: `cl-${result.data.id}`, title: val, items: [] }]
                       }));
-                    }).catch(err => console.error(err));
+                    });
                     setIsChecklistAddOpen(false);
                   }
                 }
@@ -2564,14 +2684,13 @@ export default function BoardWorkbenchClient({
                   disabled={!newFileName.trim() || !newFileUrl.trim()}
                   onClick={async () => {
                     const cardDbId = Number(activeCard.card.id.replace("c-", ""));
-                    try {
-                      const att = await addCardAttachment(cardDbId, newFileName, newFileUrl);
+                    const result = await run(addCardAttachment(cardDbId, newFileName, newFileUrl));
+                    if (result.ok) {
+                      const att = result.data;
                       updateActiveCard(c => ({
                         ...c,
                         attachments: [...c.attachments, { id: `at-${att.id}`, name: newFileName, url: newFileUrl, createdAt: new Date().toISOString() }]
                       }));
-                    } catch (err: any) {
-                      alert(err.message || "Failed to add attachment");
                     }
                     setNewFileName("");
                     setNewFileUrl("");
@@ -2606,12 +2725,12 @@ export default function BoardWorkbenchClient({
             <div className="flex gap-2">
               <button onClick={async () => { 
                 const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                try { await setCardDueDate(cardDbId, activeCard!.card.dueDate || null); } catch (err) { console.error(err); }
+                await run(setCardDueDate(cardDbId, activeCard!.card.dueDate || null));
                 setIsDateSelectionOpen(false); 
               }} className="flex-1 h-9 bg-sky-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest">Save</button>
               <button onClick={async () => { 
                 const cardDbId = Number(activeCardRange!.cardId.replace("c-", ""));
-                try { await setCardDueDate(cardDbId, null); } catch (err) { console.error(err); }
+                await run(setCardDueDate(cardDbId, null));
                 updateActiveCard(c => ({ ...c, dueDate: undefined })); 
                 setIsDateSelectionOpen(false); 
               }} className="flex-1 h-9 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-black uppercase tracking-widest">Remove</button>
