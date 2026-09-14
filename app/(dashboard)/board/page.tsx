@@ -12,7 +12,7 @@ export default async function BoardPage({ searchParams }: { searchParams?: { act
 
   const activeBoardId = searchParams?.active || undefined;
 
-  const [workspaces, systemUsers] = await Promise.all([
+  const [workspacesResult, systemUsers] = await Promise.all([
     getWorkspaces(),
     db.user.findMany({
       where: { isActive: true },
@@ -24,6 +24,14 @@ export default async function BoardPage({ searchParams }: { searchParams?: { act
       orderBy: { name: "asc" },
     })
   ]);
+
+  // getWorkspaces returns an ActionResult, not a bare array. Passing the
+  // envelope straight through is what made the board crash with
+  // "workspaces.flatMap is not a function".
+  if (!workspacesResult.ok) {
+    console.error("[board] failed to load workspaces:", workspacesResult.error);
+  }
+  const workspaces = workspacesResult.ok ? workspacesResult.data : [];
 
   return (
     <BoardWorkbenchClient
