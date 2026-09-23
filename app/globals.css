@@ -187,6 +187,29 @@ body {
   background: #ffffff !important;
 }
 
+/* Typed text.
+   The editor paints the visible characters in a syntax-highlighted <pre>
+   (.w-md-editor-text-pre) and keeps the real <textarea> transparent on top of
+   it, so BOTH have to be coloured or the caret and the text disagree. Light
+   mode previously had no colour rule at all, which is why input was invisible. */
+.w-md-editor .w-md-editor-text-pre,
+.w-md-editor .w-md-editor-text-input,
+.w-md-editor .w-md-editor-text-pre > code,
+.w-md-editor .w-md-editor-text-pre > code span {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* The caret belongs to the transparent textarea, so tint it separately. */
+.w-md-editor .w-md-editor-text-input {
+  caret-color: #c91f41 !important;
+}
+
+.w-md-editor .w-md-editor-text-input::placeholder {
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
+}
+
 .w-md-editor .w-md-editor-toolbar-hr {
   display: none !important;
 }
@@ -227,6 +250,19 @@ body {
 
 .dark .w-md-editor textarea.w-md-editor-content {
   color: #f1f5f9 !important;
+}
+
+.dark .w-md-editor .w-md-editor-text-pre,
+.dark .w-md-editor .w-md-editor-text-input,
+.dark .w-md-editor .w-md-editor-text-pre > code,
+.dark .w-md-editor .w-md-editor-text-pre > code span {
+  color: #f1f5f9 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+
+.dark .w-md-editor .w-md-editor-text-input::placeholder {
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
 }
 
 /* Hide fullscreen button for cleaner look */

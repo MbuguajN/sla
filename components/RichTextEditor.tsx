@@ -12,6 +12,36 @@ interface RichTextEditorProps {
   className?: string;
 }
 
+/**
+ * Tracks the app's theme, which is class-based on <html> (tailwind darkMode:
+ * 'class'), so the editor can be told which palette to use.
+ *
+ * @uiw/react-md-editor defines all of its colour variables under
+ * `[data-color-mode*='light']` or `[data-color-mode*='dark']`. The wrapper used
+ * to pass "auto", which matches neither selector, so none of those variables
+ * existed and the typed text — rendered as a syntax-highlighted <pre>, not the
+ * textarea — had no colour in either theme.
+ */
+function useColorMode(): "light" | "dark" {
+  const [mode, setMode] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const read = () =>
+      setMode(document.documentElement.classList.contains("dark") ? "dark" : "light");
+
+    read();
+
+    // The theme toggle mutates the class on <html>; follow it live so the
+    // editor re-themes without a remount.
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+
+    return () => observer.disconnect();
+  }, []);
+
+  return mode;
+}
+
 export default function RichTextEditor({
   value,
   onChange,
@@ -21,6 +51,7 @@ export default function RichTextEditor({
   className,
 }: RichTextEditorProps) {
   const [mounted, setMounted] = useState(false);
+  const colorMode = useColorMode();
 
   useEffect(() => {
     setMounted(true);
@@ -39,7 +70,7 @@ export default function RichTextEditor({
   }
 
   return (
-    <div data-color-mode="auto" className={`${compact ? "rte-compact" : ""} ${className || ""}`}>
+    <div data-color-mode={colorMode} className={`${compact ? "rte-compact" : ""} ${className || ""}`}>
       <MDEditor
         value={value}
         onChange={(val) => onChange(val || "")}
@@ -47,6 +78,7 @@ export default function RichTextEditor({
         preview="edit"
         visibleDragbar={false}
         hideToolbar={false}
+        textareaProps={{ placeholder }}
       />
     </div>
   );
