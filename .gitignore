@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Pre-migration export of removed UserPrivilege grants
 user-privileges-backup.json
+
+# Undo manifest written by scripts/import-daily-logs.js
+daily-log-import-undo.json

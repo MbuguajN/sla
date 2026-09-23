@@ -1,0 +1,106 @@
+[
+  {
+    "date": "2026-08-28",
+    "note": "Restored the KTB website after Paul reported it down at 13:17 — acknowledged and fixed the same day. Goga then flagged that the Google Maps API billing card has expired and is breaking the site's UI/UX, which remains open. Picked up Diana's request to assist with the Nordic QuickBooks subscription renewal, and was copied on the NexBridge Africa alignment thread where Nzilani asked Amir to review account-manager job descriptions and contracts. Put together the Fanisi board strategy deck.\n\nOn nexfund: API endpoint changes, gated public company identity, fixed watchlist access and enforced deal submission validation, decoupled deal due-diligence re-activation, added the multi-deal platform toggle and seeded complete draft data."
+  },
+  {
+    "date": "2026-08-29",
+    "note": "Implemented the British Council website updates with James — Sondeka and Labour of Love posters updated after Paul's request came through Grace, confirmed done the same day. Noted the Lipia Online subscription reminder on tech@ for follow-up."
+  },
+  {
+    "date": "2026-08-30",
+    "note": "No new requests came in. Carried over Friday's open items — the Google Maps API billing card still breaking the KTB site UI, the Nordic QuickBooks renewal, and the British Council poster set — with nothing further to action until the week opens."
+  },
+  {
+    "date": "2026-08-31",
+    "note": "Reviewed the africa-pensions.com renewal notice Jonah forwarded from Namecheap and decided to let the domain expire — everything needed has already been migrated off it. Continued the British Council thread: Paul sent a revised Labour of Love poster, which Grace passed to James and me to implement."
+  },
+  {
+    "date": "2026-09-01",
+    "note": "Worked the company-wide HRIS account activation ahead of the 9 September deadline — picked up the broken invite-link thread from James, Goga and Lule and reshared a working link to Lule. NexBridge Africa alignment closed out on the contracts side with Amir approving the team to proceed. Forwarded the Hetzner invoice ($65.88) to Allen, and flagged the Google Cloud notice that the Kenya Airways project is at risk of billing suspension."
+  },
+  {
+    "date": "2026-09-02",
+    "note": "Reviewed the Supabase warning that the Nexfund project will be paused after seven days of inactivity. Flagged it as not adding up — this is the same NexBridge codebase with active commit history, so the notice likely refers to a different environment. Needs checking before anything is allowed to lapse."
+  },
+  {
+    "date": "2026-09-03",
+    "note": "Received the UFA Server Setup task tracker Goga shared, copied to Mavin, and started using it as the working document for that build. Diana nudged again on the KTB website maintenance PO, overdue since July — followed up with Paul directly. Still unresolved."
+  },
+  {
+    "date": "2026-09-04",
+    "note": "Supabase confirmed the Nexfund project is now paused, not just warned. Continued from Wednesday's check on which environment this actually affects, since the active codebase has current commits against it."
+  },
+  {
+    "date": "2026-09-05",
+    "note": "Reviewed the MalCare alert across the WordPress estate — now 8 vulnerabilities, up from 6 on 25 August and 3 on 20 August. Third consecutive alert with the count climbing and nothing patched yet. Needs a dedicated remediation pass."
+  },
+  {
+    "date": "2026-09-06",
+    "note": "Worked through the Google Search Console report of new pages failing to index on magicalkenya.com, blocked with a 4xx. Ties directly into the Magical Kenya signature experiences escalation already on my list."
+  },
+  {
+    "date": "2026-09-07",
+    "note": "Arranged the work laptop and Adobe Suite handover for Stanley through James. Received the full Tembea Kenya / Hapa Ni Wapi brief from Suzanne after Mavin asked her to reshare it.\n\nHeavy development day on nexfund — 17 commits rebuilding the NDA and valuation-disclosure flow for cross-border deals: domicile-aware CRB checklist branching, cross-border valuation basis and credit-reference categories, valuation methodology disclosure schema, entity verification branching on domicile, persisting and gating approval on valuation basis, gating NDA-confidential fields, auto-checking DD checklist items on approval, a super-admin country allow-list, Islamic finance and preference-share instrument types, and content-driven pagination for the investor brief PDF."
+  },
+  {
+    "date": "2026-09-08",
+    "note": "Gathuita issued the daily-log reporting and remote-work accountability requirement to all managers, effective today.\n\nSent Fathiya the full team task inventory — Goga's load (UFA, MMP, 5DM App, Okoa AI, MIC Global Risk tagging, EHS tagging and BQ automation, Mediapath alternative, Buy Me Soda audits, finance dashboard, Magical Kenya, LPO Happy Hour), James's (HH Jaba invoicing, British Council attendee tracking, Tembea and Magical Kenya plugin updates, 5DM site layout, HH fast checkout, on-site network and PC maintenance), and my own (Fanisi HRIS, Magical Kenya escalations, My Happy Hour B2B portal pending deployment, NexBridge feedback and production deployment).\n\nBridge/UNHCR moved: Priscilla confirmed they are going with the model where 5DM owns the platform and asked what needs to change and how long. Replied the same afternoon — the platform is largely ready but two components need substantial rework: the authentication system must be decoupled from Microsoft Entra ID and UNHCR infrastructure, and the video meeting platform must move off Microsoft. Asked UNHCR to decide between invite-only onboarding and open refugee sign-up.\n\nAlso handled the urgent Ngara Spaces / UKKE website edits, the Tembea Kenya creative design handoff from Mavin, and the BC RFP status check. 21 further nexfund commits on the per-deal due-diligence pipeline."
+  },
+  {
+    "date": "2026-09-09",
+    "note": "Priscilla came back on Bridge at 10:07 — UNHCR will go invite-only for refugee onboarding, and she has already requested release of the womenleadersbridge.org domain. Replied at 12:26 asking her to have Jonas release the domain and EPP code. Jonah pushed back that we should press UNHCR to hand over the URL rather than redesign around it, and clarified for Fathiya that keeping the Women Leaders Bridge name depends on securing that domain.\n\nSent Mavin the full Phase 1 / Phase 2 technical breakdown for the Twende Chalbi campaign landing page; he used it to commit KTB to an 11 September draft and 15 September go-live, with Grace and me named as the delivery team. Cleared Sia's HRIS activation blocker — a confusion over the SHA number — and confirmed it resolved after a refresh. Tested the investor onboarding flow end to end on my own alias.\n\nStarted the Bridge rebuild: 17 commits covering session feedback, the auth and registration refactor, dashboard exports (enterprise insights, safety incidents, PDF), Google Meet integration for sessions, and an invitation-handling refactor. 10 commits on nexfund — due-diligence queue fixes, deal takedown and suspension, Islamic investor types, and the switch of email templates and sender name to Nexbridge Africa."
+  },
+  {
+    "date": "2026-09-10",
+    "note": "The nexfund-web production deployment failed twice through Vercel, at 07:51 and 08:24 — still needs a confirmed fix. Forwarded the Hetzner payment reminder to Allen with the 19th flagged as the deadline. On Twende Chalbi, Tunoi formally accepted the Phase 1 scope and pricing at KES 490,000 and Fathiya asked for a cost tracker.\n\nBiggest Bridge day of the rebuild — 22 commits on the matching and moderation rework: deterministic matching design documentation, AI moderation removed entirely in favour of advisory-only with no AI provider calls, word-boundary keyword matching, and applicants now entering the matching pool directly on completing onboarding. Two commits on nexfund replacing the remaining nexfund references with nexbridge and fixing a UI component bug, plus footer and AI bartender modal polish on Fast Cart."
+  },
+  {
+    "date": "2026-09-11",
+    "note": "MalCare now reporting 9 vulnerabilities, up from 8 last week. Also picked up the notice that the SSL certificate will pause in 30 days. Sent the Twende Chalbi content requirement to Protel Studios for visuals. Tested the mentor onboarding flow end to end on my own alias, same as the investor flow earlier in the week. Stanley confirmed James handed over the work laptop, closing that thread.\n\n18 commits on Bridge: merged the matching and moderation redesign branch, added match explanations so participants can see why they were matched, replaced the AI matching engine outright with a deterministic scoring algorithm, added a ranking and exposure-balancing layer, redesigned the mentor and mentee onboarding UI, and stripped the remaining sparkle icons and UNHCR references."
+  },
+  {
+    "date": "2026-09-12",
+    "note": "Quiet day on delivery. Tracked the recurring Google Cloud billing-suspension risk on the Kenya Airways project and cleared inbox noise. No commits — the Bridge rebuild paused after Thursday's matching and moderation work."
+  },
+  {
+    "date": "2026-09-13",
+    "note": "No new items. Continued from the week's open threads — the Bridge rebuild ahead of the UNHCR commitment, the unresolved nexfund-web deployment failures, and the climbing MalCare vulnerability count still awaiting a remediation pass."
+  },
+  {
+    "date": "2026-09-14",
+    "note": "Worked through the Magical Kenya Signature Experience site with Goga. After removing the image filters on my instruction he flagged the resulting UI/UX confusion, so I directed removing the left-hand experience sections in favour of dropdown filtering, followed by a spacing fix — both implemented the same day. The Big Cat Safaris experience update and the amended Kitengela Glass copy also went in same day. Chased Discovery IT again on the outstanding MacBook Pro invoice from August, still unresolved. Second Hetzner payment reminder received.\n\nTwo commits on Bridge for admin nav alignment and a readability refactor. Eleven on Fast Cart: B2B page fixes, a map-based delivery location picker with live zone pricing, a real delivery rate card with admin management, fixes to Add-to-Cart and Instant Checkout, WooCommerce sync, AI bartender modal polish, an admin auth refactor, and BottomNav and Header refactors."
+  },
+  {
+    "date": "2026-09-15",
+    "note": "My Happy Hour B2B and B2C went live at app.myhappyhour.co.ke and Paulette confirmed receipt — \"well received, thank you for the prompt development\" — and scheduled a walkthrough. Two update meetings set for today and tomorrow. Tembea Kenya SMTP test came back successful, and NinjaFirewall security rules auto-updated on 5dm.africa.\n\nBig build day on Fast Cart, 12 commits: the full B2B trade hub on PostgreSQL with document generation and admin APIs, the design spec and implementation plan for B2B stock and costing, the costing schema covering receipts, overrides and landed cost, the pure costing maths for weighted average, logistics allocation and margin classification, per-price-line margin floor configuration, the price-override pricing engine, stock receipts with weighted-average landed cost, bulk stock import and export, consolidated admin tabs, an analytics dashboard, and the rebrand to Happy Hour."
+  },
+  {
+    "date": "2026-09-16",
+    "note": "Ran the My Happy Hour B2B and B2C website update session from 16:00 to 17:00. Accepted the ABSA review prep invite for tomorrow and noted the Cloudflare AI-crawler policy change.\n\nFlagged two \"Balance Due Reminder\" emails claiming to be Google Workspace and Cloud billing, sent from cadexrcc.com to chris@datamuse.net. The domain and formatting do not match Google's actual billing notices — treating these as suspicious and not acting on them.\n\nFour commits on Fast Cart: privacy policy page, expandable search bar, password authentication for trade accounts, and the trade templates API with icons."
+  },
+  {
+    "date": "2026-09-17",
+    "note": "Attended the ABSA / TBWA Creds and Chemistry session, 15:00 to 17:00, cross-team. Grace confirmed the Big Cat Safaris update on Magical Kenya is fixed; still waiting on revised copy for Karunguru Coffee Farm.\n\n17 commits on Bridge, largely the session and scheduling layer: avatar handling, mentors able to view pool applicants with match scores, pagination, programme capacity limits, standardised page headers, session notes management, deep Google Meet and calendar-export and notification work, MariaDB migration support, session passcodes, dial-in fields with timezone handling, session rescheduling with calendar updates, mentee navigation across multiple programmes, and mentor rating aggregation. This completes the technical commitment made to UNHCR on the 9th."
+  },
+  {
+    "date": "2026-09-18",
+    "note": "Forwarded the Hetzner final payment warning to Allen and it was settled the same day. MalCare escalated sharply to 11 vulnerabilities, up from 9 last week, with a new WordPress core vulnerability and a Complianz cookie-consent vulnerability flagged separately — this now needs a dedicated remediation pass rather than another acknowledgement. Five WordPress sites auto-updated to 7.1.1 with no action needed.\n\nHeld the Twende Chalbi feedback call — the team agreed the structure is strong but needs more content before next week's launch. Gathuita confirmed the last of August's delayed salary cleared.\n\nStarted seeing delivery failures on mail to yusuf.ibrahim@refugee.org, the UNHCR-affiliated contact."
+  },
+  {
+    "date": "2026-09-19",
+    "note": "Mavin looped me into the Jihusishe Digital Civic Accountability Platform TOR — gave a same-week technical read that it is standard website development with the extra scope being app development. Fathiya came back that my input is not needed yet, just a review of the RFP. Omnicom asked for the 5DM / Absa / TBWA rate card, committed for COB Monday. KTB site problem context carried over from earlier in the week.\n\nTwo commits on audience-path enabling PR preview deployments and a UI/UX audit remediation covering theming, accessibility, performance and responsiveness."
+  },
+  {
+    "date": "2026-09-20",
+    "note": "The mail to yusuf.ibrahim@refugee.org has now ended in permanent failure after two days of delay notices. Need to identify who this contact is and reach them through another channel, since it ties back to the Bridge work with UNHCR. Otherwise continued on the open threads from Friday — the Jihusishe RFP review and the Absa rate card due Monday."
+  },
+  {
+    "date": "2026-09-21",
+    "note": "Fathiya raised whether to stop work on KTB website maintenance altogether, since it has gone unpaid for 2026 — this ties back to the maintenance PO outstanding since July and needs a decision. Anthony sent through a 13.7MB file on Nexbridge Africa. Cloudflare flagged again that the 5iveafrica.com nameserver setup is still incomplete after four weeks — open since 24 August and now timing out.\n\nSMTP tests passed for My Happy Hour and British Council Season Legacy. ZeptoMail activation pending for tech@5dm.africa within 7 days. Search Console reporting 404s on the Tembea Kenya photography contest pages. Pamela and Suzanne sent detailed content and menu revisions for the Twende Chalbi microsite, which Grace acknowledged and is implementing. Noted the Absa creative brief submission deadline of 5 October. Further MalCare alerts for WordPress core and MC4WP Mailchimp on Magical Kenya.\n\n40 commits on audience-path across develop and feature branches — provenance and confidence fields on the POI table, the job-to-be-done landing shell, a change-announcement banner, Kenya coverage audit and Nigeria scope decision, plan-enforcement middleware, the POI registry API, QA test scaffolds, and a build guard refusing to publish secrets in VITE_ variables. Also a production incident: a PR overwrote App.tsx and another shipped a missing dependency, breaking the build — restored the same day and branch rules reorganised so that work happens on develop rather than main."
+  },
+  {
+    "date": "2026-09-22",
+    "note": "Grace responded to Suzanne on the Twende Chalbi website content and recommendations early, then continued the microsite thread with James and me — more customer-journey content updates to implement. Gathuita acknowledged a tech internship application and copied me for visibility, noting headcount planning is needed before we respond.\n\nNo commits today. Creative are building a NexBridge Africa explainer film around the relaunch — After Effects project files and a full animation script walking through the platform's KYC and matching flow."
+  }
+]
