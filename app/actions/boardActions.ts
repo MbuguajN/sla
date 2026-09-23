@@ -100,7 +100,7 @@ export async function getBoard(boardId: number) {
     const isAdmin = user.role === "ADMIN" || user.role === "CEO";
     const isMember = board.workspace.members.length > 0;
 
-    if (!isOwner && !isAdmin && !isMember) throw unauthenticated();
+    if (!isOwner && !isAdmin && !isMember) throw forbidden("You do not have access to this board. Ask the workspace owner to add you.");
 
     return board;
   });
@@ -213,7 +213,7 @@ export async function inviteToBoard(boardId: number, userId: number) {
 
     const isWsOwner = board.workspace.ownerId === user.id;
     const isWsMember = await db.workspaceMember.findFirst({ where: { workspaceId: board.workspaceId, userId: user.id } });
-    if (!isWsOwner && !isWsMember) throw unauthenticated();
+    if (!isWsOwner && !isWsMember) throw forbidden("Only workspace members can invite people to this board.");
 
     const existing = await db.boardMember.findUnique({ where: { boardId_userId: { boardId, userId } } });
     if (existing) return existing;
@@ -256,7 +256,7 @@ export async function removeBoardMember(boardId: number, userId: number) {
     const board = await db.board.findUnique({ where: { id: boardId }, include: { workspace: true } });
     if (!board) throw notFound("That board no longer exists. Refresh the page.");
 
-    if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw unauthenticated();
+    if (board.workspace.ownerId !== user.id && user.role !== "ADMIN" && user.role !== "CEO") throw forbidden("Only the workspace owner can remove members from this board.");
 
     await db.boardMember.delete({ where: { boardId_userId: { boardId, userId } } });
     revalidatePath("/board");
@@ -324,7 +324,7 @@ export async function getBoardData(boardId: number) {
     if (board.visibility === "WORKSPACE" && isWsMember) return board;
 
     // Otherwise: no access
-    throw unauthenticated();
+    throw forbidden("This board is private. Ask the workspace owner for access.");
   });
 }
 
@@ -395,6 +395,42 @@ export async function updateBoardVisibility(boardId: number, visibility: BoardVi
  * LIST MUTATIONS
  */
 
+/**
+ * Who may rename, delete or lock a list.
+ *
+ * Lists on generated project boards belong to the team, not to one person:
+ * `ensureProjectBoard` creates the board's default "List 1" with no
+ * `createdById` at all, so nobody was its creator and only the workspace owner
+ * could ever touch it. Those lists are treated as shared and anyone signed in
+ * may manage them. A list someone created on a standalone board still belongs
+ * to them.
+ *
+ * Returns the list so callers don't fetch it twice.
+ */
+async function requireListAccess(
+  listId: number,
+  user: { id: number; role: string },
+  verb: string
+) {
+  const list = await db.boardList.findUnique({
+    where: { id: listId },
+    include: { board: { include: { workspace: true } } },
+  });
+  if (!list) throw notFound("That list no longer exists. Refresh the page.");
+
+  const isGeneratedBoard = list.board.type === "PROJECT";
+  const hasNoCreator = list.createdById === null;
+  const isCreator = list.createdById === user.id;
+  const isWsOwner = list.board.workspace.ownerId === user.id;
+  const isAdmin = user.role === "ADMIN" || user.role === "CEO";
+
+  if (isGeneratedBoard || hasNoCreator || isCreator || isWsOwner || isAdmin) {
+    return list;
+  }
+
+  throw forbidden(`Only the person who created this list, or the workspace owner, can ${verb} it.`);
+}
+
 export async function createList(boardId: number, title: string) {
   return runAction("createList", async () => {
     const user = await getCurrentUser();
@@ -417,14 +453,8 @@ export async function renameList(listId: number, title: string) {
     const user = await getCurrentUser();
     if (!user) throw unauthenticated();
 
-    const list = await db.boardList.findUnique({ where: { id: listId } });
-    if (!list) throw notFound("That list no longer exists. Refresh the page.");
+    const list = await requireListAccess(listId, user, "rename");
     if (list.isRestricted) throw forbidden("This list is locked. Unlock it from the list menu before making changes.");
-
-    const isCreator = list.createdById === user.id;
-    const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-    const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-    if (!isCreator && !isWsOwner) throw unauthenticated();
 
     await db.boardList.update({ where: { id: listId }, data: { title } });
     revalidatePath("/board");
@@ -436,13 +466,7 @@ export async function deleteList(listId: number) {
     const user = await getCurrentUser();
     if (!user) throw unauthenticated();
 
-    const list = await db.boardList.findUnique({ where: { id: listId } });
-    if (!list) throw notFound("That list no longer exists. Refresh the page.");
-
-    const isCreator = list.createdById === user.id;
-    const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-    const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-    if (!isCreator && !isWsOwner) throw unauthenticated();
+    await requireListAccess(listId, user, "delete");
 
     await db.boardList.delete({ where: { id: listId } });
     revalidatePath("/board");
@@ -454,13 +478,7 @@ export async function toggleListRestrict(listId: number) {
     const user = await getCurrentUser();
     if (!user) throw unauthenticated();
 
-    const list = await db.boardList.findUnique({ where: { id: listId } });
-    if (!list) throw notFound("That list no longer exists. Refresh the page.");
-
-    const isCreator = list.createdById === user.id;
-    const board = await db.board.findUnique({ where: { id: list.boardId }, include: { workspace: true } });
-    const isWsOwner = board?.workspace.ownerId === user.id || user.role === "ADMIN" || user.role === "CEO";
-    if (!isCreator && !isWsOwner) throw unauthenticated();
+    const list = await requireListAccess(listId, user, "lock or unlock");
 
     await db.boardList.update({ where: { id: listId }, data: { isRestricted: !list.isRestricted } });
     revalidatePath("/board");

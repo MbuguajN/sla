@@ -1264,18 +1264,30 @@ export default function BoardWorkbenchClient({
                       t.style.height = t.scrollHeight + 'px';
                     }}
                     onBlur={async (e) => {
-                      const newTitle = e.currentTarget.value.trim();
+                      const field = e.currentTarget;
+                      const newTitle = field.value.trim();
                       if (newTitle && newTitle !== list.title) {
                         const listDbId = Number(list.id.replace("l-", ""));
                         try {
-                          { const r = await run(renameList(listDbId, newTitle)); if (!r.ok) return; }
+                          const r = await run(renameList(listDbId, newTitle));
+                          if (!r.ok) {
+                            // The textarea is uncontrolled (defaultValue), so a
+                            // rejected rename would otherwise keep showing the new
+                            // text as though it had been saved.
+                            field.value = list.title;
+                            return;
+                          }
                           setListsByBoard(prev => {
                             const boardIdStr = activeBoard?.id;
                             if (!boardIdStr) return prev;
                             const lists = prev[boardIdStr] || [];
                             return { ...prev, [boardIdStr]: lists.map((l: any) => l.id === list.id ? { ...l, title: newTitle } : l) };
                           });
-                        } catch (err) { console.error(err); setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" }); }
+                        } catch (err) {
+                          console.error(err);
+                          field.value = list.title;
+                          setToast({ message: "Could not reach the server. Check your connection and try again.", severity: "error" });
+                        }
                       }
                     }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }}
